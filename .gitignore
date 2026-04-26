@@ -1,0 +1,24 @@
+# Build artifacts
+target/
+vendor/*/target/
+
+# Cargo
+**/*.rs.bk
+
+# Local tool state
+.code-intel/
+.playwright-mcp/
+
+# Vendored upstream checkouts are managed separately.
+vendor/graphrag-rs/
+vendor/graphrag-rs-claude-spike/
+
+# Editor / IDE
+*.swp
+*~
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

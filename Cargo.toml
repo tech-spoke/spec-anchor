@@ -1,0 +1,28 @@
+[package]
+name = "spec-grag"
+version = "0.1.0"
+edition = "2021"
+description = "Specification authoring assistant powered by GraphRAG"
+
+[[bin]]
+name = "spec-grag"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+thiserror = "1"
+serde_json = "1"
+glob = "0.3"
+
+# graphrag-core (vendor/graphrag-rs を path 依存)
+graphrag-core = { path = "vendor/graphrag-rs/graphrag-core" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
