@@ -7,7 +7,7 @@
 1. **`doc/EXTERNAL_DESIGN.ja.md`** — 外部契約（source of truth、不変）
 2. **`doc/DESIGN.ja.md`** — 現時点での方針、設計判断の境界、不確定項目
 3. **本ファイル `CLAUDE.md`** — 不変ルール（本書）
-4. memory `~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/MEMORY.md` 経由で `project_engine_pivot.md`, `project_first_use_case.md`, `feedback_*.md` 8 件
+4. memory `~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/MEMORY.md` 経由で `project_*.md` 2 件、`feedback_*.md` 9 件
 5. 必要に応じて `BAK/` 配下を参考（過去の議論・調査の参照のみ、戻らない）
 
 ## 不変ルール（pivot を超えて生きる、ユーザーから明示された原則）
@@ -98,18 +98,40 @@
 SPEC-grag の役割分担（決定済）：
 
 - **Human**: Purpose 確定、Concept 承認、Custom schema 承認、最終仕様判断
-- **CLI / Orchestrator**: 変更検出、未承認 Concept 遮断、5 分類オーケストレーション、InjectionContext 構築
+- **CLI / Orchestrator**: 変更検出、未承認 Concept 遮断、4 軸評価のオーケストレーション、InjectionContext 構築
 - **LLM (Extraction)**: ChapterAnchor の意味要素抽出、Concept 更新候補生成、Entity/Relation 候補抽出
-- **LLM (Classification)**: GRAG 検索結果を課題に対して 5 分類（Validator の deterministic 検査を経る）
-- **LLM (Answer)**: InjectionContext に拘束された回答生成（自由回答ではない）
+- **LLM (Classification)**: GRAG 検索結果に対する 4 軸評価の付与（Validator の deterministic 検査を経る）
+- **LLM (Answer)**: InjectionContext / RealignResult に拘束された回答生成（自由回答ではない）
 - **GRAG subsystem**: 候補生成・検索・探索（判断はしない）
-- **GraphRAG library**（LlamaIndex / Neo4j / Microsoft GraphRAG 等）: GRAG subsystem の内部実装候補に過ぎない
+- **GraphRAG library**（LlamaIndex / Neo4j / Microsoft GraphRAG 等）: GRAG subsystem の内部実装候補に過ぎない、すべて candidate_only（DESIGN.ja.md §1.8）
 
 ChapterAnchor のような **共同責務** は、各役割を最初に分けてから組み立てる（CLI/Parser が文書構造、LLM (Extraction) が意味要素、GRAG Builder が保存）。
 
-詳細な責務マトリクスは [doc/DESIGN.ja.md §1.1〜§1.6](doc/DESIGN.ja.md) を参照。
+詳細な責務マトリクスは [doc/DESIGN.ja.md §1.1〜§1.9](doc/DESIGN.ja.md) を参照。
 
 関連 memory: `feedback_role_separation_first.md`
+
+### ルール 8: Agent の raw source read を制限する
+
+Agent (Claude / Codex CLI) は spec-grag CLI の外側で動く実行制御層であり、Answer 生成時に **raw source spec を直接制約として使ってはいけない**。制約・修正対象・競合候補は **InjectionContext / RealignResult 経由のみ**使用する。
+
+許可される Agent の Read：
+
+- Agentic search の事前調査（GRAG 検索クエリ生成のためのキーワード抽出）
+- evidence inspection / debug / human review
+
+禁止される Agent の Read：
+
+- Answer 生成時に raw source の内容を直接 Answer に組み込む
+- InjectionContext を経由せず source spec を Answer の根拠として引用する
+- 未承認 Concept を含む章ファイルを Answer に混ぜる
+- ConstraintContext / TargetContext / ConflictNotes / ReviewNotes に存在しない情報を Answer 制約として持ち込む
+
+理由：Agent が raw source を読めると、Orchestrator の **未承認 Concept 遮断**を迂回してしまう。spec-grag の判断契約は CLI / Orchestrator が持つ（ルール 7）ので、Agent は CLI が出力した構造化情報のみを使って Answer を生成する。
+
+詳細は [doc/DESIGN.ja.md §1.7](doc/DESIGN.ja.md) を参照。
+
+関連 memory: `feedback_agent_read_restriction.md`
 
 ## 過去の手戻り（同じ轍を踏まない）
 
@@ -128,6 +150,7 @@ ChapterAnchor のような **共同責務** は、各役割を最初に分けて
 | `feedback_capture_findings.md` | 実装中の気付きを即座にメモする |
 | `feedback_spec_not_worklog.md` | 資料には決定内容と TODO のみ、作業メモとしない |
 | `feedback_role_separation_first.md` | 実装より先に役割分担を考える、責務境界を最初に整理する |
+| `feedback_agent_read_restriction.md` | Agent の raw source read を制限する、Answer は InjectionContext 経由のみ |
 | `project_engine_pivot.md` | pivot 経緯と暫定採用スキーマ |
 | `project_first_use_case.md` | ec-spoke.local 事例 |
 
