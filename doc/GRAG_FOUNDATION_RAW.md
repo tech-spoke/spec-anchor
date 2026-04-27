@@ -2381,6 +2381,33 @@ README.md より引用（行 1000-1085）：
 
 **未確認の自己申告**：個別 feature 同士の組み合わせ可否の網羅、persistent-storage と neural-embeddings の排他理由の確認、graphrag_py の Cargo.toml 全体（name 行のみ確認）。
 
+> **注記**：以下は Bash の生出力をそのまま貼ったブロック。`=== ... ===` は出力区切り（TOML 構文ではない）、`# xxx` は Cargo.toml のコメント行。コードブロック内なので Markdown 見出しには解釈されない。
+
+```text
+=== workspace Cargo.toml の冒頭 ===
+[workspace]
+members = [
+    "graphrag-core",
+    "graphrag-wasm",
+    "graphrag-server",
+    "graphrag-cli",
+    "graphrag_py",
+    "graphrag",
+]
+exclude = ["examples/web-app"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["GraphRAG-RS Contributors"]
+license = "MIT"
+repository = "https://github.com/automataIA/graphrag-rs"
+homepage = "https://github.com/automataIA/graphrag-rs"
+readme = "README.md"
+
+[workspace.dependencies]
 # Core dependencies (shared across crates)
 serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
@@ -2640,6 +2667,4 @@ description = "GraphRAG - Knowledge Graph RAG: meta-crate that bundles graphrag-
 --- /home/kazuki/public_html/spec-grag/vendor/graphrag-rs/graphrag_py/Cargo.toml ---
 name = "graphrag_py"
 name = "graphrag_py"
-
----
-
+```
