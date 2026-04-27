@@ -5,24 +5,24 @@
 ## 必読ドキュメント（新セッション開始時、この順序で）
 
 1. **`doc/EXTERNAL_DESIGN.ja.md`** — 外部契約（source of truth、不変）
-2. **`doc/DESIGN.ja.md`** — 現時点での方針、採らない案、不確定項目
+2. **`doc/DESIGN.ja.md`** — 現時点での方針、設計判断の境界、不確定項目
 3. **本ファイル `CLAUDE.md`** — 不変ルール（本書）
-4. memory `~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/MEMORY.md` 経由で `project_engine_pivot.md`, `project_first_use_case.md`, `feedback_*.md` 6 件
+4. memory `~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/MEMORY.md` 経由で `project_engine_pivot.md`, `project_first_use_case.md`, `feedback_*.md` 8 件
 5. 必要に応じて `BAK/` 配下を参考（過去の議論・調査の参照のみ、戻らない）
 
 ## 不変ルール（pivot を超えて生きる、ユーザーから明示された原則）
 
 ### ルール 1: 土台がない状態で設計を議論しない
 
-採用フレームワーク（現在は Python + LlamaIndex PropertyGraphIndex + SimplePropertyGraphStore + SchemaLLMPathExtractor を**候補として暫定採用**）に「どういう機能があり、どう利用できるのか」が不明なままでは、設計は土台不足のまま破綻する。
+**採用方針として「Python + LlamaIndex 系のエコシステム」で行くことは決定済**（pivot 後、commit b45d95f, 2026-04-27）。ただし、**具体 API**（PropertyGraphIndex / SimplePropertyGraphStore / SchemaLLMPathExtractor 等）の API 詳細・組み合わせ動作・永続化粒度・incremental update 方式は **未確認**。
 
-これは graphrag-rs 時代の Phase 0 原則だが、**pivot を超えて生きている**。LlamaIndex でも同じく：
+「どういう機能があり、どう利用できるのか」が不明なままでは、設計は土台不足のまま破綻する。これは graphrag-rs 時代の Phase 0 原則だが、**pivot を超えて生きている**。LlamaIndex でも同じく：
 
 - 機能カタログを把握する（何ができるか、何ができないか、何がプレースホルダか）
 - 典型利用シーケンスをコード断片レベルで確認する
 - 限界・既知の罠を実装レベルで把握する
 
-これが揃うまで詳細設計（DESIGN.ja.md §1.2 のような採用候補スタックや §2 のスキーマ運用）を**「最終方針」「採用」と確定しない**。
+これが揃うまで具体 API の **利用方法** を「最終方針」「採用」と確定しない。「LlamaIndex 系で行く」という採用方針自体は確定済（DESIGN.ja.md §1.4）。
 
 関連 memory: `feedback_no_design_without_foundation.md`
 
@@ -77,6 +77,40 @@
 
 関連 memory: `feedback_spec_not_worklog.md`
 
+### ルール 7: 実装より先に役割分担を考える
+
+設計判断・実装に入る前に、まず **「誰が何を持つか」（責務境界）** を整理する。フレームワーク選定（LlamaIndex 採用 / Neo4j 採用 等）や実装手段の議論はその後。
+
+順序：
+
+1. プロジェクトの判断契約・実行契約を **役割別に分解**する
+2. 各役割を **誰が持つか**（Human / CLI / Orchestrator / LLM 用途別 / GRAG / Library）を決める
+3. その後で、各役割を実装する **手段**（フレームワーク・ライブラリ・API）を選ぶ
+
+順序を逆にしない。「LlamaIndex を採用する → そこに何を任せるか考える」ではなく、「役割分担を決める → 各役割を実装する手段を選ぶ」。
+
+役割分担を最初に決めないと起きること：
+
+- GRAG / GraphRAG ライブラリに **判断契約**まで委譲してしまう（GRAG は候補生成・検索基盤、判断主体ではない）
+- LLM に「全部やらせよう」となる（用途別に分離すべき：**Extraction / Classification / Answer**）
+- 「最初のユースケース」のドメイン語彙が標準スキーマに紛れ込む（汎用性が損なわれる）
+
+SPEC-grag の役割分担（決定済）：
+
+- **Human**: Purpose 確定、Concept 承認、Custom schema 承認、最終仕様判断
+- **CLI / Orchestrator**: 変更検出、未承認 Concept 遮断、5 分類オーケストレーション、InjectionContext 構築
+- **LLM (Extraction)**: ChapterAnchor の意味要素抽出、Concept 更新候補生成、Entity/Relation 候補抽出
+- **LLM (Classification)**: GRAG 検索結果を課題に対して 5 分類（Validator の deterministic 検査を経る）
+- **LLM (Answer)**: InjectionContext に拘束された回答生成（自由回答ではない）
+- **GRAG subsystem**: 候補生成・検索・探索（判断はしない）
+- **GraphRAG library**（LlamaIndex / Neo4j / Microsoft GraphRAG 等）: GRAG subsystem の内部実装候補に過ぎない
+
+ChapterAnchor のような **共同責務** は、各役割を最初に分けてから組み立てる（CLI/Parser が文書構造、LLM (Extraction) が意味要素、GRAG Builder が保存）。
+
+詳細な責務マトリクスは [doc/DESIGN.ja.md §1.1〜§1.6](doc/DESIGN.ja.md) を参照。
+
+関連 memory: `feedback_role_separation_first.md`
+
 ## 過去の手戻り（同じ轍を踏まない）
 
 過去セッションで犯した手戻りの教訓集は [doc/CLAUDE_NOTES.md](doc/CLAUDE_NOTES.md) に分離した。新セッション開始時に併せて参照する。
@@ -93,6 +127,7 @@
 | `feedback_structural_analysis.md` | 比較するなら最初に「軸」を立てる |
 | `feedback_capture_findings.md` | 実装中の気付きを即座にメモする |
 | `feedback_spec_not_worklog.md` | 資料には決定内容と TODO のみ、作業メモとしない |
+| `feedback_role_separation_first.md` | 実装より先に役割分担を考える、責務境界を最初に整理する |
 | `project_engine_pivot.md` | pivot 経緯と暫定採用スキーマ |
 | `project_first_use_case.md` | ec-spoke.local 事例 |
 
