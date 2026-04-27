@@ -218,42 +218,56 @@ Answer 生成時の制約・修正対象・競合候補は **InjectionContext / 
 
 未定義の extractor / store は **unavailable** として扱う。採用候補の追加は §4.1 の表面マップ調査結果に基づいてのみ行う。
 
-### 1.9 内部処理フロー（責務分担）
+### 1.9 内部処理フロー（責務分担、3 コマンド × 4 経路）
 
-3 コマンドの内部処理を、§1.1 の責務境界と §1.5〜§1.8 の制約に従って実行する。
+3 コマンドの内部処理を、§1.1 の責務境界と §1.5〜§1.8 の制約に従って実行する。`/spec-core` は incremental / --all の 2 経路、計 4 経路すべてが一気通貫で動作する必要がある。
 
 ```text
-/spec-core
+経路 1: /spec-core incremental（変更分のみ）
   1. CLI: .spec-grag/config.toml 読み込み
   2. CLI: Source specs の変更検出（hash / section 差分、決定的）
   3. CLI: 変更 Section 特定
-  4. CLI → GRAG Builder: ChapterAnchor / Entity / Relation / Cluster の更新依頼
-  5. ChapterAnchor 生成（共同責務）
+  4. CLI → GRAG Builder: 変更 Section の ChapterAnchor / Entity / Relation / Cluster を更新依頼
+  5. ChapterAnchor 生成（共同責務、変更 Section のみ）
      - CLI / Parser: 文書構造（document_id, section_id, heading_path,
                                    source_hash, source_span）を決定的に生成
      - LLM (Extraction): 意味要素（summary, key_concepts,
                                        candidate_constraints, mentions）を抽出
-     - GRAG Builder: schema validation して保存
-  6. LLM (Extraction) + GRAG: Concept 更新候補を生成
+     - GRAG Builder: schema validation + stale node/edge 除去 + 新 node/edge 追加
+  6. LLM (Extraction) + GRAG: 影響を受ける Concept の更新候補を生成
   7. CLI: Concept diff を Human に提示
   8. Human: accept / reject / 修正指示
   9. CLI: 未承認の場合は Concept を更新せず停止
 
-/spec-inject
-  1. CLI: /spec-core incremental を内部実行
-  2. Orchestrator: Concept diff が未承認なら停止（InjectionContext を生成しない）
+経路 2: /spec-core --all（全再構築）
+  1. CLI: .spec-grag/config.toml 読み込み
+  2. CLI: 既存 graph store / chapter_index / concept_index を破棄
+         （または別パスへバックアップ）
+  3. CLI: sources.include の全 Section を対象として再生成
+  4. CLI → GRAG Builder: 全 Section の ChapterAnchor / Entity / Relation / Cluster を生成
+  5. ChapterAnchor 生成（共同責務、全 Section）
+     - 経路 1 の Step 5 と同じ（CLI/Parser + LLM Extraction + GRAG Builder の協働）
+  6. LLM (Extraction) + GRAG: 全 Concept の再生成候補を作成
+  7. CLI: Concept diff を Human に提示（全章再生成での diff）
+  8. Human: accept / reject / 修正指示
+  9. CLI: 未承認の場合は Concept を更新せず停止
+
+経路 3: /spec-inject
+  1. CLI: 経路 1（/spec-core incremental）を内部実行
+  2. Orchestrator: Concept diff が未承認なら停止
+                   （InjectionContext を生成しない）
   3. CLI: ConversationContext + 課題プロンプト取得
   4. Orchestrator: Purpose を必ず ConstraintContext 候補に追加（自動）
   5. CLI → GRAG Retriever: 関連候補（node, relation, source span,
                                        evidence, confidence, score）を取得
-  6. LLM (Classification) + Orchestrator: 4 軸評価を付与
+  6. LLM (Classification) + Orchestrator: 4 軸評価を付与（transient annotation）
      - constraint_relevance / target_relevance / conflict / review_required
      - LLM が出すのは候補（review_required, semantic_conflict_candidate）まで
   7. Validator: schema / source / concept approval / Conflict 昇格を deterministic に検査
   8. Orchestrator: InjectionContext を構造化出力（§1.6 のフィールド対応に従う）
 
-/spec-realign
-  1. /spec-inject 相当で InjectionContext を作成
+経路 4: /spec-realign
+  1. 経路 3（/spec-inject 相当）で InjectionContext を作成
   2. LLM (Answer): InjectionContext / RealignResult に拘束された回答を生成
      - 守る制約（ConstraintContext）
      - 修正候補（TargetContext）
@@ -263,7 +277,13 @@ Answer 生成時の制約・修正対象・競合候補は **InjectionContext / 
   3. Orchestrator: RealignResult を構造化出力
 ```
 
-ChapterAnchor は **retrieval artifact** であり、判断主体ではない。`/spec-core` で生成・更新するが、「課題に対して制約か修正対象か」は確定しない。その評価は `/spec-inject` または `/spec-realign` で課題に応じて 4 軸評価を付与する。
+**経路間の依存関係（一気通貫の前提）**:
+
+- 経路 3 / 4 は経路 1（incremental）を内部で呼ぶ → Concept diff 未承認時は停止する
+- 経路 2（--all）は単独実行のみ。経路 3 / 4 から呼ばれない
+- 4 経路すべてが Phase 1 のレビュー基準（§4.1 → Phase 1 で再評価）
+
+ChapterAnchor は **retrieval artifact** であり、判断主体ではない。`/spec-core`（経路 1 / 2 両方）で生成・更新するが、「課題に対して制約か修正対象か」は確定しない。その評価は `/spec-inject` または `/spec-realign` で課題に応じて 4 軸評価（transient annotation）を付与する。
 
 ---
 
