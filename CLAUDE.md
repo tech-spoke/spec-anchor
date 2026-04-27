@@ -24,7 +24,11 @@
 
 これが揃うまで具体 API の **利用方法** を「最終方針」「採用」と確定しない。「LlamaIndex 系で行く」という採用方針自体は確定済（DESIGN.ja.md §1.4）。
 
-関連 memory: `feedback_no_design_without_foundation.md`
+**役割分担も同じく、調査結果を踏まえて確定する**。GraphRAG / LlamaIndex の機能・限界が未確認の状態では、責務境界（DESIGN.ja.md §1.1〜§1.9）はすべて **仮分担**。調査前に「決定」と書かない。ルール 7 の「役割分担を実装より先に考える」は、**調査が完了した上での役割分担の確定** を意味する。役割分担「自体」を調査前に確定してはいけない。
+
+設計手順とフェーズ管理は [doc/TODO.md](doc/TODO.md) を参照（調査 → 仮分担 → レビュー → 設計書反映）。
+
+関連 memory: `feedback_no_design_without_foundation.md`, `feedback_design_procedure.md`
 
 ### ルール 2: 推論カットの都合で不明な事をもっともらしく提示しない
 
