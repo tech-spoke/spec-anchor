@@ -54,6 +54,24 @@
 
 関連 memory: `feedback_full_scope_enumeration.md`
 
+### ルール 6: 資料には決定内容と TODO のみを書く、作業メモとしない
+
+仕様書・設計書・契約書（`doc/EXTERNAL_DESIGN.ja.md`, `doc/DESIGN.ja.md` 等）には以下のみを書く：
+
+- **決定された内容**（現時点での方針、確定スキーマ、確定アーキテクチャ）
+- **未確定の TODO**（不確定項目セクションで明示、解消されるまで実装に着手しない）
+
+書かないもの：
+
+- 議論プロセスの時系列（Phase 1, 2, 3, 4 のような作業段階）
+- 過去の選定経緯（採用しなかった候補の評価、検討した代替案の議論）
+- 作業メモ（途中経過、議論の振り返り、自分用の覚書）
+- 「最初のユースケース」固有の詳細（汎用設計を引きずる原因）
+
+私用の作業メモが必要なら、リポジトリ内別ファイル（例：[doc/CLAUDE_NOTES.md](doc/CLAUDE_NOTES.md)）または memory に書く。仕様書本体には混ぜない。
+
+関連 memory: `feedback_spec_not_worklog.md`
+
 ## 過去の手戻り（同じ轍を踏まない）
 
 過去セッションで犯した手戻りの教訓集は [doc/CLAUDE_NOTES.md](doc/CLAUDE_NOTES.md) に分離した。新セッション開始時に併せて参照する。
@@ -69,6 +87,7 @@
 | `feedback_no_minimum_cost_escape.md` | 「最小コスト」「MVP」を判断回避の逃げ口にしない |
 | `feedback_structural_analysis.md` | 比較するなら最初に「軸」を立てる |
 | `feedback_capture_findings.md` | 実装中の気付きを即座にメモする |
+| `feedback_spec_not_worklog.md` | 資料には決定内容と TODO のみ、作業メモとしない |
 | `project_engine_pivot.md` | pivot 経緯と暫定採用スキーマ |
 | `project_first_use_case.md` | ec-spoke.local 事例 |
 
