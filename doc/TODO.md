@@ -116,13 +116,18 @@ DESIGN.ja.md §1.1〜§1.3, §1.5〜§1.9 はすべて **仮分担**。§4.1 Lla
 
 各項目について「調査対象 / 確認した API / 実測・検証結果 / spec-grag への影響 / 判定」を埋める。実測は Phase 0.5 と並行する。
 
+**前提（決定、DESIGN.ja.md §1.4）**: 生成系 LLM は **サブスク認証 Claude/Codex CLI を subprocess external reasoning/extraction worker として扱う**。embedding は **Ollama nomic-embed-text** をローカル embedding model として採用。LlamaIndex `LLM` interface への直接組込は Phase 0 では前提にしない。Phase 0 では DESIGN.ja.md §4.1 の **案 A / B / C** のどの統合方式が現実的かの判断材料を取る。
+
 - [ ] `PropertyGraphIndex` の API 安定度
   - v0.10 系での変更頻度、Breaking change の頻度
   - コア API（add / build / query / persist / reload）の実体
-- [ ] `SchemaLLMPathExtractor` の制約強度
-  - プロンプトレベル止まりか、型システムレベルまで
-  - スキーマ受理形式（dataclass / pydantic / dict / TypedDict）
-  - `strict=True` で schema 外 triplet が拒否されるか
+- [ ] `SchemaLLMPathExtractor` の制約強度と統合方式（DESIGN §4.1 の 2a〜2f を実証）
+  - 2a: LlamaIndex `LLM` interface 要求（同期 completion / async / streaming / structured output）→ 案 B の前提検証
+  - 2b: スキーマ受理形式（dataclass / pydantic / dict / TypedDict）
+  - 2c: `strict=True` で schema 外 triplet が拒否されるか
+  - 2d: 事前抽出済み triplet / nodes / relations を `PropertyGraphIndex` に直接投入する API の有無（案 A の前提）
+  - 2e: `kg_extractors` に独自 extractor を差せるか、複数 extractor を組み合わせられるか（案 C の前提）
+  - 2f: `ImplicitPathExtractor` 等の LLM 不要 extractor の存在と用途範囲
 - [ ] `SimplePropertyGraphStore` の永続化粒度
   - 章別 vs 全体一括の制御可否
   - pickle / JSON / parquet
@@ -136,6 +141,8 @@ DESIGN.ja.md §1.1〜§1.3, §1.5〜§1.9 はすべて **仮分担**。§4.1 Lla
 - [ ] **transient annotation**（4 軸評価）を retrieval result / Orchestrator 側に持つ実装パターン
 - [ ] `/spec-core --all`（全再構築）の API 上の挙動（既存 graph store の破棄 / バックアップ / 上書き、persist の冪等性）
 - [ ] `/spec-core incremental` の stale 除去と新規追加の整合性（変更章の旧 entity/relation がどう除去されるか、新 entity/relation との整合）
+- [ ] **Ollama embedding 接続**: `llama-index-embeddings-ollama` の API 形式、PropertyGraphIndex / Retriever への注入経路、batch / async 対応
+- [ ] **Claude/Codex CLI subprocess の最小確認**: non-interactive mode（`codex exec` 等）の入出力契約、JSON 整形可否、timeout / 認証切れ / 出力揺れの扱い、サブスク利用上限の挙動
 
 ### Phase 0.5：最小実行スパイク（Phase 0 の各項目を実コードで確認）
 
