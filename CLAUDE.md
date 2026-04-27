@@ -26,7 +26,15 @@
 
 **役割分担も同じく、調査結果を踏まえて確定する**。GraphRAG / LlamaIndex の機能・限界が未確認の状態では、責務境界（DESIGN.ja.md §1.1〜§1.9）はすべて **仮分担**。調査前に「決定」と書かない。ルール 7 の「役割分担を実装より先に考える」は、**調査が完了した上での役割分担の確定** を意味する。役割分担「自体」を調査前に確定してはいけない。
 
-設計手順とフェーズ管理は [doc/TODO.md](doc/TODO.md) を参照（調査 → 仮分担 → レビュー → 設計書反映）。
+**「調査完了」の判定基準**:
+
+- WebFetch / 公式 docs / GitHub 確認だけでは不十分（雰囲気で判定しない）
+- **最小実行スパイク**で挙動を実証する（doc/TODO.md の Phase 0.5）
+- 調査成果物は **固定フォーマット**で記録する（doc/TODO.md「調査成果物フォーマット」）
+- 検証した **package version / commit を pin** して記録する（latest を根拠に設計確定しない）
+- 実証できなかった項目は `unknown` のまま残す（推測で埋めない、ルール 2, 3）
+
+設計手順とフェーズ管理、調査成果物フォーマット、最小実行スパイク、version pin 方針は [doc/TODO.md](doc/TODO.md) を参照。
 
 関連 memory: `feedback_no_design_without_foundation.md`, `feedback_design_procedure.md`
 
