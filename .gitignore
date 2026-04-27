@@ -1,17 +1,38 @@
-# Build artifacts
-target/
-vendor/*/target/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# Cargo
-**/*.rs.bk
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
 
-# Local tool state
+# Distribution / packaging
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Testing / linting caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Tool state
+.python-version
 .code-intel/
 .playwright-mcp/
-
-# Vendored upstream checkouts are managed separately.
-vendor/graphrag-rs/
-vendor/graphrag-rs-claude-spike/
 
 # Editor / IDE
 *.swp
@@ -22,3 +43,6 @@ vendor/graphrag-rs-claude-spike/
 # OS
 .DS_Store
 Thumbs.db
+
+# spec-grag runtime artifacts (per-project graph storage created during testing)
+.spec-grag/graph/
