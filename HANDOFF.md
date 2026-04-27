@@ -3,6 +3,10 @@
 > 前セッションで設計フェーズが完了し、実装の MVP スケルトンが動作するところまで進んだ。本ファイルは新セッションで最小コストで実装を続けるための引き継ぎ。
 > 設計の本体は [doc/DESIGN.md](doc/DESIGN.md) を参照。本ファイルは「進捗」「残り作業」「環境状態」「実装上の注意点」のみを扱う。
 
+> ⚠️ **2026-04-27 時点の状態：実装はブロック中**。GRAG の利用方法に根本的な誤解があったため、設計フェーズ自体を一旦巻き戻し、graphrag-rs の機能体系を俯瞰する **土台作り** に戻った。
+> 詳細：[doc/FOUNDATION_PLAN.md](doc/FOUNDATION_PLAN.md)（Phase 1 完了、Phase 2 未着手）／[doc/EXTERNAL_DESIGN.ja.md](doc/EXTERNAL_DESIGN.ja.md)（spec-grag が満たすべき外部契約）／[doc/DESIGN.ja.md](doc/DESIGN.ja.md)（Codex 版の詳細設計、Phase 4 で再構築対象）。
+> 旧設計 [doc/DESIGN_old.md](doc/DESIGN_old.md) と本書の §1.7 以降に書かれた実装方針は、Phase 4 の判断後に大幅修正される可能性が高い。土台作り（FOUNDATION_PLAN.md Phase 2-4）が完了するまで本書の §2 残り作業には**着手しない**。
+
 ---
 
 ## 1. 完了済み
