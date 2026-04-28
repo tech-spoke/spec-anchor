@@ -194,7 +194,77 @@ DESIGN.ja.md §4.1 で立てた **案 A / 案 B / 案 C** は「LlamaIndex / Cla
 - **`kg_extractors=[ImplicitPathExtractor()]`** は R2（空リスト回避）として渡す。これは案 C の最小特殊形にあたる
 - **案 B は MVP では不採用**。Phase 3（実装着手後）で「LlamaIndex 内蔵 SchemaLLMPathExtractor の prompt / pydantic 強制を活用したい」となれば再評価する選択肢として残す
 
+**ただし、案 A は LlamaIndex（GraphRAG エコシステム）の本体機能の大半を捨てる選択であり、その代償は §3.5 にすべて列挙する**。§3.6 では推奨者（Claude）の選好バイアスを開示する。**ユーザーが §3.5 / §3.6 を読んだ上で案 A を承認するかどうかが採用判断の本体**。
+
 **この採用方針で動かすために確定した運用ルール（R1-R5）は §4 に記載**。
+
+---
+
+### 3.5 案 A が捨てる GRAG（LlamaIndex Property Graph）の機能
+
+LlamaIndex Property Graph が標準で提供する機能のうち、案 A は以下をすべて捨てる。**spec-grag が自前実装する必要がある**。
+
+| 機能カテゴリ | LlamaIndex 標準で提供されるもの | 案 A での扱い（spec-grag 自前実装が必要）|
+|---|---|---|
+| **schema 強制プロンプト設計** | `DEFAULT_SCHEMA_PATH_EXTRACT_PROMPT` + Literal 型 / List[Triple] から自動生成。LLM への prompt 工学を LlamaIndex に任せられる | spec-grag が日本語 prompt を自前で組み立てる（schema 表現・例示・instruction tuning すべて）|
+| **pydantic strict validation（schema 外 triplet 拒否）** | `kg_schema_cls` + `create_model` + `Literal` 型で **schema 違反は ValidationError で即拒否**（spike 02 で確認の落とし穴メカニズム）| spec-grag が JSON parse 後に自前で validate。CLI 側 `--json-schema` / `--output-schema` に任せても、その厳密性は CLI 実装依存（LlamaIndex の pydantic ほど強くない可能性）|
+| **schema 違反時の retry ロジック** | LlamaIndex 内蔵の retry（プロンプトを修正して再試行、最大回数制御）| spec-grag が retry ループを自前実装。「違反検出 → 修正 prompt → 再試行 → 失敗時のフォールバック」を独自設計 |
+| **chunk 単位の抽出量制御** | `max_triplets_per_chunk` 引数で 1 chunk から抽出する triplet 上限を制御 | spec-grag が章 / セクション / chunk 境界を自前で判断、抽出量を独自にチューニング |
+| **並列実行（concurrent batch）** | `num_workers` 引数で自動並列化。async pipeline で章単位 non-blocking 実行 | spec-grag が `asyncio.gather` + `asyncio.Semaphore` で subprocess 並列化を自前実装 |
+| **`embed_kg_nodes=True` の自動 vector_store 投入** | `from_documents(embed_kg_nodes=True)` で entity の embedding を自動計算 + `vector_store` に add → vector retrieval が即動く | spec-grag が `EntityNode.embedding` 計算 + 別途 `TextNode` 構築 + `vector_store.add(...)` を自前で（spike 03 で必要性を確認、spike 03 では VECTOR_SOURCE_KEY 連結が動かず Phase 1 で追加調査）|
+| **`insert(document)` incremental flow** | 1 メソッド呼び出しで chunk → 抽出 → 投入 → vector_store 連動が完結 | spec-grag が章切り出し + 変更検出 + safe_delete_by_section + 抽出 + Validator + upsert を自前パイプラインで |
+| **kg_extractors の並列 merge** | 複数 extractor を `kg_extractors=[ext1, ext2, ...]` で並列実行し結果を merge（案 C が活用するもの）| spec-grag は単一抽出 + ImplicitPathExtractor のみ（複数 extractor の結果統合は使わない）|
+| **`DEFAULT_VALIDATION_SCHEMA`（関係型妥当性チェック）** | `(subject_type, relation, object_type)` triple の整合（PERSON-BORN_IN-LOCATION のような）を pydantic レベルで自動検査 | spec-grag が Validator で同等のロジックを自前実装 |
+| **`TransformComponent` 標準フロー** | chunk 化 / metadata 注入 / progress bar / async などの定型処理 | spec-grag が独自の章処理パイプラインを持つ |
+| **LlamaIndex 内蔵プロンプト進化への追従** | LlamaIndex がプロンプト改善・モデル切替・新機能追加した場合に upgrade で恩恵を受ける | spec-grag 自前 prompt の改善は spec-grag 側で実装する責任。community のノウハウに乗らない |
+
+**この決断が意味するもの**:
+
+- LlamaIndex を **「Knowledge Graph 抽出ライブラリ」としては使わない**。graph store / retriever / traversal / embedding storage の **容器・道具**として閉じ込める
+- spec-grag CLI 側に「日本語仕様書ドメインに特化した抽出パイプライン」を実装する工数と品質責任を全部抱える
+- LlamaIndex の example / tutorial / community ノウハウから外れる（独自実装ゆえ参照できる先例が少ない）
+
+**この決断が成立する前提**:
+
+- spec-grag CLI が日本語仕様書ドメインに特化した prompt / Validator / retry を **自前で持つ価値がある**（汎用 prompt より高品質を実現できる）
+- LlamaIndex の prompt 改善・extractor 進化に乗らないことを許容できる
+- 工数として「自前抽出パイプライン」を Phase 3 実装で書ききれる
+
+**前提が崩れる兆候**:
+
+- 自前 prompt の品質が LlamaIndex 内蔵 SchemaLLMPathExtractor を下回る
+- retry / 並列実行 / chunk 制御の自前実装が安定せず時間を取られる
+- spec-grag CLI が「LLM 抽出ライブラリ」自体を抱える肥大化を起こす
+
+→ そうなった場合は **案 B に切り戻す**（`LLM` subclass adapter を実装して LlamaIndex 内蔵機能を活用）。Phase 3 で再評価する選択肢として残す。
+
+---
+
+### 3.6 推奨者（Claude）の選好バイアス開示
+
+ユーザーから指摘されたとおり、私（Claude）の推奨は **「推論カットできる（コードが見える）案を推奨する」傾向**が反映されている（memory `feedback_no_minimum_cost_escape.md` / `feedback_verify_before_recommend.md` 参照）。今回も同じ：
+
+- 案 A は spec-grag CLI の挙動がコードレベルで全部見える → 私がレビューしやすい / 失敗箇所を特定しやすい
+- 案 B は LlamaIndex 内部の retry / prompt / pydantic 動作が私から見えにくい → 「不透明」と感じる
+- spike 01 で案 A の中核（upsert_nodes / 直接投入）が動作実証済 → 私の中で「確実に動く案」と評価が上がる
+
+これらは **実装容易性 / レビュー容易性 / 失敗確率** の観点であって、**機能損失 / 自前実装の品質負担 / community ノウハウ活用** の観点ではない。
+
+中立的な評価は次のとおり：
+
+| 観点 | 案 A 有利 | 案 B 有利 |
+|---|---|---|
+| 実装容易性（spec-grag 視点）| ○（直接呼び出しのみ）| ×（adapter 10+ method 実装）|
+| レビュー容易性（コードが見える）| ○（subprocess 呼び出し直視）| ×（LlamaIndex 内部に閉じる）|
+| 失敗確率（spike 01 で実証済）| ○ | ×（adapter が未実装、subprocess 整合の不確実性）|
+| **機能活用度（LlamaIndex 機能を活かす）** | × | **○**（schema 強制 / retry / 並列 / vector workflow）|
+| **自前実装範囲の小ささ** | × | **○**（LlamaIndex に任せる）|
+| **community ノウハウ活用** | × | **○**（example / tutorial に近い）|
+| **ドメイン特化の柔軟性** | **○**（日本語 prompt 完全制御）| ×（LlamaIndex prompt に縛られる）|
+
+→ 私が押した「案 A」は **左 3 行を強く重視した** 評価結果。**右 3 行（GraphRAG 機能活用 / 実装範囲縮小 / community ノウハウ）はユーザーが重視するなら案 B / C 寄りの判断もある**。
+
+ユーザーは §3.5（案 A が捨てる機能の具体リスト）と §3.6（私のバイアス）を踏まえて、案 A / 案 B / 案 C のどれを採るかを最終判断する。Phase 1 への移行はその判断の後。
 
 ## 4. spec-grag への確定設計含意
 
