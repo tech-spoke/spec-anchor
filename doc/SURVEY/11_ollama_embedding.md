@@ -20,7 +20,9 @@
 - single embedding: `emb.get_text_embedding("...")` / `emb.get_query_embedding("...")`
 - batch embedding: `emb.get_text_embedding_batch([...], show_progress=True)`
 - async: `aget_text_embedding` / `aget_query_embedding` / `aget_text_embedding_batch`
-- PropertyGraphIndex / Retriever への注入: LlamaIndex の `Settings.embed_model` または各 index の `embed_model=...` 引数経由（要追加 spike で実証、項目 01 の追加 spike で兼ねる）
+- PropertyGraphIndex / Retriever への注入: LlamaIndex の `Settings.embed_model` または各 index の `embed_model=...` 引数経由
+  - **spike 02 で実証済**: `Settings.embed_model = OllamaEmbedding(model_name="nomic-embed-text", base_url="http://localhost:11434")` で `PropertyGraphIndex.from_existing(...)` 構築 OK
+  - VectorContextRetriever への注入は spike 03 で確認予定
 
 ## 実測・検証結果（spike/00_smoke_ollama_embedding.py）
 
