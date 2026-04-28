@@ -1,6 +1,6 @@
 # 10: /spec-core incremental stale 除去整合（最重要）
 
-> 状態: WebFetch ✓ / GitHub ☐ / Spike ☐ — 判定 **usable_with_wrapper（暫定）**
+> 状態: WebFetch ✓ / GitHub ✓ / **Spike ✓**（spike/01_property_graph_basic.py）— 判定 **usable_with_wrapper**（safe delete wrapper 必須、設計確定）
 > 最終更新: 2026-04-28
 
 DESIGN.ja.md §1.9 経路 1 の核心。**項目 04 / 07 / 08 の結果と組み合わせて評価**する。
@@ -23,17 +23,23 @@ DESIGN.ja.md §1.9 経路 1 の核心。**項目 04 / 07 / 08 の結果と組み
   - `graph_store.upsert_nodes(entities)` / `graph_store.upsert_relations(relations)`
 - ID 衝突時の挙動: 未確認（upsert なので新値で上書き想定だが要 spike 確認）
 
-## 最重要シナリオ（spike で実装予定）
+## 最重要シナリオ（spike/01_property_graph_basic.py で実証済）
+
+シナリオ:
 
 ```
-1. 章 A / B / C を初期投入 → persist
-2. 章 B のみ修正（旧 entity X を削除、新 entity Y を追加）
-3. 章 B の旧 entity X / relation が graph から消える
-4. 章 A / C の状態は変化しない
-5. 章 A から X への MENTIONS edge があった場合の挙動
+1. 章 A / 章 B を初期投入 → persist (4 nodes / 3 triplets / 1741 bytes JSON)
+2. reload で properties 完全保持（日本語 OK）
+3. 【NG】 store.delete(properties={"section_id": "section_b"}) を呼ぶ
+   → 章 A の user_authentication が DEPENDS_ON triplet で巻き込まれて削除される
+   → triplets set に dangling reference が残り get_triplets() で KeyError
+4. 【OK】 safe_delete_by_section(store, "section_b") を呼ぶ
+   → 章 A 完全保存、章 B 完全消去、triplets 整合
+5. user_session_v2 を upsert で正常投入
+6. get_rel_map(depth=2) で traversal 動作確認
 ```
 
-→ Phase 0.5 spike で実証（spike/02_incremental_stale.py 等）
+詳細は項目 [04 incremental_update](04_incremental_update.md) を参照。
 
 ## spec-grag への影響
 
@@ -49,4 +55,4 @@ DESIGN.ja.md §1.9 経路 1 の核心。**項目 04 / 07 / 08 の結果と組み
 
 ## 判定
 
-**usable_with_wrapper（暫定）** — API path は揃っているが、stale edge 削除の正確な挙動を spike 実装で実証してから昇格判定
+**usable_with_wrapper** — safe_delete_by_section wrapper 必須、spike 01 で動作確認済、設計確定

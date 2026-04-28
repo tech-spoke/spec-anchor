@@ -1,6 +1,6 @@
 # 03: SimplePropertyGraphStore 永続化粒度
 
-> 状態: WebFetch ✓ / GitHub ✓（simple_labelled.py 確認）/ Spike ☐ — 判定 **usable**
+> 状態: WebFetch ✓ / GitHub ✓ / **Spike ✓**（spike/01_property_graph_basic.py）— 判定 **usable**（ただし `store.delete()` は使わず safe_delete_by_section wrapper 経由が必須）
 > 最終更新: 2026-04-28
 
 ## 調査対象
@@ -56,13 +56,28 @@ class SimplePropertyGraphStore(PropertyGraphStore):
 - import: `from llama_index.core.graph_stores import SimplePropertyGraphStore`
 - 型: `from llama_index.core.graph_stores.types import LabelledNode, EntityNode, Relation, Triplet, LabelledPropertyGraph, DEFAULT_PERSIST_DIR, DEFAULT_PG_PERSIST_FNAME`
 - 永続化形式: **JSON**（`to_dict()` / `from_dict()` 経由、`import json` を使う）
+- 永続化のデフォルトファイル名: `DEFAULT_PG_PERSIST_FNAME = "property_graph_store.json"`
+- 永続化の API: `persist(persist_path)` / `from_persist_path(persist_path)` / `from_persist_dir(persist_dir)`
 - in-memory: `self.graph = graph or LabelledPropertyGraph()` ← デフォルトで in-memory、persist で disk 書き出し
-- 全文章ベース store（章別 store 分割は LlamaIndex 側ではない）
+- 全文章ベース store（章別 store 分割は LlamaIndex 側ではない、spec-grag 側で section_id プロパティ管理）
 
-## 実測・検証結果
+### ⚠️ delete API は安全に使えない（spike 01 で実証）
 
-- 最小コードで動いたこと: _pending spike/_
-- 動かなかったこと: _pending_
+`store.delete(properties={...})` は内部で `delete_triplet` を呼び、**triplet の subject/object 両方を nodes から削除する**ため、章をまたぐ relation がある場合に対岸の章の entity を巻き込んで消す。triplets set にも dangling reference が残る。
+
+→ spec-grag は `store.delete()` を直接使わない。代わりに **`safe_delete_by_section`**（to_dict → filter → from_dict）を使う（項目 04 / 10 参照）。
+
+## 実測・検証結果（spike/01_property_graph_basic.py）
+
+- ✅ `SimplePropertyGraphStore()` インスタンス化
+- ✅ `upsert_nodes` / `upsert_relations` で 4 nodes / 3 triplets を投入
+- ✅ `persist(persist_path)` で JSON 1741 bytes
+- ✅ `from_persist_path` で reload、properties 完全保持
+- ✅ `get(properties={"section_id": ...})` で properties フィルタ
+- ✅ `get_triplets(properties=...)` でトリプレット取得
+- ✅ `get_rel_map(seed_nodes, depth=2, limit=30)` で traversal（duplicates あり、要追加観察）
+- ❌ `store.delete(properties={...})` は破綻（cascade で対岸 entity を消す + dangling reference）
+- ✅ `safe_delete_by_section(store, "section_b")`（spec-grag 側 wrapper）で章単位 stale 除去成功
 
 ## spec-grag への影響
 
@@ -78,4 +93,4 @@ class SimplePropertyGraphStore(PropertyGraphStore):
 
 ## 判定
 
-**usable**（永続化 JSON / API 全部揃う、edge 連動削除の挙動だけ spike で実証）
+**usable** — 永続化 JSON / upsert / get / persist / reload は完全動作。**ただし `store.delete()` は破綻するため、spec-grag は safe_delete_by_section wrapper 経由で操作する**（項目 04 / 10）

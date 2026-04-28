@@ -1,7 +1,6 @@
 # 07: 恒久プロパティの node/relation metadata
 
-> 状態: WebFetch ✓ / GitHub ✓（simple_labelled.py 確認、types.py は要追加 fetch）/ Spike ☐
-> 判定 **usable_with_wrapper**（spike で persist 後の保持を実証）
+> 状態: WebFetch ✓ / GitHub ✓ / **Spike ✓**（spike/01_property_graph_basic.py）— 判定 **usable**
 > 最終更新: 2026-04-28
 
 ## 調査対象
@@ -42,11 +41,33 @@ DESIGN.ja.md §1.6 / TODO.md「恒久プロパティ vs transient annotation の
 | `evidence` | node `properties` | source span / SourceSpan ノードへの参照 |
 | `created_at` / `updated_at` | node `properties` | ISO8601 timestamp |
 
-## 実測・検証結果
+## 実測・検証結果（spike/01_property_graph_basic.py）
 
-- 上記 10 個の恒久プロパティを node / relation に書けるか: API 構造的には **free-form dict なので可能**（要 spike で実測）
-- persist / reload で保持されるか: JSON 永続化（`to_dict()` / `from_dict()`）の対象に properties が含まれるかを spike で実測
-- retrieval result（`NodeWithScore`）に metadata が含まれるか: BasePGRetriever の `_get_nodes_with_score` から推定で含まれる、spike で実測
+- 上記 10 個の恒久プロパティを node / relation に書けるか: **OK**（free-form dict、spike で `section_id` / `heading_path` / `source_hash` / `source_span` / `approval_status` / `concept_id` を投入し、persist 後 reload しても完全保持）
+- persist / reload で保持されるか: **OK**（JSON 永続化、日本語含む properties が完全保持、ファイルサイズ 1741 bytes for 4 nodes / 3 relations）
+- JSON 構造（spike STEP 6 で確認）:
+  ```json
+  {
+    "nodes": {
+      "<entity_id>": {
+        "label": "Concept",
+        "embedding": null,
+        "properties": { "section_id": "...", "heading_path": "...", ... },
+        "name": "<entity_id>"
+      }
+    },
+    "relations": {
+      "<source_id>_<label>_<target_id>": {
+        "label": "CONSTRAINS",
+        "source_id": "...",
+        "target_id": "...",
+        "properties": { "section_id": "...", ... }
+      }
+    },
+    "triplets": [["<subj>", "<rel_label>", "<obj>"], ...]
+  }
+  ```
+- retrieval result（`NodeWithScore`）に metadata が含まれるか: 要追加 spike（PGRetriever 構築 + 検索の spike が次のステップ）
 
 ## spec-grag への影響
 
@@ -62,4 +83,4 @@ DESIGN.ja.md §1.6 / TODO.md「恒久プロパティ vs transient annotation の
 
 ## 判定
 
-**usable_with_wrapper**（API 構造的に成立、persist 後の properties 保持と retrieval result への伝播は spike で実証）
+**usable** — properties 永続化は spike 01 で完全保持を実証。retrieval result への伝播は別 spike で確認予定
