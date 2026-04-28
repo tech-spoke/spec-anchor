@@ -44,7 +44,7 @@
 | [09](09_spec_core_all.md) | /spec-core --all 全再構築の API 挙動 | — | — | ✓ | **usable**（spike 02 で動作実証）|
 | [10](10_spec_core_incremental.md) | /spec-core incremental stale 除去整合 | ✓ | ✓ | ✓ | usable_with_wrapper（safe_delete_by_section wrapper 必須、設計確定）|
 | [11](11_ollama_embedding.md) | Ollama embedding 接続 | ✓ | — | ✓ | **usable**（注入経路 spike 02 で実証済）|
-| [12](12_claude_codex_subprocess.md) | Claude/Codex CLI subprocess 最小確認 | ✓ (CLI help) | — | ☐ | partially usable（両 CLI で `--json-schema` / `--output-schema` 確認、実呼び出しは spike 04）|
+| [12](12_claude_codex_subprocess.md) | Claude/Codex CLI subprocess 最小確認 | ✓ (CLI help) | — | ✓ | partially usable（API 構造把握 ✓、実認証下の動作は Phase 1 で詰め）|
 
 判定値: `usable` / `usable_with_wrapper` / `risky` / `unusable` / `unknown`
 

@@ -1,6 +1,6 @@
 # 12: Claude/Codex CLI subprocess 最小確認
 
-> 状態: CLI help ✓ / Spike ☐ — 判定 **partially usable**（Claude CLI は JSON output 強い、Codex は要 prompt 設計）
+> 状態: CLI help ✓ / **Spike ✓**（spike/04_cli_subprocess.py）— 判定 **partially usable**（API 構造把握、実認証成功時の挙動は Phase 1 で詰める）
 > 最終更新: 2026-04-28
 
 DESIGN.ja.md §1.4 の「サブスク認証 Claude/Codex CLI を subprocess external worker として扱う」が API レベルで成立するか確認する。
@@ -96,13 +96,66 @@ codex sandbox                          # sandbox 制御
 - Claude.ai サブスク（Pro / Max）でログイン → サブスク認証（API key 前提にしない）
 - spec-grag は `--bare` + サブスク認証で運用
 
-## 実測・検証結果
+## 実測・検証結果（spike 04）
 
-- 最小プロンプトで JSON を返させられるか: _pending spike/_
-- 結果の出力揺れ: _pending spike/_
-- 認証切れの検出方法: _pending spike/_
-- サブスク利用上限（rate limit）に当たった場合のエラー形式: _pending spike/_
-- ログ / debug 出力が stdout に混入しないよう抑制できるか: _pending spike/_（`--bare` で抑制可能と推定）
+### Claude CLI
+
+```bash
+claude --print --bare --no-session-persistence \
+  --output-format json --json-schema '{...}' \
+  --model haiku <prompt>
+```
+
+- ✅ subprocess 起動・JSON 出力 OK（16 秒で応答）
+- ❌ **`--bare` は OAuth/keychain を読まない仕様**（help に "OAuth and keychain are never read" と明記）→ "Not logged in" エラー（rc=1）
+- ✅ 出力構造把握:
+  ```json
+  {
+    "type": "result",
+    "subtype": "success",
+    "is_error": true | false,
+    "result": "<最終応答 or error message>",
+    "session_id": "...",
+    "total_cost_usd": 0,
+    "usage": {...},
+    "duration_ms": ...,
+    "num_turns": ...
+  }
+  ```
+- spec-grag の運用案（`--bare` 不使用）:
+  ```bash
+  claude --print --no-session-persistence \
+    --disable-slash-commands \
+    --allowedTools "" \
+    --exclude-dynamic-system-prompt-sections \
+    --output-format json --json-schema '{...}' \
+    --system-prompt 'spec-grag 固有の system prompt' \
+    --model haiku <prompt>
+  ```
+
+### Codex CLI
+
+```bash
+codex exec --output-schema schema.json --skip-git-repo-check --json <prompt>
+```
+
+- ✅ subprocess 起動・JSONL events 出力 OK（13 秒で応答）
+- ❌ default モデル `gpt-5.4` が「newer version of Codex required」エラー → `--model` で gpt-5 / gpt-4o 等に切り替えが必要
+- ✅ 出力構造把握:
+  ```jsonl
+  {"type": "thread.started", "thread_id": "..."}
+  {"type": "turn.started"}
+  {"type": "error", "message": "..."}     # エラー時
+  {"type": "turn.failed", "error": {...}}  # エラー時
+  # 成功時は (推定) "turn.completed" event に最終結果
+  ```
+
+### 共通
+
+- ✅ Python `subprocess.run(cmd, capture_output=True, text=True, timeout=90)` で起動・rc / stdout / stderr 取得
+- ✅ JSON / JSONL parse は標準 `json.loads` + ```` ``` ```` フェンス剥がしで対応可
+- ⚠️ 実認証成功時の動作は **Phase 1 / 実装着手時にユーザーがログインした状態で再検証**
+- ⚠️ 出力揺れ・rate limit・認証切れ詳細は実認証時に観察
 
 ## spec-grag への影響
 
@@ -118,4 +171,8 @@ codex sandbox                          # sandbox 制御
 
 ## 判定
 
-**partially usable** — Claude CLI は CLI 機能で usable、Codex CLI は prompt 設計で usable_with_wrapper、spike で実証して両者を usable に昇格予定
+**partially usable** — subprocess の起動 / JSON 構造化出力 / parse は API レベルで動作確認済（spike 04）。残課題は実認証下での動作確認:
+
+1. **Claude CLI: `--bare` を使わない呼び出しパターン**を Phase 1 で確立（OAuth keychain を読む）
+2. **Codex CLI: `--model` 指定で利用可能なモデル**の確認（環境依存、サブスクで利用可能な model を探る）
+3. 実認証成功時の出力揺れ / rate limit / 認証切れの挙動観察（実装時に詰める）

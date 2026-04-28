@@ -147,7 +147,7 @@ DESIGN.ja.md §1.1〜§1.3, §1.5〜§1.9 はすべて **仮分担**。§4.1 Lla
 | 09 | /spec-core --all 全再構築 | — | — | ✓ | **usable** | spike 02 で `shutil.rmtree(persist_dir)` + 全再構築を実証 |
 | 10 | /spec-core incremental stale 除去 | ✓ | ✓ | ✓ | usable_with_wrapper | safe_delete_by_section wrapper を spec-grag 側で実装する責務（spike 01 で動作確認済）|
 | 11 | Ollama embedding 接続 | ✓ | — | ✓ | **usable** | （実証済、dim=768、JP/EN OK、Settings.embed_model 注入は spike 02 で確認）|
-| 12 | Claude/Codex CLI subprocess | ✓ (CLI help) | — | ☐ | partially usable | 実呼び出しでの JSON 出力 / 出力揺れ / 認証切れ動作（spike 04 予定）|
+| 12 | Claude/Codex CLI subprocess | ✓ (CLI help) | — | ✓ | partially usable | spike 04 で API 構造把握。実認証成功時の動作（出力揺れ / rate limit / 認証切れ）は Phase 1 で詰める |
 
 #### 各項目の確認状況詳細
 
@@ -231,7 +231,7 @@ Phase 0 の各項目を実証するための spike file 計画を以下に固定
 | 01 | `spike/01_property_graph_basic.py` | ✓ 完了 | 02-2d / 03 / 04 / 07 / 10 | 案 A 直接投入（`upsert_nodes`/`upsert_relations`）/ persist-reload / 章単位 stale 除去（raw delete vs safe wrapper の比較）/ `safe_delete_by_section` wrapper 動作 | — |
 | 02 | `spike/02_property_graph_index.py` | ✓ 完了 | 01 / 09 / 11-注入経路 | `PropertyGraphIndex.from_existing(kg_extractors=[ImplicitPathExtractor()])` 構築 / `Settings.embed_model = OllamaEmbedding(...)` 注入 / persist + reload / `shutil.rmtree(persist_dir)` + 全再構築（経路 2 相当）。実証済の落とし穴: ① `kg_extractors=[]` は falsy で default LLM extractor が呼ばれる ② `load_index_from_storage` は `Settings.llm` 解決で ImportError（spec-grag は使わず graph_store 単独 reload + 毎回再構築） | 1 |
 | 03 | `spike/03_retriever_and_transient.py` | ✓ 完了（部分） | 05 / 07-retrieval / 08 | 各 entity に embedding をセット → `VectorContextRetriever` + `PGRetriever` 構築 OK・3 件返る（fallback path） / NodeWithScore.metadata はデフォルト空（TextNode 投入時に properties をコピーする責務は spec-grag 側）/ **4 軸 transient annotation の後付け・graph 不汚染・永続化分離 = OK（項目 08 = usable 確定）**。残課題: vector_store の VECTOR_SOURCE_KEY 連結で類似検索が 0 件、Phase 1 / 実装時に詰める | 2 |
-| 04 | `spike/04_cli_subprocess.py` | ☐ 未着手 | 12 | `claude --print --bare --no-session-persistence --output-format json --json-schema '{...}' < prompt` で JSON 取得 / `codex exec --output-schema schema.json --skip-git-repo-check` で同等動作 / 出力揺れ（同一 prompt × 複数回） / 認証切れ・rate limit エラー型を観察 | 3 |
+| 04 | `spike/04_cli_subprocess.py` | ✓ 完了（部分） | 12 | subprocess の起動 / JSON 構造化出力 / parse を API レベルで動作確認。実証済の落とし穴: ① **Claude `--bare` は OAuth/keychain を読まないため "Not logged in"**（spec-grag は `--no-session-persistence` + `--disable-slash-commands` + `--allowedTools ""` 等で対応） ② Codex `gpt-5.4` モデルが環境エラー、`--model` 指定で回避。実認証下の挙動は Phase 1 で詰める | 3 |
 
 **優先順序の根拠**:
 
