@@ -35,26 +35,166 @@
 
 unknown はゼロ。
 
-## 3. 採用統合方式の根拠
+## 3. 統合方式 — 3 案の中身と採用判断
 
-DESIGN.ja.md §4.1 で立てた **案 A / 案 B / 案 C** の評価が Phase 0 で確定。
+DESIGN.ja.md §4.1 で立てた **案 A / 案 B / 案 C** は「LlamaIndex / Claude・Codex CLI / spec-grag CLI が抽出フローのどこで何を担うか」が違う 3 つの構成。各案の中身を以下に整理する。
 
-### 案 A: 外部抽出 → 直接投入（採用）
+### 3.1 案 A: 外部抽出 → 直接投入（spec-grag CLI が抽出責務を持つ）
 
-**実証根拠**:
+**何が「外部」か**: LlamaIndex の SchemaLLMPathExtractor を経由せず、**spec-grag CLI が Claude/Codex CLI を直接 subprocess で呼んで JSON を取る**。LlamaIndex は graph store / retriever / traversal / embedding search の道具として使うだけ。
 
-- spike 01: `graph_store.upsert_nodes(...)` / `upsert_relations(...)` で外部抽出済データを直接投入できる（4 nodes / 3 triplets を投入、persist 後 reload で完全保持）
-- spike 02: `PropertyGraphIndex.from_existing(kg_extractors=[ImplicitPathExtractor()])` で LLM extractor を経由しない構築が動作
-- spec-grag CLI が抽出責務を持つ → 責務分離が綺麗（Orchestrator がライブラリの判断契約を委譲しない）
+**データフロー**:
 
-**不採用とした案**:
+```
+[章 markdown]
+   ↓ spec-grag CLI が章ごとに切り出す
+[spec-grag CLI: extraction]
+   └→ subprocess: claude --output-format json --json-schema '{...}' < prompt
+                  または codex exec --output-schema spec_grag_schema.json
+   ↓
+[Claude/Codex CLI が JSON を返す]
+   {"entities": [{name, label, properties}, ...],
+    "relations": [{label, source_id, target_id, properties}, ...]}
+   ↓ spec-grag CLI: parse + Validator (schema 適合・section_id 採番・SHA-256)
+[graph_store.upsert_nodes(...)]
+[graph_store.upsert_relations(...)]
+   ↓ spec-grag CLI: storage_context.persist
+[LlamaIndex 側: PGRetriever / VectorContextRetriever / get_rel_map]
+   ↓ spec-grag Orchestrator: fusion + 4 軸付与（NodeWithScore.metadata）
+[InjectionContext / RealignResult]
+```
 
-| 案 | 不採用理由 |
+**役割分担**:
+
+| 担当 | やること |
 |---|---|
-| 案 B（CLI を `LLM` interface でラップ）| spike 02 の落とし穴で `Settings.llm` 解決が必要なケースが多く、wrapper 工数が大きい。サブスク認証 CLI を LlamaIndex `LLM` subclass で正しくラップするコストは Phase 3 実装時に評価する選択肢に留める |
-| 案 C（混合）| `kg_extractors=[ImplicitPathExtractor()]` 自体は採用するが、LLM 抽出の本流を spec-grag CLI 側に置く（案 A 主体）。`ImplicitPathExtractor` は補助 |
+| **spec-grag CLI** | 章切り出し / Claude・Codex subprocess 呼び出し / JSON parse / Validator / `upsert_nodes` / `upsert_relations` / safe_delete_by_section / Orchestrator |
+| **Claude/Codex CLI**（subprocess）| structured output で entity/relation JSON を返す。LlamaIndex の `LLM` interface は経由しない |
+| **LlamaIndex** | graph store（容器）/ retriever / traversal / embedding search の **道具として**使われる。判断契約は持たない |
 
-→ **採用方針: 案 A 主体 + `ImplicitPathExtractor` 補助**（案 C の最小組合せ）。
+**利点**:
+- 責務分離が明瞭（LlamaIndex を道具に閉じ込める、判断は spec-grag）
+- Claude/Codex CLI の `--json-schema` / `--output-schema` をそのまま活用、structured output のリトライ・検証を spec-grag が制御
+- LlamaIndex の `LLM` subclass adapter（10+ method）を書かなくて良い
+
+**欠点**:
+- spec-grag CLI 側に抽出パイプライン（prompt 組み立て / 章切り出し / 並列実行 / エラーハンドリング）を実装する工数
+- LlamaIndex 内蔵の SchemaLLMPathExtractor の prompt / schema 強制 / retry を活用しない（自前で書く）
+
+---
+
+### 3.2 案 B: LLM wrapper 方式（LlamaIndex の LLM interface に CLI を埋め込む）
+
+**何が「wrapper」か**: spec-grag が **LlamaIndex の `LLM` クラスを継承した subclass adapter** を実装し、その内部で Claude/Codex CLI を subprocess で呼ぶ。LlamaIndex の SchemaLLMPathExtractor / from_documents はこの adapter を `Settings.llm` 経由で使う。
+
+**データフロー**:
+
+```
+[章 markdown]
+   ↓ spec-grag CLI: PropertyGraphIndex.from_documents(documents, ...)
+[LlamaIndex: SchemaLLMPathExtractor]
+   ↓ schema 強制 prompt を組み立て
+[LlamaIndex の LLM interface: spec-grag が実装した CodexCLIAdapter]
+   class CodexCLIAdapter(LLM):
+       def complete(self, prompt: str, **kwargs) -> CompletionResponse:
+           subprocess.run([codex, exec, --output-schema, schema, prompt], ...)
+       def acomplete / chat / achat / stream_complete / metadata / ...
+   ↓
+[Claude/Codex CLI が JSON を返す]
+   ↓ adapter: CompletionResponse 形式に変換
+[LlamaIndex: SchemaLLMPathExtractor]
+   ↓ pydantic validation（strict=True で Literal 型強制）
+[graph_store に LlamaIndex が投入]
+   ↓ ... 以降は案 A と同じ
+```
+
+**役割分担**:
+
+| 担当 | やること |
+|---|---|
+| **spec-grag CLI** | `LLM` subclass adapter の実装 / Orchestrator（4 軸付与・fusion・InjectionContext）|
+| **Claude/Codex CLI**（subprocess）| adapter の裏で呼ばれる |
+| **LlamaIndex** | graph store + retriever + **加えて、SchemaLLMPathExtractor 内部の抽出オーケストレーション**（prompt / schema validation / retry / 並列実行） |
+
+**利点**:
+- LlamaIndex 内蔵の prompt / pydantic schema 強制 / retry を活用できる
+- spec-grag CLI 側の抽出パイプラインが薄くなる
+- 既存の LlamaIndex example / tutorial と互換性が高い
+
+**欠点**:
+- **`LLM` subclass adapter の実装工数が大きい**（LlamaIndex `LLM` interface は 10+ method、sync / async / streaming / structured output 全対応が要る）
+- subprocess の挙動（timeout / 認証切れ / rate limit）を LlamaIndex の retry ロジックと整合させる必要
+- pydantic ValidationError 時の挙動（リトライ / エラー伝播）が LlamaIndex 側に閉じ、制御が効きにくい
+- spike 02 で確認したように `Settings.llm` 解決パスが多く、各 callsite で adapter を確実に差し込む配慮が要る
+
+---
+
+### 3.3 案 C: 混合（kg_extractors に複数 extractor を並べる）
+
+**何が「混合」か**: `PropertyGraphIndex(kg_extractors=[ext1, ext2, ...])` のリストに **LLM 不要 extractor（`ImplicitPathExtractor`）** と **spec-grag が書いたカスタム extractor** を並べ、抽出フローを段階分割する。
+
+**データフロー**:
+
+```
+[章 markdown]
+   ↓ PropertyGraphIndex.from_documents(documents,
+        kg_extractors=[ImplicitPathExtractor(), CustomPGExtractor()])
+[LlamaIndex: kg_extractors orchestration（複数 extractor を順に / 並列で実行）]
+
+   分岐 1: ImplicitPathExtractor（LLM 不要）
+      ↓ node の relationship 属性から path を読む
+      [graph_store に triplet を投入]
+
+   分岐 2: CustomPGExtractor（spec-grag が TransformComponent を継承して実装）
+      ↓ subprocess で Claude/Codex CLI を呼ぶ（案 A の中身を内側に持つ）
+      [graph_store に entity/relation を投入]
+
+   ↓ ... 以降は案 A と同じ
+```
+
+**役割分担**:
+
+| 担当 | やること |
+|---|---|
+| **spec-grag CLI** | `CustomPGExtractor(TransformComponent)` の実装（内部は案 A 同様の subprocess 呼び出し）/ Orchestrator |
+| **Claude/Codex CLI**（subprocess）| CustomPGExtractor の中で呼ばれる |
+| **LlamaIndex** | graph store + retriever + **加えて kg_extractors の orchestration**（複数 extractor の順次/並列実行）。LlamaIndex 内蔵 SchemaLLMPathExtractor は使わない |
+
+**利点**:
+- LlamaIndex の kg_extractors の並列実行 / progress bar / 標準フロー を活用できる
+- LLM 不要部分（document structure / 簡単な relation）は ImplicitPathExtractor に任せて高速化
+- spec-grag MVP では `[ImplicitPathExtractor()]` だけを渡すミニマル形（空リスト回避策、R2）が **案 C の最小特殊形**
+
+**欠点**:
+- CustomPGExtractor を `TransformComponent` 継承で書く工数（案 A の subprocess 部分と同等 + extractor interface 適合）
+- LlamaIndex の TransformComponent flow に従う必要（spec-grag 側からの細かい制御が下がる）
+
+---
+
+### 3.4 採用判断（spec-grag MVP）
+
+**採用方針: 案 A 主体 + `ImplicitPathExtractor` 補助**（案 C の最小特殊形）
+
+実証ベースの根拠:
+
+| 観点 | 案 A | 案 B | 案 C |
+|---|---|---|---|
+| LLM 呼び出し位置 | spec-grag CLI が直接 | LlamaIndex 内部 | LlamaIndex 内部（CustomPGExtractor 内で spec-grag が呼ぶ）|
+| spec-grag 主実装 | 抽出パイプライン + Validator | LLM subclass adapter（10+ method）| TransformComponent 継承 |
+| LlamaIndex 内蔵プロンプト活用 | しない | する | しない |
+| structured output 強制 | CLI `--json-schema` を直接使用 | LlamaIndex pydantic validation | extractor 側で実装 |
+| spike 実証 | ✓ spike 01 で動作 | ☐ wrapper 未実装 | △ ImplicitPathExtractor のみ spike 02 |
+| 責務境界の明瞭性 | **高**（LlamaIndex は道具）| 低（LlamaIndex が判断パスに入る）| 中 |
+| 実装工数 | 中 | 大 | 中 |
+| MVP 適合性 | **○** | △ | ○（最小特殊形 = 案 A + ImplicitPathExtractor のみ）|
+
+採用方針:
+
+- **抽出の本流 = 案 A**（spec-grag CLI が章ごとに Claude/Codex CLI を呼んで JSON を取り、`upsert_nodes` / `upsert_relations` で graph_store に直接投入）
+- **`kg_extractors=[ImplicitPathExtractor()]`** は R2（空リスト回避）として渡す。これは案 C の最小特殊形にあたる
+- **案 B は MVP では不採用**。Phase 3（実装着手後）で「LlamaIndex 内蔵 SchemaLLMPathExtractor の prompt / pydantic 強制を活用したい」となれば再評価する選択肢として残す
+
+**この採用方針で動かすために確定した運用ルール（R1-R5）は §4 に記載**。
 
 ## 4. spec-grag への確定設計含意
 
