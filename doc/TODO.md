@@ -282,27 +282,50 @@ Phase 0 の各項目を実証するための spike file 計画を以下に固定
 - [☐] **経路 4: /spec-realign** — 課題プロンプトを与える → 経路 3 + LLM (Answer) で RealignResult を生成 → ConstraintContext / TargetContext / ConflictNotes / ReviewNotes / Answer の構造を確認
 - [☐] **経路間の依存**: 経路 3 / 4 が経路 1 を正しく呼び、経路 2 が単独実行のみであることを確認
 
-### Phase 1：方向 1 / 方向 2 の比較評価 → §1 仮分担マトリクスの再評価（Phase 0 + 0.5 完了後）
+### Phase 1：案 B 第一選択 + fallback ladder → §1 仮分担マトリクスの再評価（Phase 0 + 0.5 完了後）
 
-**【2026-04-28 改訂】**: 案 A 破棄に伴い、Phase 1 入り口は **方向 1 / 方向 2 の比較評価**から開始する（doc/SURVEY/SUMMARY.md §3.9 参照）。
+**【2026-04-28 改訂】**: 案 A 破棄に伴い、Phase 1 入り口は **案 B → 案 C → GRAG 撤回の優先順序付き fallback ladder**（doc/SURVEY/SUMMARY.md §3.9 参照）。**「方向 1 / 方向 2 の対称比較」ではない**（旧版の対称提示は pivot 距離無視の誘導だった）。
 
-**Phase 1 ステップ 0（必須、最優先）**: 方向 1 / 方向 2 の比較評価
+**Phase 1 ステップ 0（必須、最優先）**: **案 B（GRAG 本来の使い方）の spike**
 
-- [ ] **方向 1（GRAG をちゃんと使う）の評価**:
-  - LlamaIndex `LLM` subclass adapter（CodexCLIAdapter）の最小 method 一覧と subprocess 統合方針を spike 設計
-  - SchemaLLMPathExtractor の日本語プロンプト化と spec-grag Core schema を Literal で表現する方法
-  - vector_store の VECTOR_SOURCE_KEY 連結問題（spike 03 の 0 件問題）を正規パターンで解消
-- [ ] **方向 2（自前 canonical graph + optional LlamaIndex adapter）の評価**:
-  - canonical graph 永続化形式の比較（SQLite / JSONL / NetworkX in-memory + JSON dump）
-  - 自前 retriever の fusion 設計（embedding + property + traversal）
-  - LlamaIndex を optional adapter にする境界 API の設計
-- [ ] **§3.8 共通評価軸 5 観点での対称比較**:
-  - 波及先の保存管理 / 明示 edge 探索 / stale edge 除去 / 暗黙的波及先発見 / GRAG 構築支援
-- [ ] 方向 1 / 方向 2 のいずれを採るかを確定 → DESIGN.ja.md §1.4 / §2 / §4 の書き換え
+GRAG 本来の使い方 = SchemaLLMPathExtractor / kg_extractors / PropertyGraphIndex の標準フローに乗り、Extractor で使う LLM backend を Claude/Codex CLI subprocess に差し替えるだけ。
 
-**Phase 1 ステップ 1（方向確定後）**: §1 各セクションの再評価
+- [ ] **spike 05: `CodexCLIAdapter(LLM)` 実装**
+  - LlamaIndex の `LLM` interface のうち最小 method 一覧（complete / acomplete / chat / achat / metadata 等）を実装
+  - subprocess 経由で Claude CLI / Codex CLI を呼び、structured output JSON を `CompletionResponse` 形式に変換
+  - Settings.llm として注入し、SchemaLLMPathExtractor が呼べることを確認
+- [ ] **spike 06: SchemaLLMPathExtractor 日本語プロンプト化 + spec-grag Core schema を Literal 型で表現**
+  - `possible_entities = Literal["Document", "Section", "Concept", "Requirement", ...]`
+  - `kg_validation_schema = List[Triple]` で関係型整合
+  - `extract_prompt` を日本語に差し替え（DEFAULT_SCHEMA_PATH_EXTRACT_PROMPT は英語ハードコード）
+  - toy 章 markdown で entity / relation が抽出されることを実証
+- [ ] **spike 07: vector_store の VECTOR_SOURCE_KEY 連結正規パターン**
+  - spike 03 の 0 件問題を、LlamaIndex 慣習に沿った投入パターンで解消
+  - `VectorContextRetriever` で実際に類似検索が結果を返すことを実証
 
-Phase 0 / 0.5 の結果と方向確定を元に、DESIGN.ja.md §1 の各セクションが選択された方向で実装可能か照合する。
+**案 B が成立した場合**: §1.1〜§1.9 仮分担マトリクスを案 B 前提で再評価、DESIGN.ja.md §1.4 を維持。
+
+**Phase 1 ステップ 1（案 B が spike で成立しなかった場合のみ）**: **案 C への降下**
+
+案 B のいずれかの spike で成立しないと実証された場合のみ実施。
+
+- [ ] **spike 08: `CustomPGExtractor(TransformComponent)` 実装**
+  - kg_extractors flow に乗せる
+  - 内部で Claude/Codex CLI subprocess（spike 04 の延長）+ spec-grag Validator
+  - SchemaLLMPathExtractor は使わない
+- [ ] **spike 09: kg_extractors 並列実行と progress orchestration**
+- [ ] **vector_store 連結は spike 07 を継承**（案 C でも必要）
+
+**Phase 1 ステップ 2（案 B / 案 C 両方が成立しなかった場合のみ）**: **GRAG 撤回**
+
+- [ ] DESIGN.ja.md §1.4 を「Python + 自前 canonical graph」に書き換え
+- [ ] memory `project_engine_pivot.md` に「2026-XX-XX: GRAG 採用撤回」を追記
+- [ ] canonical graph の永続化形式評価（SQLite / JSONL / NetworkX）
+- [ ] 自前 retriever の fusion 設計（embedding + property + traversal）
+
+**Phase 1 ステップ 3（案 B または案 C 確定後）**: §1 各セクションの再評価
+
+Phase 0 / 0.5 の結果と確定方向を元に、DESIGN.ja.md §1 の各セクションが選択された案で実装可能か照合する。
 
 **§1 各セクションの再評価**:
 
