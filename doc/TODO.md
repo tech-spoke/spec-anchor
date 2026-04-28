@@ -151,29 +151,32 @@ DESIGN.ja.md §1.1〜§1.3, §1.5〜§1.9 はすべて **仮分担**。§4.1 Lla
 
 #### 各項目の確認状況詳細
 
-- [ ] **項目 01**: `PropertyGraphIndex` の API 安定度
+- [✓] **項目 01**: `PropertyGraphIndex` の API 安定度
   - WebFetch ✓: `from_documents` / `from_existing` / `insert` / `insert_nodes` / `storage_context.persist` / `load_index_from_storage` の API シグネチャ
-  - GitHub ☐: v0.14 系の breaking change 頻度（release notes 未確認）
-  - Spike ☐: PropertyGraphIndex を実際に構築・動作させていない（spike 01 では SimplePropertyGraphStore のみ）→ **spike 02 で実証予定**
+  - GitHub ✓: base.py で `__init__` の `kg_extractors or [...]` の falsy 判定問題を確認、`from_existing` の引数を確認
+  - Spike ✓: spike 02 で `from_existing(kg_extractors=[ImplicitPathExtractor()])` 構築 / `storage_context.persist` で 6 ファイル生成 / 単独 reload 動作を実証
+  - 判定: **usable_with_caveat** — spec-grag 運用ルール 2 つ：① `kg_extractors=[ImplicitPathExtractor()]` 必須（`[]` は falsy で default LLM extractor 解決） ② `load_index_from_storage` 不使用、毎回 `from_existing` で再構築
+  - 残課題: v0.14 系の release notes 未確認（breaking change 頻度はリリース管理時に追跡）
 
-- [ ] **項目 02**: `SchemaLLMPathExtractor` の制約強度と統合方式（DESIGN §4.1 の 2a〜2f）
+- [部分] **項目 02**: `SchemaLLMPathExtractor` の制約強度と統合方式（DESIGN §4.1 の 2a〜2f）
   - **2a** LlamaIndex `LLM` interface 要求 — 案 B の前提
     - GitHub ✓: `llm: LLM` 必須引数、subprocess wrapper を `LLM` subclass で実装する設計が必要
-    - Spike ☐: 実装と動作確認は Phase 1 / 実装着手時
+    - Spike ☐: 実装と動作確認は Phase 1 / 実装着手時（**案 A 採用なら必須でない**）
   - **2b** スキーマ受理形式
     - GitHub ✓: `Literal[...]` + `List[Triple]` + `kg_schema_cls`、内部で `create_model` + `field_validator`
-    - Spike ☐: 実投入動作は Phase 1
+    - Spike ☐: 実投入動作は Phase 1（案 A 採用なら必須でない）
   - **2c** `strict=True` 違反時の挙動
     - GitHub ✓: `strict=True` で pydantic Literal 型強制 → 範囲外は ValidationError
-    - Spike ☐: **LLM が違反 JSON を返した場合のリトライ / エラー伝播**は未実証 → Phase 1
+    - Spike ☐: **LLM が違反 JSON を返した場合のリトライ / エラー伝播**は未実証 → Phase 1（案 A 採用なら必須でない）
   - **2d** 事前抽出済み triplet 投入 — 案 A の前提
     - WebFetch ✓ + Spike ✓: `graph_store.upsert_nodes` / `upsert_relations` で動作確認済（spike 01）
   - **2e** `kg_extractors` 独自 extractor 受理 — 案 C の前提
     - WebFetch ✓: list 受理、`TransformComponent` 継承
-    - Spike ☐: 独自 extractor の動作確認は実装着手時
+    - Spike ☐: 独自 extractor の動作確認は実装着手時（案 A 採用なら必須でない）
   - **2f** LLM 不要 extractor の存在
-    - GitHub ✓: `ImplicitPathExtractor` 存在
-    - Spike ☐: 用途範囲（どんな relation を読めるか）は未実証
+    - GitHub ✓ + Spike ✓: `ImplicitPathExtractor` を `kg_extractors=[ImplicitPathExtractor()]` で渡して動作確認（spike 02）
+    - 用途範囲（どんな relation を読めるか）は未実証 → 実装時に詰める
+  - 判定: **partially usable** — 案 A の前提（2d）/ 案 C の補助 extractor（2f）は usable、案 B（2a, 2c）は spike 未実証だが **案 A 採用なら必須でない**
 
 - [ ] **項目 03**: `SimplePropertyGraphStore` の永続化粒度
   - WebFetch ✓ + GitHub ✓ + Spike ✓: JSON 永続化、`to_dict` / `from_dict`、in-memory + persist、delete は多軸 filter
@@ -183,39 +186,44 @@ DESIGN.ja.md §1.1〜§1.3, §1.5〜§1.9 はすべて **仮分担**。§4.1 Lla
   - WebFetch ✓ + GitHub ✓ + Spike ✓: `delete(properties=...)` の cascade で section_a の entity を巻き込む問題を spike で確認
   - 対処: **safe_delete_by_section** wrapper を spec-grag 側で実装する責務（spike 01 で動作実証）
 
-- [ ] **項目 05**: PGRetriever fusion 戦略
+- [✓] **項目 05**: PGRetriever fusion 戦略
   - WebFetch ✓ + GitHub ✓: `PGRetriever._retrieve` は単純結合 + テキスト dedup、RRF / Weighted / CombSum / MaxScore は LlamaIndex 標準にない
-  - Spike ☐: 実際の検索動作（VectorContextRetriever / PGRetriever）→ **spike 03 で実証予定**
+  - Spike ✓: spike 03 で `VectorContextRetriever` + `PGRetriever` 構築 + `retrieve()` 実行 → 3 件返却（fallback path、score=0.000）
+  - 残課題: vector_store に TextNode を `VECTOR_SOURCE_KEY` 連結で投入しても 0 件返却。**vector_store ↔ graph_store 連結ロジックの詳細は Phase 1 / 実装時に詰める**
+  - 判定: **usable_with_wrapper** — fusion / rerank / 4 軸付与 / vector_store 連結はすべて spec-grag Orchestrator 側責務
 
 - [ ] **項目 06**: HippoRAG / LightRAG retrieval 統合可否
   - WebFetch ✓: lpg_index_guide ページに記載なし
   - 結論: spec-grag MVP では除外（spike 不要）
 
-- [ ] **項目 07**: 恒久プロパティ metadata
+- [✓] **項目 07**: 恒久プロパティ metadata
   - WebFetch ✓ + GitHub ✓ + Spike ✓: `properties: Dict[str, Any]` free-form、persist 後 reload で完全保持（日本語 OK、spike 01）
-  - Spike ☐: **retrieval result に properties が乗るか**は未確認 → spike 03 で実証
+  - Spike ✓ (retrieval): spike 03 で `NodeWithScore.node.metadata` がデフォルトで空であることを確認 → **spec-grag が vector_store 投入時に TextNode.metadata に entity properties をコピーする責務**
+  - 判定: **usable** — 永続化保持 ✓、retrieval 経由の properties 伝播は wrapper 設計（Phase 1）
 
-- [ ] **項目 08**: transient annotation の実装パターン
-  - WebFetch ☐ / GitHub ☐ / Spike ☐
-  - 設計仮説: `NodeWithScore.metadata` に 4 軸（constraint_relevance 等）を後付け
-  - **spike 03 で動作確認予定**
+- [✓] **項目 08**: transient annotation の実装パターン
+  - WebFetch — / GitHub — / Spike ✓: spike 03 で `NodeWithScore.node.metadata` に 4 軸（`constraint_relevance` / `target_relevance` / `conflict` / `review_required`）を後付け、graph_store 不汚染、persist→reload 後も漏れないことを実証
+  - 判定: **usable** — Orchestrator 側 4 軸付与パターンが API レベルで成立、graph 永続化境界が確認済
 
-- [ ] **項目 09**: `/spec-core --all` 全再構築の API 挙動
-  - WebFetch ☐ / GitHub ☐ / Spike ☐
-  - 設計仮説: `shutil.rmtree(persist_dir)` + `os.makedirs` + 再構築 + `persist`
-  - **spike 02 で動作確認予定**
+- [✓] **項目 09**: `/spec-core --all` 全再構築の API 挙動
+  - Spike ✓: spike 02 で `shutil.rmtree(persist_dir)` + 新 store/index 構築 + persist の全再構築シナリオを実証
+  - 判定: **usable**（Python 標準 OS 操作 + 案 A 投入で完結）
 
 - [ ] **項目 10**: `/spec-core incremental` stale 除去整合
   - WebFetch ✓ + GitHub ✓ + Spike ✓: spike 01 で safe_delete_by_section wrapper の動作を確認、章 A 完全保存 / 章 B 完全消去 / triplets 整合
   - 判定根拠は項目 04 と同一
 
-- [ ] **項目 11**: Ollama embedding 接続
-  - WebFetch ✓ + Spike ✓: import / instantiate / get_text_embedding / dim=768 / 日本語 OK（spike 00）
-  - Spike ☐: PropertyGraphIndex / VectorContextRetriever への注入経路は未確認 → spike 02/03 で実証
+- [✓] **項目 11**: Ollama embedding 接続
+  - WebFetch ✓ + Spike ✓ (smoke): spike 00 で import / instantiate / get_text_embedding / dim=768 / 日本語 OK
+  - Spike ✓ (注入): spike 02 で `Settings.embed_model = OllamaEmbedding(...)` 注入経路を実証、PropertyGraphIndex.from_existing で動作
+  - 判定: **usable**
 
-- [ ] **項目 12**: Claude/Codex CLI subprocess 最小確認
+- [✓] **項目 12**: Claude/Codex CLI subprocess 最小確認
   - CLI help ✓: 両 CLI で structured output 対応（Claude `--json-schema`、Codex `--output-schema`）
-  - Spike ☐: 実呼び出し / JSON 出力 / 出力揺れ / 認証切れ / レート制限の挙動 → **spike 04 で実証予定**
+  - Spike ✓: spike 04 で subprocess の起動 / JSON 構造化出力 / parse を API レベルで実証
+  - 落とし穴: ① **Claude `--bare` は OAuth/keychain を読まない**（"Not logged in" エラー）→ spec-grag は `--no-session-persistence` + `--disable-slash-commands` + `--allowedTools ""` 等で対応 ② Codex `gpt-5.4` モデルが環境エラー、`--model` 指定で回避
+  - 残課題: 実認証下の動作（出力揺れ / rate limit / 認証切れの挙動）→ Phase 1 / 実装時にユーザーがログイン済の状態で再検証
+  - 判定: **partially usable**
 
 ### Phase 0.5：最小実行スパイク（Phase 0 の各項目を実コードで確認）
 
@@ -256,11 +264,11 @@ Phase 0 の各項目を実証するための spike file 計画を以下に固定
 - [✓] node / relation に **恒久プロパティ**（section_id / source_span / source_hash 等）を保持できる（spike 01）
 - [✓] persist / reload できる（spike 01、JSON 1741 bytes、日本語 OK）
 - [✓] 1 章だけ変更した場合に stale node / stale edge を除去できる（spike 01、ただし `store.delete()` は破綻、`safe_delete_by_section` wrapper 経由のみ可）
-- [☐] `Retriever` で evidence 付き候補を取り出せる → spike 03
-- [☐] 4 軸評価を LlamaIndex 内ではなく Orchestrator 側の **transient annotation** として扱える → spike 03
-- [☐] PropertyGraphIndex に Ollama embedding を `Settings.embed_model` 経由で注入（追加項目） → spike 02
-- [☐] `/spec-core --all` 相当の persist_dir 削除 + 全再構築（追加項目） → spike 02
-- [☐] Claude/Codex CLI subprocess 実呼び出し（追加項目、structured output） → spike 04
+- [✓ 部分] `Retriever` で evidence 付き候補を取り出せる（spike 03、API 動作 OK で 3 件返却・fallback path、vector_store 連結による正規 vector 類似は Phase 1 で詰める）
+- [✓] 4 軸評価を LlamaIndex 内ではなく Orchestrator 側の **transient annotation** として扱える（spike 03、graph 不汚染 + 永続化分離を実証）
+- [✓] PropertyGraphIndex に Ollama embedding を `Settings.embed_model` 経由で注入（追加項目、spike 02）
+- [✓] `/spec-core --all` 相当の persist_dir 削除 + 全再構築（追加項目、spike 02）
+- [✓ 部分] Claude/Codex CLI subprocess 実呼び出し（追加項目、structured output、spike 04 で API 構造把握、実認証下は Phase 1 で詰め）
 
 #### 3 コマンド × 4 経路の一気通貫スパイク（DESIGN.ja.md §1.9 の 4 経路、toy 構成で）
 
