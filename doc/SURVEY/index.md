@@ -49,6 +49,7 @@
 | [10](10_spec_core_incremental.md) | /spec-core incremental stale 除去整合 | ✓ | ✓ | ✓ | usable_with_wrapper（safe_delete_by_section wrapper 必須、設計確定）|
 | [11](11_ollama_embedding.md) | Ollama embedding 接続 | ✓ | — | ✓ | **usable**（注入経路 spike 02 で実証済）|
 | [12](12_claude_codex_subprocess.md) | Claude/Codex CLI subprocess 最小確認 | ✓ (CLI help) | — | ✓ | partially usable（API 構造把握 ✓、実認証下の動作は Phase 1 で詰め）|
+| [13](13_path_b_design_options.md) | 案 B 設計オプション探索（Phase 1 ステップ 0a）| ✓ | — | — | 3 サブパターン提示（B-1 Ollama / B-2 Custom LLM / B-3 LiteLLM proxy）+ ハイブリッド可能性、ユーザー判断待ち |
 
 判定値: `usable` / `usable_with_wrapper` / `risky` / `unusable` / `unknown`
 
