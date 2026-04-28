@@ -140,10 +140,10 @@ DESIGN.ja.md §1.1〜§1.3, §1.5〜§1.9 はすべて **仮分担**。§4.1 Lla
 | 02 | SchemaLLMPathExtractor (2a-2f) | ✓ | ✓ | 部分 | partially usable（A/C 確定、B/2c 未実証）| 2c の strict=True 違反時の LLM 挙動、2a の `LLM` subclass wrapper 動作（Phase 1 / 実装時に詰める、案 A 採用なら必須でない）|
 | 03 | SimplePropertyGraphStore 永続化粒度 | ✓ | ✓ | ✓ | **usable** | （実証済、`store.delete()` は使わず safe wrapper 経由）|
 | 04 | incremental update 方式 | ✓ | ✓ | ✓ | usable_with_wrapper | safe_delete_by_section wrapper を spec-grag 側で実装する責務（spike 01 で動作確認済）|
-| 05 | HybridRetriever / PGRetriever fusion | ✓ | ✓ | ☐ | usable_with_wrapper | PGRetriever / VectorContextRetriever の検索動作（spike 03 予定）|
+| 05 | HybridRetriever / PGRetriever fusion | ✓ | ✓ | ✓ | usable_with_wrapper | API 動作 ✓ / vector_store 連結詳細は Phase 1 / 実装時に詰める（spike 03 で 0 件問題が残った）|
 | 06 | HippoRAG / LightRAG | ✓ | — | — | not_present_in_lpg_guide | spec-grag MVP 除外、spike 不要 |
-| 07 | 恒久プロパティの metadata 保持 | ✓ | ✓ | ✓ | **usable** | retrieval result（NodeWithScore）に properties が乗るかは spike 03 で確認予定 |
-| 08 | transient annotation の実装パターン | ☐ | ☐ | ☐ | unknown | NodeWithScore.metadata に 4 軸後付けの動作確認（spike 03 予定）|
+| 07 | 恒久プロパティの metadata 保持 | ✓ | ✓ | ✓ | **usable** | 永続化での保持 ✓、retrieval result に乗せるには TextNode 投入時の metadata コピーが必要（spec-grag 側責務）|
+| 08 | transient annotation の実装パターン | — | — | ✓ | **usable** | NodeWithScore.metadata に 4 軸後付け、graph 不汚染、永続化分離（spike 03 で実証）|
 | 09 | /spec-core --all 全再構築 | — | — | ✓ | **usable** | spike 02 で `shutil.rmtree(persist_dir)` + 全再構築を実証 |
 | 10 | /spec-core incremental stale 除去 | ✓ | ✓ | ✓ | usable_with_wrapper | safe_delete_by_section wrapper を spec-grag 側で実装する責務（spike 01 で動作確認済）|
 | 11 | Ollama embedding 接続 | ✓ | — | ✓ | **usable** | （実証済、dim=768、JP/EN OK、Settings.embed_model 注入は spike 02 で確認）|
@@ -230,7 +230,7 @@ Phase 0 の各項目を実証するための spike file 計画を以下に固定
 | 00 | `spike/00_smoke_ollama_embedding.py` | ✓ 完了 | 11 | `OllamaEmbedding` import / instantiate / `get_text_embedding` / dim=768 / JP・EN | — |
 | 01 | `spike/01_property_graph_basic.py` | ✓ 完了 | 02-2d / 03 / 04 / 07 / 10 | 案 A 直接投入（`upsert_nodes`/`upsert_relations`）/ persist-reload / 章単位 stale 除去（raw delete vs safe wrapper の比較）/ `safe_delete_by_section` wrapper 動作 | — |
 | 02 | `spike/02_property_graph_index.py` | ✓ 完了 | 01 / 09 / 11-注入経路 | `PropertyGraphIndex.from_existing(kg_extractors=[ImplicitPathExtractor()])` 構築 / `Settings.embed_model = OllamaEmbedding(...)` 注入 / persist + reload / `shutil.rmtree(persist_dir)` + 全再構築（経路 2 相当）。実証済の落とし穴: ① `kg_extractors=[]` は falsy で default LLM extractor が呼ばれる ② `load_index_from_storage` は `Settings.llm` 解決で ImportError（spec-grag は使わず graph_store 単独 reload + 毎回再構築） | 1 |
-| 03 | `spike/03_retriever_and_transient.py` | ☐ 未着手 | 05 / 07-retrieval / 08 | 各 entity に embedding をセット → `VectorContextRetriever` + `PGRetriever` で検索 / `NodeWithScore.node.metadata` に properties が乗るか確認 / 4 軸 transient annotation（`constraint_relevance` / `target_relevance` / `conflict` / `review_required`）を Orchestrator 側で後付け、graph には書き込まないことを確認 | 2 |
+| 03 | `spike/03_retriever_and_transient.py` | ✓ 完了（部分） | 05 / 07-retrieval / 08 | 各 entity に embedding をセット → `VectorContextRetriever` + `PGRetriever` 構築 OK・3 件返る（fallback path） / NodeWithScore.metadata はデフォルト空（TextNode 投入時に properties をコピーする責務は spec-grag 側）/ **4 軸 transient annotation の後付け・graph 不汚染・永続化分離 = OK（項目 08 = usable 確定）**。残課題: vector_store の VECTOR_SOURCE_KEY 連結で類似検索が 0 件、Phase 1 / 実装時に詰める | 2 |
 | 04 | `spike/04_cli_subprocess.py` | ☐ 未着手 | 12 | `claude --print --bare --no-session-persistence --output-format json --json-schema '{...}' < prompt` で JSON 取得 / `codex exec --output-schema schema.json --skip-git-repo-check` で同等動作 / 出力揺れ（同一 prompt × 複数回） / 認証切れ・rate limit エラー型を観察 | 3 |
 
 **優先順序の根拠**:

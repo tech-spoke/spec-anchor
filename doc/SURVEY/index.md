@@ -37,10 +37,10 @@
 | [02](02_schema_llm_path_extractor.md) | SchemaLLMPathExtractor 制約強度と統合方式 (2a-2f) | ✓ | ✓ | 部分 | partially usable（A: usable / B: 未実証 / C: usable）|
 | [03](03_simple_property_graph_store.md) | SimplePropertyGraphStore 永続化粒度 | ✓ | ✓ | ✓ | **usable**（store.delete は使わず safe_delete_by_section 経由）|
 | [04](04_incremental_update.md) | incremental update 方式 | ✓ | ✓ | ✓ | usable_with_wrapper（safe_delete_by_section wrapper 必須、設計確定）|
-| [05](05_hybrid_retriever.md) | HybridRetriever / PGRetriever fusion 戦略 | ✓ | ✓ | ☐ | usable_with_wrapper（fusion は spec-grag 側、検索動作は spike 03）|
+| [05](05_hybrid_retriever.md) | HybridRetriever / PGRetriever fusion 戦略 | ✓ | ✓ | ✓ | usable_with_wrapper（API 動作 ✓、vector_store 連結詳細は実装時詰め）|
 | [06](06_hipporag_lightrag.md) | HippoRAG / LightRAG retrieval 統合 | ✓ | — | — | not_present_in_lpg_guide（spec-grag MVP では除外）|
-| [07](07_persistent_property.md) | 恒久プロパティの node/relation metadata | ✓ | ✓ | ✓ | **usable**（properties 完全保持、JP OK、retrieval 経由は spike 03）|
-| [08](08_transient_annotation.md) | transient annotation の実装パターン | ☐ | ☐ | ☐ | unknown（spike 03 予定）|
+| [07](07_persistent_property.md) | 恒久プロパティの node/relation metadata | ✓ | ✓ | ✓ | **usable**（永続化保持 ✓、retrieval 経由 metadata は実装時詰め）|
+| [08](08_transient_annotation.md) | transient annotation の実装パターン | — | — | ✓ | **usable**（NodeWithScore.metadata 後付け、graph 不汚染、永続化分離を spike 03 で実証）|
 | [09](09_spec_core_all.md) | /spec-core --all 全再構築の API 挙動 | — | — | ✓ | **usable**（spike 02 で動作実証）|
 | [10](10_spec_core_incremental.md) | /spec-core incremental stale 除去整合 | ✓ | ✓ | ✓ | usable_with_wrapper（safe_delete_by_section wrapper 必須、設計確定）|
 | [11](11_ollama_embedding.md) | Ollama embedding 接続 | ✓ | — | ✓ | **usable**（注入経路 spike 02 で実証済）|

@@ -1,7 +1,6 @@
 # 05: HybridRetriever / PGRetriever fusion 戦略
 
-> 状態: WebFetch ✓ / GitHub ✓（retriever.py + sub_retrievers/base.py 確認）/ Spike ☐
-> 判定 **usable_with_wrapper**（fusion は spec-grag 側で実装する前提なら usable）
+> 状態: WebFetch ✓ / GitHub ✓ / **Spike ✓**（spike/03_retriever_and_transient.py）— 判定 **usable_with_wrapper**
 > 最終更新: 2026-04-28
 
 LlamaIndex Property Graph の retrieval API 名は **`PGRetriever`**（`HybridRetriever` ではない）。fusion 戦略は **単純結合 + テキスト dedup** のみ、RRF / Weighted は LlamaIndex 標準にはない。
@@ -97,10 +96,38 @@ from llama_index.core.indices.property_graph import (
 - default: `LLMSynonymRetriever` + `VectorContextRetriever`
 - 返り値: `List[NodeWithScore]`（`TextNode` ベース）
 
-## 実測・検証結果
+## 実測・検証結果（spike 03）
 
-- 最小コードで動いたこと: _pending spike/_
-- 動かなかったこと: _pending_
+- ✅ `VectorContextRetriever(graph_store, vector_store, embed_model, similarity_top_k=3)` 構築 OK
+- ✅ `PGRetriever(sub_retrievers=[vec_ret], use_async=False)` 構築 OK
+- ✅ `pg_ret.retrieve(QueryBundle(query_str="..."))` で 3 件の `NodeWithScore` が返る（fallback path）
+- ⚠️ vector_store が空のとき 3 件返るが score = 0.000（本来の vector 類似ではなく fallback で triplets を返す挙動）
+- ⚠️ vector_store に手動で TextNode 投入しても 0 件返る（VECTOR_SOURCE_KEY を metadata に入れたが正しく連結されない、要追加調査）
+- ✅ NodeWithScore.node は TextNode で、`text` 属性に triplet 文字列（`"oauth2_required -> CONSTRAINS -> user_authentication"`）
+
+### vector_store への正しい投入パターン（要追加調査・実装時詰める）
+
+spec-grag 側で:
+
+```python
+from llama_index.core.schema import TextNode
+from llama_index.core.graph_stores.types import VECTOR_SOURCE_KEY  # "vector_source_id"
+
+text_nodes = [
+    TextNode(
+        text=f"{n.label}: {n.name} ({n.properties['heading_path']})",
+        embedding=n.embedding,
+        metadata={
+            VECTOR_SOURCE_KEY: n.id,  # ★ graph_store の entity id と連結
+            **n.properties,           # entity properties をコピー
+        },
+    )
+    for n in entities
+]
+vector_store.add(text_nodes)
+```
+
+ただし spike 03 ではこの投入で 0 件が返るため、**vector_store と graph_store の entity 連結ロジックの詳細は Phase 1 / 実装時に追加調査が必要**。MVP では graph_store 直接アクセス（`get_rel_map`）+ keyword retrieval から始める選択肢もある。
 
 ## spec-grag への影響
 
@@ -118,4 +145,10 @@ from llama_index.core.indices.property_graph import (
 
 ## 判定
 
-**usable_with_wrapper**（fusion / rerank / 4 軸付与は spec-grag Orchestrator で実装、各 sub_retriever は usable）
+**usable_with_wrapper** — API レベル動作 ✓、ただし以下を spec-grag が実装する責務:
+
+1. fusion / rerank / 4 軸付与（LlamaIndex 標準にない）
+2. vector_store への TextNode 投入（VECTOR_SOURCE_KEY 連結含む、Phase 1 で詳細詰め）
+3. NodeWithScore から graph_store の EntityNode への参照解決（必要に応じて）
+
+MVP では graph_store ベース retrieval（`get` / `get_rel_map`）+ keyword 検索から始め、vector retrieval は段階的に投入する選択肢も視野に入れる。

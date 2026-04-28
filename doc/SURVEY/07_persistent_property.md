@@ -67,7 +67,10 @@ DESIGN.ja.md §1.6 / TODO.md「恒久プロパティ vs transient annotation の
     "triplets": [["<subj>", "<rel_label>", "<obj>"], ...]
   }
   ```
-- retrieval result（`NodeWithScore`）に metadata が含まれるか: 要追加 spike（PGRetriever 構築 + 検索の spike が次のステップ）
+- retrieval result（`NodeWithScore`）に metadata が含まれるか:
+  - **デフォルトでは空**（spike 03 で確認、`r.node.metadata = {}`）
+  - retrieval result に entity properties を乗せるには、spec-grag が **TextNode を vector_store に投入する際に metadata に properties をコピーする責務**がある
+  - ただし vector_store 連結の詳細は Phase 1 / 実装時に詰める（項目 05 参照）
 
 ## spec-grag への影響
 
