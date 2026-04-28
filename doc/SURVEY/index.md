@@ -34,17 +34,17 @@
 | # | 項目 | WebFetch | GitHub | Spike | 判定 |
 |---|---|---|---|---|---|
 | [01](01_property_graph_index.md) | PropertyGraphIndex API 安定度 | ✓ | ☐ | ☐ | usable_with_wrapper |
-| [02](02_schema_llm_path_extractor.md) | SchemaLLMPathExtractor 制約強度と統合方式 (2a-2f) | ✓ (2d/2e/2f) | ☐ | ☐ | partially usable（案 A/C 成立、案 B unknown）|
-| [03](03_simple_property_graph_store.md) | SimplePropertyGraphStore 永続化粒度 | ✓ | ☐ | ☐ | usable_with_wrapper |
-| [04](04_incremental_update.md) | incremental update 方式 | ✓ | ☐ | ☐ | usable_with_wrapper（要 spike 実証）|
-| [05](05_hybrid_retriever.md) | HybridRetriever fusion 戦略 | ☐ | ☐ | ☐ | unknown |
-| [06](06_hipporag_lightrag.md) | HippoRAG / LightRAG retrieval 統合 | ☐ | ☐ | ☐ | unknown |
-| [07](07_persistent_property.md) | 恒久プロパティの node/relation metadata | ☐ | ☐ | ☐ | unknown |
+| [02](02_schema_llm_path_extractor.md) | SchemaLLMPathExtractor 制約強度と統合方式 (2a-2f) | ✓ | ✓ | ☐ | **usable**（A: usable / B: usable_with_wrapper / C: usable）|
+| [03](03_simple_property_graph_store.md) | SimplePropertyGraphStore 永続化粒度 | ✓ | ✓ | ☐ | **usable**（JSON 永続化、edge 連動削除のみ要 spike）|
+| [04](04_incremental_update.md) | incremental update 方式 | ✓ | ✓ | ☐ | usable_with_wrapper（要 spike 実証）|
+| [05](05_hybrid_retriever.md) | HybridRetriever / PGRetriever fusion 戦略 | ✓ | ✓ | ☐ | usable_with_wrapper（fusion は spec-grag 側）|
+| [06](06_hipporag_lightrag.md) | HippoRAG / LightRAG retrieval 統合 | ✓ | — | — | not_present_in_lpg_guide（spec-grag MVP では除外）|
+| [07](07_persistent_property.md) | 恒久プロパティの node/relation metadata | ✓ | ✓ | ☐ | usable_with_wrapper（要 spike 実証）|
 | [08](08_transient_annotation.md) | transient annotation の実装パターン | ☐ | ☐ | ☐ | unknown |
 | [09](09_spec_core_all.md) | /spec-core --all 全再構築の API 挙動 | ☐ | ☐ | ☐ | unknown |
-| [10](10_spec_core_incremental.md) | /spec-core incremental stale 除去整合 | ✓ | ☐ | ☐ | usable_with_wrapper（暫定、要 spike）|
+| [10](10_spec_core_incremental.md) | /spec-core incremental stale 除去整合 | ✓ | ✓ | ☐ | usable_with_wrapper（要 spike 実証、最重要）|
 | [11](11_ollama_embedding.md) | Ollama embedding 接続 | ✓ | — | ✓ | **usable** |
-| [12](12_claude_codex_subprocess.md) | Claude/Codex CLI subprocess 最小確認 | ☐ | — | ☐ | unknown |
+| [12](12_claude_codex_subprocess.md) | Claude/Codex CLI subprocess 最小確認 | ✓ (CLI help) | — | ☐ | partially usable（両 CLI で `--json-schema` / `--output-schema` 確認）|
 
 判定値: `usable` / `usable_with_wrapper` / `risky` / `unusable` / `unknown`
 

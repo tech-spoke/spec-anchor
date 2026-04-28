@@ -1,56 +1,121 @@
 # 12: Claude/Codex CLI subprocess 最小確認
 
-> 状態: 未確認
+> 状態: CLI help ✓ / Spike ☐ — 判定 **partially usable**（Claude CLI は JSON output 強い、Codex は要 prompt 設計）
 > 最終更新: 2026-04-28
 
-DESIGN.ja.md §1.4 の「サブスク認証 Claude/Codex CLI を subprocess external worker として扱う」が API レベルで成立するか確認する。**項目 02-2a と組み合わせて案 B の前提検証**になる。
+DESIGN.ja.md §1.4 の「サブスク認証 Claude/Codex CLI を subprocess external worker として扱う」が API レベルで成立するか確認する。
+
+**重要発見**: Claude Code CLI には `--json-schema` + `--output-format json` がある → **CLI レベルで structured output を取れる**。これは案 A / 案 B 双方に有利。
 
 ## 調査対象
 
 - component:
   - Claude Code CLI 2.1.119 (`/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude`)
   - Codex CLI 0.93.0 (`/home/kazuki/.nvm/versions/node/v24.11.1/bin/codex`)
-- version / commit: 上記
 - source:
-  - Claude CLI docs: _pending fetch_
-  - Codex CLI docs (`codex exec` の non-interactive mode): _pending fetch_
+  - Claude CLI help: `claude --help`
+  - Codex CLI help: `codex --help` / `codex exec --help`
   - 実行確認: _pending spike/_
 
-## 確認した API
+## Codex CLI
 
-### Codex CLI
+### サブコマンド構成
 
-- non-interactive mode (`codex exec` 等) の入出力: _pending_
-- prompt をどの形式で渡すか（stdin / file / arg）: _pending_
-- 出力フォーマット（plain text / JSON / structured）: _pending_
-- 認証方式（`codex login` 後のサブスク認証 vs API key の自動選択）: _pending_
-- timeout / 中断シグナル: _pending_
+```
+codex [OPTIONS] [PROMPT]              # interactive
+codex exec [OPTIONS] [PROMPT]         # non-interactive ← spec-grag が使う
+codex review                           # code review non-interactive
+codex login / logout                   # auth
+codex mcp / mcp-server                 # MCP integration
+codex apply / resume / fork
+codex sandbox                          # sandbox 制御
+```
 
-### Claude Code CLI
+### `codex exec` の主要オプション
 
-- non-interactive 実行モード: _pending_
-- prompt 渡し方: _pending_
-- 出力フォーマット: _pending_
-- 認証方式（`claude login` Pro/Max サブスク vs API key）: _pending_
-- timeout / 中断シグナル: _pending_
+- `[PROMPT]`: 引数 or stdin (`-` で stdin から読む)
+- `-c, --config <key=value>`: config override (TOML)
+- `-m, --model <MODEL>`: モデル指定
+- `--oss` + `--local-provider <ollama | lmstudio | ollama-chat>`: **OSS / local LLM 切替**（Ollama 接続もここから可能）
+- `-i, --image <FILE>...`: image 添付
+- `-s, --sandbox <SANDBOX_MODE>`: read-only / workspace-write / danger-full-access
+- `-p, --profile <CONFIG_PROFILE>`: config.toml profile
+- `--full-auto` / `--dangerously-bypass-approvals-and-sandbox`
+- `-C, --cd <DIR>`: working dir
+- `--enable / --disable <FEATURE>`: feature flag
+
+### Codex CLI の structured output（追加確認、help 末尾）
+
+- `--output-schema <FILE>`: **Path to a JSON Schema file describing the model's final response shape** ← Claude CLI の `--json-schema` と同等の機能！
+- `--json`: Print events to stdout as JSONL（ストリーム JSON 出力）
+- `-o, --output-last-message <FILE>`: 最後のメッセージをファイルへ書き出し
+- `--add-dir <DIR>`: 追加 access dir
+- `--skip-git-repo-check`: git repo 外でも実行可
+- これにより **Codex CLI も CLI レベルで structured output 強制可能**（schema は JSON Schema ファイル経由）
+- spec-grag からの利用パターン:
+  ```bash
+  echo "<prompt>" | codex exec --output-schema /path/to/spec-grag.schema.json \
+      --skip-git-repo-check -m gpt-5
+  ```
+
+### 認証
+
+- `codex login` でサブスク認証（ChatGPT サインイン or API key）
+- API key 前提にしない方針（DESIGN §1.4）→ サブスク認証で運用
+
+## Claude Code CLI
+
+### 主要オプション
+
+- `-p, --print`: non-interactive、stdout に応答 → exit
+- `--output-format <text|json|stream-json>`: **JSON output 選択可**
+- `--input-format <text|stream-json>`: stream input 対応
+- `--json-schema <schema>`: **JSON Schema による structured output 制約**
+  - 例: `{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}`
+- `--max-budget-usd <amount>`: コスト上限（API key user only）
+- `--model <model>`: モデル指定
+- `--system-prompt <prompt>` / `--append-system-prompt <prompt>`: system prompt 制御
+- `--allowedTools / --disallowedTools <tools...>`: ツール制御
+- `--bare`: minimal mode（hooks / LSP / plugins / auto-memory 無効、再現性高）
+- `--no-session-persistence`: セッション保存無効（spec-grag CLI からの呼び出しに適する）
+- `--add-dir <directories...>`: 追加 access dir
+
+### Claude CLI の structured output
+
+- `--output-format json` + `--json-schema <schema>` で **CLI レベルで structured output を強制可能**
+- spec-grag CLI から呼び出すパターン:
+  ```bash
+  echo "<prompt>" | claude --print --bare --no-session-persistence \
+      --output-format json --json-schema '{"...spec-grag schema..."}' \
+      --model sonnet
+  ```
+- これにより案 A の Extraction が **強い structured 保証**で実装可能
+
+### 認証
+
+- Claude.ai サブスク（Pro / Max）でログイン → サブスク認証（API key 前提にしない）
+- spec-grag は `--bare` + サブスク認証で運用
 
 ## 実測・検証結果
 
-- 最小プロンプトで JSON を返させられるか（system prompt + format 指定）: _pending_
-- 結果の出力揺れ（同じ prompt で何回叩いて差分はどれくらいか）: _pending_
-- 認証切れの検出方法: _pending_
-- サブスク利用上限（rate limit）に当たった場合のエラー形式: _pending_
-- ログ / debug 出力が stdout に混入しないよう抑制できるか: _pending_
+- 最小プロンプトで JSON を返させられるか: _pending spike/_
+- 結果の出力揺れ: _pending spike/_
+- 認証切れの検出方法: _pending spike/_
+- サブスク利用上限（rate limit）に当たった場合のエラー形式: _pending spike/_
+- ログ / debug 出力が stdout に混入しないよう抑制できるか: _pending spike/_（`--bare` で抑制可能と推定）
 
 ## spec-grag への影響
 
-- DESIGN §1.4 の「subprocess external reasoning/extraction worker」が成立するか:
-- 案 B（CLI を LlamaIndex `LLM` interface でラップ）が現実的か（02-2a と組み合わせて判定）:
-- 案 A（spec-grag CLI 側で抽出 → JSON → LlamaIndex 投入）の subprocess wrapper 設計に必要な機能セット:
+- DESIGN §1.4「subprocess external reasoning/extraction worker」が **CLI 機能として成立**
+- **Claude CLI は案 A 推奨（`--json-schema` で強い structured 保証）**
+- **Codex CLI は案 A で運用、structured output は prompt + 自前 parser**
+- 案 B（CLI を LlamaIndex `LLM` interface でラップ）は技術的には可能だが、案 A の方が責務分離が綺麗（spec-grag CLI が抽出結果を直接 graph store に投入）
 - 未解決事項:
+  - Claude `--json-schema` の挙動（schema 違反時のエラー型 / retry / partial output）
+  - Codex `--oss --local-provider ollama` で LLM を Ollama に向ける構成の動作確認（spike 不要層の代替）
   - 並列実行（concurrent batch）時のサブスク制限の挙動
   - JSON parser の頑健性（CLI が markdown wrapped JSON を返すケースの吸収）
 
 ## 判定
 
-unknown
+**partially usable** — Claude CLI は CLI 機能で usable、Codex CLI は prompt 設計で usable_with_wrapper、spike で実証して両者を usable に昇格予定
