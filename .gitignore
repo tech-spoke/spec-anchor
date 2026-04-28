@@ -46,3 +46,6 @@ Thumbs.db
 
 # spec-grag runtime artifacts (per-project graph storage created during testing)
 .spec-grag/graph/
+
+# Phase 0.5 spike output artifacts
+spike_storage/
