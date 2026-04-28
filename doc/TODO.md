@@ -282,9 +282,27 @@ Phase 0 の各項目を実証するための spike file 計画を以下に固定
 - [☐] **経路 4: /spec-realign** — 課題プロンプトを与える → 経路 3 + LLM (Answer) で RealignResult を生成 → ConstraintContext / TargetContext / ConflictNotes / ReviewNotes / Answer の構造を確認
 - [☐] **経路間の依存**: 経路 3 / 4 が経路 1 を正しく呼び、経路 2 が単独実行のみであることを確認
 
-### Phase 1：仮分担と方式フローの再評価（Phase 0 + 0.5 完了後）
+### Phase 1：方向 1 / 方向 2 の比較評価 → §1 仮分担マトリクスの再評価（Phase 0 + 0.5 完了後）
 
-Phase 0 / 0.5 の結果を元に、DESIGN.ja.md §1 の各セクションが GraphRAG 側で実装可能か照合する。
+**【2026-04-28 改訂】**: 案 A 破棄に伴い、Phase 1 入り口は **方向 1 / 方向 2 の比較評価**から開始する（doc/SURVEY/SUMMARY.md §3.9 参照）。
+
+**Phase 1 ステップ 0（必須、最優先）**: 方向 1 / 方向 2 の比較評価
+
+- [ ] **方向 1（GRAG をちゃんと使う）の評価**:
+  - LlamaIndex `LLM` subclass adapter（CodexCLIAdapter）の最小 method 一覧と subprocess 統合方針を spike 設計
+  - SchemaLLMPathExtractor の日本語プロンプト化と spec-grag Core schema を Literal で表現する方法
+  - vector_store の VECTOR_SOURCE_KEY 連結問題（spike 03 の 0 件問題）を正規パターンで解消
+- [ ] **方向 2（自前 canonical graph + optional LlamaIndex adapter）の評価**:
+  - canonical graph 永続化形式の比較（SQLite / JSONL / NetworkX in-memory + JSON dump）
+  - 自前 retriever の fusion 設計（embedding + property + traversal）
+  - LlamaIndex を optional adapter にする境界 API の設計
+- [ ] **§3.8 共通評価軸 5 観点での対称比較**:
+  - 波及先の保存管理 / 明示 edge 探索 / stale edge 除去 / 暗黙的波及先発見 / GRAG 構築支援
+- [ ] 方向 1 / 方向 2 のいずれを採るかを確定 → DESIGN.ja.md §1.4 / §2 / §4 の書き換え
+
+**Phase 1 ステップ 1（方向確定後）**: §1 各セクションの再評価
+
+Phase 0 / 0.5 の結果と方向確定を元に、DESIGN.ja.md §1 の各セクションが選択された方向で実装可能か照合する。
 
 **§1 各セクションの再評価**:
 
