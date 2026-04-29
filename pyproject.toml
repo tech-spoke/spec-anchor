@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spec-grag"
+version = "0.1.0"
+description = "SPEC-grag CLI and protocol implementation"
+requires-python = ">=3.12"
+dependencies = [
+  "jsonschema>=4.25,<5",
+  "pydantic>=2.13,<3",
+  "llama-index-core>=0.14.21,<0.15",
+]
+
+[project.scripts]
+spec-grag = "spec_grag.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

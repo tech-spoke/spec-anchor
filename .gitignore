@@ -33,6 +33,8 @@ htmlcov/
 .python-version
 .code-intel/
 .playwright-mcp/
+.codex/
+.envrc
 
 # Editor / IDE
 *.swp

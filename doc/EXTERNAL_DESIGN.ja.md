@@ -511,6 +511,17 @@ your-project/
 
 別プロジェクトでは、`sources.include` と `core.*_file` を対象プロジェクトの配置に合わせて変更する。SPEC-grag 本体をプロジェクトごとに編集してはいけない。
 
+### 7.3 `.gitignore` 推奨設定
+
+`.spec-grag/config.toml` は対象プロジェクトの設定として管理してよい。一方、GRAG 永続化データ、pending state、cache、tmp には source specs 由来の抽出中間データや LLM 出力が含まれる可能性があるため、通常は Git 管理しない。
+
+```gitignore
+.spec-grag/graph/
+.spec-grag/pending/
+.spec-grag/cache/
+.spec-grag/tmp/
+```
+
 ## 8. 出力契約
 
 ### 8.1 InjectionContext
