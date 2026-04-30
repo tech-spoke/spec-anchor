@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from spec_grag.manifest import (
+    MARKDOWN_PARSER_NAME,
+    SourceManifest,
     ManifestUpdateStatus,
     build_current_section_manifest,
     load_source_manifest,
@@ -49,6 +51,65 @@ OAuth is required.
     assert manifest.entries[0].document_id == "docs/spec/auth.md"
     assert manifest.entries[1].chapter_id == "docs/spec/auth.md#auth"
     assert len(manifest.entries[1].source_hash) == 64
+    assert manifest.parser_name == MARKDOWN_PARSER_NAME
+    assert manifest.parser_version
+
+
+def test_build_current_section_manifest_supports_setext_headings(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(
+        tmp_path / "docs/spec/auth.md",
+        """Auth
+====
+
+Intro.
+
+Login
+-----
+
+OAuth is required.
+""",
+    )
+
+    manifest = build_current_section_manifest(tmp_path, [source])
+
+    assert [entry.heading_path for entry in manifest.entries] == [
+        "Auth",
+        "Auth / Login",
+    ]
+    assert [entry.section_id for entry in manifest.entries] == [
+        "docs/spec/auth.md#auth",
+        "docs/spec/auth.md#auth-login",
+    ]
+    assert manifest.entries[0].heading_start_line == 1
+    assert manifest.entries[1].heading_start_line == 6
+
+
+def test_build_current_section_manifest_ignores_nested_and_html_headings(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(
+        tmp_path / "docs/spec/auth.md",
+        """<div>
+# Not a heading
+</div>
+
+> # Quoted heading
+
+- # List item heading
+
+# Real
+""",
+    )
+
+    manifest = build_current_section_manifest(tmp_path, [source])
+
+    assert [entry.heading_path for entry in manifest.entries] == [
+        "auth / preamble",
+        "Real",
+    ]
+    assert manifest.entries[1].section_id == "docs/spec/auth.md#real"
 
 
 def test_source_hash_changes_only_when_section_content_changes(tmp_path: Path) -> None:
@@ -60,6 +121,20 @@ def test_source_hash_changes_only_when_section_content_changes(tmp_path: Path) -
 
     assert first.entries[0].section_id == second.entries[0].section_id
     assert first.entries[0].source_hash != second.entries[0].source_hash
+
+
+def test_build_current_section_manifest_preserves_unicode_heading_ids(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(
+        tmp_path / "docs/spec/auth.md",
+        "# 認証\n\nIntro.\n\n## ログイン\n\nOAuth.\n",
+    )
+
+    assert section_ids_for(source, tmp_path) == [
+        "docs/spec/auth.md#認証",
+        "docs/spec/auth.md#認証-ログイン",
+    ]
 
 
 def test_reconcile_detects_changed_removed_added_and_rename_as_removed_added(
@@ -102,6 +177,22 @@ def test_reconcile_detects_split_and_merge_as_added_removed(tmp_path: Path) -> N
     assert "docs/spec/auth.md#auth-login" in plan.removed_section_ids
     assert "docs/spec/auth.md#auth-logout" in plan.removed_section_ids
     assert "docs/spec/auth.md#auth-session" in plan.added_section_ids
+
+
+def test_reconcile_treats_parser_change_as_changed_sections(tmp_path: Path) -> None:
+    source = write_markdown(tmp_path / "docs/spec/auth.md", "# Auth\n\nOAuth.\n")
+    current = build_current_section_manifest(tmp_path, [source])
+    previous = SourceManifest(
+        parser_name="legacy-atx",
+        parser_version="0",
+        generated_at=current.generated_at,
+        entries=current.entries,
+    )
+
+    plan = reconcile_manifests(previous, current)
+
+    assert plan.unchanged_section_ids == []
+    assert plan.changed_section_ids == ["docs/spec/auth.md#auth"]
 
 
 def test_write_and_load_source_manifest_atomic(tmp_path: Path) -> None:

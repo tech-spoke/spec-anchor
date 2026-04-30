@@ -44,7 +44,8 @@
 
 ## spec-grag への影響
 
-- DESIGN §1.4「embedding は Ollama nomic-embed-text」が **API レベルで成立**
+- 当時の DESIGN §1.4 仮説「embedding は Ollama nomic-embed-text」は **API レベルで成立**
+- ただしこれは日本語 semantic retrieval 品質の採用判定ではない。後続設計では、日本語 / 多言語仕様文書向け標準を Ollama `bge-m3` とする。
 - dim=768
 - 日本語入力で問題なく動作
 - 未解決事項:

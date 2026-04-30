@@ -99,7 +99,8 @@ GRAG / GraphRAG ライブラリ（LlamaIndex / Neo4j 等）は **GRAG subsystem 
 │  - 軽量 schema: DOCUMENT / CHAPTER / SECTION /          │
 │                ANCHOR（§2.1）                           │
 │  - SimplePropertyGraphStore（JSON 永続化）              │
-│  - SimpleVectorStore + OllamaEmbedding（dim=768）       │
+│  - SimpleVectorStore + OllamaEmbedding                  │
+│    default: bge-m3（dim=1024）                          │
 │  - PGRetriever / VectorContextRetriever                 │
 │  - LLM backend = CodexCLIAdapter（spec-grag が実装）   │
 │  → 候補を返すのみ。判断はしない                         │
@@ -152,6 +153,7 @@ ResultEnvelope:
   execution:
     context_ready?: boolean
     pending_concept_diff_id?: string
+    pending_conflict_review_id?: string
     failed_sources[]?: string
     degraded_components[]?: string
   warnings[]: string
@@ -186,6 +188,10 @@ AgenticSearchCandidate:
 
 `SlashCommandRequest` に `agentic_search_candidates[]` が含まれる場合、CLI は `request_id` が未発行の候補、`source_hash` が現行 section hash と一致しない候補、`excerpt` の出典を解決できない候補を採用しない。
 
+`AgenticSearchCandidate.source_span` は 1-based line range として扱う。標準形式は `start-end` または `line` だが、`L12-L18`、`lines 12-18`、`[12:1-40]` のような表記も同じ line range に正規化する。明示 `source_span` がある場合は、実ファイル範囲内、該当 `source_section_id` の section 範囲内、かつ span 本文に `excerpt` が含まれることを検証する。明示 span が valid であれば、同一 excerpt が他箇所に存在しても invalid にはしない。
+
+`source_span` がない場合は、`excerpt` から section 内の位置を逆引きする。該当箇所が 0 件なら `excerpt_not_found_in_source_section`、複数件なら `ambiguous_excerpt_in_source_section` として候補を採用せず `ReviewNotes` に落とす。
+
 ### 1.4 採用方針（pivot 後 + Phase 0 結果）
 
 **確定方針（pivot 後 commit b45d95f / 2026-04-27）**:
@@ -201,7 +207,11 @@ AgenticSearchCandidate:
     - `SchemaLLMPathExtractor` に渡す
     - `PropertyGraphIndex` / `SimplePropertyGraphStore` / Retriever は LlamaIndex 標準フローに乗る
     - 旧調査資料上の「案 B」に相当する（[doc/SURVEY/SUMMARY.md §3.9](SURVEY/SUMMARY.md) / [13_path_b_design_options.md](SURVEY/13_path_b_design_options.md)）
-- **ベクトル化 model（embedding）**: **Ollama nomic-embed-text**（ローカル、dim=768）
+- **ベクトル化 model（embedding）**: **Ollama bge-m3**（ローカル、日本語 / 多言語仕様文書向け標準、dim=1024）
+  - dim=768 互換が必要な既存 index / storage では、代替候補として `nomic-embed-text-v2-moe` を使う
+  - `nomic-embed-text` / `nomic-embed-text:v1.5` は legacy / English-oriented と扱い、日本語仕様書 RAG の標準にはしない
+  - embedding provider / model / dimension は graph / vector / concept index の metadata に保存し、不一致時は index rebuild を要求する
+  - dimension や embedding 空間の異なる index は混在させない
 
 **Phase 0 で確定した運用ルール R1〜R5**:
 
@@ -225,6 +235,7 @@ LLM 抽出を完全信用しない。EXTERNAL_DESIGN.ja.md §5.4 の ConflictNot
    - Purpose の制約条項と Source spec の対立量化詞（「必ず」⇔「任意」、「全て」⇔「一部」）
    - FreshnessReport.source_manifest の scanned_at より新しい修正と古い section の食い違い（§4.7 で定義）
    - Required と Optional の同時指定
+   - MUST と MUST NOT、禁止と必須、上限値 / 下限値、状態遷移不能、権限条件の食い違い、Concept と Source spec の明示的な逆転
 3. **LLM 推論**（補助、最後）
    - 上記 1, 2 で疑わしい候補のみ LLM (Classification) で意味的妥当性確認
    - LLM 単独では `conflict=true` を発火させない、必ず構造的根拠とセット
@@ -238,6 +249,8 @@ LLM 抽出を完全信用しない。EXTERNAL_DESIGN.ja.md §5.4 の ConflictNot
 | `conflict = true` | 不可 | 構造的根拠（段階 1 or 2）または Human approval を必須とする |
 
 LLM (Classification) は **候補**を出してよいが、**確定**は Validator または Human approval を経る。実装は Orchestrator 側（§3.3）。
+
+Conflict は source 全体に対する恒久候補と、task 依存の一時候補に分ける。Source specs 全体の矛盾候補は `/spec-core` 相当で `pending_conflict_review` として保持し、人間が candidate 単位に accept / reject / defer / revise する。task 依存の衝突は InjectionContext 上の transient annotation として扱い、承認済み Conflict だけを `ConflictNotes`、未承認候補を `ReviewNotes` に反映する。Answer phase では Conflict の承認・追加検索・raw source read を行わない。
 
 ### 1.6 4 軸評価（transient annotation、graph 不汚染）
 
@@ -365,16 +378,22 @@ EXTERNAL_DESIGN.ja.md §4 / §5 / §6 の 3 コマンドを、§1.1 の責務境
      - 変更 section に関連する章間 relation を traversal
      - 変更 / 削除 section の source_section_id を持つ cluster を dirty にする
      - 影響を受けた cluster を再算出し sidecar に書き出す
- 11. Concept 更新候補生成（§3.4）
+ 11. Orchestrator: source-level Conflict 候補を検出（§3.3）
+     - source_span / source_hash / evidence_excerpt を持つ候補だけ pending_conflict_review に入れる
+     - accepted 済み候補は approved_conflicts sidecar に保持し、rejected fingerprint は再通知抑制に使う
+ 12. Concept 更新候補生成（§3.4）
      - GRAG の ANCHOR + relation から「Core 書き換え候補」を検出
      - LLM (Extraction) が Agentic search で章本文確認 + unified diff 生成
- 12. CLI: Concept diff がある場合は pending_concept_diff を作成し、
+ 13. CLI: Concept diff がある場合は pending_concept_diff を作成し、
      CoreResult.concept_diff / ResultEnvelope.execution.pending_concept_diff_id として出力
- 13. CLI: CoreResult を返して正常終了
- 14. Human: accept / reject / 修正指示（CoreResult 受領後、§3.4 の hunk 操作）
- 15. CLI: apply 時に base_concept_hash を検証し、
+     Conflict 候補がある場合は pending_conflict_review を作成し、
+     CoreResult.conflict_review / ResultEnvelope.execution.pending_conflict_review_id として出力
+ 14. CLI: CoreResult を返して正常終了
+ 15. Human: Concept は hunk 単位で accept / reject / 修正指示、Conflict は candidate 単位で accept / reject / defer / 修正指示（チャット上の確認）
+ 16. CLI: apply 時に base_concept_hash を検証し、
      accept された hunk のみ Concept に反映、未承認 hunk は反映しない
- 16. CLI: Concept が更新された場合、Core Concept index を再生成（§3.7）
+     approved conflict のみ approved_conflicts sidecar に反映し、未承認 candidate は確定 Conflict にしない
+ 17. CLI: Concept が更新された場合、Core Concept index を再生成（§3.7）
 
 経路 2: /spec-core --all（全再構築）
   1. CLI: .spec-grag/config.toml 読み込み
@@ -390,14 +409,18 @@ EXTERNAL_DESIGN.ja.md §4 / §5 / §6 の 3 コマンドを、§1.1 の責務境
   7. Orchestrator: 全 chapter の ChapterAnchor artifact を全再生成（§2.5）
      - chapter_anchors.json を atomically replace する
   8. Orchestrator: Hierarchical Cluster の cluster snapshot を全再生成（§3.5）
-  9. Concept 再生成候補（経路 1 の Step 11 と同じプロセス）
- 10. CLI: Concept diff がある場合は pending_concept_diff を作成し、
+  9. source-level Conflict 候補検出（経路 1 の Step 11 と同じプロセス）
+ 10. Concept 再生成候補（経路 1 の Step 12 と同じプロセス）
+ 11. CLI: Concept diff がある場合は pending_concept_diff を作成し、
      CoreResult.concept_diff / ResultEnvelope.execution.pending_concept_diff_id として出力
- 11. CLI: CoreResult を返して正常終了
- 12. Human: accept / reject / 修正指示（CoreResult 受領後、§3.4 の hunk 操作）
- 13. CLI: apply 時に base_concept_hash を検証し、
+     Conflict 候補がある場合は pending_conflict_review を作成し、
+     CoreResult.conflict_review / ResultEnvelope.execution.pending_conflict_review_id として出力
+ 12. CLI: CoreResult を返して正常終了
+ 13. Human: Concept は hunk 単位で accept / reject / 修正指示、Conflict は candidate 単位で accept / reject / defer / 修正指示（チャット上の確認）
+ 14. CLI: apply 時に base_concept_hash を検証し、
      accept された hunk のみ Concept に反映、未承認 hunk は反映しない
- 14. CLI: Concept が更新された場合、Core Concept index を再生成（§3.7）
+     approved conflict のみ approved_conflicts sidecar に反映し、未承認 candidate は確定 Conflict にしない
+ 15. CLI: Concept が更新された場合、Core Concept index を再生成（§3.7）
 
 経路 3: /spec-inject（GRAG を信じすぎず、Agentic search 併用）
   1. CLI: 経路 1（/spec-core incremental）を内部実行
@@ -411,7 +434,7 @@ EXTERNAL_DESIGN.ja.md §4 / §5 / §6 の 3 コマンドを、§1.1 の責務境
      - 未承認 diff を無視して現在の Concept のまま進める `--ignore-pending`
        相当の迂回オプションは設けない。進める場合は reject / revise / 手動修正で
        pending 状態を解消してから再実行する
-  3. CLI: ConversationContext + Purpose + 承認済 Concept を取得
+  3. CLI: ConversationContext + Purpose + 承認済 Concept + approved_conflicts / pending_conflict_review を取得
      課題プロンプトが明示されていれば中心クエリとして使用、
      省略時は ConversationContext から中心クエリを推定（EXTERNAL_DESIGN.ja.md §3.3）
   4. Orchestrator: Purpose を必ず ConstraintContext 候補に追加（自動）
@@ -441,6 +464,9 @@ EXTERNAL_DESIGN.ja.md §4 / §5 / §6 の 3 コマンドを、§1.1 の責務境
      - LLM が出すのは候補（review_required, semantic_conflict_candidate）まで
      - 各 item に source_origin（GRAG / Agentic search / 両方）を付与
  10. Validator: schema / source / Concept approval / Conflict 昇格を deterministic に検査（§1.5）
+     - approved_conflicts のうち task に関連するものだけ ConflictNotes に入れる
+     - 未承認 Conflict candidate / semantic_conflict_candidate は ReviewNotes に落とす
+     - Answer phase で Conflict 承認を行わせない
  11. Orchestrator: InjectionContext を構造化出力（EXTERNAL_DESIGN.ja.md §8.1 の構造を厳守）
      - ConstraintContext / TargetContext / ExclusionNotes / ConflictNotes / ReviewNotes
      - chapter_anchors は constraint_context.chapter_anchor_constraints / target_context.related_chapter_anchors に振り分け
@@ -695,7 +721,7 @@ LLM 抽出由来の node / relation / vector embedding / ChapterAnchor artifact 
 
 **deterministic structure reconciliation**:
 
-section の本文変更だけでなく、削除・rename・分割・統合・chapter 構造変更を扱うため、`/spec-core incremental` は毎回 Markdown heading 構造から `current_section_manifest` を作り、前回の `source_manifest` と比較する。初期実装では ATX heading（`#` / `##` 等）を fenced code block 外で走査する。Setext heading、HTML block、attribute 付き heading 等を厳密に扱う必要が出た場合は、CommonMark 互換 parser（例: markdown-it-py / mistune 等）への置換を検討する。
+section の本文変更だけでなく、削除・rename・分割・統合・chapter 構造変更を扱うため、`/spec-core incremental` は毎回 Markdown heading 構造から `current_section_manifest` を作り、前回の `source_manifest` と比較する。Markdown heading 構造の解析は CommonMark preset の `markdown-it-py` を標準とし、ATX / Setext heading、fenced code、HTML block を parser の構文解釈に従って扱う。blockquote / list item 内の heading は source spec の section 境界としては扱わない。
 
 ```text
 current_section_manifest:
@@ -790,6 +816,11 @@ Orchestrator が経路 3 で行う:
     経路 1 で Concept diff が accept された場合 -> 承認内容を approved_concept_update に格納
     Concept diff がなかった / reject された場合 -> approved_concept_update = null
     |
+  approved_conflicts / pending_conflict_review を反映:
+    承認済み source-level Conflict -> conflict_notes
+    未承認 source-level Conflict 候補 -> review_notes
+    task 依存の semantic_conflict_candidate -> review_notes
+    |
   InjectionContext として構造化出力（EXTERNAL_DESIGN.ja.md §8.1）
 ```
 
@@ -822,6 +853,7 @@ Orchestrator が経路 3 で行う:
   - Purpose の制約条項と Source spec の対立量化詞検出
   - FreshnessReport.source_manifest の scanned_at と section の updated_at の食い違い検出（§4.7）
   - Required と Optional の同時指定検出
+  - MUST と MUST NOT、禁止と必須、上限値 / 下限値、状態遷移不能、権限条件、Concept と Source spec の逆転を検出
   -> 段階 1 と合わせて「conflict 候補」を絞り込む
 
 段階 3（LLM 推論、補助）:
@@ -833,7 +865,82 @@ Orchestrator が経路 3 で行う:
   conflict = true は構造的根拠（段階 1 or 2）または Human approval を必須とする
 ```
 
-実装は Phase 1 spike 11。
+Conflict approval workflow は実装対象とする。検出 rule の網羅率は versioned rule pack として増やすが、候補検出 -> 人間確認 -> approved conflict -> InjectionContext 反映の縦切りは最初から持つ。
+
+**source-level Conflict review artifact**:
+
+```text
+pending_conflict_review（.spec-grag/pending/conflict_review_<review_id>.json）:
+  review_id: string
+  base_graph_revision: string
+  base_source_manifest_hash: string
+  generated_at: ISO8601 timestamp
+  candidates[]:
+    candidate_id: string
+    conflict_type: string
+    severity: low | medium | high
+    rule_id?: string
+    summary: string
+    reason: string
+    evidence_spans[]:
+      source_document_id: string
+      source_section_id: string
+      source_span: string
+      source_hash: string
+      excerpt: string
+    status: pending | accepted | rejected | deferred | revised
+    revision_instruction?: string
+```
+
+`pending_conflict_review` はユーザーに直接読ませる UI ではない。Agent がチャット上で candidate 単位に要約、根拠 source span、conflict_type、severity、選択肢を提示し、ユーザーの accept / reject / defer / 修正指示を CLI 操作に変換する。内部 JSON は再開・hash mismatch 検査・再通知抑制のための状態である。
+
+```text
+/spec-core
+  -> CoreResult.conflict_review
+  -> ResultEnvelope.execution.pending_conflict_review_id
+  -> .spec-grag/pending/conflict_review_<review_id>.json を作成
+
+/spec-core --approve-conflict <review_id>:<candidate_id>
+/spec-core --reject-conflict <review_id>:<candidate_id>
+/spec-core --defer-conflict <review_id>:<candidate_id>
+/spec-core --revise-conflict <review_id>:<candidate_id> "<instruction>"
+/spec-core --apply-conflicts <review_id>
+```
+
+`--apply-conflicts` 時の必須検査:
+
+```text
+1. base_graph_revision / base_source_manifest_hash が現在値と一致することを確認
+2. 不一致なら apply せず blocked とし、再検出または人間レビューを要求
+3. accepted candidate のみ approved_conflicts sidecar に反映
+4. rejected candidate は false positive として fingerprint を保存し、同一根拠での再通知を抑制
+5. deferred candidate は未確定として保持し、関連 task では ReviewNotes に落とす
+6. revised candidate は revision_instruction に基づき再検出または再分類し、再度 candidate 承認に戻す
+```
+
+**approved_conflicts sidecar**:
+
+```text
+approved_conflicts（.spec-grag/graph/approved_conflicts.json）:
+  version: string
+  graph_revision: string
+  source_manifest_hash: string
+  conflicts[]:
+    conflict_id: string
+    source_candidate_id: string
+    conflict_type: string
+    severity: low | medium | high
+    summary: string
+    reason: string
+    evidence_spans[]
+    approved_at: ISO8601 timestamp
+    approved_by: human
+  rejected_fingerprints[]:
+    fingerprint: string
+    rejected_at: ISO8601 timestamp
+```
+
+Graph store 本体に `conflict=true` を恒久 property として書き込まない。承認済み Conflict は sidecar として保持し、`/spec-inject` / `/spec-realign` が task に関連するものだけ `ConflictNotes` へ昇格する。未承認 candidate は `ReviewNotes` に出すが、確定 Conflict として Answer に使わせない。
 
 ### 3.4 Concept (Core) 承認制【方針案、spike 06 + 09 で検証予定】
 
@@ -855,6 +962,8 @@ EXTERNAL_DESIGN.ja.md §3.4 / §4.5 の Concept 更新候補生成プロセス:
 Concept diff は CLI プロセスをまたいで hunk 単位に承認されるため、生成時に pending state を永続化する。未承認 diff は Concept retrieval / InjectionContext / Answer 生成に絶対に混ぜない。
 
 Concept diff により `/spec-inject` / `/spec-realign` が `blocked` になった場合、ユーザーはチャット上で Concept を手動修正するか、`accept` / `reject` / `revise` 相当の判断を行い、その後同じコマンドを再実行する。SPEC-grag は blocked 状態のまま InjectionContext / Answer を生成しない。
+
+`pending_concept_diff` はユーザーに直接読ませる UI ではない。Agent がチャット上で hunk 単位に要約、根拠 source span、差分、選択肢を提示し、ユーザーの accept / reject / 修正指示を CLI 操作に変換する。内部 JSON は再開・hash mismatch 検査・hunk 状態管理のための状態である。
 
 ```text
 pending_concept_diff（.spec-grag/pending/concept_diff_<diff_id>.json）:
@@ -993,9 +1102,11 @@ Concept を graph entity から外したため（§2.1）、経路 3 step 5a の
 
 ```text
 Core Concept index（.spec-grag/graph/concept_index.json または vector_store namespace=core_concept）:
+  - metadata: embedding_provider / embedding_model / embedding_dimension
   - concept_file を heading / paragraph 単位に分割
   - 各 chunk: concept_chunk_id / heading_path / text_hash / embedding
   - 未承認 Concept diff は index に入れない
+  - metadata と現行 config の embedding provider / model / dimension が一致しない場合は rebuild 対象にする
 
 更新タイミング:
   - /spec-core 経路 1 / 2 で Concept hunk が accept され concept_file が更新された直後（経路 1 step 16 / 経路 2 step 14）
@@ -1036,6 +1147,8 @@ ResultEnvelope:
 | `degraded` | 一部 source / extractor / vector_store / cluster 更新に失敗したが、payload は利用可能。warnings と failed_sources を必ず出す |
 | `blocked` | Concept diff 未承認、追加 context 不足など、ユーザー操作なしでは次工程へ進めない |
 | `failed` | config 不正、source 不在、graph 読み込み不能などで実行不可 |
+
+未承認 Conflict 候補だけでは `/spec-inject` / `/spec-realign` を blocked にしない。確定 Conflict として扱わず、関連 task の `ReviewNotes` に落とす。Concept diff 未承認は Concept retrieval / Answer の前提を変えるため blocked とする。
 
 `/spec-inject` は `status=blocked` の場合、payload を InjectionContext にせず `ConceptApprovalRequiredResult` / `NeedMoreContextResult` / `ErrorResult` のいずれかにする。`/spec-realign` は Answer 生成前に `ResultEnvelope.status in {ok, degraded}` かつ `execution.context_ready == true` を必須条件にする。Purpose 欠落や config 不正など、必須入力の欠落はユーザー操作で補える場合でも `failed` として扱う。
 
@@ -1112,6 +1225,8 @@ FreshnessReport:
   warnings: string[]
 
 source_manifest（.spec-grag/graph/source_manifest.json）:
+  parser_name: string
+  parser_version: string
   entries[]:
     document_id: string
     chapter_id: string
@@ -1158,6 +1273,7 @@ Conflict 段階 2 の「scanned_at より新しい修正との食い違い」は
 | `sources.include` に一致するファイルがない | `failed` | Source specs なしでは GRAG 構築不可のため ErrorResult を返す |
 | GRAG 更新に一部失敗（SchemaLLMPathExtractor / vector_store / cluster snapshot 等） | `degraded` | CoreResult.failed_sources / ResultEnvelope.execution.degraded_components / warnings に記録。成功した section の結果は保持する |
 | Concept diff が未承認（経路 3 / 4） | `blocked` | Orchestrator が InjectionContext / Answer 生成を行わず、ConceptApprovalRequiredResult を返して停止 |
+| Conflict 候補が未承認 | `ok` or `degraded` | 確定 Conflict には昇格せず、関連する InjectionContext / Answer では ReviewNotes に提示する。未承認 Conflict 候補だけでは Answer phase を停止しない |
 | Answer 生成前に context 不足が残る | `blocked` | Answer を生成せず、NeedMoreContextResult または ReviewNotes 相当の blocked result として返す |
 
 ### 4.9 spike 失敗時の影響範囲（fallback ladder との対応）

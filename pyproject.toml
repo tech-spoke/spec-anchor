@@ -11,10 +11,14 @@ dependencies = [
   "jsonschema>=4.25,<5",
   "pydantic>=2.13,<3",
   "llama-index-core>=0.14.21,<0.15",
+  "markdown-it-py>=3,<5",
 ]
 
 [project.scripts]
 spec-grag = "spec_grag.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["spec_grag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -70,6 +70,26 @@ class AgentCapabilities(StrictModel):
 class RequestOptions(StrictModel):
     all: bool = False
     output_format: Literal["json"] = "json"
+    accept: str | None = None
+    reject: str | None = None
+    revise: str | None = None
+    revision_instruction: str | None = None
+    apply: str | None = None
+
+    @model_validator(mode="after")
+    def validate_concept_diff_operation(self) -> RequestOptions:
+        operations = [
+            value
+            for value in (self.accept, self.reject, self.revise, self.apply)
+            if value is not None
+        ]
+        if len(operations) > 1:
+            raise ValueError("only one Concept diff operation may be requested")
+        if self.revise is not None and not self.revision_instruction:
+            raise ValueError("revision_instruction is required with revise")
+        if self.revision_instruction is not None and self.revise is None:
+            raise ValueError("revision_instruction requires revise")
+        return self
 
 
 class SearchTarget(StrictModel):

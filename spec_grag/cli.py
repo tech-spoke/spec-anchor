@@ -12,20 +12,44 @@ from typing import Any, TextIO
 
 from pydantic import ValidationError
 
+from spec_grag.concept_index import refresh_concept_index
+from spec_grag.concept_diff import (
+    ConceptApplyStatus,
+    ConceptDiffError,
+    ConceptPatchApplyError,
+    HunkStatus,
+    accept_hunk,
+    apply_pending_concept_diff,
+    load_pending_concept_diff,
+    parse_hunk_ref,
+    pending_concept_diff_path,
+    reject_hunk,
+    revise_hunk,
+    write_pending_concept_diff_atomic,
+)
+from spec_grag.core import run_core_update
+from spec_grag.injection import InjectionBuild, build_injection
 from spec_grag.protocol import (
     Command,
-    ConversationContext,
+    ConceptApprovalRequiredResult,
     CoreResult,
     ErrorResult,
     ExecutionMetadata,
     FreshnessReport,
     InjectionContext,
+    NeedMoreContextResult,
     RealignResult,
     ResultEnvelope,
     ResultStatus,
     ResultType,
     SlashCommandRequest,
     validation_error_to_details,
+)
+from spec_grag.realign import (
+    AnswerGenerationError,
+    AnswerNeedsMoreContext,
+    generate_realign_answer,
+    make_answer_llm_from_config,
 )
 
 
@@ -71,11 +95,11 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
     freshness = freshness_report(graph_storage)
 
     if request.command == Command.SPEC_CORE:
-        return run_spec_core(request, graph_storage, freshness)
+        return run_spec_core(request, project_root, config, graph_storage, freshness)
     if request.command == Command.SPEC_INJECT:
-        return run_spec_inject(request, freshness)
+        return run_spec_inject(request, project_root, config, freshness)
     if request.command == Command.SPEC_REALIGN:
-        return run_spec_realign(request, freshness)
+        return run_spec_realign(request, project_root, config, freshness)
 
     return error_envelope(
         "unsupported_command",
@@ -124,71 +148,347 @@ def freshness_report(graph_storage: str) -> FreshnessReport:
 
 
 def run_spec_core(
-    request: SlashCommandRequest, graph_storage: str, freshness: FreshnessReport
+    request: SlashCommandRequest,
+    project_root: Path,
+    config: dict[str, Any],
+    graph_storage: str,
+    freshness: FreshnessReport,
 ) -> ResultEnvelope:
-    warning = "GRAG build is not implemented yet; CLI transport skeleton only."
+    concept_operation = run_concept_diff_operation(
+        request,
+        project_root,
+        config,
+        graph_storage,
+        freshness,
+    )
+    if concept_operation is not None:
+        return concept_operation
+
+    pending_diff = first_unresolved_pending_concept_diff(project_root / ".spec-grag" / "pending")
+    if pending_diff is not None:
+        return concept_diff_blocked_envelope(
+            pending_diff,
+            freshness,
+            "pending_concept_diff_unresolved",
+        )
+
+    update = run_core_update(project_root, config, all_sources=request.options.all)
+    if update.status == ResultStatus.FAILED:
+        return error_envelope(
+            "spec_core_failed",
+            "SPEC-grag core update failed",
+            {
+                "failed_sources": update.failed_sources,
+                "warnings": update.warnings,
+            },
+        )
+
     payload = CoreResult(
-        mode="full" if request.options.all else "incremental",
+        mode=update.mode,
+        updated_sources=update.updated_sources,
+        skipped_sources=update.skipped_sources,
+        failed_sources=update.failed_sources,
+        graph_storage=update.graph_storage,
+        freshness_report=update.freshness_report,
+        concept_diff=update.concept_diff,
+        warnings=update.warnings,
+    )
+    return ResultEnvelope(
+        status=update.status,
+        result_type=ResultType.CORE_RESULT,
+        payload=payload,
+        execution=ExecutionMetadata(
+            context_ready=False,
+            pending_concept_diff_id=update.pending_concept_diff_id,
+            failed_sources=update.failed_sources,
+            degraded_components=["core_update"] if update.status == ResultStatus.DEGRADED else [],
+        ),
+        warnings=update.warnings,
+    )
+
+
+def run_concept_diff_operation(
+    request: SlashCommandRequest,
+    project_root: Path,
+    config: dict[str, Any],
+    graph_storage: str,
+    freshness: FreshnessReport,
+) -> ResultEnvelope | None:
+    options = request.options
+    pending_dir = project_root / ".spec-grag" / "pending"
+
+    try:
+        if options.accept is not None:
+            diff_id, hunk_id = parse_hunk_ref(options.accept)
+            path = pending_concept_diff_path(pending_dir, diff_id)
+            diff = accept_hunk(load_pending_concept_diff(path), hunk_id)
+            write_pending_concept_diff_atomic(path, diff)
+            return concept_diff_updated_envelope(diff, graph_storage, freshness, "accepted")
+
+        if options.reject is not None:
+            diff_id, hunk_id = parse_hunk_ref(options.reject)
+            path = pending_concept_diff_path(pending_dir, diff_id)
+            diff = reject_hunk(load_pending_concept_diff(path), hunk_id)
+            write_pending_concept_diff_atomic(path, diff)
+            return concept_diff_updated_envelope(diff, graph_storage, freshness, "rejected")
+
+        if options.revise is not None:
+            diff_id, hunk_id = parse_hunk_ref(options.revise)
+            path = pending_concept_diff_path(pending_dir, diff_id)
+            diff = revise_hunk(
+                load_pending_concept_diff(path),
+                hunk_id,
+                options.revision_instruction or "",
+            )
+            write_pending_concept_diff_atomic(path, diff)
+            return concept_diff_updated_envelope(diff, graph_storage, freshness, "revised")
+
+        if options.apply is not None:
+            diff_id = options.apply
+            path = pending_concept_diff_path(pending_dir, diff_id)
+            diff = load_pending_concept_diff(path)
+            concept_path = concept_file_path(project_root, config)
+            if concept_path is None:
+                return error_envelope(
+                    "concept_file_missing",
+                    "core.concept_file is required to apply Concept diff",
+                    {"project_root": str(project_root)},
+                )
+            if not concept_path.exists():
+                return error_envelope(
+                    "concept_file_missing",
+                    "Configured Concept file does not exist",
+                    {"concept_file": str(concept_path)},
+                )
+            apply_result = apply_pending_concept_diff(
+                diff,
+                concept_path,
+                remove_pending_path=path,
+            )
+            if apply_result.status == ConceptApplyStatus.BLOCKED:
+                return concept_diff_blocked_envelope(
+                    diff,
+                    freshness,
+                    apply_result.blocked_reason or "concept_diff_apply_blocked",
+                )
+            concept_index, concept_index_warnings = refresh_concept_index(
+                project_root,
+                config,
+                Path(graph_storage),
+            )
+            payload = CoreResult(
+                mode="incremental",
+                updated_sources=[str(concept_path)],
+                skipped_sources=[],
+                failed_sources=[],
+                graph_storage=graph_storage,
+                freshness_report=freshness,
+                concept_diff=apply_result.model_dump(mode="json"),
+                warnings=concept_index_warnings,
+            )
+            return ResultEnvelope(
+                status=ResultStatus.OK,
+                result_type=ResultType.CORE_RESULT,
+                payload=payload,
+                execution=ExecutionMetadata(
+                    context_ready=False,
+                    pending_concept_diff_id=None,
+                ),
+                warnings=concept_index_warnings,
+            )
+    except (ValueError, ConceptDiffError, ConceptPatchApplyError) as exc:
+        return error_envelope(
+            "concept_diff_operation_failed",
+            str(exc),
+            {"project_root": str(project_root)},
+        )
+
+    return None
+
+
+def concept_diff_updated_envelope(
+    diff: Any,
+    graph_storage: str,
+    freshness: FreshnessReport,
+    action: str,
+) -> ResultEnvelope:
+    payload = CoreResult(
+        mode="incremental",
         updated_sources=[],
         skipped_sources=[],
         failed_sources=[],
         graph_storage=graph_storage,
         freshness_report=freshness,
-        concept_diff=None,
-        warnings=[warning],
+        concept_diff=diff.model_dump(mode="json"),
+        warnings=[f"Concept diff hunk {action}; apply is still required."],
     )
     return ResultEnvelope(
-        status=ResultStatus.DEGRADED,
+        status=ResultStatus.OK,
         result_type=ResultType.CORE_RESULT,
         payload=payload,
-        execution=ExecutionMetadata(context_ready=False, degraded_components=["grag_builder"]),
-        warnings=[warning],
-    )
-
-
-def run_spec_inject(request: SlashCommandRequest, freshness: FreshnessReport) -> ResultEnvelope:
-    warning = "InjectionContext classification is not implemented yet; empty context returned."
-    payload = make_injection_context(request.conversation_context, freshness, [warning])
-    return ResultEnvelope(
-        status=ResultStatus.DEGRADED,
-        result_type=ResultType.INJECTION_CONTEXT,
-        payload=payload,
-        execution=ExecutionMetadata(context_ready=True, degraded_components=["retrieval"]),
-        warnings=[warning],
-    )
-
-
-def run_spec_realign(request: SlashCommandRequest, freshness: FreshnessReport) -> ResultEnvelope:
-    warning = "Answer generation is not implemented yet; placeholder answer returned."
-    injection_context = make_injection_context(request.conversation_context, freshness, [warning])
-    payload = RealignResult(
-        task_prompt=request.task_prompt or "",
-        injection_context=injection_context,
-        answer=(
-            "今回の回答で守る制約: 未実装\n"
-            "今回の回答で扱う修正候補または検討対象: 未実装\n"
-            "競合 / 不確実性 / 人間レビューが必要な点: Answer generation is not implemented yet.\n"
-            "課題プロンプトへの回答または修正案: 未実装"
+        execution=ExecutionMetadata(
+            context_ready=False,
+            pending_concept_diff_id=diff.diff_id,
         ),
+        warnings=payload.warnings,
+    )
+
+
+def concept_diff_blocked_envelope(
+    diff: Any,
+    freshness: FreshnessReport,
+    warning: str,
+) -> ResultEnvelope:
+    payload = ConceptApprovalRequiredResult(
+        task_prompt=diff.task_context.task_prompt,
+        concept_diff=diff.model_dump(mode="json"),
+        warnings=[warning],
     )
     return ResultEnvelope(
-        status=ResultStatus.DEGRADED,
+        status=ResultStatus.BLOCKED,
+        result_type=ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT,
+        payload=payload,
+        execution=ExecutionMetadata(
+            context_ready=False,
+            pending_concept_diff_id=diff.diff_id,
+        ),
+        warnings=[warning],
+    )
+
+
+def first_unresolved_pending_concept_diff(pending_dir: Path) -> Any | None:
+    if not pending_dir.exists():
+        return None
+    for path in sorted(pending_dir.glob("concept_diff_*.json")):
+        try:
+            diff = load_pending_concept_diff(path)
+        except ConceptDiffError:
+            continue
+        if any(
+            hunk.status in {HunkStatus.PENDING, HunkStatus.ACCEPTED, HunkStatus.REVISED}
+            for hunk in diff.hunks
+        ):
+            return diff
+    return None
+
+
+def concept_file_path(project_root: Path, config: dict[str, Any]) -> Path | None:
+    configured = config.get("core", {}).get("concept_file")
+    if not configured:
+        return None
+    path = Path(configured)
+    if not path.is_absolute():
+        path = project_root / path
+    return path
+
+
+def run_spec_inject(
+    request: SlashCommandRequest,
+    project_root: Path,
+    config: dict[str, Any],
+    freshness: FreshnessReport,
+) -> ResultEnvelope:
+    pending_diff = first_unresolved_pending_concept_diff(project_root / ".spec-grag" / "pending")
+    if pending_diff is not None:
+        return concept_diff_blocked_envelope(
+            pending_diff,
+            freshness,
+            "pending_concept_diff_unresolved",
+        )
+
+    build = build_injection(project_root, config, request)
+    return injection_build_envelope(build)
+
+
+def run_spec_realign(
+    request: SlashCommandRequest,
+    project_root: Path,
+    config: dict[str, Any],
+    freshness: FreshnessReport,
+) -> ResultEnvelope:
+    pending_diff = first_unresolved_pending_concept_diff(project_root / ".spec-grag" / "pending")
+    if pending_diff is not None:
+        return concept_diff_blocked_envelope(
+            pending_diff,
+            freshness,
+            "pending_concept_diff_unresolved",
+        )
+
+    build = build_injection(project_root, config, request)
+    if (
+        build.status not in {ResultStatus.OK, ResultStatus.DEGRADED}
+        or not build.context_ready
+        or not isinstance(build.payload, InjectionContext)
+    ):
+        return injection_build_envelope(build)
+
+    task_prompt = request.task_prompt or ""
+    try:
+        answer_llm = make_answer_llm_from_config(config)
+        answer = generate_realign_answer(task_prompt, build.payload, llm=answer_llm)
+    except ValueError as exc:
+        return error_envelope(
+            "answer_config_invalid",
+            "Answer provider configuration is invalid",
+            {"message": str(exc)},
+        )
+    except AnswerNeedsMoreContext as exc:
+        payload = NeedMoreContextResult(
+            task_prompt=task_prompt,
+            search_requests=[],
+            current_partial_context_summary=(
+                "Answer phase reported missing context: "
+                + "; ".join(exc.missing_context)
+            ),
+        )
+        warnings = [*build.warnings, "answer_needs_more_context"]
+        return ResultEnvelope(
+            status=ResultStatus.BLOCKED,
+            result_type=ResultType.NEED_MORE_CONTEXT_RESULT,
+            payload=payload,
+            execution=ExecutionMetadata(
+                context_ready=False,
+                failed_sources=build.failed_sources,
+                degraded_components=[*build.degraded_components, "answer_generation"],
+            ),
+            warnings=warnings,
+        )
+    except AnswerGenerationError as exc:
+        return error_envelope(
+            "answer_generation_failed",
+            "Answer generation failed",
+            {"message": str(exc), "warnings": build.warnings},
+        )
+
+    payload = RealignResult(
+        task_prompt=task_prompt,
+        injection_context=build.payload,
+        answer=answer,
+    )
+    return ResultEnvelope(
+        status=build.status,
         result_type=ResultType.REALIGN_RESULT,
         payload=payload,
-        execution=ExecutionMetadata(context_ready=True, degraded_components=["answer_llm"]),
-        warnings=[warning],
+        execution=ExecutionMetadata(
+            context_ready=True,
+            failed_sources=build.failed_sources,
+            degraded_components=build.degraded_components,
+        ),
+        warnings=build.warnings,
     )
 
 
-def make_injection_context(
-    conversation_context: ConversationContext,
-    freshness: FreshnessReport,
-    warnings: list[str],
-) -> InjectionContext:
-    return InjectionContext(
-        conversation_context_summary=conversation_context.current_user_message,
-        freshness_report=freshness,
-        warnings=warnings,
+def injection_build_envelope(build: InjectionBuild) -> ResultEnvelope:
+    return ResultEnvelope(
+        status=build.status,
+        result_type=build.result_type,
+        payload=build.payload,
+        execution=ExecutionMetadata(
+            context_ready=build.context_ready,
+            failed_sources=build.failed_sources,
+            degraded_components=build.degraded_components,
+        ),
+        warnings=build.warnings,
     )
 
 

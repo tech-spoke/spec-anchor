@@ -147,6 +147,85 @@ class CodexCLIAdapter(CustomLLM):
         return cmd, cleanup_paths
 
 
+class ClaudeCLIAdapter(CustomLLM):
+    """LlamaIndex CustomLLM backed by the Claude Code CLI subprocess."""
+
+    command: str = "claude"
+    model: str = ""
+    timeout_sec: int = 120
+    context_window: int = 200_000
+    num_output: int = 4096
+    no_session_persistence: bool = True
+    disable_slash_commands: bool = True
+    tools: str = ""
+    output_format: str = "json"
+    _runner: _RunnerWrapper = PrivateAttr(default_factory=lambda: _RunnerWrapper(subprocess_runner))
+
+    def __init__(self, *, runner: CLIRunner | None = None, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if runner is not None:
+            self._runner = _RunnerWrapper(runner)
+
+    @property
+    def metadata(self) -> LLMMetadata:
+        return LLMMetadata(
+            context_window=self.context_window,
+            num_output=self.num_output,
+            model_name=self.model or "claude-default",
+            is_chat_model=False,
+            is_function_calling_model=False,
+        )
+
+    def complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponse:
+        output_schema = kwargs.pop("output_schema", None)
+        schema = _schema_to_dict(output_schema) if output_schema is not None else None
+        cmd = self._build_command(prompt, output_schema=schema)
+        result = self._runner(cmd, None, self.timeout_sec)
+        if result.returncode != 0:
+            raise CLIAdapterError(
+                f"Claude CLI exited with {result.returncode}: {result.stderr.strip()}"
+            )
+        text = extract_cli_text(result.stdout)
+        if not text:
+            raise CLIAdapterError("Claude CLI returned empty output")
+        if schema is not None:
+            validate_cli_json_text(text, schema)
+        return CompletionResponse(
+            text=text,
+            raw={
+                "command": cmd,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
+            },
+        )
+
+    def stream_complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> Iterator[CompletionResponse]:
+        response = self.complete(prompt, formatted=formatted, **kwargs)
+        yield CompletionResponse(text=response.text, delta=response.text, raw=response.raw)
+
+    def _build_command(
+        self, prompt: str, *, output_schema: dict[str, Any] | type[Any] | None = None
+    ) -> list[str]:
+        cmd = [self.command, "--print"]
+        if self.model:
+            cmd.extend(["--model", self.model])
+        if self.no_session_persistence:
+            cmd.append("--no-session-persistence")
+        if self.disable_slash_commands:
+            cmd.append("--disable-slash-commands")
+        cmd.extend(["--tools", self.tools])
+        cmd.extend(["--output-format", self.output_format])
+        if output_schema is not None:
+            schema = _schema_to_dict(output_schema)
+            cmd.extend(["--json-schema", json.dumps(schema, ensure_ascii=False)])
+        cmd.append(prompt)
+        return cmd
+
+
 def _schema_to_dict(output_schema: dict[str, Any] | type[Any]) -> dict[str, Any]:
     if isinstance(output_schema, dict):
         return output_schema

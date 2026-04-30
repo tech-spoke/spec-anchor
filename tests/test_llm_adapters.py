@@ -7,7 +7,12 @@ from typing import Sequence
 import pytest
 from pydantic import BaseModel
 
-from spec_grag.llm_adapters import CLIAdapterError, CodexCLIAdapter, extract_cli_text
+from spec_grag.llm_adapters import (
+    CLIAdapterError,
+    ClaudeCLIAdapter,
+    CodexCLIAdapter,
+    extract_cli_text,
+)
 
 
 class StructuredAnswer(BaseModel):
@@ -98,6 +103,75 @@ def test_codex_cli_adapter_validates_structured_output_locally() -> None:
         )
 
     llm = CodexCLIAdapter(runner=runner)
+
+    with pytest.raises(CLIAdapterError, match="violates schema"):
+        llm.complete("prompt", output_schema=impossible_schema)
+
+
+def test_claude_cli_adapter_complete_uses_runner_and_schema() -> None:
+    calls: list[Sequence[str]] = []
+
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        assert stdin_text is None
+        assert timeout_sec == 45
+        schema_index = list(cmd).index("--json-schema")
+        assert json.loads(list(cmd)[schema_index + 1])["required"] == ["name"]
+        return subprocess.CompletedProcess(
+            args=list(cmd),
+            returncode=0,
+            stdout=json.dumps({"structured_output": {"name": "auth"}}),
+            stderr="",
+        )
+
+    llm = ClaudeCLIAdapter(model="sonnet", timeout_sec=45, runner=runner)
+    response = llm.complete("extract", output_schema=StructuredAnswer)
+
+    assert response.text == '{"name": "auth"}'
+    assert calls
+    assert list(calls[0])[:4] == ["claude", "--print", "--model", "sonnet"]
+    assert "--no-session-persistence" in calls[0]
+    assert "--disable-slash-commands" in calls[0]
+    assert "--tools" in calls[0]
+    assert list(calls[0])[list(calls[0]).index("--tools") + 1] == ""
+    assert list(calls[0])[-1] == "extract"
+
+
+def test_claude_cli_adapter_nonzero_exit_raises() -> None:
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=list(cmd), returncode=1, stdout="", stderr="not logged in"
+        )
+
+    llm = ClaudeCLIAdapter(runner=runner)
+
+    with pytest.raises(CLIAdapterError):
+        llm.complete("prompt")
+
+
+def test_claude_cli_adapter_validates_structured_output_locally() -> None:
+    impossible_schema = {
+        "type": "object",
+        "properties": {"x": {"type": "string", "enum": []}},
+        "required": ["x"],
+        "additionalProperties": False,
+    }
+
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=list(cmd),
+            returncode=0,
+            stdout=json.dumps({"structured_output": {"x": "x"}}),
+            stderr="",
+        )
+
+    llm = ClaudeCLIAdapter(runner=runner)
 
     with pytest.raises(CLIAdapterError, match="violates schema"):
         llm.complete("prompt", output_schema=impossible_schema)

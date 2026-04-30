@@ -66,6 +66,25 @@ def test_spec_realign_requires_task_prompt() -> None:
         )
 
 
+def test_request_options_accept_reject_revise_apply_are_mutually_exclusive() -> None:
+    with pytest.raises(ValidationError):
+        RequestOptions(output_format="json", accept="d:h", reject="d:h")
+
+
+def test_request_options_revise_requires_instruction() -> None:
+    with pytest.raises(ValidationError):
+        RequestOptions(output_format="json", revise="d:h")
+
+    options = RequestOptions(
+        output_format="json",
+        revise="d:h",
+        revision_instruction="短くする",
+    )
+
+    assert options.revise == "d:h"
+    assert options.revision_instruction == "短くする"
+
+
 def test_result_envelope_roundtrip_core_result() -> None:
     freshness = sample_freshness()
     payload = CoreResult(

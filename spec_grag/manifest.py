@@ -10,14 +10,25 @@ import tempfile
 from collections.abc import Iterable
 from datetime import UTC, datetime
 from enum import StrEnum
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from pydantic import Field
 
 from spec_grag.protocol import StrictModel
 
+try:
+    from markdown_it import MarkdownIt
+except ImportError:  # pragma: no cover - dependency is declared, fallback is defensive.
+    MarkdownIt = None  # type: ignore[assignment]
+
 
 MANIFEST_VERSION = "1"
+MARKDOWN_PARSER_NAME = "markdown-it-py:commonmark"
+try:
+    MARKDOWN_PARSER_VERSION = version("markdown-it-py")
+except PackageNotFoundError:  # pragma: no cover - dependency is declared.
+    MARKDOWN_PARSER_VERSION = "unknown"
 
 
 class ManifestUpdateStatus(StrEnum):
@@ -41,6 +52,8 @@ class SourceManifestEntry(StrictModel):
 
 class SourceManifest(StrictModel):
     version: str = MANIFEST_VERSION
+    parser_name: str = ""
+    parser_version: str = ""
     generated_at: str | None = None
     entries: list[SourceManifestEntry] = Field(default_factory=list)
 
@@ -81,6 +94,8 @@ def build_current_section_manifest(
     for source_path in sorted(Path(path) for path in source_paths):
         entries.extend(_entries_for_markdown_file(root, source_path))
     return SourceManifest(
+        parser_name=MARKDOWN_PARSER_NAME,
+        parser_version=MARKDOWN_PARSER_VERSION,
         generated_at=generated_at or datetime.now(UTC).isoformat(),
         entries=entries,
     )
@@ -93,16 +108,22 @@ def reconcile_manifests(
     current_by_id = current.by_section_id()
     previous_ids = set(previous_by_id)
     current_ids = set(current_by_id)
+    parser_changed = bool(previous.entries) and (
+        previous.parser_name != current.parser_name
+        or previous.parser_version != current.parser_version
+    )
 
     unchanged = sorted(
         section_id
         for section_id in previous_ids & current_ids
-        if previous_by_id[section_id].source_hash == current_by_id[section_id].source_hash
+        if not parser_changed
+        and previous_by_id[section_id].source_hash == current_by_id[section_id].source_hash
     )
     changed = sorted(
         section_id
         for section_id in previous_ids & current_ids
-        if previous_by_id[section_id].source_hash != current_by_id[section_id].source_hash
+        if parser_changed
+        or previous_by_id[section_id].source_hash != current_by_id[section_id].source_hash
     )
     added = sorted(current_ids - previous_ids)
     removed = sorted(previous_ids - current_ids)
@@ -169,6 +190,8 @@ def next_source_manifest(
     versions = extractor_versions or {}
     if status == ManifestUpdateStatus.OK:
         return SourceManifest(
+            parser_name=current.parser_name,
+            parser_version=current.parser_version,
             generated_at=scanned_at,
             entries=[
                 _with_run_metadata(entry, scanned_at, extract_run_id, versions)
@@ -198,6 +221,8 @@ def next_source_manifest(
             next_by_id.pop(section_id, None)
 
     return SourceManifest(
+        parser_name=current.parser_name,
+        parser_version=current.parser_version,
         generated_at=scanned_at,
         entries=sorted(
             next_by_id.values(), key=lambda e: (e.document_id, e.heading_start_line, e.section_id)
@@ -275,6 +300,43 @@ def _entries_for_markdown_file(project_root: Path, source_path: Path) -> list[So
 
 
 def _extract_headings(lines: list[str]) -> list[_Heading]:
+    if MarkdownIt is not None:
+        return _extract_headings_commonmark(lines)
+    return _extract_headings_fallback(lines)
+
+
+def _extract_headings_commonmark(lines: list[str]) -> list[_Heading]:
+    md = MarkdownIt("commonmark")
+    tokens = md.parse("".join(lines))
+    headings: list[_Heading] = []
+    for token_index, token in enumerate(tokens):
+        if token.type != "heading_open":
+            continue
+        # SPEC-grag source sections are document-level sections. Headings inside
+        # blockquotes/list items are valid Markdown, but should not split the
+        # source spec manifest.
+        if token.level != 0:
+            continue
+        if not token.tag.startswith("h") or not token.tag[1:].isdigit():
+            continue
+        if not token.map:
+            continue
+        inline = tokens[token_index + 1] if token_index + 1 < len(tokens) else None
+        title = inline.content.strip() if inline is not None and inline.type == "inline" else ""
+        if not title:
+            continue
+        headings.append(
+            _Heading(
+                level=int(token.tag[1:]),
+                title=title,
+                line_no=token.map[0] + 1,
+                content_start=token.map[0] + 1,
+            )
+        )
+    return headings
+
+
+def _extract_headings_fallback(lines: list[str]) -> list[_Heading]:
     headings: list[_Heading] = []
     in_fence = False
     fence_marker = ""
@@ -325,7 +387,12 @@ def _sha256_text(text: str) -> str:
 
 def _slugify(text: str) -> str:
     lowered = text.strip().lower()
-    normalized = _SLUG_CHARS_RE.sub("-", lowered).strip("-")
+    normalized = "".join(
+        char if char.isalnum() or char in "._-" else "-"
+        for char in lowered
+    ).strip("-")
+    while "--" in normalized:
+        normalized = normalized.replace("--", "-")
     return normalized or "section"
 
 
