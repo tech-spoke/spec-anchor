@@ -262,6 +262,8 @@ def test_schema_llm_claude_provider_uses_same_config_boundary() -> None:
             "command": "claude-dev",
             "model": "sonnet",
             "timeout_sec": 33,
+            "max_retries": 2,
+            "retry_backoff_sec": 0,
             "max_triplets_per_chunk": 3,
             "num_workers": 1,
         }
@@ -273,11 +275,12 @@ def test_schema_llm_claude_provider_uses_same_config_boundary() -> None:
     assert extractor.llm.command == "claude-dev"
     assert extractor.llm.model == "sonnet"
     assert extractor.llm.timeout_sec == 33
+    assert extractor.llm.max_retries == 2
     assert extractor.max_triplets_per_chunk == 3
     assert extractor.num_workers == 1
 
 
-def test_schema_llm_grounding_handles_japanese_compact_hint_and_duplicate_ambiguity(
+def test_schema_llm_grounding_scores_compact_and_same_chapter_hints(
     tmp_path: Path,
 ) -> None:
     write_source(
@@ -335,7 +338,66 @@ def test_schema_llm_grounding_handles_japanese_compact_hint_and_duplicate_ambigu
     )
     assert update.status == ResultStatus.OK
     assert compact_relation_key in graph["relations"]
-    assert ambiguous_relation_key not in graph["relations"]
+    assert ambiguous_relation_key in graph["relations"]
+    relation_props = graph["relations"][ambiguous_relation_key]["properties"]
+    assert "same_chapter" in relation_props["target_grounding_methods"]
+    assert relation_props["target_grounding_score"] > relation_props[
+        "target_grounding_second_score"
+    ]
+    assert not any(entry.target_hint == "ログイン" for entry in unresolved.entries)
+
+
+def test_schema_llm_grounding_keeps_same_score_targets_unresolved(
+    tmp_path: Path,
+) -> None:
+    write_source(
+        tmp_path,
+        (
+            "# 認証\n\nAuth overview.\n\n"
+            "## ログイン\n\nPrimary login.\n\n"
+            "## ログイン\n\nSecondary login.\n"
+        ),
+    )
+    extractor = FakeSchemaExtractor(
+        {
+            "docs/spec/auth.md#認証": (
+                [
+                    EntityNode(label="CHAPTER", name="認証"),
+                    EntityNode(label="SECTION", name="ログイン"),
+                ],
+                [
+                    Relation(
+                        label="DEPENDS_ON",
+                        source_id="認証",
+                        target_id="ログイン",
+                        properties={"confidence": "medium"},
+                    ),
+                ],
+            )
+        }
+    )
+
+    update = run_core_update(
+        tmp_path,
+        schema_config(),
+        all_sources=True,
+        schema_extractor=extractor,
+    )
+
+    graph = load_graph(tmp_path)
+    unresolved = load_unresolved_relations(
+        tmp_path / ".spec-grag/graph/unresolved_relations.json"
+    )
+
+    first_relation_key = (
+        "docs/spec/auth.md#認証_DEPENDS_ON_section:docs/spec/auth.md#認証-ログイン"
+    )
+    second_relation_key = (
+        "docs/spec/auth.md#認証_DEPENDS_ON_section:docs/spec/auth.md#認証-ログイン-2"
+    )
+    assert update.status == ResultStatus.OK
+    assert first_relation_key not in graph["relations"]
+    assert second_relation_key not in graph["relations"]
     assert any(
         entry.target_hint == "ログイン" and entry.reason == "ambiguous_target"
         for entry in unresolved.entries

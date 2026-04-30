@@ -6,7 +6,7 @@
 
 - 外部契約: `doc/EXTERNAL_DESIGN.ja.md`
 - 内部設計: `doc/DESIGN.ja.md`
-- 現フェーズ: Phase 6 設定・運用・品質基盤 着手中
+- 現フェーズ: Phase 6 設定・運用・品質基盤 完了
 - 方針: 縮小版ではなく、外部契約を満たす実装を前提に、未実証の実装方式を検証する
 
 Phase 1 verification は「仕様を後で決める期間」ではない。`DESIGN.ja.md` の内部契約どおりに実装できるかを確認し、不成立の箇所だけ外部契約を維持した代替へ切り替えるためのゲートである。
@@ -257,14 +257,14 @@ Phase 1 verification では、外部契約の主要経路と失敗契約を E2E 
 
 目的: 実プロジェクトで継続利用できる CLI / slash command / storage 運用へ仕上げ、Graph / InjectionContext / Answer の根拠性を運用可能な水準まで固める。
 
-- [ ] `.spec-grag/config.toml` strict schema validation
-- [ ] provider / model / timeout / retry / storage path / source include の config 化
-- [ ] Codex / Claude CLI adapter の retry / backoff / timeout / schema failure handling を実装
+- [x] `.spec-grag/config.toml` strict schema validation
+- [x] provider / model / timeout / retry / storage path / source include の config 化
+- [x] Codex / Claude CLI adapter の retry / backoff / timeout / schema failure handling を実装
   - 通常 retry、repair prompt、phase-specific fallback の順で扱う
   - Answer phase では失敗時も raw source read / 追加 Agentic search に逃げない
-- [ ] Classification LLM provider の実呼び出し mode を config 化
+- [x] Classification LLM provider の実呼び出し mode を config 化
   - Phase 4 の `orchestrator_rule_based` classifier を fallback として維持する
-- [ ] Answer / Classification LLM の partial output recovery 方針を実装
+- [x] Answer / Classification LLM の partial output recovery 方針を実装
   - 壊れた JSON はそのまま採用しない
   - Classification は該当候補を `review_required=true` または rule-based fallback に落とす
   - Answer は template fallback / `NeedMoreContextResult` / failed のいずれかに落とす
@@ -272,45 +272,38 @@ Phase 1 verification では、外部契約の主要経路と失敗契約を E2E 
   - `source_document_id` / `source_section_id` / `source_hash` / 行番号範囲 / section 範囲 / excerpt containment を検証する
   - 明示 `source_span` が有効で excerpt を含む場合、同一 excerpt が別箇所に存在しても invalid にしない
   - excerpt から `source_span` を逆引きする場合に複数候補があるときは ambiguous として `ReviewNotes` に落とす
-- [ ] embedding provider / model / dimension の config 化
+- [x] embedding provider / model / dimension の config 化
   - default: Ollama `bge-m3`（日本語 / 多言語仕様文書向け、dim=1024）
   - dim=768 互換が必要な場合のみ `nomic-embed-text-v2-moe` を選択候補にする
   - `nomic-embed-text` / `nomic-embed-text:v1.5` は legacy / English-oriented と扱い、日本語仕様書 RAG の標準にしない
-- [ ] graph / vector / concept index に embedding provider / model / dimension metadata を保存
-- [ ] embedding metadata と config が不一致の場合、混在させず index rebuild を要求
-- [ ] conservative grounding scoring を実装
+- [x] graph / vector / concept index に embedding provider / model / dimension metadata を保存
+- [x] embedding metadata と config が不一致の場合、混在させず index rebuild を要求
+- [x] conservative grounding scoring を実装
   - exact heading / heading_path / same document / same chapter / anchor proximity / embedding similarity / evidence excerpt containment / span proximity を候補スコアに使う
   - `best_score >= threshold` かつ `best_score - second_score >= margin` を満たす場合のみ resolve する
   - 曖昧な候補は graph に入れず `unresolved_relations` / `ReviewNotes` に落とす
-- [ ] LLM Concept diff proposal を実装
+- [x] LLM Concept diff proposal を実装
   - LLM は Concept を直接更新せず、evidence span 付き structured proposal を返す
   - CLI が proposal を検証し unified diff / pending Concept diff hunk に変換する
   - pending diff JSON / hunk accept / reject / revise / apply / 未承認遮断は既存実装を維持する
-- [ ] Conflict validator の deterministic rule pack を段階的に拡張
+- [x] Conflict validator の deterministic rule pack を段階的に拡張
   - MUST vs MUST NOT、禁止 vs 必須、上限値 / 下限値、状態遷移、権限条件、Concept vs Source spec の矛盾を候補にする
   - LLM は `semantic_conflict_candidate` と evidence を出し、`conflict=true` 昇格は Validator rule または human approval を経る
-- [ ] slash command wrapper 実装
-- [ ] CLI 入出力 fixture を整備
-- [ ] run artifact / debug report / execution log を保存
-- [ ] graph / sidecar 破損時の recovery 方針を実装
-- [ ] storage migration / version check を追加
-- [ ] large source set の performance smoke
-- [ ] 実 `テスト用ドキュメント/` を使った end-to-end smoke
-- [ ] CI 用 smoke command を定義
-- [ ] `doc/PHASE6_REPORT.ja.md` を Phase 6 完了報告として最終化し、実装結果・検証結果・気づき・問題点・残リスク・次 Phase への申し送りを記録する
+- [x] slash command wrapper 実装
+- [x] CLI 入出力 fixture を整備
+- [x] run artifact / debug report / execution log を保存
+- [x] graph / sidecar 破損時の recovery 方針を実装
+- [x] storage migration / version check を追加
+- [x] large source set の performance smoke
+- [x] 実 `テスト用ドキュメント/` を使った end-to-end smoke
+- [x] CI 用 smoke command を定義
+- [x] `doc/PHASE6_REPORT.ja.md` を Phase 6 完了報告として最終化し、実装結果・検証結果・気づき・問題点・残リスク・次 Phase への申し送りを記録する
 
 完了条件: 対象プロジェクトに `.spec-grag/config.toml` を置くだけで、継続的な `/spec-core` / `/spec-inject` / `/spec-realign` 運用ができ、根拠 span / LLM failure / grounding ambiguity が Graph を汚さない形で処理される。
 
 ### 直近推奨順
 
-1. Codex / Claude CLI adapter の retry / backoff / timeout / schema failure handling を実装する
-2. `.spec-grag/config.toml` strict schema validation と provider / model / timeout / retry / storage path / source include の config validation を固める
-3. embedding provider / model / dimension metadata と index rebuild 判定を実装する
-4. conservative grounding scoring を実装し、曖昧候補を `unresolved_relations` / `ReviewNotes` に落とす
-5. LLM Concept diff proposal を structured proposal -> CLI unified diff 変換として実装する
-6. Conflict validator の deterministic rule pack を段階的に拡張する
-7. slash command wrapper と CLI fixture / run artifact を整備する
-8. 実 `テスト用ドキュメント/` と large source set の smoke を実行する
+Phase 6 の実装 checklist は完了。次に進む場合は、実運用で得たログをもとに retrieval / grounding threshold / LLM prompt を調整する。
 
 ## 記録する成果物
 
@@ -333,6 +326,6 @@ Phase 1 verification では、外部契約の主要経路と失敗契約を E2E 
 - `doc/PHASE3_REPORT.ja.md`: Phase 3 の結果報告
 - `doc/PHASE4_REPORT.ja.md`: Phase 4 の結果報告
 - `doc/PHASE5_REPORT.ja.md`: Phase 5 の結果報告
-- `doc/PHASE6_REPORT.ja.md`: Phase 6 の中間報告。Phase 6 完了時に最終化する
+- `doc/PHASE6_REPORT.ja.md`: Phase 6 の完了報告
 - `BAK/doc/TODO.md.pre-phase1-verification-20260429`: 旧フェーズ管理 TODO
 - `doc/CLAUDE_NOTES.md`: 作業メモと過去の手戻り

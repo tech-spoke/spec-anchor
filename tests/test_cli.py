@@ -153,7 +153,125 @@ def test_cli_spec_realign_invalid_answer_provider_fails_before_answer(
     envelope = ResultEnvelope.from_json(result.stdout)
     assert envelope.status == ResultStatus.FAILED
     assert envelope.result_type == ResultType.ERROR_RESULT
-    assert envelope.payload.error_code == "answer_config_invalid"
+    assert envelope.payload.error_code == "config_invalid"
+
+
+def test_cli_config_rejects_unknown_top_level_table(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + "\n\n[unexpected]\nvalue = true\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-core"))
+
+    assert result.returncode == 1
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.FAILED
+    assert envelope.result_type == ResultType.ERROR_RESULT
+    assert envelope.payload.error_code == "config_invalid"
+    assert envelope.payload.details["errors"][0]["loc"] == ["unexpected"]
+
+
+def test_cli_config_rejects_invalid_source_include_type(tmp_path: Path) -> None:
+    config_dir = tmp_path / ".spec-grag"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text(
+        """
+[sources]
+include = 1
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-core"))
+
+    assert result.returncode == 1
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.FAILED
+    assert envelope.result_type == ResultType.ERROR_RESULT
+    assert envelope.payload.error_code == "config_invalid"
+
+
+def test_cli_config_rejects_invalid_embedding_provider(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + """
+
+[embedding]
+provider = "legacy-english"
+model = "nomic-embed-text"
+dimension = 768
+""",
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-core"))
+
+    assert result.returncode == 1
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.FAILED
+    assert envelope.result_type == ResultType.ERROR_RESULT
+    assert envelope.payload.error_code == "config_invalid"
+
+
+def test_cli_writes_run_artifact_when_enabled(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + """
+
+[run]
+save_artifacts = true
+artifact_dir = ".spec-grag/runs"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-core"))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert any(warning.startswith("run_artifact:") for warning in envelope.warnings)
+    artifacts = list((tmp_path / ".spec-grag/runs").glob("*.json"))
+    assert len(artifacts) == 1
+    data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert data["command"] == "spec-core"
+    assert data["request"]["project_root"] == str(tmp_path)
+
+
+def test_cli_answer_failure_can_fallback_to_template(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + """
+
+[answer]
+provider = "codex"
+command = "/bin/false"
+failure_fallback = "template"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-realign"))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.DEGRADED
+    assert envelope.result_type == ResultType.REALIGN_RESULT
+    assert "answer_generation_fallback_template" in envelope.warnings
+    assert "今回の回答で守る制約" in envelope.payload.answer
 
 
 def write_concept_and_pending_diff(tmp_path: Path) -> Path:

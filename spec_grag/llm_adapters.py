@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,12 @@ from pydantic import PrivateAttr
 
 class CLIAdapterError(RuntimeError):
     """Raised when a CLI-backed LLM call fails."""
+
+
+class _CLIOutputValidationError(CLIAdapterError):
+    def __init__(self, message: str, output_text: str) -> None:
+        self.output_text = output_text
+        super().__init__(message)
 
 
 CLIRunner = Callable[[Sequence[str], str | None, int], subprocess.CompletedProcess[str]]
@@ -60,6 +67,9 @@ class CodexCLIAdapter(CustomLLM):
     ignore_rules: bool = True
     use_json_events: bool = True
     skip_git_repo_check: bool = True
+    max_retries: int = 0
+    retry_backoff_sec: float = 0.0
+    repair_on_schema_failure: bool = True
     _runner: _RunnerWrapper = PrivateAttr(default_factory=lambda: _RunnerWrapper(subprocess_runner))
 
     def __init__(self, *, runner: CLIRunner | None = None, **kwargs: Any) -> None:
@@ -82,29 +92,18 @@ class CodexCLIAdapter(CustomLLM):
     ) -> CompletionResponse:
         output_schema = kwargs.pop("output_schema", None)
         schema = _schema_to_dict(output_schema) if output_schema is not None else None
-        cmd, cleanup_paths = self._build_command(prompt, output_schema=schema)
-        try:
-            result = self._runner(cmd, None, self.timeout_sec)
-            if result.returncode != 0:
-                raise CLIAdapterError(
-                    f"Codex CLI exited with {result.returncode}: {result.stderr.strip()}"
-                )
-            text = extract_cli_text(result.stdout)
-            if not text:
-                raise CLIAdapterError("Codex CLI returned empty output")
-            if schema is not None:
-                validate_cli_json_text(text, schema)
-            return CompletionResponse(
-                text=text,
-                raw={
-                    "command": cmd,
-                    "stderr": result.stderr,
-                    "returncode": result.returncode,
-                },
-            )
-        finally:
-            for path in cleanup_paths:
-                path.unlink(missing_ok=True)
+        return complete_with_retries(
+            adapter_name="Codex CLI",
+            prompt=prompt,
+            schema=schema,
+            max_retries=self.max_retries,
+            retry_backoff_sec=self.retry_backoff_sec,
+            repair_on_schema_failure=self.repair_on_schema_failure,
+            complete_once=lambda attempt_prompt: self._complete_once(
+                attempt_prompt,
+                schema=schema,
+            ),
+        )
 
     def stream_complete(
         self, prompt: str, formatted: bool = False, **kwargs: Any
@@ -146,6 +145,39 @@ class CodexCLIAdapter(CustomLLM):
         cmd.append(prompt)
         return cmd, cleanup_paths
 
+    def _complete_once(
+        self, prompt: str, *, schema: dict[str, Any] | None
+    ) -> CompletionResponse:
+        cmd, cleanup_paths = self._build_command(prompt, output_schema=schema)
+        try:
+            result = run_cli_command(
+                self._runner,
+                cmd,
+                stdin_text=None,
+                timeout_sec=self.timeout_sec,
+                adapter_name="Codex CLI",
+            )
+            if result.returncode != 0:
+                raise CLIAdapterError(
+                    f"Codex CLI exited with {result.returncode}: {result.stderr.strip()}"
+                )
+            text = extract_cli_text(result.stdout)
+            if not text:
+                raise CLIAdapterError("Codex CLI returned empty output")
+            if schema is not None:
+                validate_cli_json_text(text, schema)
+            return CompletionResponse(
+                text=text,
+                raw={
+                    "command": cmd,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode,
+                },
+            )
+        finally:
+            for path in cleanup_paths:
+                path.unlink(missing_ok=True)
+
 
 class ClaudeCLIAdapter(CustomLLM):
     """LlamaIndex CustomLLM backed by the Claude Code CLI subprocess."""
@@ -159,6 +191,9 @@ class ClaudeCLIAdapter(CustomLLM):
     disable_slash_commands: bool = True
     tools: str = ""
     output_format: str = "json"
+    max_retries: int = 0
+    retry_backoff_sec: float = 0.0
+    repair_on_schema_failure: bool = True
     _runner: _RunnerWrapper = PrivateAttr(default_factory=lambda: _RunnerWrapper(subprocess_runner))
 
     def __init__(self, *, runner: CLIRunner | None = None, **kwargs: Any) -> None:
@@ -181,8 +216,30 @@ class ClaudeCLIAdapter(CustomLLM):
     ) -> CompletionResponse:
         output_schema = kwargs.pop("output_schema", None)
         schema = _schema_to_dict(output_schema) if output_schema is not None else None
+        return complete_with_retries(
+            adapter_name="Claude CLI",
+            prompt=prompt,
+            schema=schema,
+            max_retries=self.max_retries,
+            retry_backoff_sec=self.retry_backoff_sec,
+            repair_on_schema_failure=self.repair_on_schema_failure,
+            complete_once=lambda attempt_prompt: self._complete_once(
+                attempt_prompt,
+                schema=schema,
+            ),
+        )
+
+    def _complete_once(
+        self, prompt: str, *, schema: dict[str, Any] | None
+    ) -> CompletionResponse:
         cmd = self._build_command(prompt, output_schema=schema)
-        result = self._runner(cmd, None, self.timeout_sec)
+        result = run_cli_command(
+            self._runner,
+            cmd,
+            stdin_text=None,
+            timeout_sec=self.timeout_sec,
+            adapter_name="Claude CLI",
+        )
         if result.returncode != 0:
             raise CLIAdapterError(
                 f"Claude CLI exited with {result.returncode}: {result.stderr.strip()}"
@@ -224,6 +281,108 @@ class ClaudeCLIAdapter(CustomLLM):
             cmd.extend(["--json-schema", json.dumps(schema, ensure_ascii=False)])
         cmd.append(prompt)
         return cmd
+
+
+CompleteOnce = Callable[[str], CompletionResponse]
+
+
+def complete_with_retries(
+    *,
+    adapter_name: str,
+    prompt: str,
+    schema: dict[str, Any] | None,
+    max_retries: int,
+    retry_backoff_sec: float,
+    repair_on_schema_failure: bool,
+    complete_once: CompleteOnce,
+) -> CompletionResponse:
+    attempt_prompt = prompt
+    attempt_errors: list[str] = []
+    attempts = max(1, max_retries + 1)
+    last_error: CLIAdapterError | None = None
+
+    for attempt_index in range(attempts):
+        try:
+            response = complete_once(attempt_prompt)
+            raw = dict(response.raw or {})
+            raw["attempt_count"] = attempt_index + 1
+            if attempt_errors:
+                raw["attempt_errors"] = attempt_errors
+            return CompletionResponse(text=response.text, raw=raw)
+        except _CLIOutputValidationError as exc:
+            last_error = exc
+            if attempt_index >= attempts - 1:
+                break
+            attempt_errors.append(str(exc))
+            attempt_prompt = (
+                build_schema_repair_prompt(
+                    original_prompt=prompt,
+                    schema=schema,
+                    invalid_output=exc.output_text,
+                    validation_error=str(exc),
+                )
+                if schema is not None and repair_on_schema_failure
+                else prompt
+            )
+            sleep_for_retry(retry_backoff_sec)
+        except CLIAdapterError as exc:
+            last_error = exc
+            if attempt_index >= attempts - 1:
+                break
+            attempt_errors.append(str(exc))
+            attempt_prompt = prompt
+            sleep_for_retry(retry_backoff_sec)
+
+    assert last_error is not None
+    raise CLIAdapterError(
+        f"{adapter_name} failed after {attempts} attempt(s): {last_error}"
+    ) from last_error
+
+
+def run_cli_command(
+    runner: _RunnerWrapper,
+    cmd: Sequence[str],
+    *,
+    stdin_text: str | None,
+    timeout_sec: int,
+    adapter_name: str,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return runner(cmd, stdin_text, timeout_sec)
+    except subprocess.TimeoutExpired as exc:
+        raise CLIAdapterError(
+            f"{adapter_name} timed out after {timeout_sec}s"
+        ) from exc
+
+
+def sleep_for_retry(retry_backoff_sec: float) -> None:
+    if retry_backoff_sec > 0:
+        time.sleep(retry_backoff_sec)
+
+
+def build_schema_repair_prompt(
+    *,
+    original_prompt: str,
+    schema: dict[str, Any] | None,
+    invalid_output: str,
+    validation_error: str,
+) -> str:
+    return "\n".join(
+        [
+            original_prompt,
+            "",
+            "Previous output failed local schema validation.",
+            f"Validation error: {validation_error}",
+            "Return only JSON that satisfies the supplied schema.",
+            "Do not include markdown fences or explanatory prose.",
+            "",
+            "SUPPLIED_SCHEMA:",
+            json.dumps(schema or {}, ensure_ascii=False, sort_keys=True),
+            "",
+            "INVALID_OUTPUT:",
+            invalid_output,
+        ]
+    )
 
 
 def _schema_to_dict(output_schema: dict[str, Any] | type[Any]) -> dict[str, Any]:
@@ -317,7 +476,10 @@ def validate_cli_json_text(text: str, schema: dict[str, Any]) -> None:
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise CLIAdapterError(f"CLI output is not valid JSON: {exc.msg}") from exc
+        raise _CLIOutputValidationError(
+            f"CLI output is not valid JSON: {exc.msg}",
+            text,
+        ) from exc
 
     try:
         Draft202012Validator.check_schema(schema)
@@ -325,4 +487,7 @@ def validate_cli_json_text(text: str, schema: dict[str, Any]) -> None:
     except SchemaError as exc:
         raise CLIAdapterError(f"Invalid output schema: {exc.message}") from exc
     except ValidationError as exc:
-        raise CLIAdapterError(f"CLI output violates schema: {exc.message}") from exc
+        raise _CLIOutputValidationError(
+            f"CLI output violates schema: {exc.message}",
+            text,
+        ) from exc

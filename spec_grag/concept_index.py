@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from spec_grag.concept_diff import (
     ConceptDiffTaskContext,
@@ -20,6 +20,15 @@ from spec_grag.concept_diff import (
     concept_file_hash,
     create_pending_concept_diff,
 )
+from spec_grag.embedding import (
+    EmbeddingMetadata,
+    default_embedding_metadata,
+    embedding_for_text,
+    embedding_identity_matches,
+    embedding_metadata_from_config,
+    stable_embedding as make_stable_embedding,
+)
+from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.protocol import Command, StrictModel
 
 
@@ -41,6 +50,7 @@ class ConceptIndex(StrictModel):
     version: str = CONCEPT_INDEX_VERSION
     concept_file: str
     concept_file_hash: str
+    embedding_metadata: EmbeddingMetadata = Field(default_factory=default_embedding_metadata)
     generated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     chunks: list[ConceptIndexChunk] = Field(default_factory=list)
 
@@ -51,6 +61,19 @@ class ConceptIndex(StrictModel):
 class ConceptDiffCandidateResult(StrictModel):
     pending_diff: PendingConceptDiff | None = None
     created_path: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ConceptDiffProposalItem(StrictModel):
+    term: str
+    source_section_id: str
+    evidence_excerpt: str
+    source_span: str | None = None
+    proposed_text: str | None = None
+
+
+class ConceptDiffProposal(StrictModel):
+    items: list[ConceptDiffProposalItem] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -101,27 +124,45 @@ def refresh_concept_index(
 
     path = concept_index_path(graph_storage)
     current_hash = concept_file_hash(concept_file)
+    embedding_metadata = embedding_metadata_from_config(config, generated_at=generated_at)
+    existing_has_embedding_metadata = _json_file_has_key(path, "embedding_metadata")
     existing = load_concept_index(path)
-    if existing is not None and existing.concept_file_hash == current_hash:
+    if (
+        existing is not None
+        and existing_has_embedding_metadata
+        and existing.concept_file_hash == current_hash
+        and embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
+    ):
         return existing, []
 
     index = build_concept_index(
         project_root,
         concept_file,
+        embedding_metadata=embedding_metadata,
+        embedding_config=_mapping(config.get("embedding")),
         generated_at=generated_at,
     )
     write_concept_index_atomic(path, index)
-    return index, []
+    warnings = []
+    if existing is not None and (
+        not existing_has_embedding_metadata
+        or not embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
+    ):
+        warnings.append("concept_index_embedding_metadata_mismatch_rebuilt")
+    return index, warnings
 
 
 def build_concept_index(
     project_root: Path,
     concept_file: Path,
     *,
+    embedding_metadata: EmbeddingMetadata | None = None,
+    embedding_config: Mapping[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> ConceptIndex:
     text = concept_file.read_text(encoding="utf-8")
     rel_path = _relative_path(project_root, concept_file)
+    metadata = embedding_metadata or default_embedding_metadata(generated_at=generated_at)
     chunks = [
         ConceptIndexChunk(
             concept_chunk_id=concept_chunk_id_for(
@@ -134,13 +175,18 @@ def build_concept_index(
             paragraph_index=paragraph.paragraph_index,
             text_hash=_sha256_text(paragraph.text),
             text=paragraph.text,
-            embedding=stable_embedding(paragraph.text),
+            embedding=embedding_for_text(
+                paragraph.text,
+                metadata,
+                config=embedding_config,
+            ),
         )
         for paragraph in split_concept_paragraphs(text)
     ]
     return ConceptIndex(
         concept_file=rel_path,
         concept_file_hash=concept_file_hash(concept_file),
+        embedding_metadata=metadata,
         generated_at=generated_at or datetime.now(UTC).isoformat(),
         chunks=chunks,
     )
@@ -205,8 +251,15 @@ def generate_concept_diff_candidate(
         changed_source_section_ids=changed_source_section_ids,
         concept_text=concept_file.read_text(encoding="utf-8"),
     )
+    proposal_warnings: list[str] = []
+    terms, proposal_warnings = concept_diff_terms_from_config(
+        config=config,
+        concept_text=concept_file.read_text(encoding="utf-8"),
+        source_terms=terms,
+        changed_source_section_ids=changed_source_section_ids,
+    )
     if not terms:
-        return ConceptDiffCandidateResult()
+        return ConceptDiffCandidateResult(warnings=proposal_warnings)
 
     diff = build_pending_concept_diff(
         project_root=project_root,
@@ -220,12 +273,16 @@ def generate_concept_diff_candidate(
     path = pending_dir / f"concept_diff_{diff.diff_id}.json"
     if path.exists():
         return ConceptDiffCandidateResult(
-            warnings=[f"concept_diff_candidate_already_exists:{diff.diff_id}"]
+            warnings=[
+                *proposal_warnings,
+                f"concept_diff_candidate_already_exists:{diff.diff_id}",
+            ]
         )
     created = create_pending_concept_diff(pending_dir, diff)
     return ConceptDiffCandidateResult(
         pending_diff=diff,
         created_path=str(created),
+        warnings=proposal_warnings,
     )
 
 
@@ -264,6 +321,134 @@ def source_derived_terms(
                 "term": term,
                 "source_section_id": section_id,
                 "evidence_excerpt": str(props.get("evidence_excerpt") or term),
+                "source_span": str(props.get("source_span") or ""),
+            },
+        )
+    return sorted(terms.values(), key=lambda item: (item["source_section_id"], item["term"]))
+
+
+def concept_diff_terms_from_config(
+    *,
+    config: Mapping[str, Any],
+    concept_text: str,
+    source_terms: Sequence[Mapping[str, str]],
+    changed_source_section_ids: Sequence[str],
+) -> tuple[list[dict[str, str]], list[str]]:
+    concept_diff_config = _mapping(config.get("concept_diff"))
+    provider = str(
+        concept_diff_config.get("provider", "source_derived")
+    ).strip().lower()
+    if provider in {"none", "disabled"}:
+        return [], ["concept_diff_proposal_disabled"]
+    if provider in {"source_derived", "template", ""}:
+        return [dict(term) for term in source_terms], []
+
+    try:
+        llm = make_concept_diff_llm_from_config(config)
+        proposal = generate_concept_diff_proposal_with_llm(
+            concept_text=concept_text,
+            source_terms=source_terms,
+            changed_source_section_ids=changed_source_section_ids,
+            llm=llm,
+        )
+        terms = concept_proposal_to_terms(
+            proposal,
+            changed_source_section_ids=changed_source_section_ids,
+        )
+        return terms, proposal.warnings
+    except (CLIAdapterError, ValidationError, ValueError, RuntimeError) as exc:
+        if bool(concept_diff_config.get("fallback_on_error", True)):
+            return [dict(term) for term in source_terms], [
+                f"concept_diff_llm_proposal_fallback:{exc}"
+            ]
+        return [], [f"concept_diff_llm_proposal_failed:{exc}"]
+
+
+def make_concept_diff_llm_from_config(config: Mapping[str, Any]) -> Any:
+    concept_diff_config = _mapping(config.get("concept_diff"))
+    provider = str(concept_diff_config.get("provider", "source_derived")).strip().lower()
+    if provider == "codex":
+        return CodexCLIAdapter(
+            command=str(concept_diff_config.get("command") or "codex"),
+            model=str(concept_diff_config.get("model") or "gpt-5.4"),
+            timeout_sec=int(concept_diff_config.get("timeout_sec", 120)),
+            sandbox=str(concept_diff_config.get("sandbox", "read-only")),
+            max_retries=int(concept_diff_config.get("max_retries", 0)),
+            retry_backoff_sec=float(concept_diff_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                concept_diff_config.get("repair_on_schema_failure", True)
+            ),
+        )
+    if provider == "claude":
+        return ClaudeCLIAdapter(
+            command=str(concept_diff_config.get("command") or "claude"),
+            model=str(concept_diff_config.get("model") or ""),
+            timeout_sec=int(concept_diff_config.get("timeout_sec", 120)),
+            tools=str(concept_diff_config.get("tools", "")),
+            max_retries=int(concept_diff_config.get("max_retries", 0)),
+            retry_backoff_sec=float(concept_diff_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                concept_diff_config.get("repair_on_schema_failure", True)
+            ),
+        )
+    raise ValueError(f"unsupported concept_diff.provider: {provider}")
+
+
+def generate_concept_diff_proposal_with_llm(
+    *,
+    concept_text: str,
+    source_terms: Sequence[Mapping[str, str]],
+    changed_source_section_ids: Sequence[str],
+    llm: Any,
+) -> ConceptDiffProposal:
+    prompt = "\n".join(
+        [
+            "You are proposing updates to SPEC-grag Core Concept.",
+            "Do not edit the Concept file directly.",
+            "Return a structured proposal using only the supplied source-derived candidates.",
+            "Each proposal item must keep source_section_id and evidence_excerpt.",
+            "",
+            "INPUT_JSON:",
+            json.dumps(
+                {
+                    "concept_text": concept_text,
+                    "changed_source_section_ids": list(changed_source_section_ids),
+                    "source_terms": list(source_terms),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            ),
+        ]
+    )
+    response = llm.complete(prompt, output_schema=ConceptDiffProposal)
+    return ConceptDiffProposal.model_validate_json(response.text)
+
+
+def concept_proposal_to_terms(
+    proposal: ConceptDiffProposal,
+    *,
+    changed_source_section_ids: Sequence[str],
+) -> list[dict[str, str]]:
+    allowed_sections = set(changed_source_section_ids)
+    terms: dict[str, dict[str, str]] = {}
+    for item in proposal.items:
+        term = item.term.strip()
+        if not term:
+            continue
+        if allowed_sections and item.source_section_id not in allowed_sections:
+            continue
+        if not item.evidence_excerpt.strip():
+            continue
+        normalized = _normalize_for_match(term)
+        terms.setdefault(
+            normalized,
+            {
+                "term": term,
+                "source_section_id": item.source_section_id,
+                "evidence_excerpt": item.evidence_excerpt,
+                "source_span": item.source_span or "",
+                "proposed_text": item.proposed_text or term,
             },
         )
     return sorted(terms.values(), key=lambda item: (item["source_section_id"], item["term"]))
@@ -309,7 +494,7 @@ def build_append_hunk(
         f"## {SOURCE_DERIVED_HEADING}\n",
         "\n",
         *[
-            f"- {term['term']} (source: {term['source_section_id']})\n"
+            concept_diff_term_line(term)
             for term in terms
         ],
     ]
@@ -326,6 +511,13 @@ def build_append_hunk(
         new_range=f"+{old_start},{len(new_lines)}",
         diff_text="".join(diff_lines),
     )
+
+
+def concept_diff_term_line(term: Mapping[str, str]) -> str:
+    proposed = str(term.get("proposed_text") or term["term"]).strip()
+    span = str(term.get("source_span") or "").strip()
+    span_suffix = f", span: {span}" if span else ""
+    return f"- {proposed} (source: {term['source_section_id']}{span_suffix})\n"
 
 
 def concept_chunk_id_for(
@@ -366,8 +558,7 @@ def concept_diff_id_for(base_concept_hash: str, terms: Sequence[Mapping[str, str
 
 
 def stable_embedding(text: str, *, dimensions: int = 8) -> list[float]:
-    digest = hashlib.sha256(text.encode("utf-8")).digest()
-    return [round(digest[index] / 255.0, 6) for index in range(dimensions)]
+    return make_stable_embedding(text, dimensions=dimensions)
 
 
 def _parse_atx_heading(line: str) -> tuple[int, str] | None:
@@ -396,6 +587,20 @@ def _relative_path(project_root: Path, path: Path) -> str:
         return path.resolve().relative_to(project_root.resolve()).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def _json_file_has_key(path: Path, key: str) -> bool:
+    if not path.exists():
+        return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    return isinstance(data, dict) and key in data
+
+
+def _mapping(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
 
 
 def _write_model_atomic(path: Path, model: StrictModel) -> None:

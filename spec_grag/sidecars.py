@@ -486,7 +486,27 @@ def refresh_cluster_snapshot(
 def _load_sidecar(path: Path, model_type: type[Any]) -> Any:
     if not path.exists():
         return model_type()
-    return model_type.model_validate_json(path.read_text(encoding="utf-8"))
+    try:
+        sidecar = model_type.model_validate_json(path.read_text(encoding="utf-8"))
+    except Exception:
+        _quarantine_corrupt_sidecar(path)
+        return model_type()
+    if getattr(sidecar, "version", SIDECAR_VERSION) != SIDECAR_VERSION:
+        _quarantine_corrupt_sidecar(path)
+        return model_type()
+    return sidecar
+
+
+def _quarantine_corrupt_sidecar(path: Path) -> None:
+    if not path.exists():
+        return
+    try:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+        backup = path.with_name(f"{path.name}.corrupt-{digest}")
+        os.replace(path, backup)
+        _fsync_directory(path.parent)
+    except OSError:
+        return
 
 
 def _write_model_atomic(path: Path, model: StrictModel) -> None:

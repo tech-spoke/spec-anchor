@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import glob
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,6 +27,17 @@ from spec_grag.core_extraction import (
     extract_schema_llm_artifacts,
     extraction_mode,
     make_schema_extractor_from_config,
+)
+from spec_grag.embedding import (
+    EmbeddingMetadata,
+    embedding_for_text,
+    embedding_identity_matches,
+    embedding_metadata_from_config,
+    embedding_metadata_path,
+    embedding_mismatch_warning,
+    load_embedding_metadata,
+    stable_embedding,
+    write_embedding_metadata_atomic,
 )
 from spec_grag.graph_ops import safe_delete_by_section
 from spec_grag.manifest import (
@@ -88,6 +100,36 @@ def run_core_update(
     graph_storage = _graph_storage_path(project_root, config)
     scanned_at = datetime.now(UTC).isoformat()
     extract_run_id = f"core-{hashlib.sha256(scanned_at.encode('utf-8')).hexdigest()[:12]}"
+    embedding_metadata = embedding_metadata_from_config(config, generated_at=scanned_at)
+    embedding_metadata_file = embedding_metadata_path(graph_storage)
+    previous_embedding_metadata = load_embedding_metadata(embedding_metadata_file)
+    existing_embedding_artifacts = (
+        (graph_storage / GRAPH_STORE_FILENAME).exists()
+        or (graph_storage / VECTOR_STORE_FILENAME).exists()
+    )
+    if (
+        not all_sources
+        and existing_embedding_artifacts
+        and not embedding_identity_matches(previous_embedding_metadata, embedding_metadata)
+    ):
+        warnings = [embedding_mismatch_warning(previous_embedding_metadata, embedding_metadata)]
+        freshness = FreshnessReport(
+            last_core_run=scanned_at,
+            graph_revision=None,
+            graph_storage_path=str(graph_storage),
+            source_manifest_path=str(graph_storage / "source_manifest.json"),
+            warnings=warnings,
+        )
+        return CoreUpdate(
+            status=ResultStatus.FAILED,
+            mode="incremental",
+            updated_sources=[],
+            skipped_sources=[],
+            failed_sources=["embedding_metadata"],
+            graph_storage=str(graph_storage),
+            freshness_report=freshness,
+            warnings=warnings,
+        )
     try:
         mode = extraction_mode(config)
         if mode == EXTRACTION_MODE_SCHEMA_LLM and schema_extractor is None:
@@ -140,10 +182,14 @@ def run_core_update(
     manifest_path = graph_storage / "source_manifest.json"
     previous_manifest = SourceManifest(entries=[]) if all_sources else load_source_manifest(manifest_path)
     reconciliation = reconcile_manifests(previous_manifest, current_manifest)
-    graph_revision = graph_revision_for_manifest(current_manifest)
+    graph_revision = graph_revision_for_manifest(
+        current_manifest,
+        embedding_metadata=embedding_metadata,
+    )
 
     graph_store = build_deterministic_graph(
         current_manifest,
+        embedding_metadata=embedding_metadata,
         include_heading_anchors=mode != EXTRACTION_MODE_SCHEMA_LLM,
     )
 
@@ -209,11 +255,16 @@ def run_core_update(
         )
     write_unresolved_relations_atomic(unresolved_path, unresolved)
 
-    vector_store = build_vector_store(graph_store)
+    vector_store = build_vector_store(
+        graph_store,
+        embedding_metadata=embedding_metadata,
+        embedding_config=_mapping(config.get("embedding")),
+    )
 
     graph_storage.mkdir(parents=True, exist_ok=True)
     graph_store.persist(str(graph_storage / GRAPH_STORE_FILENAME))
     vector_store.persist(str(graph_storage / VECTOR_STORE_FILENAME))
+    write_embedding_metadata_atomic(embedding_metadata_file, embedding_metadata)
 
     chapter_anchors_path = graph_storage / "chapter_anchors.json"
     affected_chapters = (
@@ -357,9 +408,11 @@ def resolve_source_paths(project_root: Path, config: dict[str, Any]) -> list[Pat
 def build_deterministic_graph(
     manifest: SourceManifest,
     *,
+    embedding_metadata: EmbeddingMetadata | None = None,
     include_heading_anchors: bool = True,
 ) -> SimplePropertyGraphStore:
     store = SimplePropertyGraphStore()
+    metadata = embedding_metadata or embedding_metadata_from_config({})
     documents: dict[str, EntityNode] = {}
     chapters: dict[str, EntityNode] = {}
     sections: dict[str, EntityNode] = {}
@@ -398,6 +451,7 @@ def build_deterministic_graph(
                 "heading_path": entry.heading_path,
                 "heading_start_line": entry.heading_start_line,
                 "source_hash": entry.source_hash,
+                **embedding_properties(metadata),
             },
         )
 
@@ -421,7 +475,7 @@ def build_deterministic_graph(
             ),
         ]
         if include_heading_anchors:
-            anchor = anchor_for_entry(entry)
+            anchor = anchor_for_entry(entry, embedding_metadata=metadata)
             anchors[anchor.name] = anchor
             section_relations.append(
                 Relation(
@@ -448,14 +502,28 @@ def build_deterministic_graph(
     return store
 
 
-def build_vector_store(graph_store: SimplePropertyGraphStore) -> SimpleVectorStore:
+def build_vector_store(
+    graph_store: SimplePropertyGraphStore,
+    *,
+    embedding_metadata: EmbeddingMetadata | None = None,
+    embedding_config: Mapping[str, Any] | None = None,
+) -> SimpleVectorStore:
     vector_store = SimpleVectorStore()
+    metadata = embedding_metadata or embedding_metadata_from_config({})
     entities = []
     text_by_entity_id = {}
     for node in graph_store.get():
         if node.label not in {"ANCHOR", "SECTION"}:
             continue
-        node.embedding = stable_embedding(node.name)
+        node.embedding = embedding_for_text(
+            node.name,
+            metadata,
+            config=embedding_config,
+        )
+        node.properties = {
+            **(node.properties or {}),
+            **embedding_properties(metadata),
+        }
         entities.append(node)
         props = node.properties or {}
         text_by_entity_id[node.id] = " ".join(
@@ -499,8 +567,12 @@ def skipped_sources_for(
     return reconciliation.unchanged_section_ids
 
 
-def graph_revision_for_manifest(manifest: SourceManifest) -> str:
-    payload = [
+def graph_revision_for_manifest(
+    manifest: SourceManifest,
+    *,
+    embedding_metadata: EmbeddingMetadata | None = None,
+) -> str:
+    payload: list[dict[str, Any]] = [
         {
             "document_id": entry.document_id,
             "chapter_id": entry.chapter_id,
@@ -509,6 +581,8 @@ def graph_revision_for_manifest(manifest: SourceManifest) -> str:
         }
         for entry in sorted(manifest.entries, key=lambda item: item.section_id)
     ]
+    if embedding_metadata is not None:
+        payload.append({"embedding_metadata": embedding_metadata.identity()})
     digest = hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()
@@ -519,13 +593,18 @@ def section_node_id_for(section_id: str) -> str:
     return f"section:{section_id}"
 
 
-def anchor_for_entry(entry: SourceManifestEntry) -> EntityNode:
+def anchor_for_entry(
+    entry: SourceManifestEntry,
+    *,
+    embedding_metadata: EmbeddingMetadata | None = None,
+) -> EntityNode:
+    metadata = embedding_metadata or embedding_metadata_from_config({})
     name = entry.heading_path.split(" / ")[-1]
     anchor_id = f"anchor:{entry.section_id}:{_slugify(name)}"
     return EntityNode(
         label="ANCHOR",
         name=anchor_id,
-        embedding=stable_embedding(anchor_id),
+        embedding=stable_embedding(anchor_id, dimensions=metadata.dimension),
         properties={
             "document_id": entry.document_id,
             "chapter_id": entry.chapter_id,
@@ -541,13 +620,17 @@ def anchor_for_entry(entry: SourceManifestEntry) -> EntityNode:
             "description": entry.heading_path,
             "evidence_excerpt": entry.heading_path,
             "heading_path": entry.heading_path,
+            **embedding_properties(metadata),
         },
     )
 
 
-def stable_embedding(text: str, *, dimensions: int = 8) -> list[float]:
-    digest = hashlib.sha256(text.encode("utf-8")).digest()
-    return [round(digest[index] / 255.0, 6) for index in range(dimensions)]
+def embedding_properties(metadata: EmbeddingMetadata) -> dict[str, Any]:
+    return {
+        "embedding_provider": metadata.provider,
+        "embedding_model": metadata.model,
+        "embedding_dimension": metadata.dimension,
+    }
 
 
 def _graph_storage_path(project_root: Path, config: dict[str, Any]) -> Path:
@@ -612,6 +695,10 @@ def _dedupe_relations(relations: list[Relation]) -> list[Relation]:
     for relation in relations:
         by_key[(relation.source_id, relation.label, relation.target_id)] = relation
     return list(by_key.values())
+
+
+def _mapping(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
 
 
 def _slugify(text: str) -> str:

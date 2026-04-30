@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -20,6 +22,7 @@ from spec_grag.extraction import (
     ExtractionProvenance,
     make_schema_llm_path_extractor,
 )
+from spec_grag.embedding import stable_embedding
 from spec_grag.llm_adapters import ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.manifest import SourceManifest, SourceManifestEntry
 from spec_grag.sidecars import (
@@ -34,6 +37,9 @@ SCHEMA_LLM_EXTRACTOR_VERSION = "schema-llm-path-v1"
 
 EXTRACTION_MODE_DETERMINISTIC = "deterministic"
 EXTRACTION_MODE_SCHEMA_LLM = "schema_llm"
+
+GROUNDING_SCORE_THRESHOLD = 0.9
+GROUNDING_SCORE_MARGIN = 0.15
 
 CHAPTER_RELATION_TYPES = {
     "RELATED_TO",
@@ -65,6 +71,9 @@ class _ResolvedEndpoint:
     label: str
     hint: str
     reason: UnresolvedRelationReason | None = None
+    score: float = 0.0
+    second_score: float = 0.0
+    methods: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -74,15 +83,76 @@ class _NormalizationResult:
     unresolved_entries: list[UnresolvedRelationEntry] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class _GroundingCandidate:
+    node_id: str
+    document_id: str
+    chapter_id: str
+    section_id: str | None
+    heading_path: str
+    heading_title: str
+    heading_start_line: int
+    text: str
+
+
+@dataclass(frozen=True)
+class _GroundingScore:
+    candidate: _GroundingCandidate
+    score: float
+    methods: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class _GroundingDecision:
+    node_id: str | None
+    reason: UnresolvedRelationReason | None
+    score: float = 0.0
+    second_score: float = 0.0
+    methods: tuple[str, ...] = ()
+
+
 class _GroundingIndex:
-    def __init__(self, manifest: SourceManifest) -> None:
+    def __init__(
+        self,
+        manifest: SourceManifest,
+        *,
+        section_texts: Mapping[str, str] | None = None,
+        score_threshold: float = GROUNDING_SCORE_THRESHOLD,
+        score_margin: float = GROUNDING_SCORE_MARGIN,
+    ) -> None:
+        self.score_threshold = score_threshold
+        self.score_margin = score_margin
+        self.section_texts = dict(section_texts or {})
         self.chapter_hints: dict[str, set[str]] = defaultdict(set)
         self.section_hints: dict[str, set[str]] = defaultdict(set)
+        self.chapter_candidates: list[_GroundingCandidate] = []
+        self.section_candidates: list[_GroundingCandidate] = []
+        chapter_seen: set[str] = set()
+        chapter_texts: dict[str, str] = defaultdict(str)
+        for entry in manifest.entries:
+            chapter_texts[entry.chapter_id] += "\n" + self.section_texts.get(
+                entry.section_id, ""
+            )
+
         for entry in manifest.entries:
             chapter_title = entry.heading_path.split(" / ")[0]
             self._add_chapter_hint(entry.chapter_id, entry.chapter_id)
             self._add_chapter_hint(chapter_title, entry.chapter_id)
             self._add_chapter_hint(_slugify(chapter_title), entry.chapter_id)
+            if entry.chapter_id not in chapter_seen:
+                self.chapter_candidates.append(
+                    _GroundingCandidate(
+                        node_id=entry.chapter_id,
+                        document_id=entry.document_id,
+                        chapter_id=entry.chapter_id,
+                        section_id=None,
+                        heading_path=chapter_title,
+                        heading_title=chapter_title,
+                        heading_start_line=entry.heading_start_line,
+                        text=chapter_texts[entry.chapter_id],
+                    )
+                )
+                chapter_seen.add(entry.chapter_id)
 
             section_title = entry.heading_path.split(" / ")[-1]
             self._add_section_hint(entry.section_id, entry.section_id)
@@ -90,15 +160,61 @@ class _GroundingIndex:
             self._add_section_hint(entry.heading_path, entry.section_id)
             self._add_section_hint(section_title, entry.section_id)
             self._add_section_hint(_slugify(section_title), entry.section_id)
+            self.section_candidates.append(
+                _GroundingCandidate(
+                    node_id=entry.section_id,
+                    document_id=entry.document_id,
+                    chapter_id=entry.chapter_id,
+                    section_id=entry.section_id,
+                    heading_path=entry.heading_path,
+                    heading_title=section_title,
+                    heading_start_line=entry.heading_start_line,
+                    text=self.section_texts.get(entry.section_id, ""),
+                )
+            )
 
-    def resolve_chapter(self, hint: str) -> tuple[str | None, UnresolvedRelationReason | None]:
-        return self._resolve(self.chapter_hints, hint)
+    def resolve_chapter(
+        self,
+        hint: str,
+        *,
+        current_entry: SourceManifestEntry | None = None,
+        evidence_excerpt: str | None = None,
+        source_span: str | None = None,
+    ) -> _GroundingDecision:
+        return self._resolve_scored(
+            self.chapter_candidates,
+            self.chapter_hints,
+            hint,
+            current_entry=current_entry,
+            evidence_excerpt=evidence_excerpt,
+            source_span=source_span,
+        )
 
-    def resolve_section(self, hint: str) -> tuple[str | None, UnresolvedRelationReason | None]:
-        section_id, reason = self._resolve(self.section_hints, hint)
-        if section_id is None:
-            return None, reason
-        return section_node_id_for(section_id), None
+    def resolve_section(
+        self,
+        hint: str,
+        *,
+        current_entry: SourceManifestEntry | None = None,
+        evidence_excerpt: str | None = None,
+        source_span: str | None = None,
+    ) -> _GroundingDecision:
+        decision = self._resolve_scored(
+            self.section_candidates,
+            self.section_hints,
+            hint,
+            current_entry=current_entry,
+            evidence_excerpt=evidence_excerpt,
+            source_span=source_span,
+        )
+        if decision.node_id is None:
+            return decision
+        return _GroundingDecision(
+            node_id=section_node_id_for(decision.node_id),
+            reason=None,
+            score=decision.score,
+            second_score=decision.second_score,
+            methods=decision.methods,
+        )
 
     def _add_chapter_hint(self, hint: str, chapter_id: str) -> None:
         normalized = _normalize_hint(hint)
@@ -116,20 +232,148 @@ class _GroundingIndex:
         if compact and compact != normalized:
             self.section_hints[compact].add(section_id)
 
-    @staticmethod
-    def _resolve(
-        index: Mapping[str, set[str]], hint: str
-    ) -> tuple[str | None, UnresolvedRelationReason | None]:
+    def _resolve_scored(
+        self,
+        candidates: Sequence[_GroundingCandidate],
+        index: Mapping[str, set[str]],
+        hint: str,
+        *,
+        current_entry: SourceManifestEntry | None,
+        evidence_excerpt: str | None,
+        source_span: str | None,
+    ) -> _GroundingDecision:
         normalized = _normalize_hint(hint)
         matches = index.get(normalized, set())
         if not matches:
             compact = _compact_hint(normalized)
             matches = index.get(compact, set()) if compact else set()
-        if len(matches) == 1:
-            return next(iter(matches)), None
-        if len(matches) > 1:
-            return None, UnresolvedRelationReason.AMBIGUOUS_TARGET
-        return None, UnresolvedRelationReason.MISSING_TARGET
+
+        scored = [
+            self._score_candidate(
+                candidate,
+                hint,
+                current_entry=current_entry,
+                evidence_excerpt=evidence_excerpt,
+                source_span=source_span,
+                exact_match=candidate.node_id in matches,
+            )
+            for candidate in candidates
+        ]
+        scored = [item for item in scored if item.score > 0.0]
+        scored.sort(key=lambda item: (-item.score, item.candidate.node_id))
+        if not scored:
+            return _GroundingDecision(None, UnresolvedRelationReason.MISSING_TARGET)
+
+        best = scored[0]
+        second_score = scored[1].score if len(scored) > 1 else 0.0
+        if best.score < self.score_threshold:
+            return _GroundingDecision(
+                None,
+                UnresolvedRelationReason.AMBIGUOUS_TARGET,
+                score=best.score,
+                second_score=second_score,
+                methods=best.methods,
+            )
+        if len(scored) > 1 and best.score - second_score < self.score_margin:
+            return _GroundingDecision(
+                None,
+                UnresolvedRelationReason.AMBIGUOUS_TARGET,
+                score=best.score,
+                second_score=second_score,
+                methods=best.methods,
+            )
+        return _GroundingDecision(
+            best.candidate.node_id,
+            None,
+            score=best.score,
+            second_score=second_score,
+            methods=best.methods,
+        )
+
+    def _score_candidate(
+        self,
+        candidate: _GroundingCandidate,
+        hint: str,
+        *,
+        current_entry: SourceManifestEntry | None,
+        evidence_excerpt: str | None,
+        source_span: str | None,
+        exact_match: bool,
+    ) -> _GroundingScore:
+        score = 0.0
+        methods: list[str] = []
+        normalized_hint = _normalize_hint(hint)
+        compact_hint = _compact_hint(normalized_hint)
+
+        id_key = _normalize_hint(candidate.node_id)
+        path_key = _normalize_hint(candidate.heading_path)
+        title_key = _normalize_hint(candidate.heading_title)
+        compact_id = _compact_hint(id_key)
+        compact_path = _compact_hint(path_key)
+        compact_title = _compact_hint(title_key)
+
+        if exact_match and normalized_hint == id_key:
+            score += 1.5
+            methods.append("exact_id")
+        elif exact_match and compact_hint == compact_id:
+            score += 1.35
+            methods.append("compact_id")
+        elif normalized_hint == path_key:
+            score += 1.3
+            methods.append("exact_heading_path")
+        elif compact_hint and compact_hint == compact_path:
+            score += 1.2
+            methods.append("compact_heading_path")
+        elif normalized_hint == title_key:
+            score += 0.9
+            methods.append("exact_heading")
+        elif compact_hint and compact_hint == compact_title:
+            score += 0.85
+            methods.append("compact_heading")
+        elif normalized_hint and (
+            normalized_hint in path_key or title_key in normalized_hint
+        ):
+            score += 0.35
+            methods.append("partial_heading")
+
+        token_score = _token_overlap_score(normalized_hint, path_key)
+        if token_score:
+            score += token_score * 0.25
+            methods.append("heading_token_overlap")
+
+        similarity = _embedding_similarity(
+            stable_embedding(hint, dimensions=16),
+            stable_embedding(candidate.heading_path, dimensions=16),
+        )
+        if similarity >= 0.97:
+            score += 0.05
+            methods.append("embedding_similarity")
+
+        if evidence_excerpt and _contains_excerpt(candidate.text, evidence_excerpt):
+            score += 0.12
+            methods.append("evidence_excerpt_containment")
+
+        span = _parse_line_span(source_span)
+        if span is not None and span[0] - 5 <= candidate.heading_start_line <= span[1] + 5:
+            score += 0.05
+            if "span_proximity" not in methods:
+                methods.append("span_proximity")
+
+        if current_entry is not None and methods:
+            if candidate.document_id == current_entry.document_id:
+                score += 0.08
+                methods.append("same_document")
+            if candidate.chapter_id == current_entry.chapter_id:
+                score += 0.18
+                methods.append("same_chapter")
+            if candidate.section_id == current_entry.section_id:
+                score += 0.05
+                methods.append("anchor_proximity")
+            if _nearby_lines(candidate.heading_start_line, current_entry.heading_start_line):
+                score += 0.05
+                methods.append("span_proximity")
+
+        return _GroundingScore(candidate, round(score, 6), tuple(sorted(set(methods))))
 
 
 def extraction_mode(config: Mapping[str, Any]) -> str:
@@ -149,15 +393,25 @@ def make_schema_extractor_from_config(config: Mapping[str, Any]) -> SchemaExtrac
     provider = str(extraction_config.get("provider", "codex")).strip().lower()
     if provider == "codex":
         llm = CodexCLIAdapter(
-            command=str(extraction_config.get("command", "codex")),
-            model=str(extraction_config.get("model", "gpt-5.4")),
+            command=str(extraction_config.get("command") or "codex"),
+            model=str(extraction_config.get("model") or "gpt-5.4"),
             timeout_sec=int(extraction_config.get("timeout_sec", 120)),
+            max_retries=int(extraction_config.get("max_retries", 0)),
+            retry_backoff_sec=float(extraction_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                extraction_config.get("repair_on_schema_failure", True)
+            ),
         )
     elif provider == "claude":
         llm = ClaudeCLIAdapter(
-            command=str(extraction_config.get("command", "claude")),
-            model=str(extraction_config.get("model", "")),
+            command=str(extraction_config.get("command") or "claude"),
+            model=str(extraction_config.get("model") or ""),
             timeout_sec=int(extraction_config.get("timeout_sec", 120)),
+            max_retries=int(extraction_config.get("max_retries", 0)),
+            retry_backoff_sec=float(extraction_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                extraction_config.get("repair_on_schema_failure", True)
+            ),
         )
     else:
         raise ValueError(f"unsupported extraction.provider: {provider}")
@@ -180,9 +434,22 @@ def extract_schema_llm_artifacts(
     schema_extractor: SchemaExtractor | None = None,
 ) -> SchemaLLMExtractionResult:
     extractor = schema_extractor or make_schema_extractor_from_config(config)
+    extraction_config = _mapping(config.get("extraction"))
     entries_by_id = manifest.by_section_id()
-    grounding = _GroundingIndex(manifest)
     section_texts = read_section_texts(project_root, manifest)
+    grounding = _GroundingIndex(
+        manifest,
+        section_texts=section_texts,
+        score_threshold=float(
+            extraction_config.get(
+                "grounding_score_threshold",
+                GROUNDING_SCORE_THRESHOLD,
+            )
+        ),
+        score_margin=float(
+            extraction_config.get("grounding_score_margin", GROUNDING_SCORE_MARGIN)
+        ),
+    )
 
     all_nodes: list[EntityNode] = []
     all_relations: list[Relation] = []
@@ -304,6 +571,8 @@ def normalize_extracted_artifacts(
             anchor_nodes,
             grounding,
             endpoint_cache,
+            current_entry=entry,
+            relation_properties=props,
             default_chapter_id=entry.chapter_id,
         )
         target = _resolve_endpoint(
@@ -312,6 +581,8 @@ def normalize_extracted_artifacts(
             anchor_nodes,
             grounding,
             endpoint_cache,
+            current_entry=entry,
+            relation_properties=props,
             default_chapter_id=None,
         )
 
@@ -354,6 +625,8 @@ def normalize_extracted_artifacts(
                     **props,
                     **provenance.to_metadata(),
                     "confidence": confidence,
+                    **_grounding_properties("source", source),
+                    **_grounding_properties("target", target),
                 },
             )
         )
@@ -443,6 +716,8 @@ def _resolve_endpoint(
     grounding: _GroundingIndex,
     endpoint_cache: dict[str, _ResolvedEndpoint],
     *,
+    current_entry: SourceManifestEntry,
+    relation_properties: Mapping[str, Any],
     default_chapter_id: str | None,
 ) -> _ResolvedEndpoint:
     if raw_id in endpoint_cache:
@@ -459,16 +734,52 @@ def _resolve_endpoint(
     raw_node = raw_nodes.get(raw_id)
     label = str(raw_node.label if raw_node is not None else "")
     hint = _display_name(raw_node, raw_id)
+    evidence_excerpt = _evidence_excerpt(relation_properties)
+    source_span = _source_span(relation_properties)
 
     if label == "CHAPTER":
-        resolved, reason = grounding.resolve_chapter(hint)
-        if resolved is None and default_chapter_id is not None:
-            resolved = default_chapter_id
-            reason = None
-        endpoint = _ResolvedEndpoint(resolved, label, hint, reason)
+        decision = grounding.resolve_chapter(
+            hint,
+            current_entry=current_entry,
+            evidence_excerpt=evidence_excerpt,
+            source_span=source_span,
+        )
+        if decision.node_id is None and default_chapter_id is not None:
+            endpoint = _ResolvedEndpoint(
+                default_chapter_id,
+                label,
+                hint,
+                None,
+                score=decision.score,
+                second_score=decision.second_score,
+                methods=tuple(sorted(set(decision.methods + ("default_current_chapter",)))),
+            )
+        else:
+            endpoint = _ResolvedEndpoint(
+                decision.node_id,
+                label,
+                hint,
+                decision.reason,
+                score=decision.score,
+                second_score=decision.second_score,
+                methods=decision.methods,
+            )
     elif label == "SECTION":
-        resolved, reason = grounding.resolve_section(hint)
-        endpoint = _ResolvedEndpoint(resolved, label, hint, reason)
+        decision = grounding.resolve_section(
+            hint,
+            current_entry=current_entry,
+            evidence_excerpt=evidence_excerpt,
+            source_span=source_span,
+        )
+        endpoint = _ResolvedEndpoint(
+            decision.node_id,
+            label,
+            hint,
+            decision.reason,
+            score=decision.score,
+            second_score=decision.second_score,
+            methods=decision.methods,
+        )
     elif label == "DOCUMENT":
         endpoint = _ResolvedEndpoint(None, label, hint, UnresolvedRelationReason.MISSING_TARGET)
     elif default_chapter_id is not None:
@@ -553,9 +864,69 @@ def _evidence_excerpt(props: Mapping[str, Any]) -> str | None:
     return str(value) if value else None
 
 
+def _source_span(props: Mapping[str, Any]) -> str | None:
+    value = props.get("source_span") or props.get("span")
+    return str(value) if value else None
+
+
 def _confidence(props: Mapping[str, Any]) -> str:
     confidence = str(props.get("confidence", "medium")).strip().lower()
     return confidence if confidence in ALLOWED_CONFIDENCE else "medium"
+
+
+def _grounding_properties(prefix: str, endpoint: _ResolvedEndpoint) -> dict[str, Any]:
+    if not endpoint.methods:
+        return {}
+    return {
+        f"{prefix}_grounding_score": endpoint.score,
+        f"{prefix}_grounding_second_score": endpoint.second_score,
+        f"{prefix}_grounding_methods": list(endpoint.methods),
+    }
+
+
+def _token_overlap_score(left: str, right: str) -> float:
+    left_tokens = {token for token in re.split(r"[-_./#\s]+", left) if token}
+    right_tokens = {token for token in re.split(r"[-_./#\s]+", right) if token}
+    if not left_tokens or not right_tokens:
+        return 0.0
+    return len(left_tokens & right_tokens) / len(left_tokens)
+
+
+def _embedding_similarity(left: list[float], right: list[float]) -> float:
+    if not left or not right:
+        return 0.0
+    size = min(len(left), len(right))
+    a = left[:size]
+    b = right[:size]
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _nearby_lines(left: int, right: int) -> bool:
+    return abs(left - right) <= 20
+
+
+def _contains_excerpt(text: str, excerpt: str) -> bool:
+    normalized_text = " ".join(text.split()).casefold()
+    normalized_excerpt = " ".join(excerpt.split()).casefold()
+    return bool(normalized_excerpt and normalized_excerpt in normalized_text)
+
+
+def _parse_line_span(value: str | None) -> tuple[int, int] | None:
+    if not value:
+        return None
+    numbers = [int(item) for item in re.findall(r"\d+", value)]
+    if not numbers:
+        return None
+    start = numbers[0]
+    end = numbers[1] if len(numbers) > 1 else start
+    if start <= 0 or end < start:
+        return None
+    return start, end
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

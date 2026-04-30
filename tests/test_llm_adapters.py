@@ -87,6 +87,41 @@ def test_codex_cli_adapter_nonzero_exit_raises() -> None:
         llm.complete("prompt")
 
 
+def test_codex_cli_adapter_retries_nonzero_exit_then_succeeds() -> None:
+    calls: list[Sequence[str]] = []
+
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        if len(calls) == 1:
+            return subprocess.CompletedProcess(
+                args=list(cmd), returncode=2, stdout="", stderr="rate limited"
+            )
+        return subprocess.CompletedProcess(
+            args=list(cmd), returncode=0, stdout='{"result": "done"}', stderr=""
+        )
+
+    llm = CodexCLIAdapter(runner=runner, max_retries=1)
+    response = llm.complete("prompt")
+
+    assert response.text == "done"
+    assert response.raw["attempt_count"] == 2
+    assert len(calls) == 2
+
+
+def test_codex_cli_adapter_timeout_is_adapter_error() -> None:
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        raise subprocess.TimeoutExpired(cmd=list(cmd), timeout=timeout_sec)
+
+    llm = CodexCLIAdapter(runner=runner, timeout_sec=3)
+
+    with pytest.raises(CLIAdapterError, match="timed out after 3s"):
+        llm.complete("prompt")
+
+
 def test_codex_cli_adapter_validates_structured_output_locally() -> None:
     impossible_schema = {
         "type": "object",
@@ -175,6 +210,36 @@ def test_claude_cli_adapter_validates_structured_output_locally() -> None:
 
     with pytest.raises(CLIAdapterError, match="violates schema"):
         llm.complete("prompt", output_schema=impossible_schema)
+
+
+def test_claude_cli_adapter_repairs_schema_failure_then_succeeds() -> None:
+    calls: list[Sequence[str]] = []
+
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        if len(calls) == 1:
+            return subprocess.CompletedProcess(
+                args=list(cmd),
+                returncode=0,
+                stdout=json.dumps({"structured_output": {"wrong": "shape"}}),
+                stderr="",
+            )
+        assert "Previous output failed local schema validation" in list(cmd)[-1]
+        return subprocess.CompletedProcess(
+            args=list(cmd),
+            returncode=0,
+            stdout=json.dumps({"structured_output": {"name": "auth"}}),
+            stderr="",
+        )
+
+    llm = ClaudeCLIAdapter(runner=runner, max_retries=1)
+    response = llm.complete("extract", output_schema=StructuredAnswer)
+
+    assert response.text == '{"name": "auth"}'
+    assert response.raw["attempt_count"] == 2
+    assert len(calls) == 2
 
 
 def test_extract_cli_text_handles_jsonl_events() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 from dataclasses import dataclass, field
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from llama_index.core.graph_stores import SimplePropertyGraphStore
+from pydantic import Field, ValidationError
 
 from spec_grag.concept_index import (
     ConceptIndex,
@@ -19,6 +21,7 @@ from spec_grag.concept_index import (
     stable_embedding,
 )
 from spec_grag.core import run_core_update
+from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.manifest import SourceManifest, SourceManifestEntry, load_source_manifest
 from spec_grag.protocol import (
     AgenticSearchCandidate,
@@ -35,6 +38,7 @@ from spec_grag.protocol import (
     SearchRequest,
     SearchTarget,
     SlashCommandRequest,
+    StrictModel,
     TargetContext,
 )
 from spec_grag.sidecars import (
@@ -71,6 +75,14 @@ class GraphRetrievalResult:
     related_entities: list[dict[str, Any]]
     warnings: list[str] = field(default_factory=list)
     graph_data: dict[str, Any] = field(default_factory=dict)
+
+
+class ClassificationDecision(StrictModel):
+    constraint_relevance: str = Field(pattern="^(none|low|medium|high)$")
+    target_relevance: str = Field(pattern="^(none|low|medium|high)$")
+    semantic_conflict_candidate: bool = False
+    review_required: bool = False
+    reason_for_current_task: str
 
 
 def build_injection(
@@ -113,6 +125,9 @@ def build_injection(
     graph_dir = Path(core_update.graph_storage)
     manifest = load_source_manifest(graph_dir / "source_manifest.json")
     query = central_query(request)
+    classification_llm = make_classification_llm_from_config(config)
+    classification_limit = int(config.get("classification", {}).get("max_items", 24))
+    classification_budget = {"remaining": classification_limit}
     expected_requests = expected_search_requests(request, manifest, query)
     valid_agentic, invalid_agentic = validate_agentic_candidates(
         request.agentic_search_candidates,
@@ -126,6 +141,8 @@ def build_injection(
         query,
         request.conversation_context,
         valid_agentic,
+        classification_llm=classification_llm,
+        classification_budget=classification_budget,
     )
     source_sections = graph_retrieval.source_sections
     purpose_item, purpose_warning = read_purpose_constraint(project_root, config)
@@ -134,6 +151,8 @@ def build_injection(
         project_root,
         config,
         query,
+        classification_llm=classification_llm,
+        classification_budget=classification_budget,
     )
     chapter_anchors = retrieve_chapter_anchors(
         graph_dir,
@@ -145,6 +164,8 @@ def build_injection(
             chapter_anchor_item(anchor, source_origin=anchor.source_origin),
             item_type="chapter_anchor",
             query=query,
+            llm=classification_llm,
+            llm_budget=classification_budget,
         )
         for anchor in chapter_anchors
     ]
@@ -154,6 +175,8 @@ def build_injection(
         concept_items=concept_items,
         related_entities=graph_retrieval.related_entities,
         query=query,
+        classification_llm=classification_llm,
+        classification_budget=classification_budget,
     )
 
     warnings = [
@@ -195,6 +218,14 @@ def build_injection(
         constraint_context=ConstraintContext(
             purpose_constraints=[
                 classify_context_item(purpose_item, item_type="purpose", query=query)
+                if classification_llm is None
+                else classify_context_item(
+                    purpose_item,
+                    item_type="purpose",
+                    query=query,
+                    llm=classification_llm,
+                    llm_budget=classification_budget,
+                )
             ]
             if purpose_item
             else [],
@@ -208,6 +239,8 @@ def build_injection(
                     source_section_item(entry, source_origin="GRAG", relevance="medium"),
                     item_type="source_section",
                     query=query,
+                    llm=classification_llm,
+                    llm_budget=classification_budget,
                 )
                 for entry in source_sections
             ],
@@ -232,6 +265,8 @@ def build_injection(
                     agentic_candidate_item(candidate, expected_requests),
                     item_type="agentic_candidate",
                     query=query,
+                    llm=classification_llm,
+                    llm_budget=classification_budget,
                 )
                 for candidate in valid_agentic
                 if expected_use_for_candidate(candidate, expected_requests)
@@ -245,6 +280,8 @@ def build_injection(
                     source_section_item(entry, source_origin="GRAG", relevance="high"),
                     item_type="source_section",
                     query=query,
+                    llm=classification_llm,
+                    llm_budget=classification_budget,
                 )
                 for entry in source_sections
             ],
@@ -321,6 +358,40 @@ def central_query(request: SlashCommandRequest) -> str:
         or request.conversation_context.working_target
         or ""
     )
+
+
+def make_classification_llm_from_config(config: dict[str, Any]) -> Any | None:
+    classification_config = config.get("classification", {})
+    provider = str(
+        classification_config.get("provider", "orchestrator_rule_based")
+    ).strip().lower()
+    if provider in {"orchestrator_rule_based", "rule_based", "none", "disabled", ""}:
+        return None
+    if provider == "codex":
+        return CodexCLIAdapter(
+            command=str(classification_config.get("command") or "codex"),
+            model=str(classification_config.get("model") or "gpt-5.4"),
+            timeout_sec=int(classification_config.get("timeout_sec", 120)),
+            sandbox=str(classification_config.get("sandbox", "read-only")),
+            max_retries=int(classification_config.get("max_retries", 0)),
+            retry_backoff_sec=float(classification_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                classification_config.get("repair_on_schema_failure", True)
+            ),
+        )
+    if provider == "claude":
+        return ClaudeCLIAdapter(
+            command=str(classification_config.get("command") or "claude"),
+            model=str(classification_config.get("model") or ""),
+            timeout_sec=int(classification_config.get("timeout_sec", 120)),
+            tools=str(classification_config.get("tools", "")),
+            max_retries=int(classification_config.get("max_retries", 0)),
+            retry_backoff_sec=float(classification_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                classification_config.get("repair_on_schema_failure", True)
+            ),
+        )
+    raise ValueError(f"unsupported classification.provider: {provider}")
 
 
 def summarize_conversation(context: ConversationContext) -> str:
@@ -512,6 +583,9 @@ def retrieve_graph_context(
     query: str,
     context: ConversationContext,
     valid_agentic: list[AgenticSearchCandidate],
+    *,
+    classification_llm: Any | None = None,
+    classification_budget: dict[str, int] | None = None,
 ) -> GraphRetrievalResult:
     graph_data, warnings = load_graph_data(graph_dir)
     source_sections = retrieve_source_sections(manifest, query, context)
@@ -554,7 +628,13 @@ def retrieve_graph_context(
             merged_sections[section_id] = manifest_by_section[section_id]
 
     related_entities = [
-        classify_context_item(item, item_type="graph_entity", query=query)
+        classify_context_item(
+            item,
+            item_type="graph_entity",
+            query=query,
+            llm=classification_llm,
+            llm_budget=classification_budget,
+        )
         for item in dedupe_items(graph_matches, key="entity_id")
     ]
     return GraphRetrievalResult(
@@ -696,6 +776,8 @@ def retrieve_cluster_items(
     concept_items: list[dict[str, Any]],
     related_entities: list[dict[str, Any]],
     query: str,
+    classification_llm: Any | None = None,
+    classification_budget: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     snapshot = load_cluster_snapshot(graph_dir / "cluster_snapshot.json")
     selected_chapter_ids = {entry.chapter_id for entry in source_sections}
@@ -724,6 +806,8 @@ def retrieve_cluster_items(
                 cluster_item(cluster),
                 item_type="cluster",
                 query=query,
+                llm=classification_llm,
+                llm_budget=classification_budget,
             )
         )
     return items
@@ -804,6 +888,9 @@ def read_concept_constraints(
     project_root: Path,
     config: dict[str, Any],
     query: str,
+    *,
+    classification_llm: Any | None = None,
+    classification_budget: dict[str, int] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     path = configured_path(project_root, config, "core", "concept_file")
     if path is None or not path.exists():
@@ -819,6 +906,8 @@ def read_concept_constraints(
             concept_chunk_item(project_root, path, chunk, score=score),
             item_type="concept",
             query=query,
+            llm=classification_llm,
+            llm_budget=classification_budget,
         )
         for chunk, score in chunks
     ], []
@@ -1128,6 +1217,7 @@ def conflict_notes_for(
                 "source_origin": "Validator",
             }
         )
+    notes.extend(deterministic_rule_pack_conflicts(combined, classified_items or []))
     notes.extend(refines_cycle_conflicts(graph_data or {}))
     return notes
 
@@ -1139,6 +1229,177 @@ def has_required_optional_conflict(text: str) -> bool:
 
 def has_japanese_quantifier_conflict(text: str) -> bool:
     return ("必ず" in text and "任意" in text) or ("全て" in text and "一部" in text)
+
+
+def deterministic_rule_pack_conflicts(
+    text: str,
+    classified_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rules = [
+        (
+            has_must_vs_must_not_conflict(text),
+            "must_vs_must_not",
+            "Required and prohibited language appeared in selected evidence.",
+        ),
+        (
+            has_prohibited_required_japanese_conflict(text),
+            "required_vs_prohibited_japanese",
+            "Japanese required/prohibited language appeared in selected evidence.",
+        ),
+        (
+            has_permission_scope_conflict(text),
+            "permission_scope",
+            "Exclusive permission scope and all-user language appeared together.",
+        ),
+    ]
+    notes = [
+        {
+            "conflict": True,
+            "validator_stage": "rule_pack",
+            "rule_id": rule_id,
+            "reason": reason,
+            "source_origin": "Validator",
+        }
+        for matched, rule_id, reason in rules
+        if matched
+    ]
+    numeric = numeric_bound_conflict(text)
+    if numeric is not None:
+        notes.append(
+            {
+                "conflict": True,
+                "validator_stage": "rule_pack",
+                "rule_id": "numeric_bounds",
+                "reason": "Lower bound exceeds upper bound in selected evidence.",
+                **numeric,
+                "source_origin": "Validator",
+            }
+        )
+    transition = state_transition_conflict(text)
+    if transition is not None:
+        notes.append(
+            {
+                "conflict": True,
+                "validator_stage": "rule_pack",
+                "rule_id": "state_transition",
+                "reason": "Same state transition appears as both required and prohibited.",
+                **transition,
+                "source_origin": "Validator",
+            }
+        )
+    if concept_source_conflict_candidate(classified_items):
+        notes.append(
+            {
+                "conflict": True,
+                "validator_stage": "rule_pack",
+                "rule_id": "concept_vs_source_spec",
+                "reason": "Approved Concept and Source spec evidence contain opposing rule language.",
+                "source_origin": "Validator",
+            }
+        )
+    return notes
+
+
+def has_must_vs_must_not_conflict(text: str) -> bool:
+    lowered = text.lower()
+    return bool(
+        re.search(r"\b(must|required|shall)\b", lowered)
+        and re.search(r"\b(must not|shall not|prohibited|forbidden)\b", lowered)
+    )
+
+
+def has_prohibited_required_japanese_conflict(text: str) -> bool:
+    return any(token in text for token in ("必須", "必ず", "必要")) and any(
+        token in text for token in ("禁止", "不可", "してはならない", "できない")
+    )
+
+
+def has_permission_scope_conflict(text: str) -> bool:
+    lowered = text.lower()
+    english = (
+        ("admin only" in lowered or "administrator only" in lowered)
+        and ("all users" in lowered or "any user" in lowered)
+    )
+    japanese = ("管理者のみ" in text or "管理者だけ" in text) and (
+        "全ユーザー" in text or "全てのユーザー" in text or "すべてのユーザー" in text
+    )
+    return english or japanese
+
+
+def numeric_bound_conflict(text: str) -> dict[str, Any] | None:
+    lowered = text.lower()
+    minimums = [
+        int(match.group("value"))
+        for match in re.finditer(
+            r"(?:min(?:imum)?|at least|下限|最低)\D{0,8}(?P<value>\d+)",
+            lowered,
+        )
+    ]
+    maximums = [
+        int(match.group("value"))
+        for match in re.finditer(
+            r"(?:max(?:imum)?|at most|上限|最大)\D{0,8}(?P<value>\d+)",
+            lowered,
+        )
+    ]
+    if not minimums or not maximums:
+        return None
+    lower = max(minimums)
+    upper = min(maximums)
+    if lower <= upper:
+        return None
+    return {"lower_bound": lower, "upper_bound": upper}
+
+
+def state_transition_conflict(text: str) -> dict[str, Any] | None:
+    lowered = text.lower()
+    required = {
+        (match.group("from"), match.group("to"))
+        for match in re.finditer(
+            r"(?:must|required|必須|必要).{0,24}state\s+(?P<from>[a-z0-9_-]+)\s*->\s*(?P<to>[a-z0-9_-]+)",
+            lowered,
+        )
+    }
+    prohibited = {
+        (match.group("from"), match.group("to"))
+        for match in re.finditer(
+            r"(?:must not|shall not|prohibited|forbidden|禁止|不可).{0,24}state\s+(?P<from>[a-z0-9_-]+)\s*->\s*(?P<to>[a-z0-9_-]+)",
+            lowered,
+        )
+    }
+    overlap = required & prohibited
+    if not overlap:
+        return None
+    source, target = sorted(overlap)[0]
+    return {"from_state": source, "to_state": target}
+
+
+def concept_source_conflict_candidate(items: list[dict[str, Any]]) -> bool:
+    concept_text = " ".join(
+        item_text(item)
+        for item in items
+        if item.get("source_origin") == "CoreConceptIndex"
+    )
+    source_text = " ".join(
+        item_text(item)
+        for item in items
+        if item.get("source_origin") in {"GRAG", "AgenticSearch"}
+    )
+    if not concept_text or not source_text:
+        return False
+    return (
+        (
+            has_must_vs_must_not_conflict(f"{concept_text} {source_text}")
+            or has_prohibited_required_japanese_conflict(f"{concept_text} {source_text}")
+        )
+        and _has_opposing_rule_language(concept_text, source_text)
+    )
+
+
+def _has_opposing_rule_language(left: str, right: str) -> bool:
+    left_required = has_required_optional_conflict(left) or has_must_vs_must_not_conflict(left)
+    right_required = has_required_optional_conflict(right) or has_must_vs_must_not_conflict(right)
+    return left_required or right_required or has_japanese_quantifier_conflict(f"{left} {right}")
 
 
 def refines_cycle_conflicts(graph_data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1384,7 +1645,56 @@ def normalize_excerpt(text: str) -> str:
     return " ".join(text.replace("\r\n", "\n").replace("\r", "\n").split())
 
 
+def json_dumps_sorted(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2)
+
+
 def classify_context_item(
+    item: dict[str, Any],
+    *,
+    item_type: str,
+    query: str,
+    llm: Any | None = None,
+    llm_budget: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    annotated = classify_context_item_rule_based(item, item_type=item_type, query=query)
+    if llm is None:
+        return annotated
+    if llm_budget is not None:
+        remaining = llm_budget.get("remaining", 0)
+        if remaining <= 0:
+            annotated["classification_llm_skipped"] = "max_items_exhausted"
+            return annotated
+        llm_budget["remaining"] = remaining - 1
+    try:
+        decision = classify_context_item_with_llm(
+            annotated,
+            item_type=item_type,
+            query=query,
+            llm=llm,
+        )
+    except (CLIAdapterError, ValidationError, ValueError, RuntimeError) as exc:
+        annotated["classification_partial_output_recovered"] = True
+        annotated["classification_fallback_reason"] = str(exc)
+        annotated["review_required"] = True
+        return annotated
+
+    annotated.update(
+        {
+            "constraint_relevance": decision.constraint_relevance,
+            "target_relevance": decision.target_relevance,
+            "semantic_conflict_candidate": decision.semantic_conflict_candidate,
+            "review_required": bool(annotated.get("review_required"))
+            or decision.review_required
+            or decision.semantic_conflict_candidate,
+            "classification_source": "classification_llm",
+            "reason_for_current_task": decision.reason_for_current_task,
+        }
+    )
+    return annotated
+
+
+def classify_context_item_rule_based(
     item: dict[str, Any],
     *,
     item_type: str,
@@ -1448,6 +1758,34 @@ def classify_context_item(
     )
     annotated.setdefault("ranking_score", round(float(token_score), 6))
     return annotated
+
+
+def classify_context_item_with_llm(
+    item: dict[str, Any],
+    *,
+    item_type: str,
+    query: str,
+    llm: Any,
+) -> ClassificationDecision:
+    prompt = "\n".join(
+        [
+            "You are the SPEC-grag Classification phase.",
+            "Classify this single context item for the current task.",
+            "Return only JSON matching the supplied schema.",
+            "Do not mark conflict=true; semantic conflicts stay candidates unless Validator rules approve them.",
+            "",
+            "INPUT_JSON:",
+            json_dumps_sorted(
+                {
+                    "task_query": query,
+                    "item_type": item_type,
+                    "rule_based_fallback": item,
+                }
+            ),
+        ]
+    )
+    response = llm.complete(prompt, output_schema=ClassificationDecision)
+    return ClassificationDecision.model_validate_json(response.text)
 
 
 def classification_reason(

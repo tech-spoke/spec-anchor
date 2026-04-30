@@ -1,0 +1,19 @@
+{
+  "command": "spec-inject",
+  "project_root": "__PROJECT_ROOT__",
+  "task_prompt": null,
+  "conversation_context": {
+    "current_user_message": "認証仕様を見直す",
+    "recent_messages": [],
+    "working_target": "docs/spec/auth.md",
+    "explicit_files": ["docs/spec/auth.md"]
+  },
+  "agentic_search_candidates": [],
+  "agent_capabilities": {
+    "can_read_source": true,
+    "can_answer": false
+  },
+  "options": {
+    "output_format": "json"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "command": "spec-realign",
+  "project_root": "__PROJECT_ROOT__",
+  "task_prompt": "Auth Login を安全に見直す",
+  "conversation_context": {
+    "current_user_message": "Auth Login を安全に見直す",
+    "recent_messages": [],
+    "working_target": "docs/spec/auth.md",
+    "explicit_files": ["docs/spec/auth.md"]
+  },
+  "agentic_search_candidates": [],
+  "agent_capabilities": {
+    "can_read_source": true,
+    "can_answer": true
+  },
+  "options": {
+    "output_format": "json"
+  }
+}

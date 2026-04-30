@@ -15,6 +15,7 @@ from spec_grag.concept_index import (
     refresh_concept_index,
     split_concept_paragraphs,
 )
+from spec_grag.embedding import EmbeddingMetadata
 from spec_grag.protocol import Command
 
 
@@ -97,6 +98,52 @@ def test_refresh_concept_index_is_idempotent_until_concept_hash_changes(
     assert second.generated_at == "t1"
     assert third.generated_at == "t3"
     assert third.concept_file_hash != first.concept_file_hash
+
+
+def test_refresh_concept_index_rebuilds_on_embedding_metadata_change(
+    tmp_path: Path,
+) -> None:
+    write_concept(tmp_path, "# Concept\n\nAuth protects sessions.\n")
+    graph_dir = tmp_path / ".spec-grag/graph"
+    first_config = config()
+    first_config["embedding"] = {
+        "provider": "stable_hash",
+        "model": "sha256-v1",
+        "dimension": 8,
+    }
+    second_config = config()
+    second_config["embedding"] = {
+        "provider": "stable_hash",
+        "model": "sha256-v2",
+        "dimension": 12,
+    }
+
+    first, first_warnings = refresh_concept_index(
+        tmp_path,
+        first_config,
+        graph_dir,
+        generated_at="t1",
+    )
+    second, second_warnings = refresh_concept_index(
+        tmp_path,
+        second_config,
+        graph_dir,
+        generated_at="t2",
+    )
+
+    assert first_warnings == []
+    assert second_warnings == ["concept_index_embedding_metadata_mismatch_rebuilt"]
+    assert first is not None
+    assert second is not None
+    assert first.generated_at == "t1"
+    assert second.generated_at == "t2"
+    assert second.embedding_metadata == EmbeddingMetadata(
+        provider="stable_hash",
+        model="sha256-v2",
+        dimension=12,
+        generated_at="t2",
+    )
+    assert len(second.chunks[0].embedding) == 12
 
 
 def test_unapproved_pending_concept_diff_is_not_mixed_into_index(

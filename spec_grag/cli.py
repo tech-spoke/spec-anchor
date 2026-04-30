@@ -12,6 +12,7 @@ from typing import Any, TextIO
 
 from pydantic import ValidationError
 
+from spec_grag.config import validate_project_config
 from spec_grag.concept_index import refresh_concept_index
 from spec_grag.concept_diff import (
     ConceptApplyStatus,
@@ -48,9 +49,11 @@ from spec_grag.protocol import (
 from spec_grag.realign import (
     AnswerGenerationError,
     AnswerNeedsMoreContext,
+    answer_failure_fallback_from_config,
     generate_realign_answer,
     make_answer_llm_from_config,
 )
+from spec_grag.run_artifacts import maybe_write_run_artifact
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -95,17 +98,42 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
     freshness = freshness_report(graph_storage)
 
     if request.command == Command.SPEC_CORE:
-        return run_spec_core(request, project_root, config, graph_storage, freshness)
+        envelope = run_spec_core(request, project_root, config, graph_storage, freshness)
+        return with_run_artifact(project_root, config, request, envelope)
     if request.command == Command.SPEC_INJECT:
-        return run_spec_inject(request, project_root, config, freshness)
+        envelope = run_spec_inject(request, project_root, config, freshness)
+        return with_run_artifact(project_root, config, request, envelope)
     if request.command == Command.SPEC_REALIGN:
-        return run_spec_realign(request, project_root, config, freshness)
+        envelope = run_spec_realign(request, project_root, config, freshness)
+        return with_run_artifact(project_root, config, request, envelope)
 
     return error_envelope(
         "unsupported_command",
         f"Unsupported command: {request.command}",
         {"command": request.command},
     )
+
+
+def with_run_artifact(
+    project_root: Path,
+    config: dict[str, Any],
+    request: SlashCommandRequest,
+    envelope: ResultEnvelope,
+) -> ResultEnvelope:
+    try:
+        artifact_path = maybe_write_run_artifact(
+            project_root=project_root,
+            config=config,
+            request=request,
+            envelope=envelope,
+        )
+    except Exception as exc:
+        warnings = [*envelope.warnings, f"run_artifact_write_failed:{exc}"]
+        return envelope.model_copy(update={"warnings": warnings})
+    if artifact_path is None:
+        return envelope
+    warnings = [*envelope.warnings, f"run_artifact:{artifact_path}"]
+    return envelope.model_copy(update={"warnings": warnings})
 
 
 def load_project_config(project_root: Path) -> dict[str, Any] | ResultEnvelope:
@@ -119,12 +147,22 @@ def load_project_config(project_root: Path) -> dict[str, Any] | ResultEnvelope:
 
     try:
         with config_path.open("rb") as f:
-            return tomllib.load(f)
+            config = tomllib.load(f)
+        return validate_project_config(config)
     except tomllib.TOMLDecodeError as exc:
         return error_envelope(
             "config_invalid",
             ".spec-grag/config.toml is not valid TOML",
             {"config_path": str(config_path), "message": str(exc)},
+        )
+    except ValidationError as exc:
+        return error_envelope(
+            "config_invalid",
+            ".spec-grag/config.toml does not match the SPEC-grag config schema",
+            {
+                "config_path": str(config_path),
+                **validation_error_to_details(exc),
+            },
         )
 
 
@@ -454,6 +492,32 @@ def run_spec_realign(
             warnings=warnings,
         )
     except AnswerGenerationError as exc:
+        if answer_failure_fallback_from_config(config) == "template":
+            answer = generate_realign_answer(task_prompt, build.payload, llm=None)
+            warnings = [
+                *build.warnings,
+                "answer_generation_fallback_template",
+                str(exc),
+            ]
+            payload = RealignResult(
+                task_prompt=task_prompt,
+                injection_context=build.payload,
+                answer=answer,
+            )
+            return ResultEnvelope(
+                status=ResultStatus.DEGRADED,
+                result_type=ResultType.REALIGN_RESULT,
+                payload=payload,
+                execution=ExecutionMetadata(
+                    context_ready=True,
+                    failed_sources=build.failed_sources,
+                    degraded_components=[
+                        *build.degraded_components,
+                        "answer_generation",
+                    ],
+                ),
+                warnings=warnings,
+            )
         return error_envelope(
             "answer_generation_failed",
             "Answer generation failed",

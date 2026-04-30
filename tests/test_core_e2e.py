@@ -12,6 +12,7 @@ from spec_grag.concept_diff import (
     concept_file_hash,
     create_pending_concept_diff,
 )
+from spec_grag.embedding import load_embedding_metadata
 from spec_grag.manifest import load_source_manifest
 from spec_grag.protocol import Command, ResultEnvelope, ResultStatus, ResultType
 from spec_grag.sidecars import load_chapter_anchors, load_cluster_snapshot
@@ -102,6 +103,11 @@ def test_spec_core_all_generates_manifest_graph_vector_and_sidecars(tmp_path: Pa
     }
     assert (graph_dir / "property_graph_store.json").exists()
     assert (graph_dir / "vector_store.json").exists()
+    assert (graph_dir / "embedding_metadata.json").exists()
+    embedding_metadata = load_embedding_metadata(graph_dir / "embedding_metadata.json")
+    assert embedding_metadata is not None
+    assert embedding_metadata.provider == "stable_hash"
+    assert embedding_metadata.dimension == 8
     assert anchors.anchors[0].quality.stale is False
     assert clusters.graph_revision == envelope.payload.freshness_report.graph_revision
 
@@ -161,6 +167,41 @@ def test_spec_core_incremental_section_delete_and_rename(tmp_path: Path) -> None
     assert "docs/spec/auth.md#auth-authentication" in manifest.by_section_id()
     assert "docs/spec/auth.md#auth-login" not in manifest.by_section_id()
     assert "docs/spec/auth.md#auth-logout" not in manifest.by_section_id()
+
+
+def test_spec_core_incremental_requires_rebuild_when_embedding_metadata_changes(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    source = write_auth_source(tmp_path, "# Auth\n\nIntro.\n")
+    run_cli(request_json(tmp_path, all_sources=True))
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + """
+
+[embedding]
+provider = "stable_hash"
+model = "sha256-v2"
+dimension = 12
+""",
+        encoding="utf-8",
+    )
+    source.write_text("# Auth\n\nChanged intro.\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "spec_grag.cli"],
+        input=request_json(tmp_path),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.FAILED
+    assert envelope.result_type == ResultType.ERROR_RESULT
+    assert "embedding_metadata_mismatch" in envelope.payload.details["warnings"][0]
 
 
 def test_spec_core_incremental_split_and_merge(tmp_path: Path) -> None:

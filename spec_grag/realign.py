@@ -55,19 +55,34 @@ def make_answer_llm_from_config(config: Mapping[str, Any]) -> Any | None:
         return None
     if provider == ANSWER_PROVIDER_CODEX:
         return CodexCLIAdapter(
-            command=str(answer_config.get("command", "codex")),
-            model=str(answer_config.get("model", "gpt-5.4")),
+            command=str(answer_config.get("command") or "codex"),
+            model=str(answer_config.get("model") or "gpt-5.4"),
             timeout_sec=int(answer_config.get("timeout_sec", 120)),
             sandbox=str(answer_config.get("sandbox", "read-only")),
+            max_retries=int(answer_config.get("max_retries", 0)),
+            retry_backoff_sec=float(answer_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                answer_config.get("repair_on_schema_failure", True)
+            ),
         )
     if provider == ANSWER_PROVIDER_CLAUDE:
         return ClaudeCLIAdapter(
-            command=str(answer_config.get("command", "claude")),
-            model=str(answer_config.get("model", "")),
+            command=str(answer_config.get("command") or "claude"),
+            model=str(answer_config.get("model") or ""),
             timeout_sec=int(answer_config.get("timeout_sec", 120)),
             tools=str(answer_config.get("tools", "")),
+            max_retries=int(answer_config.get("max_retries", 0)),
+            retry_backoff_sec=float(answer_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                answer_config.get("repair_on_schema_failure", True)
+            ),
         )
     raise ValueError(f"unsupported answer.provider: {provider}")
+
+
+def answer_failure_fallback_from_config(config: Mapping[str, Any]) -> str:
+    answer_config = _mapping(config.get("answer"))
+    return str(answer_config.get("failure_fallback", "failed")).strip().lower()
 
 
 def generate_realign_answer(

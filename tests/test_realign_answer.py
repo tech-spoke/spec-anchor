@@ -124,6 +124,8 @@ def test_answer_provider_config_builds_codex_and_claude_adapters() -> None:
                 "command": "codex-dev",
                 "model": "gpt-test",
                 "timeout_sec": 42,
+                "max_retries": 2,
+                "retry_backoff_sec": 0,
             }
         }
     )
@@ -134,6 +136,7 @@ def test_answer_provider_config_builds_codex_and_claude_adapters() -> None:
                 "command": "claude-dev",
                 "model": "sonnet",
                 "timeout_sec": 33,
+                "max_retries": 1,
             }
         }
     )
@@ -142,11 +145,13 @@ def test_answer_provider_config_builds_codex_and_claude_adapters() -> None:
     assert codex.command == "codex-dev"
     assert codex.model == "gpt-test"
     assert codex.timeout_sec == 42
+    assert codex.max_retries == 2
     assert codex.sandbox == "read-only"
     assert isinstance(claude, ClaudeCLIAdapter)
     assert claude.command == "claude-dev"
     assert claude.model == "sonnet"
     assert claude.timeout_sec == 33
+    assert claude.max_retries == 1
     assert claude.tools == ""
 
 
