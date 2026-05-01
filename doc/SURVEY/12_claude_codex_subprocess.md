@@ -87,7 +87,7 @@ codex sandbox                          # sandbox 制御
   ```bash
   echo "<prompt>" | claude --print --bare --no-session-persistence \
       --output-format json --json-schema '{"...spec-grag schema..."}' \
-      --model sonnet
+      --model claude-sonnet-4-6
   ```
 - これにより案 A の Extraction が **強い structured 保証**で実装可能
 
@@ -140,7 +140,11 @@ codex exec --output-schema schema.json --skip-git-repo-check --json <prompt>
 ```
 
 - ✅ subprocess 起動・JSONL events 出力 OK（13 秒で応答）
-- ❌ default モデル `gpt-5.4` が「newer version of Codex required」エラー → `--model` で gpt-5 / gpt-4o 等に切り替えが必要
+- 2026-05-01 時点の現環境では、`codex debug models` に
+  `gpt-5.5`、`gpt-5.4`、`gpt-5.4-mini`、`gpt-5.3-codex`、`gpt-5.2`
+  などの Codex CLI model slug が出る。古い CLI では `gpt-5.4` が
+  「newer version of Codex required」になることがあるため、利用環境の
+  `codex debug models` を source of truth とする
 - ✅ 出力構造把握:
   ```jsonl
   {"type": "thread.started", "thread_id": "..."}

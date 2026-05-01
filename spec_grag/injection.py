@@ -13,14 +13,20 @@ from typing import Any
 from llama_index.core.graph_stores import SimplePropertyGraphStore
 from pydantic import Field, ValidationError
 
+from spec_grag.chunk_index import (
+    ChunkSearchHit,
+    QueryPlan,
+    retrieve_hybrid_chunks,
+    validate_chunk_source,
+)
 from spec_grag.concept_index import (
     ConceptIndex,
     ConceptIndexChunk,
     concept_index_path,
     load_concept_index,
-    stable_embedding,
 )
 from spec_grag.core import run_core_update
+from spec_grag.embedding import embedding_for_text
 from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.manifest import SourceManifest, SourceManifestEntry, load_source_manifest
 from spec_grag.protocol import (
@@ -72,17 +78,23 @@ class InjectionBuild:
 @dataclass(frozen=True)
 class GraphRetrievalResult:
     source_sections: list[SourceManifestEntry]
+    source_evidence: list[dict[str, Any]]
     related_entities: list[dict[str, Any]]
     warnings: list[str] = field(default_factory=list)
     graph_data: dict[str, Any] = field(default_factory=dict)
+    query_plan: QueryPlan | None = None
 
 
 class ClassificationDecision(StrictModel):
     constraint_relevance: str = Field(pattern="^(none|low|medium|high)$")
     target_relevance: str = Field(pattern="^(none|low|medium|high)$")
-    semantic_conflict_candidate: bool = False
-    review_required: bool = False
+    semantic_conflict_candidate: bool
+    review_required: bool
     reason_for_current_task: str
+
+
+class ClassificationError(RuntimeError):
+    """Raised when production classification cannot use the configured LLM path."""
 
 
 def build_injection(
@@ -126,7 +138,10 @@ def build_injection(
     manifest = load_source_manifest(graph_dir / "source_manifest.json")
     query = central_query(request)
     classification_llm = make_classification_llm_from_config(config)
-    classification_limit = int(config.get("classification", {}).get("max_items", 24))
+    classification_fallback_on_error = bool(
+        config.get("classification", {}).get("fallback_on_error", True)
+    )
+    classification_limit = int(config.get("classification", {}).get("max_items", 8))
     classification_budget = {"remaining": classification_limit}
     expected_requests = expected_search_requests(request, manifest, query)
     valid_agentic, invalid_agentic = validate_agentic_candidates(
@@ -141,10 +156,14 @@ def build_injection(
         query,
         request.conversation_context,
         valid_agentic,
+        project_root=project_root,
+        config=config,
         classification_llm=classification_llm,
         classification_budget=classification_budget,
+        classification_fallback_on_error=classification_fallback_on_error,
     )
     source_sections = graph_retrieval.source_sections
+    source_evidence = graph_retrieval.source_evidence
     purpose_item, purpose_warning = read_purpose_constraint(project_root, config)
     concept_items, concept_warning = read_concept_constraints(
         graph_dir,
@@ -153,6 +172,7 @@ def build_injection(
         query,
         classification_llm=classification_llm,
         classification_budget=classification_budget,
+        classification_fallback_on_error=classification_fallback_on_error,
     )
     chapter_anchors = retrieve_chapter_anchors(
         graph_dir,
@@ -166,6 +186,7 @@ def build_injection(
             query=query,
             llm=classification_llm,
             llm_budget=classification_budget,
+            fallback_on_error=classification_fallback_on_error,
         )
         for anchor in chapter_anchors
     ]
@@ -175,8 +196,10 @@ def build_injection(
         concept_items=concept_items,
         related_entities=graph_retrieval.related_entities,
         query=query,
+        allow_query_text_match=runtime_mode(config) == "smoke",
         classification_llm=classification_llm,
         classification_budget=classification_budget,
+        classification_fallback_on_error=classification_fallback_on_error,
     )
 
     warnings = [
@@ -210,7 +233,7 @@ def build_injection(
             freshness_report=core_update.freshness_report,
             warnings=warnings,
             context_ready=False,
-            degraded_components=["context_build"],
+            degraded_components=["retrieval"],
         )
 
     context = InjectionContext(
@@ -225,6 +248,7 @@ def build_injection(
                     query=query,
                     llm=classification_llm,
                     llm_budget=classification_budget,
+                    fallback_on_error=classification_fallback_on_error,
                 )
             ]
             if purpose_item
@@ -236,13 +260,14 @@ def build_injection(
             ],
             source_spec_constraints=[
                 classify_context_item(
-                    source_section_item(entry, source_origin="GRAG", relevance="medium"),
+                    source_evidence_item(item, relevance="medium"),
                     item_type="source_section",
                     query=query,
                     llm=classification_llm,
                     llm_budget=classification_budget,
+                    fallback_on_error=classification_fallback_on_error,
                 )
-                for entry in source_sections
+                for item in source_evidence
             ],
             chapter_anchor_constraints=[
                 item
@@ -267,6 +292,7 @@ def build_injection(
                     query=query,
                     llm=classification_llm,
                     llm_budget=classification_budget,
+                    fallback_on_error=classification_fallback_on_error,
                 )
                 for candidate in valid_agentic
                 if expected_use_for_candidate(candidate, expected_requests)
@@ -277,13 +303,14 @@ def build_injection(
             ],
             related_source_sections=[
                 classify_context_item(
-                    source_section_item(entry, source_origin="GRAG", relevance="high"),
+                    source_evidence_item(item, relevance="high"),
                     item_type="source_section",
                     query=query,
                     llm=classification_llm,
                     llm_budget=classification_budget,
+                    fallback_on_error=classification_fallback_on_error,
                 )
-                for entry in source_sections
+                for item in source_evidence
             ],
             related_chapter_anchors=[
                 item
@@ -311,6 +338,7 @@ def build_injection(
             graph_data=graph_retrieval.graph_data,
             classified_items=[
                 *concept_items,
+                *source_evidence,
                 *graph_retrieval.related_entities,
                 *cluster_items,
                 *chapter_anchor_items,
@@ -347,7 +375,7 @@ def build_injection(
         freshness_report=core_update.freshness_report,
         warnings=warnings,
         context_ready=True,
-        degraded_components=warnings and ["context_build"] or [],
+        degraded_components=warnings and ["retrieval"] or [],
     )
 
 
@@ -358,6 +386,10 @@ def central_query(request: SlashCommandRequest) -> str:
         or request.conversation_context.working_target
         or ""
     )
+
+
+def runtime_mode(config: dict[str, Any]) -> str:
+    return str(config.get("_runtime_mode") or "production").strip().lower()
 
 
 def make_classification_llm_from_config(config: dict[str, Any]) -> Any | None:
@@ -371,6 +403,7 @@ def make_classification_llm_from_config(config: dict[str, Any]) -> Any | None:
         return CodexCLIAdapter(
             command=str(classification_config.get("command") or "codex"),
             model=str(classification_config.get("model") or "gpt-5.4"),
+            effort=str(classification_config.get("effort") or "low"),
             timeout_sec=int(classification_config.get("timeout_sec", 120)),
             sandbox=str(classification_config.get("sandbox", "read-only")),
             max_retries=int(classification_config.get("max_retries", 0)),
@@ -383,6 +416,7 @@ def make_classification_llm_from_config(config: dict[str, Any]) -> Any | None:
         return ClaudeCLIAdapter(
             command=str(classification_config.get("command") or "claude"),
             model=str(classification_config.get("model") or ""),
+            effort=str(classification_config.get("effort") or "low"),
             timeout_sec=int(classification_config.get("timeout_sec", 120)),
             tools=str(classification_config.get("tools", "")),
             max_retries=int(classification_config.get("max_retries", 0)),
@@ -558,25 +592,6 @@ def candidate_source_grounding_error(
     return None
 
 
-def retrieve_source_sections(
-    manifest: SourceManifest, query: str, context: ConversationContext
-) -> list[SourceManifestEntry]:
-    explicit_files = set(context.explicit_files)
-    working_target = context.working_target
-    tokens = query_tokens(query)
-    matched = []
-    for entry in manifest.entries:
-        haystack = " ".join(
-            [entry.document_id, entry.chapter_id, entry.section_id, entry.heading_path]
-        ).lower()
-        if entry.document_id in explicit_files or entry.document_id == working_target:
-            matched.append(entry)
-            continue
-        if tokens and any(token in haystack for token in tokens):
-            matched.append(entry)
-    return sorted(matched, key=lambda entry: (entry.document_id, entry.heading_start_line))
-
-
 def retrieve_graph_context(
     graph_dir: Path,
     manifest: SourceManifest,
@@ -584,23 +599,41 @@ def retrieve_graph_context(
     context: ConversationContext,
     valid_agentic: list[AgenticSearchCandidate],
     *,
+    project_root: Path,
+    config: dict[str, Any],
     classification_llm: Any | None = None,
     classification_budget: dict[str, int] | None = None,
+    classification_fallback_on_error: bool = True,
 ) -> GraphRetrievalResult:
     graph_data, warnings = load_graph_data(graph_dir)
-    source_sections = retrieve_source_sections(manifest, query, context)
-    selected_section_ids = {entry.section_id for entry in source_sections}
+    chunk_hits, query_plan, retrieval_warnings = retrieve_hybrid_chunks(
+        project_root=project_root,
+        graph_storage=graph_dir,
+        query=query,
+        context=context,
+        config=config,
+    )
+    warnings.extend(retrieval_warnings)
+    source_evidence, evidence_warnings = source_evidence_for_hits(
+        project_root,
+        chunk_hits,
+    )
+    warnings.extend(evidence_warnings)
+
+    selected_section_ids = {
+        hit.chunk.section_id
+        for hit in chunk_hits
+    }
     selected_section_ids.update(
         candidate.source_section_id
         for candidate in valid_agentic
         if candidate.source_section_id
     )
 
-    graph_matches = graph_node_matches(
+    graph_matches = graph_node_matches_from_sections(
         graph_data,
-        query=query,
-        context=context,
         selected_section_ids=selected_section_ids,
+        chunk_hits=chunk_hits,
     )
     selected_section_ids.update(
         item.get("source_section_id")
@@ -619,10 +652,7 @@ def retrieve_graph_context(
     )
 
     manifest_by_section = manifest.by_section_id()
-    merged_sections = {
-        entry.section_id: entry
-        for entry in source_sections
-    }
+    merged_sections: dict[str, SourceManifestEntry] = {}
     for section_id in selected_section_ids:
         if section_id in manifest_by_section:
             merged_sections[section_id] = manifest_by_section[section_id]
@@ -634,6 +664,7 @@ def retrieve_graph_context(
             query=query,
             llm=classification_llm,
             llm_budget=classification_budget,
+            fallback_on_error=classification_fallback_on_error,
         )
         for item in dedupe_items(graph_matches, key="entity_id")
     ]
@@ -642,9 +673,11 @@ def retrieve_graph_context(
             merged_sections.values(),
             key=lambda entry: (entry.document_id, entry.heading_start_line, entry.section_id),
         ),
+        source_evidence=source_evidence,
         related_entities=related_entities,
         warnings=warnings,
         graph_data=graph_data,
+        query_plan=query_plan,
     )
 
 
@@ -658,16 +691,21 @@ def load_graph_data(graph_dir: Path) -> tuple[dict[str, Any], list[str]]:
     return store.graph.model_dump(), []
 
 
-def graph_node_matches(
+def graph_node_matches_from_sections(
     graph_data: dict[str, Any],
     *,
-    query: str,
-    context: ConversationContext,
     selected_section_ids: set[str],
+    chunk_hits: list[ChunkSearchHit],
 ) -> list[dict[str, Any]]:
-    tokens = query_tokens(query)
-    explicit_files = set(context.explicit_files)
-    working_target = context.working_target
+    methods_by_section: dict[str, set[str]] = {}
+    scores_by_section: dict[str, float] = {}
+    for hit in chunk_hits:
+        methods = methods_by_section.setdefault(hit.chunk.section_id, set())
+        methods.update(hit.retrieval_methods)
+        scores_by_section[hit.chunk.section_id] = max(
+            scores_by_section.get(hit.chunk.section_id, 0.0),
+            hit.score,
+        )
     results: list[dict[str, Any]] = []
     for node_id, node in (graph_data.get("nodes") or {}).items():
         label = node_label(node)
@@ -675,28 +713,18 @@ def graph_node_matches(
             continue
         props = node_properties(node)
         section_id = str(props.get("section_id") or props.get("source_section_id") or "")
-        document_id = str(props.get("document_id") or props.get("source_document_id") or "")
-        haystack = graph_node_haystack(node_id, node)
-        methods: set[str] = set()
-        keyword_score = token_match_score(tokens, haystack)
-        if keyword_score:
-            methods.add("keyword")
-        if section_id in selected_section_ids:
-            methods.add("manifest_seed")
-        if document_id in explicit_files or document_id == working_target:
-            methods.add("explicit_target")
-        if not methods:
+        if section_id not in selected_section_ids:
             continue
-        vector_score = embedding_similarity(
-            stable_embedding(query or node_id),
-            node.get("embedding") or stable_embedding(haystack),
-        )
-        score = keyword_score + (1.0 if "explicit_target" in methods else 0.0) + vector_score
+        methods = {
+            "raw_chunk_hybrid",
+            *methods_by_section.get(section_id, set()),
+        }
+        score = scores_by_section.get(section_id, 0.5)
         results.append(
             graph_entity_item(
                 node_id,
                 node,
-                retrieval_methods=sorted(methods | {"vector_similarity"}),
+                retrieval_methods=sorted(methods),
                 ranking_score=score,
             )
         )
@@ -776,8 +804,10 @@ def retrieve_cluster_items(
     concept_items: list[dict[str, Any]],
     related_entities: list[dict[str, Any]],
     query: str,
+    allow_query_text_match: bool = False,
     classification_llm: Any | None = None,
     classification_budget: dict[str, int] | None = None,
+    classification_fallback_on_error: bool = True,
 ) -> list[dict[str, Any]]:
     snapshot = load_cluster_snapshot(graph_dir / "cluster_snapshot.json")
     selected_chapter_ids = {entry.chapter_id for entry in source_sections}
@@ -799,6 +829,7 @@ def retrieve_cluster_items(
             anchor_ids=selected_anchor_ids,
             concept_chunk_ids=selected_concept_chunk_ids,
             query=query,
+            allow_query_text_match=allow_query_text_match,
         ):
             continue
         items.append(
@@ -808,6 +839,7 @@ def retrieve_cluster_items(
                 query=query,
                 llm=classification_llm,
                 llm_budget=classification_budget,
+                fallback_on_error=classification_fallback_on_error,
             )
         )
     return items
@@ -821,6 +853,7 @@ def cluster_matches(
     anchor_ids: set[str],
     concept_chunk_ids: set[str],
     query: str,
+    allow_query_text_match: bool = False,
 ) -> bool:
     if set(cluster.member_chapter_ids).intersection(chapter_ids):
         return True
@@ -830,6 +863,8 @@ def cluster_matches(
         return True
     if set(cluster.member_concept_chunk_ids).intersection(concept_chunk_ids):
         return True
+    if not allow_query_text_match:
+        return False
     haystack = " ".join(
         [
             cluster.cluster_id,
@@ -844,22 +879,37 @@ def cluster_matches(
 
 
 def cluster_item(cluster: ClusterArtifact) -> dict[str, Any]:
+    report = (
+        cluster.community_report.model_dump(mode="python")
+        if cluster.community_report
+        else None
+    )
     return {
         "entity_id": cluster.cluster_id,
         "entity_type": "CLUSTER",
         "cluster_id": cluster.cluster_id,
         "cluster_level": cluster.level,
+        "community_algorithm": cluster.community_algorithm,
         "seed_ids": cluster.seed_ids,
         "member_chapter_ids": cluster.member_chapter_ids,
         "member_anchor_ids": cluster.member_anchor_ids,
         "member_concept_chunk_ids": cluster.member_concept_chunk_ids,
         "dominant_relation_types": cluster.dominant_relation_types,
         "source_section_ids": cluster.source_section_ids,
-        "source_origin": "cluster_snapshot",
+        "covered_chunk_ids": cluster.covered_chunk_ids,
+        "community_report": report,
+        "summary": report.get("summary") if report else None,
+        "excerpt": "\n".join(
+            item.get("excerpt", "")
+            for item in (report or {}).get("source_evidence", [])[:3]
+            if item.get("excerpt")
+        ),
+        "retrieval_methods": ["community_report", "graph_expansion"],
+        "source_origin": "community_report" if report else "cluster_snapshot",
         "confidence": cluster.confidence,
         "stale": cluster.stale,
         "review_required": cluster.stale,
-        "ranking_score": 0.25,
+        "ranking_score": 0.35 if report else 0.25,
     }
 
 
@@ -891,6 +941,7 @@ def read_concept_constraints(
     *,
     classification_llm: Any | None = None,
     classification_budget: dict[str, int] | None = None,
+    classification_fallback_on_error: bool = True,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     path = configured_path(project_root, config, "core", "concept_file")
     if path is None or not path.exists():
@@ -900,7 +951,12 @@ def read_concept_constraints(
         return [], ["concept_index_missing"]
     if index.concept_file_hash != _file_sha256(path):
         return [], ["concept_index_stale"]
-    chunks = retrieve_concept_chunks(index, query, limit=5)
+    chunks = retrieve_concept_chunks(
+        index,
+        query,
+        limit=5,
+        embedding_config=config.get("embedding"),
+    )
     return [
         classify_context_item(
             concept_chunk_item(project_root, path, chunk, score=score),
@@ -908,9 +964,52 @@ def read_concept_constraints(
             query=query,
             llm=classification_llm,
             llm_budget=classification_budget,
+            fallback_on_error=classification_fallback_on_error,
         )
         for chunk, score in chunks
     ], []
+
+
+def source_evidence_for_hits(
+    project_root: Path,
+    hits: list[ChunkSearchHit],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    evidence: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    for hit in hits:
+        validation_error = validate_chunk_source(project_root, hit.chunk)
+        if validation_error is not None:
+            warnings.append(f"{validation_error}:{hit.chunk.chunk_id}")
+            continue
+        evidence.append(
+            {
+                "source_origin": "GRAG",
+                "retrieval_unit": "raw_document_chunk",
+                "chunk_id": hit.chunk.chunk_id,
+                "document_id": hit.chunk.document_id,
+                "chapter_id": hit.chunk.chapter_id,
+                "section_id": hit.chunk.section_id,
+                "heading_path": hit.chunk.heading_path,
+                "source_span": hit.chunk.source_span,
+                "source_hash": hit.chunk.source_hash,
+                "chunk_hash": hit.chunk.chunk_hash,
+                "excerpt": hit.chunk.text,
+                "summary": first_nonempty_line(hit.chunk.text),
+                "retrieval_methods": list(hit.retrieval_methods),
+                "method_scores": hit.method_scores,
+                "ranking_score": round(hit.score, 6),
+            }
+        )
+    return evidence, warnings
+
+
+def source_evidence_item(item: dict[str, Any], *, relevance: str) -> dict[str, Any]:
+    return {
+        **item,
+        "constraint_relevance": relevance,
+        "target_relevance": relevance,
+        "review_required": False,
+    }
 
 
 def source_section_item(
@@ -954,21 +1053,19 @@ def retrieve_concept_chunks(
     query: str,
     *,
     limit: int,
+    embedding_config: Any | None = None,
 ) -> list[tuple[ConceptIndexChunk, float]]:
-    tokens = query_tokens(query)
     if not index.chunks:
         return []
+    query_embedding = embedding_for_text(
+        query,
+        index.embedding_metadata,
+        config=embedding_config,
+    )
     scored: list[tuple[ConceptIndexChunk, float]] = []
-    query_embedding = stable_embedding(query)
     for chunk in index.chunks:
-        haystack = f"{chunk.heading_path} {chunk.text}".lower()
-        keyword_score = token_match_score(tokens, haystack)
-        if not keyword_score and tokens:
-            continue
-        score = keyword_score + embedding_similarity(query_embedding, chunk.embedding)
+        score = embedding_similarity(query_embedding, chunk.embedding)
         scored.append((chunk, score))
-    if not scored and not tokens:
-        scored = [(chunk, 0.0) for chunk in index.chunks[:limit]]
     return sorted(scored, key=lambda item: (-item[1], item[0].concept_chunk_id))[:limit]
 
 
@@ -1353,17 +1450,19 @@ def numeric_bound_conflict(text: str) -> dict[str, Any] | None:
 
 def state_transition_conflict(text: str) -> dict[str, Any] | None:
     lowered = text.lower()
+    state_word = r"(?:state|状態)"
+    transition = r"(?P<from>[^\s,.;。、]+)\s*->\s*(?P<to>[^\s,.;。、]+)"
     required = {
         (match.group("from"), match.group("to"))
         for match in re.finditer(
-            r"(?:must|required|必須|必要).{0,24}state\s+(?P<from>[a-z0-9_-]+)\s*->\s*(?P<to>[a-z0-9_-]+)",
+            rf"(?:must|required|必須|必要).{{0,24}}{state_word}\s+{transition}",
             lowered,
         )
     }
     prohibited = {
         (match.group("from"), match.group("to"))
         for match in re.finditer(
-            r"(?:must not|shall not|prohibited|forbidden|禁止|不可).{0,24}state\s+(?P<from>[a-z0-9_-]+)\s*->\s*(?P<to>[a-z0-9_-]+)",
+            rf"(?:must not|shall not|prohibited|forbidden|禁止|不可).{{0,24}}{state_word}\s+{transition}",
             lowered,
         )
     }
@@ -1656,13 +1755,23 @@ def classify_context_item(
     query: str,
     llm: Any | None = None,
     llm_budget: dict[str, int] | None = None,
+    fallback_on_error: bool = True,
 ) -> dict[str, Any]:
-    annotated = classify_context_item_rule_based(item, item_type=item_type, query=query)
+    annotated = (
+        classify_context_item_rule_based(item, item_type=item_type, query=query)
+        if llm is None or fallback_on_error
+        else dict(item)
+    )
     if llm is None:
         return annotated
     if llm_budget is not None:
         remaining = llm_budget.get("remaining", 0)
         if remaining <= 0:
+            annotated = classify_context_item_rule_based(
+                item,
+                item_type=item_type,
+                query=query,
+            )
             annotated["classification_llm_skipped"] = "max_items_exhausted"
             return annotated
         llm_budget["remaining"] = remaining - 1
@@ -1674,6 +1783,8 @@ def classify_context_item(
             llm=llm,
         )
     except (CLIAdapterError, ValidationError, ValueError, RuntimeError) as exc:
+        if not fallback_on_error:
+            raise ClassificationError(f"Classification LLM failed: {exc}") from exc
         annotated["classification_partial_output_recovered"] = True
         annotated["classification_fallback_reason"] = str(exc)
         annotated["review_required"] = True
@@ -1779,7 +1890,7 @@ def classify_context_item_with_llm(
                 {
                     "task_query": query,
                     "item_type": item_type,
-                    "rule_based_fallback": item,
+                    "context_item": item,
                 }
             ),
         ]

@@ -12,7 +12,7 @@ from typing import Any, TextIO
 
 from pydantic import ValidationError
 
-from spec_grag.config import validate_project_config
+from spec_grag.config import ConfigPolicyError, validate_project_config
 from spec_grag.concept_index import refresh_concept_index
 from spec_grag.concept_diff import (
     ConceptApplyStatus,
@@ -29,7 +29,7 @@ from spec_grag.concept_diff import (
     write_pending_concept_diff_atomic,
 )
 from spec_grag.core import run_core_update
-from spec_grag.injection import InjectionBuild, build_injection
+from spec_grag.injection import ClassificationError, InjectionBuild, build_injection
 from spec_grag.protocol import (
     Command,
     ConceptApprovalRequiredResult,
@@ -164,6 +164,12 @@ def load_project_config(project_root: Path) -> dict[str, Any] | ResultEnvelope:
                 **validation_error_to_details(exc),
             },
         )
+    except ConfigPolicyError as exc:
+        return error_envelope(
+            "config_invalid",
+            ".spec-grag/config.toml violates the SPEC-grag production policy",
+            {"config_path": str(config_path), "message": str(exc)},
+        )
 
 
 def graph_storage_path(project_root: Path, config: dict[str, Any]) -> str:
@@ -239,7 +245,9 @@ def run_spec_core(
             context_ready=False,
             pending_concept_diff_id=update.pending_concept_diff_id,
             failed_sources=update.failed_sources,
-            degraded_components=["core_update"] if update.status == ResultStatus.DEGRADED else [],
+            degraded_components=["extraction"]
+            if update.status == ResultStatus.DEGRADED
+            else [],
         ),
         warnings=update.warnings,
     )
@@ -434,7 +442,10 @@ def run_spec_inject(
             "pending_concept_diff_unresolved",
         )
 
-    build = build_injection(project_root, config, request)
+    try:
+        build = build_injection(project_root, config, request)
+    except (ClassificationError, ValidationError, ValueError, RuntimeError) as exc:
+        return context_build_failed_envelope(exc)
     return injection_build_envelope(build)
 
 
@@ -452,7 +463,10 @@ def run_spec_realign(
             "pending_concept_diff_unresolved",
         )
 
-    build = build_injection(project_root, config, request)
+    try:
+        build = build_injection(project_root, config, request)
+    except (ClassificationError, ValidationError, ValueError, RuntimeError) as exc:
+        return context_build_failed_envelope(exc)
     if (
         build.status not in {ResultStatus.OK, ResultStatus.DEGRADED}
         or not build.context_ready
@@ -487,7 +501,7 @@ def run_spec_realign(
             execution=ExecutionMetadata(
                 context_ready=False,
                 failed_sources=build.failed_sources,
-                degraded_components=[*build.degraded_components, "answer_generation"],
+                degraded_components=[*build.degraded_components, "answer"],
             ),
             warnings=warnings,
         )
@@ -513,7 +527,7 @@ def run_spec_realign(
                     failed_sources=build.failed_sources,
                     degraded_components=[
                         *build.degraded_components,
-                        "answer_generation",
+                        "answer",
                     ],
                 ),
                 warnings=warnings,
@@ -539,6 +553,14 @@ def run_spec_realign(
             degraded_components=build.degraded_components,
         ),
         warnings=build.warnings,
+    )
+
+
+def context_build_failed_envelope(exc: Exception) -> ResultEnvelope:
+    return error_envelope(
+        "context_build_failed",
+        "Injection context build failed",
+        {"message": str(exc)},
     )
 
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import math
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -19,7 +21,9 @@ from llama_index.core.indices.property_graph.transformations.schema_llm import (
 from llama_index.core.schema import TextNode
 
 from spec_grag.extraction import (
+    BatchExtractionResponse,
     ExtractionProvenance,
+    SPEC_GRAG_BATCH_EXTRACT_PROMPT,
     make_schema_llm_path_extractor,
 )
 from spec_grag.embedding import stable_embedding
@@ -57,12 +61,34 @@ class SchemaExtractor(Protocol):
         ...
 
 
+class ExtractionLLM(Protocol):
+    def complete(self, prompt: str, **kwargs: Any) -> Any:
+        ...
+
+
 @dataclass(frozen=True)
 class SchemaLLMExtractionResult:
     graph_store: SimplePropertyGraphStore
     unresolved_entries: list[UnresolvedRelationEntry] = field(default_factory=list)
     failed_section_ids: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class _ExtractionJob:
+    section_id: str
+    entry: SourceManifestEntry
+    source_node: TextNode
+    provenance: ExtractionProvenance
+
+
+@dataclass(frozen=True)
+class _ExtractionOutcome:
+    section_id: str
+    nodes: list[EntityNode] = field(default_factory=list)
+    relations: list[Relation] = field(default_factory=list)
+    unresolved_entries: list[UnresolvedRelationEntry] = field(default_factory=list)
+    warning: str | None = None
 
 
 @dataclass(frozen=True)
@@ -388,13 +414,19 @@ def extraction_mode(config: Mapping[str, Any]) -> str:
     return mode
 
 
-def make_schema_extractor_from_config(config: Mapping[str, Any]) -> SchemaExtractor:
+def schema_llm_batch_enabled(config: Mapping[str, Any]) -> bool:
+    extraction_config = _mapping(config.get("extraction"))
+    return int(extraction_config.get("batch_size", 1)) > 1
+
+
+def make_extraction_llm_from_config(config: Mapping[str, Any]) -> ExtractionLLM:
     extraction_config = _mapping(config.get("extraction"))
     provider = str(extraction_config.get("provider", "codex")).strip().lower()
     if provider == "codex":
-        llm = CodexCLIAdapter(
+        return CodexCLIAdapter(
             command=str(extraction_config.get("command") or "codex"),
             model=str(extraction_config.get("model") or "gpt-5.4"),
+            effort=str(extraction_config.get("effort") or "low"),
             timeout_sec=int(extraction_config.get("timeout_sec", 120)),
             max_retries=int(extraction_config.get("max_retries", 0)),
             retry_backoff_sec=float(extraction_config.get("retry_backoff_sec", 0.0)),
@@ -402,10 +434,11 @@ def make_schema_extractor_from_config(config: Mapping[str, Any]) -> SchemaExtrac
                 extraction_config.get("repair_on_schema_failure", True)
             ),
         )
-    elif provider == "claude":
-        llm = ClaudeCLIAdapter(
+    if provider == "claude":
+        return ClaudeCLIAdapter(
             command=str(extraction_config.get("command") or "claude"),
             model=str(extraction_config.get("model") or ""),
+            effort=str(extraction_config.get("effort") or "low"),
             timeout_sec=int(extraction_config.get("timeout_sec", 120)),
             max_retries=int(extraction_config.get("max_retries", 0)),
             retry_backoff_sec=float(extraction_config.get("retry_backoff_sec", 0.0)),
@@ -413,8 +446,12 @@ def make_schema_extractor_from_config(config: Mapping[str, Any]) -> SchemaExtrac
                 extraction_config.get("repair_on_schema_failure", True)
             ),
         )
-    else:
-        raise ValueError(f"unsupported extraction.provider: {provider}")
+    raise ValueError(f"unsupported extraction.provider: {provider}")
+
+
+def make_schema_extractor_from_config(config: Mapping[str, Any]) -> SchemaExtractor:
+    extraction_config = _mapping(config.get("extraction"))
+    llm = make_extraction_llm_from_config(config)
     return make_schema_llm_path_extractor(
         llm,
         max_triplets_per_chunk=int(extraction_config.get("max_triplets_per_chunk", 20)),
@@ -433,7 +470,6 @@ def extract_schema_llm_artifacts(
     section_ids_to_extract: Sequence[str],
     schema_extractor: SchemaExtractor | None = None,
 ) -> SchemaLLMExtractionResult:
-    extractor = schema_extractor or make_schema_extractor_from_config(config)
     extraction_config = _mapping(config.get("extraction"))
     entries_by_id = manifest.by_section_id()
     section_texts = read_section_texts(project_root, manifest)
@@ -456,6 +492,7 @@ def extract_schema_llm_artifacts(
     unresolved_entries: list[UnresolvedRelationEntry] = []
     failed_section_ids: list[str] = []
     warnings: list[str] = []
+    jobs: list[_ExtractionJob] = []
 
     for section_id in section_ids_to_extract:
         entry = entries_by_id.get(section_id)
@@ -485,25 +522,80 @@ def extract_schema_llm_artifacts(
                 "doc_path": entry.document_id,
             },
         )
-
-        try:
-            extracted_nodes = extractor([source_node], show_progress=False)
-        except Exception as exc:
-            failed_section_ids.append(section_id)
-            warnings.append(f"schema_llm_extraction_failed:{section_id}:{exc}")
-            continue
-
-        for extracted_node in extracted_nodes:
-            normalized = normalize_extracted_artifacts(
+        jobs.append(
+            _ExtractionJob(
+                section_id=section_id,
                 entry=entry,
-                extracted_nodes=extracted_node.metadata.get(KG_NODES_KEY, []),
-                extracted_relations=extracted_node.metadata.get(KG_RELATIONS_KEY, []),
+                source_node=source_node,
                 provenance=provenance,
-                grounding=grounding,
             )
-            all_nodes.extend(normalized.nodes)
-            all_relations.extend(normalized.relations)
-            unresolved_entries.extend(normalized.unresolved_entries)
+        )
+
+    worker_count = max(1, int(extraction_config.get("num_workers", 4)))
+    batch_size = max(1, int(extraction_config.get("batch_size", 1)))
+    if schema_extractor is None and batch_size > 1:
+        llm = make_extraction_llm_from_config(config)
+        batches = _batch_extraction_jobs(
+            jobs,
+            batch_size=batch_size,
+            batch_max_chars=int(extraction_config.get("batch_max_chars", 4000)),
+        )
+        max_triplets_per_chunk = int(extraction_config.get("max_triplets_per_chunk", 20))
+        if worker_count > 1 and len(batches) > 1:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = [
+                    executor.submit(
+                        _extract_schema_batch,
+                        llm,
+                        batch,
+                        grounding,
+                        max_triplets_per_batch=max_triplets_per_chunk * len(batch),
+                    )
+                    for batch in batches
+                ]
+                outcomes = [
+                    outcome
+                    for future in as_completed(futures)
+                    for outcome in future.result()
+                ]
+        else:
+            outcomes = [
+                outcome
+                for batch in batches
+                for outcome in _extract_schema_batch(
+                    llm,
+                    batch,
+                    grounding,
+                    max_triplets_per_batch=max_triplets_per_chunk * len(batch),
+                )
+            ]
+    elif worker_count > 1 and len(jobs) > 1:
+        extractor = schema_extractor or make_schema_extractor_from_config(config)
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            future_to_section = {
+                executor.submit(_extract_schema_job, extractor, job, grounding): job.section_id
+                for job in jobs
+            }
+            outcomes = [
+                future.result()
+                for future in as_completed(future_to_section)
+            ]
+    else:
+        extractor = schema_extractor or make_schema_extractor_from_config(config)
+        outcomes = [_extract_schema_job(extractor, job, grounding) for job in jobs]
+
+    order = {section_id: index for index, section_id in enumerate(section_ids_to_extract)}
+    for outcome in sorted(
+        outcomes,
+        key=lambda item: order.get(item.section_id, len(order)),
+    ):
+        if outcome.warning is not None:
+            failed_section_ids.append(outcome.section_id)
+            warnings.append(outcome.warning)
+            continue
+        all_nodes.extend(outcome.nodes)
+        all_relations.extend(outcome.relations)
+        unresolved_entries.extend(outcome.unresolved_entries)
 
     if all_nodes:
         graph_store.upsert_nodes(_dedupe_nodes(all_nodes))
@@ -517,6 +609,149 @@ def extract_schema_llm_artifacts(
         ),
         failed_section_ids=sorted(set(failed_section_ids)),
         warnings=warnings,
+    )
+
+
+def _batch_extraction_jobs(
+    jobs: Sequence[_ExtractionJob],
+    *,
+    batch_size: int,
+    batch_max_chars: int,
+) -> list[list[_ExtractionJob]]:
+    batches: list[list[_ExtractionJob]] = []
+    current: list[_ExtractionJob] = []
+    current_chars = 0
+    for job in jobs:
+        text_len = len(job.source_node.text or "")
+        if current and (
+            len(current) >= batch_size or current_chars + text_len > batch_max_chars
+        ):
+            batches.append(current)
+            current = []
+            current_chars = 0
+        current.append(job)
+        current_chars += text_len
+    if current:
+        batches.append(current)
+    return batches
+
+
+def _extract_schema_batch(
+    llm: ExtractionLLM,
+    jobs: Sequence[_ExtractionJob],
+    grounding: _GroundingIndex,
+    *,
+    max_triplets_per_batch: int,
+) -> list[_ExtractionOutcome]:
+    try:
+        sections_json = json.dumps(
+            [
+                {
+                    "source_section_id": job.section_id,
+                    "source_document_id": job.entry.document_id,
+                    "current_chapter_id": job.entry.chapter_id,
+                    "heading_path": job.entry.heading_path,
+                    "heading_start_line": job.entry.heading_start_line,
+                    "text": job.source_node.text,
+                }
+                for job in jobs
+            ],
+            ensure_ascii=False,
+            indent=2,
+        )
+        prompt = SPEC_GRAG_BATCH_EXTRACT_PROMPT.format(
+            sections_json=sections_json,
+            max_triplets_per_batch=max_triplets_per_batch,
+        )
+        response = llm.complete(prompt, output_schema=BatchExtractionResponse)
+        batch = BatchExtractionResponse.model_validate_json(response.text)
+    except Exception as exc:
+        return [
+            _ExtractionOutcome(
+                section_id=job.section_id,
+                warning=f"schema_llm_batch_extraction_failed:{job.section_id}:{exc}",
+            )
+            for job in jobs
+        ]
+
+    jobs_by_id = {job.section_id: job for job in jobs}
+    nodes_by_section: dict[str, list[EntityNode]] = defaultdict(list)
+    relations_by_section: dict[str, list[Relation]] = defaultdict(list)
+    for triplet in batch.triplets[:max_triplets_per_batch]:
+        job = jobs_by_id.get(triplet.source_section_id)
+        if job is None:
+            continue
+        subject = EntityNode(
+            label=triplet.subject.type,
+            name=triplet.subject.name,
+            properties=triplet.subject.properties.model_dump(mode="json"),
+        )
+        obj = EntityNode(
+            label=triplet.object.type,
+            name=triplet.object.name,
+            properties=triplet.object.properties.model_dump(mode="json"),
+        )
+        relation = Relation(
+            label=triplet.relation.type,
+            source_id=subject.id,
+            target_id=obj.id,
+            properties=triplet.relation.properties.model_dump(mode="json"),
+        )
+        nodes_by_section[job.section_id].extend([subject, obj])
+        relations_by_section[job.section_id].append(relation)
+
+    outcomes: list[_ExtractionOutcome] = []
+    for job in jobs:
+        normalized = normalize_extracted_artifacts(
+            entry=job.entry,
+            extracted_nodes=nodes_by_section.get(job.section_id, []),
+            extracted_relations=relations_by_section.get(job.section_id, []),
+            provenance=job.provenance,
+            grounding=grounding,
+        )
+        outcomes.append(
+            _ExtractionOutcome(
+                section_id=job.section_id,
+                nodes=normalized.nodes,
+                relations=normalized.relations,
+                unresolved_entries=normalized.unresolved_entries,
+            )
+        )
+    return outcomes
+
+
+def _extract_schema_job(
+    extractor: SchemaExtractor,
+    job: _ExtractionJob,
+    grounding: _GroundingIndex,
+) -> _ExtractionOutcome:
+    try:
+        extracted_nodes = extractor([job.source_node], show_progress=False)
+    except Exception as exc:
+        return _ExtractionOutcome(
+            section_id=job.section_id,
+            warning=f"schema_llm_extraction_failed:{job.section_id}:{exc}",
+        )
+
+    nodes: list[EntityNode] = []
+    relations: list[Relation] = []
+    unresolved_entries: list[UnresolvedRelationEntry] = []
+    for extracted_node in extracted_nodes:
+        normalized = normalize_extracted_artifacts(
+            entry=job.entry,
+            extracted_nodes=extracted_node.metadata.get(KG_NODES_KEY, []),
+            extracted_relations=extracted_node.metadata.get(KG_RELATIONS_KEY, []),
+            provenance=job.provenance,
+            grounding=grounding,
+        )
+        nodes.extend(normalized.nodes)
+        relations.extend(normalized.relations)
+        unresolved_entries.extend(normalized.unresolved_entries)
+    return _ExtractionOutcome(
+        section_id=job.section_id,
+        nodes=nodes,
+        relations=relations,
+        unresolved_entries=unresolved_entries,
     )
 
 

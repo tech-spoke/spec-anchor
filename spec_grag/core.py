@@ -16,8 +16,25 @@ from llama_index.core.graph_stores.types import EntityNode, Relation
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 
 from spec_grag.concept_index import (
+    ConceptDiffProposalError,
+    concept_index_path,
+    configured_concept_file,
     generate_concept_diff_candidate,
+    load_concept_index,
     refresh_concept_index,
+)
+from spec_grag.concept_diff import concept_file_hash
+from spec_grag.chunk_index import (
+    BM25_INDEX_FILENAME,
+    CHUNK_VECTOR_INDEX_FILENAME,
+    DOCUMENT_CHUNKS_FILENAME,
+    build_bm25_index,
+    build_chunk_vector_index,
+    build_document_chunks,
+    load_chunk_vector_index,
+    write_bm25_index_atomic,
+    write_chunk_vector_index_atomic,
+    write_document_chunks_atomic,
 )
 from spec_grag.core_extraction import (
     EXTRACTION_MODE_SCHEMA_LLM,
@@ -26,9 +43,12 @@ from spec_grag.core_extraction import (
     carry_forward_schema_llm_artifacts,
     extract_schema_llm_artifacts,
     extraction_mode,
+    make_extraction_llm_from_config,
     make_schema_extractor_from_config,
+    schema_llm_batch_enabled,
 )
 from spec_grag.embedding import (
+    EmbeddingProviderError,
     EmbeddingMetadata,
     embedding_for_text,
     embedding_identity_matches,
@@ -40,6 +60,7 @@ from spec_grag.embedding import (
     write_embedding_metadata_atomic,
 )
 from spec_grag.graph_ops import safe_delete_by_section
+from spec_grag.llm_adapters import ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.manifest import (
     ManifestReconciliation,
     ManifestUpdateStatus,
@@ -55,6 +76,7 @@ from spec_grag.protocol import FreshnessReport, ResultStatus
 from spec_grag.retrieval import add_entities_to_vector_store
 from spec_grag.sidecars import (
     ChapterAnchorsSidecar,
+    CommunityReportGenerationError,
     UnresolvedRelationsSidecar,
     build_cluster_snapshot,
     drop_unresolved_relations_by_sections,
@@ -106,6 +128,7 @@ def run_core_update(
     existing_embedding_artifacts = (
         (graph_storage / GRAPH_STORE_FILENAME).exists()
         or (graph_storage / VECTOR_STORE_FILENAME).exists()
+        or (graph_storage / CHUNK_VECTOR_INDEX_FILENAME).exists()
     )
     if (
         not all_sources
@@ -133,7 +156,10 @@ def run_core_update(
     try:
         mode = extraction_mode(config)
         if mode == EXTRACTION_MODE_SCHEMA_LLM and schema_extractor is None:
-            schema_extractor = make_schema_extractor_from_config(config)
+            if schema_llm_batch_enabled(config):
+                make_extraction_llm_from_config(config)
+            else:
+                schema_extractor = make_schema_extractor_from_config(config)
     except ValueError as exc:
         freshness = FreshnessReport(
             last_core_run=scanned_at,
@@ -178,6 +204,9 @@ def run_core_update(
         project_root,
         source_paths,
         generated_at=scanned_at,
+        section_max_heading_level=int(
+            _mapping(config.get("extraction")).get("section_max_heading_level", 6)
+        ),
     )
     manifest_path = graph_storage / "source_manifest.json"
     previous_manifest = SourceManifest(entries=[]) if all_sources else load_source_manifest(manifest_path)
@@ -186,6 +215,56 @@ def run_core_update(
         current_manifest,
         embedding_metadata=embedding_metadata,
     )
+    if _can_return_no_change_incremental(
+        project_root,
+        config,
+        graph_storage,
+        reconciliation,
+        previous_manifest,
+        embedding_metadata,
+        graph_revision=graph_revision,
+        all_sources=all_sources,
+    ):
+        if (
+            reconciliation.format_only_section_ids
+            or _manifest_needs_hash_migration(previous_manifest)
+        ):
+            next_manifest = next_source_manifest(
+                previous_manifest,
+                current_manifest,
+                status=ManifestUpdateStatus.OK,
+                scanned_at=scanned_at,
+                extract_run_id=extract_run_id,
+                extractor_versions=_extractor_versions_for_mode(mode),
+            )
+            write_source_manifest_atomic(manifest_path, next_manifest)
+        reported_graph_revision = (
+            _existing_graph_revision(graph_storage)
+            if reconciliation.format_only_section_ids
+            else None
+        ) or graph_revision
+        freshness = FreshnessReport(
+            last_core_run=scanned_at,
+            graph_revision=reported_graph_revision,
+            graph_storage_path=str(graph_storage),
+            source_manifest_path=str(manifest_path),
+            warnings=[],
+        )
+        return CoreUpdate(
+            status=ResultStatus.OK,
+            mode="incremental",
+            updated_sources=updated_sources_for(
+                reconciliation,
+                all_sources=False,
+                current=current_manifest,
+            ),
+            skipped_sources=skipped_sources_for(reconciliation, all_sources=False),
+            failed_sources=[],
+            graph_storage=str(graph_storage),
+            freshness_report=freshness,
+            warnings=[],
+            reconciliation=reconciliation,
+        )
 
     graph_store = build_deterministic_graph(
         current_manifest,
@@ -218,7 +297,7 @@ def run_core_update(
             graph_store = carry_forward_schema_llm_artifacts(
                 graph_store,
                 previous_graph_store,
-                keep_section_ids=reconciliation.unchanged_section_ids,
+                keep_section_ids=_keep_section_ids_for_incremental(reconciliation),
             )
         extraction_result = extract_schema_llm_artifacts(
             project_root=project_root,
@@ -255,15 +334,58 @@ def run_core_update(
         )
     write_unresolved_relations_atomic(unresolved_path, unresolved)
 
-    vector_store = build_vector_store(
-        graph_store,
-        embedding_metadata=embedding_metadata,
-        embedding_config=_mapping(config.get("embedding")),
-    )
+    try:
+        previous_vector_store = (
+            None if all_sources else _load_previous_vector_store(graph_storage)
+        )
+        vector_store = build_vector_store(
+            graph_store,
+            embedding_metadata=embedding_metadata,
+            embedding_config=_mapping(config.get("embedding")),
+            previous_vector_store=previous_vector_store,
+        )
+        document_chunks = build_document_chunks(
+            project_root,
+            current_manifest,
+            config=config,
+            graph_revision=graph_revision,
+            generated_at=scanned_at,
+        )
+        previous_chunk_vector_index = (
+            None
+            if all_sources
+            else load_chunk_vector_index(graph_storage / CHUNK_VECTOR_INDEX_FILENAME)
+        )
+        chunk_vector_index = build_chunk_vector_index(
+            document_chunks,
+            embedding_metadata=embedding_metadata,
+            embedding_config=_mapping(config.get("embedding")),
+            previous_index=previous_chunk_vector_index,
+        )
+    except EmbeddingProviderError as exc:
+        warnings = [f"embedding_provider_failed:{exc}"]
+        return _failed_core_update(
+            scanned_at=scanned_at,
+            graph_storage=graph_storage,
+            mode="full" if all_sources else "incremental",
+            failed_sources=["embedding"],
+            warnings=warnings,
+            reconciliation=reconciliation,
+        )
+    bm25_index = build_bm25_index(document_chunks)
 
     graph_storage.mkdir(parents=True, exist_ok=True)
     graph_store.persist(str(graph_storage / GRAPH_STORE_FILENAME))
     vector_store.persist(str(graph_storage / VECTOR_STORE_FILENAME))
+    write_document_chunks_atomic(
+        graph_storage / DOCUMENT_CHUNKS_FILENAME,
+        document_chunks,
+    )
+    write_chunk_vector_index_atomic(
+        graph_storage / CHUNK_VECTOR_INDEX_FILENAME,
+        chunk_vector_index,
+    )
+    write_bm25_index_atomic(graph_storage / BM25_INDEX_FILENAME, bm25_index)
     write_embedding_metadata_atomic(embedding_metadata_file, embedding_metadata)
 
     chapter_anchors_path = graph_storage / "chapter_anchors.json"
@@ -289,61 +411,134 @@ def run_core_update(
     )
     write_chapter_anchors_atomic(chapter_anchors_path, chapter_refresh.chapter_anchors)
 
-    cluster_path = graph_storage / "cluster_snapshot.json"
-    if all_sources:
-        cluster_snapshot = build_cluster_snapshot(
-            graph_store,
-            graph_revision=graph_revision,
+    try:
+        concept_index, concept_index_warnings = refresh_concept_index(
+            project_root,
+            config,
+            graph_storage,
             generated_at=scanned_at,
         )
-        cluster_warnings: list[str] = []
-    else:
-        cluster_refresh = refresh_cluster_snapshot(
-            load_cluster_snapshot(cluster_path),
-            graph_store,
-            changed_section_ids=[
-                *reconciliation.changed_section_ids,
-                *reconciliation.removed_section_ids,
-            ],
-            graph_revision=graph_revision,
-            generated_at=scanned_at,
-            seed_chapter_ids=affected_chapters,
+    except EmbeddingProviderError as exc:
+        warnings = [f"embedding_provider_failed:{exc}"]
+        return _failed_core_update(
+            scanned_at=scanned_at,
+            graph_storage=graph_storage,
+            mode="full" if all_sources else "incremental",
+            failed_sources=["embedding"],
+            warnings=warnings,
+            reconciliation=reconciliation,
         )
-        cluster_snapshot = cluster_refresh.cluster_snapshot
-        cluster_warnings = cluster_refresh.warnings
-    write_cluster_snapshot_atomic(cluster_path, cluster_snapshot)
-
-    concept_index, concept_index_warnings = refresh_concept_index(
-        project_root,
-        config,
-        graph_storage,
-        generated_at=scanned_at,
+    concept_index_cluster_entries = (
+        [
+            {
+                "concept_chunk_id": chunk.concept_chunk_id,
+                "related_anchor_ids": [],
+                "related_chapter_ids": [],
+            }
+            for chunk in concept_index.chunks
+        ]
+        if concept_index is not None
+        else []
     )
+    cluster_path = graph_storage / "cluster_snapshot.json"
+    changed_cluster_section_ids = [
+        *reconciliation.changed_section_ids,
+        *reconciliation.added_section_ids,
+        *reconciliation.removed_section_ids,
+    ]
+    try:
+        if all_sources:
+            community_report_llm = make_community_report_llm_from_config(config)
+            cluster_snapshot = build_cluster_snapshot(
+                graph_store,
+                graph_revision=graph_revision,
+                generated_at=scanned_at,
+                concept_index=concept_index_cluster_entries,
+                document_chunks=document_chunks.chunks,
+                community_report_llm=community_report_llm,
+            )
+            cluster_warnings: list[str] = []
+        else:
+            previous_cluster_snapshot = load_cluster_snapshot(cluster_path)
+            if _can_reuse_cluster_snapshot(
+                previous_cluster_snapshot,
+                graph_revision=graph_revision,
+                changed_section_ids=changed_cluster_section_ids,
+                concept_index=concept_index_cluster_entries,
+            ):
+                cluster_snapshot = previous_cluster_snapshot
+                cluster_warnings = []
+            else:
+                community_report_llm = make_community_report_llm_from_config(config)
+                cluster_refresh = refresh_cluster_snapshot(
+                    previous_cluster_snapshot,
+                    graph_store,
+                    changed_section_ids=changed_cluster_section_ids,
+                    graph_revision=graph_revision,
+                    generated_at=scanned_at,
+                    seed_chapter_ids=affected_chapters,
+                    concept_index=concept_index_cluster_entries,
+                    document_chunks=document_chunks.chunks,
+                    community_report_llm=community_report_llm,
+                )
+                cluster_snapshot = cluster_refresh.cluster_snapshot
+                cluster_warnings = cluster_refresh.warnings
+    except CommunityReportGenerationError as exc:
+        warnings = [
+            *extraction_warnings,
+            *chapter_refresh.warnings,
+            *concept_index_warnings,
+            f"community_report_provider_failed:{exc}",
+        ]
+        return _failed_core_update(
+            scanned_at=scanned_at,
+            graph_storage=graph_storage,
+            mode="full" if all_sources else "incremental",
+            failed_sources=["community_report"],
+            warnings=warnings,
+            reconciliation=reconciliation,
+        )
+    write_cluster_snapshot_atomic(cluster_path, cluster_snapshot)
     changed_for_concept = _changed_section_ids_for_concept_diff(
         current_manifest,
         reconciliation,
         all_sources=all_sources,
         failed_section_ids=extraction_failed_section_ids,
     )
-    concept_diff_result = generate_concept_diff_candidate(
-        project_root=project_root,
-        config=config,
-        graph_storage=graph_storage,
-        graph_data=graph_store.graph.model_dump(),
-        concept_index=concept_index,
-        changed_source_section_ids=changed_for_concept,
-        extract_run_id=extract_run_id,
-        generated_at=scanned_at,
-    )
+    try:
+        concept_diff_result = generate_concept_diff_candidate(
+            project_root=project_root,
+            config=config,
+            graph_storage=graph_storage,
+            graph_data=graph_store.graph.model_dump(),
+            concept_index=concept_index,
+            changed_source_section_ids=changed_for_concept,
+            extract_run_id=extract_run_id,
+            generated_at=scanned_at,
+        )
+    except ConceptDiffProposalError as exc:
+        warnings = [
+            *extraction_warnings,
+            *chapter_refresh.warnings,
+            *cluster_warnings,
+            *concept_index_warnings,
+            f"concept_diff_provider_failed:{exc}",
+        ]
+        return _failed_core_update(
+            scanned_at=scanned_at,
+            graph_storage=graph_storage,
+            mode="full" if all_sources else "incremental",
+            failed_sources=["concept_diff"],
+            warnings=warnings,
+            reconciliation=reconciliation,
+        )
 
     manifest_status = (
         ManifestUpdateStatus.DEGRADED
         if extraction_failed_section_ids
         else ManifestUpdateStatus.OK
     )
-    extractor_versions = {"core": EXTRACTOR_VERSION}
-    if mode == EXTRACTION_MODE_SCHEMA_LLM:
-        extractor_versions["schema_llm_path_extractor"] = SCHEMA_LLM_EXTRACTOR_VERSION
+    extractor_versions = _extractor_versions_for_mode(mode)
     next_manifest = next_source_manifest(
         previous_manifest,
         current_manifest,
@@ -388,10 +583,42 @@ def run_core_update(
     )
 
 
+def _failed_core_update(
+    *,
+    scanned_at: str,
+    graph_storage: Path,
+    mode: str,
+    failed_sources: list[str],
+    warnings: list[str],
+    reconciliation: ManifestReconciliation | None = None,
+) -> CoreUpdate:
+    freshness = FreshnessReport(
+        last_core_run=scanned_at,
+        graph_revision=None,
+        graph_storage_path=str(graph_storage),
+        source_manifest_path=str(graph_storage / "source_manifest.json"),
+        warnings=warnings,
+    )
+    return CoreUpdate(
+        status=ResultStatus.FAILED,
+        mode=mode,
+        updated_sources=[],
+        skipped_sources=[],
+        failed_sources=failed_sources,
+        graph_storage=str(graph_storage),
+        freshness_report=freshness,
+        warnings=warnings,
+        reconciliation=reconciliation,
+    )
+
+
 def resolve_source_paths(project_root: Path, config: dict[str, Any]) -> list[Path]:
     includes = config.get("sources", {}).get("include", [])
     if isinstance(includes, str):
         includes = [includes]
+    excludes = config.get("sources", {}).get("exclude", [])
+    if isinstance(excludes, str):
+        excludes = [excludes]
     resolved: set[Path] = set()
     for pattern in includes:
         pattern_path = Path(pattern)
@@ -402,7 +629,17 @@ def resolve_source_paths(project_root: Path, config: dict[str, Any]) -> list[Pat
         for match in matches:
             if match.is_file():
                 resolved.add(match.resolve())
-    return sorted(resolved)
+    excluded: set[Path] = set()
+    for pattern in excludes:
+        pattern_path = Path(pattern)
+        if pattern_path.is_absolute():
+            matches = (Path(match) for match in glob.glob(pattern, recursive=True))
+        else:
+            matches = project_root.glob(pattern)
+        for match in matches:
+            if match.is_file():
+                excluded.add(match.resolve())
+    return sorted(resolved - excluded)
 
 
 def build_deterministic_graph(
@@ -507,18 +744,21 @@ def build_vector_store(
     *,
     embedding_metadata: EmbeddingMetadata | None = None,
     embedding_config: Mapping[str, Any] | None = None,
+    previous_vector_store: SimpleVectorStore | None = None,
 ) -> SimpleVectorStore:
     vector_store = SimpleVectorStore()
     metadata = embedding_metadata or embedding_metadata_from_config({})
+    previous_embeddings = _reusable_vector_embeddings(previous_vector_store, metadata)
     entities = []
     text_by_entity_id = {}
     for node in graph_store.get():
         if node.label not in {"ANCHOR", "SECTION"}:
             continue
-        node.embedding = embedding_for_text(
-            node.name,
-            metadata,
-            config=embedding_config,
+        node.embedding = _entity_embedding(
+            node,
+            reusable_embeddings=previous_embeddings,
+            embedding_metadata=metadata,
+            embedding_config=embedding_config,
         )
         node.properties = {
             **(node.properties or {}),
@@ -541,6 +781,66 @@ def build_vector_store(
     return vector_store
 
 
+def _load_previous_vector_store(graph_storage: Path) -> SimpleVectorStore | None:
+    vector_path = graph_storage / VECTOR_STORE_FILENAME
+    if not vector_path.exists():
+        return None
+    try:
+        return SimpleVectorStore.from_persist_path(str(vector_path))
+    except Exception:
+        return None
+
+
+def _reusable_vector_embeddings(
+    previous_vector_store: SimpleVectorStore | None,
+    embedding_metadata: EmbeddingMetadata,
+) -> dict[str, tuple[list[float], Mapping[str, Any]]]:
+    if previous_vector_store is None:
+        return {}
+    reusable: dict[str, tuple[list[float], Mapping[str, Any]]] = {}
+    for node_id, embedding in previous_vector_store.data.embedding_dict.items():
+        metadata = previous_vector_store.data.metadata_dict.get(node_id, {})
+        if not _embedding_metadata_matches(metadata, embedding_metadata):
+            continue
+        reusable[node_id] = (list(embedding), metadata)
+    return reusable
+
+
+def _entity_embedding(
+    node: EntityNode,
+    *,
+    reusable_embeddings: Mapping[str, tuple[list[float], Mapping[str, Any]]],
+    embedding_metadata: EmbeddingMetadata,
+    embedding_config: Mapping[str, Any] | None,
+) -> list[float]:
+    reusable = reusable_embeddings.get(node.id)
+    current_source_hash = (node.properties or {}).get("source_hash")
+    if reusable is not None and current_source_hash:
+        embedding, previous_metadata = reusable
+        if previous_metadata.get("source_hash") == current_source_hash and embedding:
+            return list(embedding)
+    return embedding_for_text(
+        node.name,
+        embedding_metadata,
+        config=embedding_config,
+    )
+
+
+def _embedding_metadata_matches(
+    metadata: Mapping[str, Any],
+    embedding_metadata: EmbeddingMetadata,
+) -> bool:
+    try:
+        dimension = int(metadata.get("embedding_dimension", -1))
+    except (TypeError, ValueError):
+        return False
+    return (
+        str(metadata.get("embedding_provider", "")) == embedding_metadata.provider
+        and str(metadata.get("embedding_model", "")) == embedding_metadata.model
+        and dimension == embedding_metadata.dimension
+    )
+
+
 def updated_sources_for(
     reconciliation: ManifestReconciliation,
     *,
@@ -550,6 +850,7 @@ def updated_sources_for(
     if all_sources:
         return sorted({entry.document_id for entry in current.entries})
     section_ids = [
+        *reconciliation.format_only_section_ids,
         *reconciliation.changed_section_ids,
         *reconciliation.added_section_ids,
         *reconciliation.removed_section_ids,
@@ -690,11 +991,208 @@ def _changed_section_ids_for_concept_diff(
     return sorted(section_ids - failed_section_ids)
 
 
+def _extractor_versions_for_mode(mode: str) -> dict[str, str]:
+    versions = {"core": EXTRACTOR_VERSION}
+    if mode == EXTRACTION_MODE_SCHEMA_LLM:
+        versions["schema_llm_path_extractor"] = SCHEMA_LLM_EXTRACTOR_VERSION
+    return versions
+
+
+def _keep_section_ids_for_incremental(
+    reconciliation: ManifestReconciliation,
+) -> list[str]:
+    return sorted(
+        {
+            *reconciliation.unchanged_section_ids,
+            *reconciliation.format_only_section_ids,
+        }
+    )
+
+
+def _can_return_no_change_incremental(
+    project_root: Path,
+    config: Mapping[str, Any],
+    graph_storage: Path,
+    reconciliation: ManifestReconciliation,
+    previous_manifest: SourceManifest,
+    embedding_metadata: EmbeddingMetadata,
+    *,
+    graph_revision: str,
+    all_sources: bool,
+) -> bool:
+    if all_sources or not previous_manifest.entries:
+        return False
+    has_semantic_changes = (
+        reconciliation.changed_section_ids
+        or reconciliation.added_section_ids
+        or reconciliation.removed_section_ids
+    )
+    if has_semantic_changes:
+        return False
+    if not _required_incremental_artifacts_exist(graph_storage):
+        return False
+    if reconciliation.format_only_section_ids:
+        if not _artifact_has_graph_revision(graph_storage / "cluster_snapshot.json"):
+            return False
+    else:
+        if not _artifact_graph_revision_matches(
+            graph_storage / "cluster_snapshot.json",
+            graph_revision,
+        ):
+            return False
+    return _concept_index_is_fresh(
+        project_root,
+        config,
+        graph_storage,
+        embedding_metadata,
+    )
+
+
+def _required_incremental_artifacts_exist(graph_storage: Path) -> bool:
+    required = [
+        GRAPH_STORE_FILENAME,
+        VECTOR_STORE_FILENAME,
+        DOCUMENT_CHUNKS_FILENAME,
+        CHUNK_VECTOR_INDEX_FILENAME,
+        BM25_INDEX_FILENAME,
+        "embedding_metadata.json",
+        "source_manifest.json",
+        "unresolved_relations.json",
+        "chapter_anchors.json",
+        "cluster_snapshot.json",
+    ]
+    return all((graph_storage / filename).exists() for filename in required)
+
+
+def _manifest_needs_hash_migration(manifest: SourceManifest) -> bool:
+    return any(
+        entry.raw_hash is None or entry.semantic_hash is None
+        for entry in manifest.entries
+    )
+
+
+def _artifact_has_graph_revision(path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(data.get("graph_revision"))
+
+
+def _existing_graph_revision(graph_storage: Path) -> str | None:
+    for filename in ("cluster_snapshot.json", DOCUMENT_CHUNKS_FILENAME):
+        path = graph_storage / filename
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        revision = data.get("graph_revision")
+        if isinstance(revision, str) and revision:
+            return revision
+    return None
+
+
+def _artifact_graph_revision_matches(path: Path, graph_revision: str) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return data.get("graph_revision") == graph_revision
+
+
+def _concept_index_is_fresh(
+    project_root: Path,
+    config: Mapping[str, Any],
+    graph_storage: Path,
+    embedding_metadata: EmbeddingMetadata,
+) -> bool:
+    path = concept_index_path(graph_storage)
+    concept_file = configured_concept_file(project_root, config)
+    if concept_file is None:
+        return not path.exists()
+    if not concept_file.exists():
+        return not path.exists()
+
+    existing = load_concept_index(path)
+    if existing is None:
+        return False
+    return (
+        existing.concept_file_hash == concept_file_hash(concept_file)
+        and embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
+    )
+
+
+def _can_reuse_cluster_snapshot(
+    snapshot: Any,
+    *,
+    graph_revision: str,
+    changed_section_ids: list[str],
+    concept_index: list[Mapping[str, Any]],
+) -> bool:
+    if changed_section_ids:
+        return False
+    if snapshot.graph_revision != graph_revision:
+        return False
+    return _snapshot_concept_chunk_ids(snapshot) == _concept_index_chunk_ids(concept_index)
+
+
+def _snapshot_concept_chunk_ids(snapshot: Any) -> list[str]:
+    return sorted(
+        {
+            concept_chunk_id
+            for cluster in snapshot.clusters
+            for concept_chunk_id in cluster.member_concept_chunk_ids
+        }
+    )
+
+
+def _concept_index_chunk_ids(concept_index: list[Mapping[str, Any]]) -> list[str]:
+    return sorted(
+        str(entry.get("concept_chunk_id"))
+        for entry in concept_index
+        if entry.get("concept_chunk_id")
+    )
+
+
 def _dedupe_relations(relations: list[Relation]) -> list[Relation]:
     by_key: dict[tuple[str, str, str], Relation] = {}
     for relation in relations:
         by_key[(relation.source_id, relation.label, relation.target_id)] = relation
     return list(by_key.values())
+
+
+def make_community_report_llm_from_config(config: Mapping[str, Any]) -> Any | None:
+    report_config = _mapping(config.get("community_report"))
+    provider = str(report_config.get("provider", "deterministic")).strip().lower()
+    if provider in {"deterministic", "template", "none", "disabled", ""}:
+        return None
+    if provider == "codex":
+        return CodexCLIAdapter(
+            command=str(report_config.get("command") or "codex"),
+            model=str(report_config.get("model") or "gpt-5.4"),
+            effort=str(report_config.get("effort") or "low"),
+            timeout_sec=int(report_config.get("timeout_sec", 120)),
+            sandbox=str(report_config.get("sandbox", "read-only")),
+            max_retries=int(report_config.get("max_retries", 0)),
+            retry_backoff_sec=float(report_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                report_config.get("repair_on_schema_failure", True)
+            ),
+        )
+    if provider == "claude":
+        return ClaudeCLIAdapter(
+            command=str(report_config.get("command") or "claude"),
+            model=str(report_config.get("model") or ""),
+            effort=str(report_config.get("effort") or "low"),
+            timeout_sec=int(report_config.get("timeout_sec", 120)),
+            tools=str(report_config.get("tools", "")),
+            max_retries=int(report_config.get("max_retries", 0)),
+            retry_backoff_sec=float(report_config.get("retry_backoff_sec", 0.0)),
+            repair_on_schema_failure=bool(
+                report_config.get("repair_on_schema_failure", True)
+            ),
+        )
+    raise ValueError(f"unsupported community_report.provider: {provider}")
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

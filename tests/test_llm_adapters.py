@@ -26,7 +26,7 @@ def test_codex_cli_adapter_complete_uses_runner_and_schema() -> None:
         cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
     ) -> subprocess.CompletedProcess[str]:
         calls.append(cmd)
-        assert stdin_text is None
+        assert stdin_text == "extract"
         assert timeout_sec == 30
         schema_index = list(cmd).index("--output-schema")
         assert list(cmd)[schema_index + 1].endswith(".json")
@@ -42,19 +42,71 @@ def test_codex_cli_adapter_complete_uses_runner_and_schema() -> None:
 
     assert response.text == '{"name": "auth"}'
     assert calls
-    assert list(calls[0])[:6] == [
+    cmd = list(calls[0])
+    assert cmd[:4] == [
         "codex",
         "--ask-for-approval",
         "never",
         "exec",
-        "--model",
-        "test-model",
     ]
+    assert cmd[cmd.index("--model") + 1] == "test-model"
     assert "--sandbox" in calls[0]
-    assert list(calls[0])[list(calls[0]).index("--sandbox") + 1] == "read-only"
+    assert cmd[cmd.index("--sandbox") + 1] == "read-only"
+    disable_features = [
+        cmd[index + 1]
+        for index, item in enumerate(cmd)
+        if item == "--disable"
+    ]
+    assert disable_features == ["plugins", "general_analytics"]
+    assert cmd.index("exec") < cmd.index("--disable") < cmd.index("--model")
+    config_values = [
+        cmd[index + 1]
+        for index, item in enumerate(cmd)
+        if item == "--config"
+    ]
+    assert config_values == ['model_reasoning_effort="low"']
+    assert cmd.index("exec") < cmd.index("--config") < cmd.index("--model")
     assert "--ephemeral" in calls[0]
     assert "--ignore-rules" in calls[0]
     assert "--json" in calls[0]
+    assert cmd[-1] == "-"
+    assert "extract" not in cmd
+
+
+def test_codex_cli_adapter_can_override_disabled_features() -> None:
+    calls: list[Sequence[str]] = []
+
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        return subprocess.CompletedProcess(
+            args=list(cmd), returncode=0, stdout='{"result": "done"}', stderr=""
+        )
+
+    llm = CodexCLIAdapter(runner=runner, disable_features=())
+    response = llm.complete("prompt")
+
+    assert response.text == "done"
+    assert "--disable" not in calls[0]
+
+
+def test_codex_cli_adapter_can_disable_effort_override() -> None:
+    calls: list[Sequence[str]] = []
+
+    def runner(
+        cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        return subprocess.CompletedProcess(
+            args=list(cmd), returncode=0, stdout='{"result": "done"}', stderr=""
+        )
+
+    llm = CodexCLIAdapter(runner=runner, effort=None)
+    response = llm.complete("prompt")
+
+    assert response.text == "done"
+    assert "--config" not in calls[0]
 
 
 def test_codex_cli_adapter_stream_complete_yields_single_response() -> None:
@@ -167,6 +219,7 @@ def test_claude_cli_adapter_complete_uses_runner_and_schema() -> None:
     assert response.text == '{"name": "auth"}'
     assert calls
     assert list(calls[0])[:4] == ["claude", "--print", "--model", "sonnet"]
+    assert list(calls[0])[list(calls[0]).index("--effort") + 1] == "low"
     assert "--no-session-persistence" in calls[0]
     assert "--disable-slash-commands" in calls[0]
     assert "--tools" in calls[0]

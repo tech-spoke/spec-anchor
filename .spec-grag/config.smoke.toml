@@ -1,0 +1,86 @@
+[sources]
+include = ["テスト用ドキュメント/**/*.md"]
+exclude = []
+
+[core]
+purpose_file = "docs/core/purpose.md"
+concept_file = "docs/core/concept.md"
+extraction_mode = "deterministic"
+
+[graph]
+storage = ".spec-grag/graph/"
+
+[extraction]
+mode = "deterministic"
+provider = "codex"
+max_triplets_per_chunk = 20
+num_workers = 4
+grounding_score_threshold = 0.9
+grounding_score_margin = 0.15
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[answer]
+provider = "template"
+failure_fallback = "template"
+sandbox = "read-only"
+tools = ""
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[classification]
+provider = "orchestrator_rule_based"
+sandbox = "read-only"
+tools = ""
+max_items = 8
+fallback_on_error = true
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[concept_diff]
+provider = "source_derived"
+sandbox = "read-only"
+tools = ""
+fallback_on_error = true
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[retrieval]
+chunk_size = 1600
+chunk_overlap = 200
+vector_top_k = 8
+bm25_top_k = 12
+graph_expansion_hops = 1
+rank_fusion = "rrf"
+max_source_chunks = 12
+
+[query_planner]
+provider = "template"
+fallback_on_error = true
+sandbox = "read-only"
+tools = ""
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[embedding]
+provider = "stable_hash"
+model = "sha256-v1"
+dimension = 8
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+
+[run]
+save_artifacts = false
+artifact_dir = ".spec-grag/runs"
+include_request = true

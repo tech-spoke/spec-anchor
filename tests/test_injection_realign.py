@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -90,9 +91,12 @@ def request_payload(
 
 
 def run_cli(payload: dict) -> ResultEnvelope:
+    env = os.environ.copy()
+    env["SPEC_GRAG_SMOKE"] = "1"
     result = subprocess.run(
         [sys.executable, "-m", "spec_grag.cli"],
         input=json.dumps(payload),
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -187,7 +191,13 @@ def test_spec_inject_merges_concept_index_graph_vector_and_cluster_candidates(
     related_entities = envelope.payload.target_context.related_entities
     assert any(item["entity_type"] == "ANCHOR" for item in related_entities)
     assert any(item["entity_type"] == "CLUSTER" for item in related_entities)
-    assert any("vector_similarity" in item.get("retrieval_methods", []) for item in related_entities)
+    cluster = next(item for item in related_entities if item["entity_type"] == "CLUSTER")
+    assert "community_report" in cluster["retrieval_methods"]
+    assert cluster["community_report"]["summary"]
+    assert cluster["community_report"]["source_evidence"]
+    assert any("raw_chunk_hybrid" in item.get("retrieval_methods", []) for item in related_entities)
+    assert envelope.payload.target_context.related_source_sections[0]["excerpt"]
+    assert envelope.payload.target_context.related_source_sections[0]["source_span"]
     assert envelope.payload.target_context.classification_notes
 
     graph_text = (tmp_path / ".spec-grag/graph/property_graph_store.json").read_text(
@@ -441,6 +451,59 @@ def test_conflict_validator_does_not_promote_semantic_candidate_alone() -> None:
     )
     assert review_notes
     assert "requires_validator" in review_notes[0]["reason"]
+
+
+def test_llm_semantic_candidate_requires_review_without_hard_conflict() -> None:
+    item = {
+        "entity_id": "anchor:policy",
+        "source_origin": "classification_llm",
+        "excerpt": "This may need business review for edge-case access.",
+        "semantic_conflict_candidate": True,
+        "classification_source": "classification_llm",
+    }
+
+    conflicts = conflict_notes_for([], [], classified_items=[item])
+    review_notes = review_notes_for_semantic_candidates([item])
+
+    assert conflicts == []
+    assert review_notes == [
+        {
+            "source_origin": "classification_llm",
+            "reason": "semantic_conflict_candidate_requires_validator_or_human_approval",
+            "item_id": "anchor:policy",
+            "review_required": True,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("excerpt", "rule_id"),
+    [
+        ("管理者のみが承認できる。全ユーザーが承認できる。", "permission_scope"),
+        ("必要 状態 draft -> approved。禁止 状態 draft -> approved。", "state_transition"),
+        ("下限は10。上限は5。", "numeric_bounds"),
+    ],
+)
+def test_conflict_validator_detects_japanese_rule_pack_cases(
+    excerpt: str,
+    rule_id: str,
+) -> None:
+    conflicts = conflict_notes_for([], [], classified_items=[{"excerpt": excerpt}])
+
+    assert rule_id in {item.get("rule_id") for item in conflicts}
+
+
+def test_conflict_validator_detects_japanese_quantifier_conflict() -> None:
+    conflicts = conflict_notes_for(
+        [],
+        [],
+        classified_items=[{"excerpt": "全ての申請を承認する。一部の申請だけ承認する。"}],
+    )
+
+    assert any(
+        item.get("reason") == "Japanese opposing quantifiers appeared in selected evidence."
+        for item in conflicts
+    )
 
 
 def test_spec_realign_builds_context_then_structured_answer(tmp_path: Path) -> None:

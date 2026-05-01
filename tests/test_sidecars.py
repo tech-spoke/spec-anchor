@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from llama_index.core.graph_stores import SimplePropertyGraphStore
 from llama_index.core.graph_stores.types import EntityNode, Relation
 
+from spec_grag.chunk_index import DocumentChunk
 from spec_grag.manifest import build_current_section_manifest
 from spec_grag.sidecars import (
     ChapterAnchorArtifact,
     ChapterAnchorKeyConcept,
     ChapterAnchorQuality,
     ChapterAnchorsSidecar,
+    CommunityReportLLMBatch,
     ClusterSnapshot,
     Confidence,
     CoreConceptIndexEntry,
@@ -299,6 +303,32 @@ def test_cluster_snapshot_dirty_refresh_and_concept_index_reference(
             ),
         ]
     )
+    chunks = [
+        DocumentChunk(
+            chunk_id="chunk-auth-login",
+            document_id="docs/spec/auth.md",
+            chapter_id=auth,
+            section_id="docs/spec/auth.md#auth-login",
+            heading_path="Auth / Login",
+            source_span="L1-L6",
+            source_hash="hash-auth",
+            text="OAuth login depends on session renewal.",
+            chunk_hash="chunk-hash-auth",
+            generated_at="t0",
+        ),
+        DocumentChunk(
+            chunk_id="chunk-session",
+            document_id="docs/spec/session.md",
+            chapter_id=session,
+            section_id="docs/spec/session.md#session",
+            heading_path="Session",
+            source_span="L1-L4",
+            source_hash="hash-session",
+            text="Session renewal keeps authenticated users active.",
+            chunk_hash="chunk-hash-session",
+            generated_at="t0",
+        ),
+    ]
 
     snapshot = build_cluster_snapshot(
         store,
@@ -311,9 +341,13 @@ def test_cluster_snapshot_dirty_refresh_and_concept_index_reference(
                 related_chapter_ids=[auth],
             )
         ],
+        document_chunks=chunks,
     )
     chapter_cluster = next(
         cluster for cluster in snapshot.clusters if cluster.level == "chapter"
+    )
+    community_cluster = next(
+        cluster for cluster in snapshot.clusters if cluster.level == "community"
     )
     concept_cluster = next(
         cluster for cluster in snapshot.clusters if cluster.level == "concept"
@@ -321,6 +355,18 @@ def test_cluster_snapshot_dirty_refresh_and_concept_index_reference(
     assert chapter_cluster.member_chapter_ids == [auth, session]
     assert chapter_cluster.member_anchor_ids == ["oauth"]
     assert chapter_cluster.source_section_ids == ["docs/spec/auth.md#auth-login"]
+    assert chapter_cluster.community_report is not None
+    assert chapter_cluster.community_report.covered_chunk_ids == [
+        "chunk-auth-login",
+        "chunk-session",
+    ]
+    assert chapter_cluster.community_report.source_evidence[0].excerpt
+    assert community_cluster.community_algorithm == "label_propagation_v1"
+    assert community_cluster.covered_chunk_ids == ["chunk-auth-login", "chunk-session"]
+    assert community_cluster.community_report is not None
+    assert community_cluster.community_report.source_origin == (
+        "deterministic_community_report"
+    )
     assert concept_cluster.member_concept_chunk_ids == ["concept:auth-boundary"]
 
     dirty = mark_clusters_dirty_by_sections(
@@ -329,7 +375,10 @@ def test_cluster_snapshot_dirty_refresh_and_concept_index_reference(
         graph_revision="g2",
         generated_at="t2",
     )
-    assert next(cluster for cluster in dirty.clusters if cluster.level == "chapter").stale is True
+    dirty_chapter = next(cluster for cluster in dirty.clusters if cluster.level == "chapter")
+    assert dirty_chapter.stale is True
+    assert dirty_chapter.community_report is not None
+    assert dirty_chapter.community_report.staleness == "stale"
 
     refreshed = refresh_cluster_snapshot(
         dirty,
@@ -338,6 +387,7 @@ def test_cluster_snapshot_dirty_refresh_and_concept_index_reference(
         graph_revision="g3",
         generated_at="t3",
         concept_index=[{"concept_chunk_id": "concept:auth-boundary"}],
+        document_chunks=chunks,
     )
     assert refreshed.warnings == []
     assert all(cluster.stale is False for cluster in refreshed.cluster_snapshot.clusters)
@@ -357,3 +407,77 @@ def test_sidecar_empty_loads_have_schema_defaults(tmp_path: Path) -> None:
     path = tmp_path / ".spec-grag/graph/chapter_anchors.json"
     write_chapter_anchors_atomic(path, ChapterAnchorsSidecar(graph_revision="g1"))
     assert load_chapter_anchors(path).graph_revision == "g1"
+
+
+def test_cluster_snapshot_can_generate_llm_community_reports() -> None:
+    schema = CommunityReportLLMBatch.model_json_schema()
+    assert set(schema["required"]) == {"reports"}
+    item_schema = schema["$defs"]["CommunityReportLLMItem"]
+    assert set(item_schema["required"]) == {
+        "cluster_id",
+        "summary",
+        "findings",
+        "confidence",
+    }
+
+    class FakeCommunityReportLLM:
+        output_schema: type | None = None
+
+        def complete(self, prompt: str, **kwargs: object) -> SimpleNamespace:
+            self.output_schema = kwargs.get("output_schema")  # type: ignore[assignment]
+            payload = json.loads(prompt.split("INPUT_JSON:", 1)[1])
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "reports": [
+                            {
+                                "cluster_id": cluster["cluster_id"],
+                                "summary": f"LLM report for {cluster['cluster_id']}",
+                                "findings": ["Uses supplied source evidence."],
+                                "confidence": "high",
+                            }
+                            for cluster in payload["clusters"]
+                        ]
+                    }
+                )
+            )
+
+    auth = "docs/spec/auth.md#auth"
+    session = "docs/spec/session.md#session"
+    store = SimplePropertyGraphStore()
+    store.upsert_nodes(
+        [
+            EntityNode(label="CHAPTER", name=auth),
+            EntityNode(label="CHAPTER", name=session),
+        ]
+    )
+    store.upsert_relations(
+        [
+            Relation(
+                label="DEPENDS_ON",
+                source_id=auth,
+                target_id=session,
+                properties={
+                    "source_section_id": "docs/spec/auth.md#auth-login",
+                    "confidence": "high",
+                },
+            )
+        ]
+    )
+    llm = FakeCommunityReportLLM()
+
+    snapshot = build_cluster_snapshot(
+        store,
+        graph_revision="g1",
+        generated_at="t1",
+        community_report_llm=llm,
+    )
+
+    assert llm.output_schema is not None
+    assert snapshot.clusters
+    assert all(
+        cluster.community_report is not None
+        and cluster.community_report.source_origin == "llm_community_report"
+        and cluster.community_report.summary.startswith("LLM report for")
+        for cluster in snapshot.clusters
+    )

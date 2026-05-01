@@ -30,12 +30,12 @@ class AnswerNeedsMoreContext(RuntimeError):
 
 
 class AnswerSections(StrictModel):
-    constraints: list[str] = Field(default_factory=list)
-    targets: list[str] = Field(default_factory=list)
-    conflicts_and_review: list[str] = Field(default_factory=list)
-    answer: str = ""
-    needs_more_context: bool = False
-    missing_context: list[str] = Field(default_factory=list)
+    constraints: list[str]
+    targets: list[str]
+    conflicts_and_review: list[str]
+    answer: str
+    needs_more_context: bool
+    missing_context: list[str]
 
     @model_validator(mode="after")
     def validate_answer_or_missing_context(self) -> AnswerSections:
@@ -57,6 +57,7 @@ def make_answer_llm_from_config(config: Mapping[str, Any]) -> Any | None:
         return CodexCLIAdapter(
             command=str(answer_config.get("command") or "codex"),
             model=str(answer_config.get("model") or "gpt-5.4"),
+            effort=str(answer_config.get("effort") or "low"),
             timeout_sec=int(answer_config.get("timeout_sec", 120)),
             sandbox=str(answer_config.get("sandbox", "read-only")),
             max_retries=int(answer_config.get("max_retries", 0)),
@@ -69,6 +70,7 @@ def make_answer_llm_from_config(config: Mapping[str, Any]) -> Any | None:
         return ClaudeCLIAdapter(
             command=str(answer_config.get("command") or "claude"),
             model=str(answer_config.get("model") or ""),
+            effort=str(answer_config.get("effort") or "low"),
             timeout_sec=int(answer_config.get("timeout_sec", 120)),
             tools=str(answer_config.get("tools", "")),
             max_retries=int(answer_config.get("max_retries", 0)),
@@ -158,6 +160,8 @@ def deterministic_answer_sections(
         or reviews
         or ["明示された競合・レビュー項目はありません。"],
         answer=f"{task_prompt} は、上記の制約と対象候補に限定して検討してください。",
+        needs_more_context=False,
+        missing_context=[],
     )
 
 
@@ -173,6 +177,7 @@ def build_answer_prompt(task_prompt: str, injection_context: InjectionContext) -
             "Do not read raw source files. Do not use tools. Do not run Agentic search.",
             "Do not treat graph relations as confirmed facts unless the InjectionContext item gives evidence.",
             "Return JSON that matches the supplied schema.",
+            "Return every array field, even when it is empty.",
             "The answer must have four sections: constraints, targets, conflicts_and_review, answer.",
             "Do not hide ConflictNotes or ReviewNotes; include them in conflicts_and_review.",
             "If the InjectionContext is insufficient, set needs_more_context=true and fill missing_context instead of answering.",

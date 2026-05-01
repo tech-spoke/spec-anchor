@@ -129,7 +129,7 @@ import json
 class CodexCLIAdapter(CustomLLM):
     context_window: int = 200_000
     num_output: int = 4096
-    model_name: str = "claude-sonnet"
+    model_name: str = "claude-sonnet-4-6"
 
     @property
     def metadata(self) -> LLMMetadata:
@@ -145,7 +145,7 @@ class CodexCLIAdapter(CustomLLM):
             "claude", "--print", "--no-session-persistence",
             "--disable-slash-commands", "--allowedTools", "",
             "--output-format", "json",
-            "--model", "haiku",
+            "--model", "claude-haiku-4-5-20251001",
             prompt,
         ], capture_output=True, text=True, timeout=120)
         outer = json.loads(result.stdout)
@@ -245,8 +245,8 @@ DESIGN.ja.md §1.1 / §1.4 で spec-grag は **LLM を用途別に分離**する
 ```python
 # 用途別に Settings.llm を切り替え（Settings.llm は global なので、各 Extractor に explicit に渡す）
 extraction_llm = Ollama(model="qwen2.5:14b", json_mode=True)        # B-1
-classification_llm = CodexCLIAdapter(model="haiku")                 # B-2
-answer_llm = CodexCLIAdapter(model="sonnet")                        # B-2
+classification_llm = CodexCLIAdapter(model="claude-haiku-4-5-20251001")  # B-2
+answer_llm = CodexCLIAdapter(model="claude-sonnet-4-6")                   # B-2
 
 extractor = SchemaLLMPathExtractor(llm=extraction_llm, ...)
 # Classification / Answer は spec-grag Orchestrator で classification_llm / answer_llm を呼ぶ

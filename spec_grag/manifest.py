@@ -45,6 +45,8 @@ class SourceManifestEntry(StrictModel):
     heading_path: str
     heading_start_line: int
     source_hash: str
+    raw_hash: str | None = None
+    semantic_hash: str | None = None
     scanned_at: str | None = None
     extract_run_id: str | None = None
     extractor_versions: dict[str, str] = Field(default_factory=dict)
@@ -63,6 +65,7 @@ class SourceManifest(StrictModel):
 
 class ManifestReconciliation(StrictModel):
     unchanged_section_ids: list[str] = Field(default_factory=list)
+    format_only_section_ids: list[str] = Field(default_factory=list)
     changed_section_ids: list[str] = Field(default_factory=list)
     added_section_ids: list[str] = Field(default_factory=list)
     removed_section_ids: list[str] = Field(default_factory=list)
@@ -88,11 +91,18 @@ def build_current_section_manifest(
     source_paths: Iterable[Path],
     *,
     generated_at: str | None = None,
+    section_max_heading_level: int = 6,
 ) -> SourceManifest:
     entries: list[SourceManifestEntry] = []
     root = project_root.resolve()
     for source_path in sorted(Path(path) for path in source_paths):
-        entries.extend(_entries_for_markdown_file(root, source_path))
+        entries.extend(
+            _entries_for_markdown_file(
+                root,
+                source_path,
+                section_max_heading_level=section_max_heading_level,
+            )
+        )
     return SourceManifest(
         parser_name=MARKDOWN_PARSER_NAME,
         parser_version=MARKDOWN_PARSER_VERSION,
@@ -113,18 +123,25 @@ def reconcile_manifests(
         or previous.parser_version != current.parser_version
     )
 
-    unchanged = sorted(
-        section_id
-        for section_id in previous_ids & current_ids
-        if not parser_changed
-        and previous_by_id[section_id].source_hash == current_by_id[section_id].source_hash
-    )
-    changed = sorted(
-        section_id
-        for section_id in previous_ids & current_ids
-        if parser_changed
-        or previous_by_id[section_id].source_hash != current_by_id[section_id].source_hash
-    )
+    unchanged: list[str] = []
+    format_only: list[str] = []
+    changed: list[str] = []
+    for section_id in sorted(previous_ids & current_ids):
+        previous_entry = previous_by_id[section_id]
+        current_entry = current_by_id[section_id]
+        if parser_changed:
+            changed.append(section_id)
+            continue
+        previous_raw_hash = _entry_raw_hash(previous_entry)
+        current_raw_hash = _entry_raw_hash(current_entry)
+        previous_semantic_hash = _entry_semantic_hash(previous_entry)
+        current_semantic_hash = _entry_semantic_hash(current_entry)
+        if previous_raw_hash == current_raw_hash:
+            unchanged.append(section_id)
+        elif previous_semantic_hash == current_semantic_hash:
+            format_only.append(section_id)
+        else:
+            changed.append(section_id)
     added = sorted(current_ids - previous_ids)
     removed = sorted(previous_ids - current_ids)
 
@@ -137,6 +154,7 @@ def reconcile_manifests(
 
     return ManifestReconciliation(
         unchanged_section_ids=unchanged,
+        format_only_section_ids=format_only,
         changed_section_ids=changed,
         added_section_ids=added,
         removed_section_ids=removed,
@@ -230,23 +248,31 @@ def next_source_manifest(
     )
 
 
-def _entries_for_markdown_file(project_root: Path, source_path: Path) -> list[SourceManifestEntry]:
+def _entries_for_markdown_file(
+    project_root: Path,
+    source_path: Path,
+    *,
+    section_max_heading_level: int,
+) -> list[SourceManifestEntry]:
     resolved = source_path.resolve()
     document_id = _document_id(project_root, resolved)
     text = resolved.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
-    headings = _extract_headings(lines)
+    headings = [
+        heading
+        for heading in _extract_headings(lines)
+        if heading.level <= section_max_heading_level
+    ]
 
     if not headings:
-        body = _normalize_line_endings(text)
         return [
-            SourceManifestEntry(
+            _manifest_entry(
                 document_id=document_id,
                 chapter_id=f"{document_id}#root",
                 section_id=f"{document_id}#root",
                 heading_path=Path(document_id).stem,
                 heading_start_line=1,
-                source_hash=_sha256_text(body),
+                section_text=text,
             )
         ]
 
@@ -257,13 +283,13 @@ def _entries_for_markdown_file(project_root: Path, source_path: Path) -> list[So
     if "".join(lines[: first_heading.content_start - 1]).strip():
         preamble = "".join(lines[: first_heading.content_start - 1])
         entries.append(
-            SourceManifestEntry(
+            _manifest_entry(
                 document_id=document_id,
                 chapter_id=f"{document_id}#root",
                 section_id=f"{document_id}#preamble",
                 heading_path=f"{Path(document_id).stem} / preamble",
                 heading_start_line=1,
-                source_hash=_sha256_text(_normalize_line_endings(preamble)),
+                section_text=preamble,
             )
         )
 
@@ -286,13 +312,13 @@ def _entries_for_markdown_file(project_root: Path, source_path: Path) -> list[So
         section_id = _dedupe_section_id(base_section_id, used_section_ids)
 
         entries.append(
-            SourceManifestEntry(
+            _manifest_entry(
                 document_id=document_id,
                 chapter_id=chapter_id,
                 section_id=section_id,
                 heading_path=heading_path,
                 heading_start_line=heading.line_no,
-                source_hash=_sha256_text(_normalize_line_endings(section_text)),
+                section_text=section_text,
             )
         )
 
@@ -379,6 +405,82 @@ def _document_id(project_root: Path, source_path: Path) -> str:
 
 def _normalize_line_endings(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _manifest_entry(
+    *,
+    document_id: str,
+    chapter_id: str,
+    section_id: str,
+    heading_path: str,
+    heading_start_line: int,
+    section_text: str,
+) -> SourceManifestEntry:
+    raw_text = _normalize_line_endings(section_text)
+    raw_hash = _sha256_text(raw_text)
+    semantic_hash = _sha256_text(_semantic_normalize_markdown(raw_text))
+    return SourceManifestEntry(
+        document_id=document_id,
+        chapter_id=chapter_id,
+        section_id=section_id,
+        heading_path=heading_path,
+        heading_start_line=heading_start_line,
+        source_hash=raw_hash,
+        raw_hash=raw_hash,
+        semantic_hash=semantic_hash,
+    )
+
+
+def _entry_raw_hash(entry: SourceManifestEntry) -> str:
+    return entry.raw_hash or entry.source_hash
+
+
+def _entry_semantic_hash(entry: SourceManifestEntry) -> str:
+    return entry.semantic_hash or entry.source_hash
+
+
+def _semantic_normalize_markdown(text: str) -> str:
+    lines = _normalize_line_endings(text).split("\n")
+    output: list[str] = []
+    prose_parts: list[str] = []
+    in_fence = False
+    fence_marker = ""
+
+    def flush_prose() -> None:
+        if prose_parts:
+            output.append("TEXT:" + " ".join(prose_parts))
+            prose_parts.clear()
+
+    for line in lines:
+        fence_match = _FENCE_RE.match(line)
+        if fence_match:
+            flush_prose()
+            marker = fence_match.group(1)
+            output.append("FENCE:" + line.strip())
+            if not in_fence:
+                in_fence = True
+                fence_marker = marker[:3]
+            elif marker.startswith(fence_marker):
+                in_fence = False
+                fence_marker = ""
+            continue
+
+        if in_fence:
+            output.append("CODE:" + line.rstrip())
+            continue
+
+        if line.startswith("    ") or line.startswith("\t"):
+            flush_prose()
+            output.append("INDENT_CODE:" + line.rstrip())
+            continue
+
+        stripped = line.strip()
+        if not stripped:
+            continue
+        prose_parts.append(re.sub(r"\s+", " ", stripped))
+
+    flush_prose()
+    return "\n".join(output).strip()
 
 
 def _sha256_text(text: str) -> str:

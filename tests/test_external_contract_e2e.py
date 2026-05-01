@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -88,9 +89,12 @@ def request_payload(
 
 
 def run_cli(payload: dict) -> tuple[int, ResultEnvelope]:
+    env = os.environ.copy()
+    env["SPEC_GRAG_SMOKE"] = "1"
     result = subprocess.run(
         [sys.executable, "-m", "spec_grag.cli"],
         input=json.dumps(payload),
+        env=env,
         text=True,
         capture_output=True,
         check=False,

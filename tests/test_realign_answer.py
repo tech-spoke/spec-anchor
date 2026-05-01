@@ -64,6 +64,8 @@ def test_answer_llm_uses_fixed_prompt_schema_and_renders_four_sections() -> None
             "targets": ["Auth / Login"],
             "conflicts_and_review": ["Review OAuth wording."],
             "answer": "OAuth login should remain constrained by the context.",
+            "needs_more_context": False,
+            "missing_context": [],
         }
     )
     context = context_with_review_and_conflict()
@@ -89,6 +91,8 @@ def test_answer_does_not_hide_conflict_or_review_notes() -> None:
             "targets": ["Auth / Login"],
             "conflicts_and_review": [],
             "answer": "Proceed carefully.",
+            "needs_more_context": False,
+            "missing_context": [],
         }
     )
 

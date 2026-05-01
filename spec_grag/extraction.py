@@ -52,6 +52,61 @@ SPEC_GRAG_EXTRACT_PROMPT = """\
 {text}
 """
 
+SPEC_GRAG_BATCH_EXTRACT_PROMPT = """\
+あなたは仕様書から軽量な関係グラフ候補を抽出する。
+
+制約:
+- entity type は DOCUMENT / CHAPTER / SECTION / ANCHOR のみ。
+- relation type は CONTAINS / MENTIONS / RELATED_TO / DEPENDS_ON / REFINES / CONTRASTS_WITH のみ。
+- 各 triplet には、必ず入力 sections の source_section_id をそのまま入れる。
+- DOCUMENT / CHAPTER / SECTION は、入力 metadata の source_section_id / heading_path / doc_path を優先し、自由に別 ID を作らない。
+- 主な抽出対象は ANCHOR と、該当 section を source とする関係候補。
+- 判断できない target は無理に既存章へ結びつけず、relation.properties.target_hint に自由文字列を残す。
+- confidence は relation.properties.confidence に high / medium / low のいずれかを入れる。
+- 根拠が本文にある場合は relation.properties.evidence_excerpt に短い抜粋を入れる。
+- properties の全 field は必ず出力し、不明な文字列 field は ""、不明な confidence は "medium" にする。
+- 最大 {max_triplets_per_batch} triplets。
+
+入力 sections(JSON):
+{sections_json}
+"""
+
+
+class BatchExtractionEntityProperties(StrictModel):
+    display_name: str
+    description: str
+    confidence: Literal["low", "medium", "high"]
+    evidence_excerpt: str
+
+
+class BatchExtractionRelationProperties(StrictModel):
+    confidence: Literal["low", "medium", "high"]
+    evidence_excerpt: str
+    source_span: str
+    target_hint: str
+
+
+class BatchExtractionEntity(StrictModel):
+    name: str
+    type: Entities
+    properties: BatchExtractionEntityProperties
+
+
+class BatchExtractionRelation(StrictModel):
+    type: Relations
+    properties: BatchExtractionRelationProperties
+
+
+class BatchExtractionTriplet(StrictModel):
+    source_section_id: str
+    subject: BatchExtractionEntity
+    relation: BatchExtractionRelation
+    object: BatchExtractionEntity
+
+
+class BatchExtractionResponse(StrictModel):
+    triplets: list[BatchExtractionTriplet]
+
 
 class ExtractionProvenance(StrictModel):
     source_document_id: str

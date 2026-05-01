@@ -13,7 +13,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
 from spec_grag.manifest import SourceManifest, SourceManifestEntry
 from spec_grag.protocol import StrictModel
@@ -23,7 +23,7 @@ SIDECAR_VERSION = "1"
 
 ChapterRelationType = Literal["RELATED_TO", "DEPENDS_ON", "REFINES", "CONTRASTS_WITH"]
 SourceOrigin = Literal["GRAG", "AgenticSearch", "both"]
-ClusterLevel = Literal["chapter", "concept", "relation"]
+ClusterLevel = Literal["chapter", "concept", "relation", "community"]
 
 
 class Confidence(StrEnum):
@@ -132,9 +132,44 @@ class ClusterRelationPath(StrictModel):
     confidence: Confidence
 
 
+class CommunityReportEvidence(StrictModel):
+    chunk_id: str | None = None
+    section_id: str
+    source_span: str | None = None
+    excerpt: str
+
+
+class CommunityReport(StrictModel):
+    summary: str
+    findings: list[str] = Field(default_factory=list)
+    source_evidence: list[CommunityReportEvidence] = Field(default_factory=list)
+    covered_chunk_ids: list[str] = Field(default_factory=list)
+    staleness: Literal["fresh", "stale"] = "fresh"
+    confidence: Confidence
+    source_origin: Literal["deterministic_community_report", "llm_community_report"] = (
+        "deterministic_community_report"
+    )
+
+
+class CommunityReportLLMItem(StrictModel):
+    cluster_id: str
+    summary: str
+    findings: list[str]
+    confidence: Confidence
+
+
+class CommunityReportLLMBatch(StrictModel):
+    reports: list[CommunityReportLLMItem]
+
+
+class CommunityReportGenerationError(RuntimeError):
+    """Raised when the community report LLM cannot produce valid reports."""
+
+
 class ClusterArtifact(StrictModel):
     cluster_id: str
     level: ClusterLevel
+    community_algorithm: str = "connected_components_v1"
     seed_ids: list[str] = Field(default_factory=list)
     member_chapter_ids: list[str] = Field(default_factory=list)
     member_anchor_ids: list[str] = Field(default_factory=list)
@@ -142,6 +177,8 @@ class ClusterArtifact(StrictModel):
     relation_paths: list[ClusterRelationPath] = Field(default_factory=list)
     dominant_relation_types: list[str] = Field(default_factory=list)
     source_section_ids: list[str] = Field(default_factory=list)
+    covered_chunk_ids: list[str] = Field(default_factory=list)
+    community_report: CommunityReport | None = None
     confidence: Confidence
     stale: bool
 
@@ -414,7 +451,7 @@ def mark_clusters_dirty_by_sections(
 ) -> ClusterSnapshot:
     section_id_set = set(section_ids)
     updated = [
-        cluster.model_copy(update={"stale": True})
+        _cluster_with_stale(cluster, stale=True)
         if section_id_set.intersection(cluster.source_section_ids)
         else cluster
         for cluster in snapshot.clusters
@@ -433,20 +470,28 @@ def build_cluster_snapshot(
     generated_at: str | None = None,
     seed_chapter_ids: Iterable[str] | None = None,
     concept_index: Iterable[CoreConceptIndexEntry | Mapping[str, Any]] | None = None,
+    document_chunks: Iterable[Any] | None = None,
+    community_report_llm: Any | None = None,
 ) -> ClusterSnapshot:
     graph_data = _graph_dump(graph_store)
     generated = generated_at or datetime.now(UTC).isoformat()
     seed_set = set(seed_chapter_ids or [])
-    chapter_clusters = _chapter_clusters_from_graph(graph_data, seed_set)
-    concept_clusters = _concept_clusters(concept_index or [])
+    chunk_lookup = _chunk_lookup(document_chunks or [])
+    chapter_clusters = _chapter_clusters_from_graph(graph_data, seed_set, chunk_lookup)
+    community_clusters = _community_clusters_from_graph(graph_data, seed_set, chunk_lookup)
+    concept_clusters = _concept_clusters(concept_index or [], chunk_lookup)
+
+    clusters = sorted(
+        [*chapter_clusters, *community_clusters, *concept_clusters],
+        key=lambda cluster: (cluster.level, cluster.cluster_id),
+    )
+    if community_report_llm is not None:
+        clusters = _apply_llm_community_reports(clusters, community_report_llm)
 
     return ClusterSnapshot(
         graph_revision=graph_revision,
         generated_at=generated,
-        clusters=sorted(
-            [*chapter_clusters, *concept_clusters],
-            key=lambda cluster: (cluster.level, cluster.cluster_id),
-        ),
+        clusters=clusters,
     )
 
 
@@ -459,6 +504,8 @@ def refresh_cluster_snapshot(
     generated_at: str | None = None,
     seed_chapter_ids: Iterable[str] | None = None,
     concept_index: Iterable[CoreConceptIndexEntry | Mapping[str, Any]] | None = None,
+    document_chunks: Iterable[Any] | None = None,
+    community_report_llm: Any | None = None,
 ) -> ClusterSnapshotRefreshResult:
     generated = generated_at or datetime.now(UTC).isoformat()
     dirty_previous = mark_clusters_dirty_by_sections(
@@ -474,6 +521,8 @@ def refresh_cluster_snapshot(
             generated_at=generated,
             seed_chapter_ids=seed_chapter_ids,
             concept_index=concept_index,
+            document_chunks=document_chunks,
+            community_report_llm=community_report_llm,
         )
     except Exception as exc:
         return ClusterSnapshotRefreshResult(
@@ -725,7 +774,9 @@ def _coverage_for_anchors(
 
 
 def _chapter_clusters_from_graph(
-    graph_data: Mapping[str, Any], seed_chapter_ids: set[str]
+    graph_data: Mapping[str, Any],
+    seed_chapter_ids: set[str],
+    chunk_lookup: Mapping[str, list[Any]],
 ) -> list[ClusterArtifact]:
     nodes = graph_data.get("nodes") or {}
     relations = [
@@ -776,34 +827,102 @@ def _chapter_clusters_from_graph(
             seed_ids = [chapter_id]
         else:
             seed_ids = sorted(component.intersection(seed_chapter_ids) or component)
-        clusters.append(
-            ClusterArtifact(
-                cluster_id=_stable_cluster_id("chapter", sorted(component)),
-                level="chapter",
-                seed_ids=seed_ids,
-                member_chapter_ids=sorted(component),
-                member_anchor_ids=_anchor_ids_for_chapters(nodes, component),
-                member_concept_chunk_ids=[],
-                relation_paths=sorted(
-                    paths,
-                    key=lambda path: (
-                        path.source_id,
-                        path.relation_type,
-                        path.target_id,
-                        path.source_section_id,
-                    ),
+        cluster = ClusterArtifact(
+            cluster_id=_stable_cluster_id("chapter", sorted(component)),
+            level="chapter",
+            community_algorithm="connected_components_v1",
+            seed_ids=seed_ids,
+            member_chapter_ids=sorted(component),
+            member_anchor_ids=_anchor_ids_for_chapters(nodes, component),
+            member_concept_chunk_ids=[],
+            relation_paths=sorted(
+                paths,
+                key=lambda path: (
+                    path.source_id,
+                    path.relation_type,
+                    path.target_id,
+                    path.source_section_id,
                 ),
-                dominant_relation_types=_dominant_relation_types(paths),
-                source_section_ids=_unique_sorted(path.source_section_id for path in paths),
-                confidence=_cluster_confidence(paths),
-                stale=False,
-            )
+            ),
+            dominant_relation_types=_dominant_relation_types(paths),
+            source_section_ids=_unique_sorted(path.source_section_id for path in paths),
+            covered_chunk_ids=_covered_chunk_ids(component, paths, chunk_lookup),
+            confidence=_cluster_confidence(paths),
+            stale=False,
         )
+        clusters.append(_cluster_with_report(cluster, chunk_lookup))
+    return clusters
+
+
+def _community_clusters_from_graph(
+    graph_data: Mapping[str, Any],
+    seed_chapter_ids: set[str],
+    chunk_lookup: Mapping[str, list[Any]],
+) -> list[ClusterArtifact]:
+    nodes = graph_data.get("nodes") or {}
+    relations = [
+        relation
+        for relation in (graph_data.get("relations") or {}).values()
+        if _relation_is_cluster_input(relation)
+    ]
+    chapter_ids = _chapter_ids_from_graph(nodes)
+    chapter_ids.update(seed_chapter_ids)
+    adjacency: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    for relation in relations:
+        source_id = str(relation.get("source_id") or "")
+        target_id = str(relation.get("target_id") or "")
+        if source_id not in chapter_ids or target_id not in chapter_ids:
+            continue
+        weight = _relation_weight(relation)
+        adjacency[source_id][target_id] += weight
+        adjacency[target_id][source_id] += weight
+
+    labels = _label_propagation_communities(chapter_ids, adjacency)
+    communities: dict[str, set[str]] = defaultdict(set)
+    for chapter_id, label in labels.items():
+        communities[label].add(chapter_id)
+
+    clusters: list[ClusterArtifact] = []
+    for label, members in sorted(communities.items()):
+        paths = [
+            _cluster_relation_path(relation)
+            for relation in relations
+            if {str(relation.get("source_id") or ""), str(relation.get("target_id") or "")}
+            .issubset(members)
+        ]
+        if len(members) == 1 and not paths:
+            continue
+        if seed_chapter_ids and not members.intersection(seed_chapter_ids):
+            continue
+        cluster = ClusterArtifact(
+            cluster_id=_stable_cluster_id("community", sorted(members)),
+            level="community",
+            community_algorithm="label_propagation_v1",
+            seed_ids=sorted(members.intersection(seed_chapter_ids) or members),
+            member_chapter_ids=sorted(members),
+            member_anchor_ids=_anchor_ids_for_chapters(nodes, members),
+            relation_paths=sorted(
+                paths,
+                key=lambda path: (
+                    path.source_id,
+                    path.relation_type,
+                    path.target_id,
+                    path.source_section_id,
+                ),
+            ),
+            dominant_relation_types=_dominant_relation_types(paths),
+            source_section_ids=_unique_sorted(path.source_section_id for path in paths),
+            covered_chunk_ids=_covered_chunk_ids(members, paths, chunk_lookup),
+            confidence=_cluster_confidence(paths),
+            stale=False,
+        )
+        clusters.append(_cluster_with_report(cluster, chunk_lookup))
     return clusters
 
 
 def _concept_clusters(
-    concept_index: Iterable[CoreConceptIndexEntry | Mapping[str, Any]]
+    concept_index: Iterable[CoreConceptIndexEntry | Mapping[str, Any]],
+    chunk_lookup: Mapping[str, list[Any]],
 ) -> list[ClusterArtifact]:
     clusters: list[ClusterArtifact] = []
     for raw_entry in concept_index:
@@ -812,22 +931,176 @@ def _concept_clusters(
             if isinstance(raw_entry, CoreConceptIndexEntry)
             else CoreConceptIndexEntry.model_validate(raw_entry)
         )
-        clusters.append(
-            ClusterArtifact(
-                cluster_id=_stable_cluster_id("concept", [entry.concept_chunk_id]),
-                level="concept",
-                seed_ids=[entry.concept_chunk_id],
-                member_chapter_ids=sorted(entry.related_chapter_ids),
-                member_anchor_ids=sorted(entry.related_anchor_ids),
-                member_concept_chunk_ids=[entry.concept_chunk_id],
-                relation_paths=[],
-                dominant_relation_types=[],
-                source_section_ids=[],
-                confidence=Confidence.MEDIUM,
-                stale=False,
+        cluster = ClusterArtifact(
+            cluster_id=_stable_cluster_id("concept", [entry.concept_chunk_id]),
+            level="concept",
+            community_algorithm="concept_reference_v1",
+            seed_ids=[entry.concept_chunk_id],
+            member_chapter_ids=sorted(entry.related_chapter_ids),
+            member_anchor_ids=sorted(entry.related_anchor_ids),
+            member_concept_chunk_ids=[entry.concept_chunk_id],
+            relation_paths=[],
+            dominant_relation_types=[],
+            source_section_ids=[],
+            covered_chunk_ids=_covered_chunk_ids(
+                set(entry.related_chapter_ids),
+                [],
+                chunk_lookup,
+            ),
+            confidence=Confidence.MEDIUM,
+            stale=False,
+        )
+        clusters.append(_cluster_with_report(cluster, chunk_lookup))
+    return clusters
+
+
+def _cluster_with_report(
+    cluster: ClusterArtifact,
+    chunk_lookup: Mapping[str, list[Any]],
+) -> ClusterArtifact:
+    covered = cluster.covered_chunk_ids or _covered_chunk_ids(
+        set(cluster.member_chapter_ids),
+        cluster.relation_paths,
+        chunk_lookup,
+    )
+    evidence = _community_report_evidence(cluster, chunk_lookup)
+    relation_text = ", ".join(cluster.dominant_relation_types[:3]) or "related evidence"
+    member_text = ", ".join(cluster.member_chapter_ids[:4]) or ", ".join(cluster.seed_ids[:4])
+    report = CommunityReport(
+        summary=f"{cluster.level} community covering {member_text or cluster.cluster_id}.",
+        findings=[
+            f"Dominant relation evidence: {relation_text}.",
+            f"Covered source chunks: {len(covered)}.",
+        ],
+        source_evidence=evidence,
+        covered_chunk_ids=covered,
+        staleness="stale" if cluster.stale else "fresh",
+        confidence=cluster.confidence,
+    )
+    return cluster.model_copy(
+        update={
+            "covered_chunk_ids": covered,
+            "community_report": report,
+        }
+    )
+
+
+def _apply_llm_community_reports(
+    clusters: list[ClusterArtifact],
+    llm: Any,
+) -> list[ClusterArtifact]:
+    if not clusters:
+        return clusters
+    prompt = "\n".join(
+        [
+            "You are the SPEC-grag community report phase.",
+            "Write concise GraphRAG community reports from cluster metadata and source evidence.",
+            "Return one report for every input cluster_id.",
+            "Do not invent evidence not present in the input.",
+            "",
+            "INPUT_JSON:",
+            json.dumps(
+                {"clusters": [_community_report_llm_input(cluster) for cluster in clusters]},
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            ),
+        ]
+    )
+    try:
+        response = llm.complete(prompt, output_schema=CommunityReportLLMBatch)
+        batch = CommunityReportLLMBatch.model_validate_json(response.text)
+    except (ValidationError, ValueError, RuntimeError) as exc:
+        raise CommunityReportGenerationError(
+            f"Community report LLM output is invalid: {exc}"
+        ) from exc
+    except Exception as exc:
+        raise CommunityReportGenerationError(
+            f"Community report LLM failed: {exc}"
+        ) from exc
+
+    reports = {report.cluster_id: report for report in batch.reports}
+    missing = [cluster.cluster_id for cluster in clusters if cluster.cluster_id not in reports]
+    if missing:
+        raise CommunityReportGenerationError(
+            "Community report LLM omitted cluster_id(s): " + ", ".join(missing[:5])
+        )
+
+    updated: list[ClusterArtifact] = []
+    for cluster in clusters:
+        generated = reports[cluster.cluster_id]
+        base_report = cluster.community_report
+        report = CommunityReport(
+            summary=generated.summary,
+            findings=generated.findings,
+            source_evidence=base_report.source_evidence if base_report else [],
+            covered_chunk_ids=cluster.covered_chunk_ids,
+            staleness="stale" if cluster.stale else "fresh",
+            confidence=generated.confidence,
+            source_origin="llm_community_report",
+        )
+        updated.append(cluster.model_copy(update={"community_report": report}))
+    return updated
+
+
+def _community_report_llm_input(cluster: ClusterArtifact) -> dict[str, Any]:
+    report = cluster.community_report
+    return {
+        "cluster_id": cluster.cluster_id,
+        "level": cluster.level,
+        "community_algorithm": cluster.community_algorithm,
+        "member_chapter_ids": cluster.member_chapter_ids,
+        "member_anchor_ids": cluster.member_anchor_ids[:12],
+        "member_concept_chunk_ids": cluster.member_concept_chunk_ids[:12],
+        "dominant_relation_types": cluster.dominant_relation_types,
+        "covered_chunk_ids": cluster.covered_chunk_ids,
+        "source_evidence": [
+            evidence.model_dump(mode="python")
+            for evidence in (report.source_evidence if report else [])[:5]
+        ],
+    }
+
+
+def _community_report_evidence(
+    cluster: ClusterArtifact,
+    chunk_lookup: Mapping[str, list[Any]],
+) -> list[CommunityReportEvidence]:
+    section_ids = set(cluster.source_section_ids)
+    for chapter_id in cluster.member_chapter_ids:
+        for chunk in chunk_lookup.get(chapter_id, []):
+            section_ids.add(str(_get_attr_or_key(chunk, "section_id") or ""))
+    evidence: list[CommunityReportEvidence] = []
+    seen: set[str] = set()
+    for chunks in chunk_lookup.values():
+        for chunk in chunks:
+            chunk_id = str(_get_attr_or_key(chunk, "chunk_id") or "")
+            if chunk_id in seen:
+                continue
+            if str(_get_attr_or_key(chunk, "section_id") or "") not in section_ids and str(
+                _get_attr_or_key(chunk, "chapter_id") or ""
+            ) not in cluster.member_chapter_ids:
+                continue
+            seen.add(chunk_id)
+            evidence.append(
+                CommunityReportEvidence(
+                    chunk_id=chunk_id or None,
+                    section_id=str(_get_attr_or_key(chunk, "section_id") or ""),
+                    source_span=str(_get_attr_or_key(chunk, "source_span") or "") or None,
+                    excerpt=_short_excerpt(str(_get_attr_or_key(chunk, "text") or "")),
+                )
+            )
+            if len(evidence) >= 5:
+                return evidence
+    for path in cluster.relation_paths[:5]:
+        if not path.source_section_id:
+            continue
+        evidence.append(
+            CommunityReportEvidence(
+                section_id=path.source_section_id,
+                excerpt=f"{path.source_id} {path.relation_type} {path.target_id}",
             )
         )
-    return clusters
+    return evidence
 
 
 def _relation_is_cluster_input(relation: Mapping[str, Any]) -> bool:
@@ -840,6 +1113,107 @@ def _relation_is_cluster_input(relation: Mapping[str, Any]) -> bool:
     if _confidence(props.get("confidence")) == Confidence.LOW:
         return False
     return True
+
+
+def _chunk_lookup(document_chunks: Iterable[Any]) -> dict[str, list[Any]]:
+    lookup: dict[str, list[Any]] = defaultdict(list)
+    for chunk in document_chunks:
+        chapter_id = str(_get_attr_or_key(chunk, "chapter_id") or "")
+        if chapter_id:
+            lookup[chapter_id].append(chunk)
+    return {
+        chapter_id: sorted(
+            chunks,
+            key=lambda item: (
+                str(_get_attr_or_key(item, "section_id") or ""),
+                str(_get_attr_or_key(item, "source_span") or ""),
+                str(_get_attr_or_key(item, "chunk_id") or ""),
+            ),
+        )
+        for chapter_id, chunks in lookup.items()
+    }
+
+
+def _covered_chunk_ids(
+    chapter_ids: set[str],
+    paths: Sequence[ClusterRelationPath],
+    chunk_lookup: Mapping[str, list[Any]],
+) -> list[str]:
+    section_ids = {path.source_section_id for path in paths if path.source_section_id}
+    chunk_ids: list[str] = []
+    if chapter_ids:
+        candidate_chunks = [
+            chunk
+            for chapter_id in sorted(chapter_ids)
+            for chunk in chunk_lookup.get(chapter_id, [])
+        ]
+    else:
+        candidate_chunks = [
+            chunk
+            for chunks in chunk_lookup.values()
+            for chunk in chunks
+            if str(_get_attr_or_key(chunk, "section_id") or "") in section_ids
+        ]
+    for chunk in candidate_chunks:
+        if not chapter_ids and section_ids:
+            section_id = str(_get_attr_or_key(chunk, "section_id") or "")
+            if section_ids and section_id not in section_ids:
+                continue
+        chunk_id = str(_get_attr_or_key(chunk, "chunk_id") or "")
+        if chunk_id:
+            chunk_ids.append(chunk_id)
+    return _unique_sorted(chunk_ids)
+
+
+def _relation_weight(relation: Mapping[str, Any]) -> float:
+    confidence = _confidence(_relation_properties(relation).get("confidence"))
+    if confidence == Confidence.HIGH:
+        return 3.0
+    if confidence == Confidence.MEDIUM:
+        return 2.0
+    return 1.0
+
+
+def _label_propagation_communities(
+    chapter_ids: Iterable[str],
+    adjacency: Mapping[str, Mapping[str, float]],
+) -> dict[str, str]:
+    labels = {chapter_id: chapter_id for chapter_id in sorted(chapter_ids)}
+    for _ in range(4):
+        changed = False
+        for chapter_id in sorted(labels):
+            scores: dict[str, float] = defaultdict(float)
+            for neighbor, weight in adjacency.get(chapter_id, {}).items():
+                scores[labels.get(neighbor, neighbor)] += weight
+            if not scores:
+                continue
+            best_label = sorted(scores.items(), key=lambda item: (-item[1], item[0]))[0][0]
+            if labels[chapter_id] != best_label:
+                labels[chapter_id] = best_label
+                changed = True
+        if not changed:
+            break
+    return labels
+
+
+def _cluster_with_stale(cluster: ClusterArtifact, *, stale: bool) -> ClusterArtifact:
+    report = cluster.community_report
+    if report is not None:
+        report = report.model_copy(update={"staleness": "stale" if stale else "fresh"})
+    return cluster.model_copy(update={"stale": stale, "community_report": report})
+
+
+def _get_attr_or_key(value: Any, key: str) -> Any:
+    if isinstance(value, Mapping):
+        return value.get(key)
+    return getattr(value, key, None)
+
+
+def _short_excerpt(text: str, limit: int = 240) -> str:
+    normalized = " ".join(text.split())
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: limit - 3].rstrip() + "..."
 
 
 def _cluster_relation_path(relation: Mapping[str, Any]) -> ClusterRelationPath:

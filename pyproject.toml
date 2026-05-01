@@ -16,9 +16,18 @@ dependencies = [
 
 [project.scripts]
 spec-grag = "spec_grag.cli:main"
+spec-grag-slash = "spec_grag.slash:main"
+spec-grag-setup-project = "spec_grag.project_setup:main"
 
 [tool.setuptools.packages.find]
 include = ["spec_grag*"]
+
+[tool.setuptools.package-data]
+spec_grag = [
+  "templates/.spec-grag/.gitignore",
+  "templates/.spec-grag/*",
+  "templates/.codex/commands/*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

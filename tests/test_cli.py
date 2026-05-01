@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -70,10 +71,17 @@ def request_json(project_root: Path, command: str = "spec-inject") -> str:
     return json.dumps(payload)
 
 
-def run_cli(stdin_json: str) -> subprocess.CompletedProcess[str]:
+def run_cli(stdin_json: str, *, smoke: bool = True) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    if smoke:
+        env["SPEC_GRAG_SMOKE"] = "1"
+    else:
+        env.pop("SPEC_GRAG_SMOKE", None)
+        env.pop("SPEC_GRAG_RUNTIME_MODE", None)
     return subprocess.run(
         [sys.executable, "-m", "spec_grag.cli"],
         input=stdin_json,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -245,6 +253,16 @@ artifact_dir = ".spec-grag/runs"
     assert len(artifacts) == 1
     data = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert data["command"] == "spec-core"
+    assert data["runtime_mode"] == "smoke"
+    assert data["providers"]["embedding"]["provider"] == "stable_hash"
+    assert data["degraded_components"] == envelope.execution.degraded_components
+    assert data["retrieval_summary"]["result_type"] == "CoreResult"
+    assert data["retrieval_summary"]["updated_sources"] >= 1
+    assert {
+        "component": "embedding",
+        "code": "smoke_provider:stable_hash",
+        "source": "provider_config",
+    } in data["fallback_events"]
     assert data["request"]["project_root"] == str(tmp_path)
 
 
@@ -271,7 +289,44 @@ failure_fallback = "template"
     assert envelope.status == ResultStatus.DEGRADED
     assert envelope.result_type == ResultType.REALIGN_RESULT
     assert "answer_generation_fallback_template" in envelope.warnings
+    assert "answer" in envelope.execution.degraded_components
+    assert "answer_generation" not in envelope.execution.degraded_components
     assert "今回の回答で守る制約" in envelope.payload.answer
+
+
+def test_run_artifact_records_warning_fallback_events(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + """
+
+[answer]
+provider = "codex"
+command = "/bin/false"
+failure_fallback = "template"
+
+[run]
+save_artifacts = true
+artifact_dir = ".spec-grag/runs"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-realign"))
+
+    assert result.returncode == 0
+    artifacts = list((tmp_path / ".spec-grag/runs").glob("*.json"))
+    assert len(artifacts) == 1
+    data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert {
+        "component": "answer",
+        "code": "answer_generation_fallback_template",
+        "source": "warning",
+    } in data["fallback_events"]
+    assert data["retrieval_summary"]["result_type"] == "RealignResult"
+    assert "related_source_sections" in data["retrieval_summary"]
 
 
 def write_concept_and_pending_diff(tmp_path: Path) -> Path:

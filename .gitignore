@@ -34,6 +34,9 @@ htmlcov/
 .code-intel/
 .playwright-mcp/
 .codex/
+!templates/.codex/
+!templates/.codex/commands/
+!templates/.codex/commands/*.md
 .envrc
 
 # Editor / IDE

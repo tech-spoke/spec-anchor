@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from llama_index.core.graph_stores import SimplePropertyGraphStore
@@ -10,8 +11,11 @@ from spec_grag.core import run_core_update
 from spec_grag.core_extraction import (
     KG_NODES_KEY,
     KG_RELATIONS_KEY,
+    extract_schema_llm_artifacts,
     make_schema_extractor_from_config,
 )
+from spec_grag.extraction import BatchExtractionResponse
+from spec_grag.manifest import build_current_section_manifest, load_source_manifest
 from spec_grag.concept_diff import (
     ConceptApplyStatus,
     accept_hunk,
@@ -21,7 +25,6 @@ from spec_grag.concept_diff import (
 )
 from spec_grag.concept_index import refresh_concept_index
 from spec_grag.llm_adapters import ClaudeCLIAdapter
-from spec_grag.manifest import load_source_manifest
 from spec_grag.protocol import ResultStatus
 from spec_grag.sidecars import load_unresolved_relations
 
@@ -216,6 +219,141 @@ def test_schema_llm_incremental_carries_unchanged_artifacts_and_extracts_changed
     assert "anchor:docs/spec/auth.md#auth:oauth" in graph["nodes"]
     assert "anchor:docs/spec/auth.md#billing:audit" in graph["nodes"]
     assert "anchor:docs/spec/auth.md#billing:payment" not in graph["nodes"]
+
+
+def test_schema_llm_batch_extraction_groups_sections_and_keeps_source_section_id(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source = write_source(
+        tmp_path,
+        "# Auth\n\nOverview.\n\n## Login\n\nOAuth login.\n\n## Logout\n\nSession logout.\n",
+    )
+    manifest = build_current_section_manifest(tmp_path, [source])
+    section_ids = [
+        "docs/spec/auth.md#auth-login",
+        "docs/spec/auth.md#auth-logout",
+    ]
+
+    class FakeBatchLLM:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def complete(self, prompt: str, **kwargs):
+            self.calls.append(prompt)
+            assert kwargs["output_schema"] is BatchExtractionResponse
+            return type(
+                "Response",
+                (),
+                {
+                    "text": json.dumps(
+                        {
+                            "triplets": [
+                                {
+                                    "source_section_id": section_ids[0],
+                                    "subject": {
+                                        "name": "Login",
+                                        "type": "SECTION",
+                                        "properties": {
+                                            "display_name": "Login",
+                                            "description": "Login",
+                                            "confidence": "high",
+                                            "evidence_excerpt": "OAuth login.",
+                                        },
+                                    },
+                                    "relation": {
+                                        "type": "MENTIONS",
+                                        "properties": {
+                                            "confidence": "high",
+                                            "evidence_excerpt": "OAuth login.",
+                                            "source_span": "",
+                                            "target_hint": "",
+                                        },
+                                    },
+                                    "object": {
+                                        "name": "OAuth",
+                                        "type": "ANCHOR",
+                                        "properties": {
+                                            "display_name": "OAuth",
+                                            "description": "OAuth login",
+                                            "confidence": "high",
+                                            "evidence_excerpt": "OAuth login.",
+                                        },
+                                    },
+                                },
+                                {
+                                    "source_section_id": section_ids[1],
+                                    "subject": {
+                                        "name": "Logout",
+                                        "type": "SECTION",
+                                        "properties": {
+                                            "display_name": "Logout",
+                                            "description": "Logout",
+                                            "confidence": "high",
+                                            "evidence_excerpt": "Session logout.",
+                                        },
+                                    },
+                                    "relation": {
+                                        "type": "MENTIONS",
+                                        "properties": {
+                                            "confidence": "high",
+                                            "evidence_excerpt": "Session logout.",
+                                            "source_span": "",
+                                            "target_hint": "",
+                                        },
+                                    },
+                                    "object": {
+                                        "name": "Session",
+                                        "type": "ANCHOR",
+                                        "properties": {
+                                            "display_name": "Session",
+                                            "description": "Session logout",
+                                            "confidence": "high",
+                                            "evidence_excerpt": "Session logout.",
+                                        },
+                                    },
+                                },
+                            ]
+                        }
+                    )
+                },
+            )()
+
+    llm = FakeBatchLLM()
+    monkeypatch.setattr(
+        "spec_grag.core_extraction.make_extraction_llm_from_config",
+        lambda config: llm,
+    )
+
+    result = extract_schema_llm_artifacts(
+        project_root=tmp_path,
+        manifest=manifest,
+        graph_store=SimplePropertyGraphStore(),
+        config={
+            "extraction": {
+                "mode": "schema_llm",
+                "provider": "codex",
+                "batch_size": 2,
+                "batch_max_chars": 4000,
+                "max_triplets_per_chunk": 20,
+                "num_workers": 1,
+            }
+        },
+        extract_run_id="run-1",
+        extracted_at="2026-05-01T00:00:00+00:00",
+        section_ids_to_extract=section_ids,
+    )
+
+    graph = result.graph_store.graph.model_dump()
+    assert result.failed_section_ids == []
+    assert len(llm.calls) == 1
+    assert "source_section_id" in llm.calls[0]
+    assert graph["nodes"]["anchor:docs/spec/auth.md#auth-login:oauth"]["properties"][
+        "source_section_id"
+    ] == section_ids[0]
+    assert graph["nodes"]["anchor:docs/spec/auth.md#auth-logout:session"]["properties"][
+        "source_section_id"
+    ] == section_ids[1]
 
 
 def test_schema_llm_extraction_failure_degrades_and_preserves_retry_manifest(

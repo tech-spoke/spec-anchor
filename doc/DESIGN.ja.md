@@ -581,6 +581,14 @@ extractor = SchemaLLMPathExtractor(
 # R2: kg_extractors=[ImplicitPathExtractor(), schema_extractor] と明示
 ```
 
+運用最適化として、複数 section を 1 prompt にまとめる batch extraction を許可する。
+batch 経路でも各 triplet は `source_section_id` を必ず持ち、正規化後の
+ANCHOR / relation / unresolved_relation には section 起点の provenance を保持する。
+これにより初回 rebuild の LLM call 数を減らしつつ、incremental 更新と
+`safe_delete_by_section` の粒度は section 単位のまま維持する。
+section 化する heading depth は `section_max_heading_level` で制御できる。
+`4` の場合は `####` までを section とし、`#####` 以下は直近の親 section の本文に含める。
+
 ### 2.4 Section grounding / normalization（LLM 出力の正規化）【方針案、spike 06 で検証予定】
 
 > **検証状態**: 本節の正規化ルールは **どの SURVEY・spike でも未検証**。spike 06 で SchemaLLMPathExtractor + 軽量 schema の動作を確認する中で詰める。LLM が生成する自由文字列の分布・解決候補の曖昧性・embedding 類似の閾値設定は実装着手後に変わり得る。

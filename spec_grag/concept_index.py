@@ -68,13 +68,17 @@ class ConceptDiffProposalItem(StrictModel):
     term: str
     source_section_id: str
     evidence_excerpt: str
-    source_span: str | None = None
-    proposed_text: str | None = None
+    source_span: str
+    proposed_text: str
 
 
 class ConceptDiffProposal(StrictModel):
-    items: list[ConceptDiffProposalItem] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
+    items: list[ConceptDiffProposalItem]
+    warnings: list[str]
+
+
+class ConceptDiffProposalError(RuntimeError):
+    """Raised when the configured Concept diff proposal provider cannot run."""
 
 
 class _ConceptParagraph:
@@ -361,7 +365,9 @@ def concept_diff_terms_from_config(
             return [dict(term) for term in source_terms], [
                 f"concept_diff_llm_proposal_fallback:{exc}"
             ]
-        return [], [f"concept_diff_llm_proposal_failed:{exc}"]
+        raise ConceptDiffProposalError(
+            f"Concept diff LLM proposal failed: {exc}"
+        ) from exc
 
 
 def make_concept_diff_llm_from_config(config: Mapping[str, Any]) -> Any:
@@ -371,6 +377,7 @@ def make_concept_diff_llm_from_config(config: Mapping[str, Any]) -> Any:
         return CodexCLIAdapter(
             command=str(concept_diff_config.get("command") or "codex"),
             model=str(concept_diff_config.get("model") or "gpt-5.4"),
+            effort=str(concept_diff_config.get("effort") or "low"),
             timeout_sec=int(concept_diff_config.get("timeout_sec", 120)),
             sandbox=str(concept_diff_config.get("sandbox", "read-only")),
             max_retries=int(concept_diff_config.get("max_retries", 0)),
@@ -383,6 +390,7 @@ def make_concept_diff_llm_from_config(config: Mapping[str, Any]) -> Any:
         return ClaudeCLIAdapter(
             command=str(concept_diff_config.get("command") or "claude"),
             model=str(concept_diff_config.get("model") or ""),
+            effort=str(concept_diff_config.get("effort") or "low"),
             timeout_sec=int(concept_diff_config.get("timeout_sec", 120)),
             tools=str(concept_diff_config.get("tools", "")),
             max_retries=int(concept_diff_config.get("max_retries", 0)),
@@ -407,6 +415,7 @@ def generate_concept_diff_proposal_with_llm(
             "Do not edit the Concept file directly.",
             "Return a structured proposal using only the supplied source-derived candidates.",
             "Each proposal item must keep source_section_id and evidence_excerpt.",
+            "Include warnings as an array. Use an empty string for source_span or proposed_text when absent.",
             "",
             "INPUT_JSON:",
             json.dumps(

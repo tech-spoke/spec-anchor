@@ -86,6 +86,44 @@ OAuth is required.
     assert manifest.entries[1].heading_start_line == 6
 
 
+def test_build_current_section_manifest_can_fold_deep_headings_into_parent(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(
+        tmp_path / "docs/spec/auth.md",
+        """# Auth
+
+Intro.
+
+#### Field
+
+Field detail.
+
+##### ImageUploadField
+
+Image detail.
+""",
+    )
+
+    full = build_current_section_manifest(tmp_path, [source])
+    capped = build_current_section_manifest(
+        tmp_path,
+        [source],
+        section_max_heading_level=4,
+    )
+
+    assert [entry.heading_path for entry in full.entries] == [
+        "Auth",
+        "Auth / Field",
+        "Auth / Field / ImageUploadField",
+    ]
+    assert [entry.heading_path for entry in capped.entries] == [
+        "Auth",
+        "Auth / Field",
+    ]
+    assert capped.entries[1].source_hash != full.entries[1].source_hash
+
+
 def test_build_current_section_manifest_ignores_nested_and_html_headings(
     tmp_path: Path,
 ) -> None:
@@ -121,6 +159,35 @@ def test_source_hash_changes_only_when_section_content_changes(tmp_path: Path) -
 
     assert first.entries[0].section_id == second.entries[0].section_id
     assert first.entries[0].source_hash != second.entries[0].source_hash
+
+
+def test_manifest_tracks_raw_and_semantic_hashes_separately(tmp_path: Path) -> None:
+    source = write_markdown(tmp_path / "docs/spec/auth.md", "# Auth\n\nOAuth is required.\n")
+    first = build_current_section_manifest(tmp_path, [source])
+
+    source.write_text(
+        "# Auth\n\nOAuth is required.  \n\n\n",
+        encoding="utf-8",
+    )
+    second = build_current_section_manifest(tmp_path, [source])
+
+    assert first.entries[0].source_hash != second.entries[0].source_hash
+    assert first.entries[0].raw_hash != second.entries[0].raw_hash
+    assert first.entries[0].semantic_hash == second.entries[0].semantic_hash
+
+
+def test_reconcile_classifies_format_only_changes_separately(tmp_path: Path) -> None:
+    source = write_markdown(tmp_path / "docs/spec/auth.md", "# Auth\n\nOAuth is required.\n")
+    previous = build_current_section_manifest(tmp_path, [source])
+
+    source.write_text("# Auth\n\nOAuth is required.  \n\n\n", encoding="utf-8")
+    current = build_current_section_manifest(tmp_path, [source])
+    plan = reconcile_manifests(previous, current)
+
+    assert plan.unchanged_section_ids == []
+    assert plan.format_only_section_ids == ["docs/spec/auth.md#auth"]
+    assert plan.changed_section_ids == []
+    assert plan.affected_chapter_ids == []
 
 
 def test_build_current_section_manifest_preserves_unicode_heading_ids(

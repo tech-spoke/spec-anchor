@@ -43,9 +43,14 @@ class _RunnerWrapper:
 def subprocess_runner(
     cmd: Sequence[str], stdin_text: str | None, timeout_sec: int
 ) -> subprocess.CompletedProcess[str]:
+    kwargs: dict[str, Any] = (
+        {"input": stdin_text}
+        if stdin_text is not None
+        else {"stdin": subprocess.DEVNULL}
+    )
     return subprocess.run(
         list(cmd),
-        input=stdin_text,
+        **kwargs,
         capture_output=True,
         text=True,
         timeout=timeout_sec,
@@ -67,12 +72,17 @@ class CodexCLIAdapter(CustomLLM):
     ignore_rules: bool = True
     use_json_events: bool = True
     skip_git_repo_check: bool = True
+    disable_features: tuple[str, ...] = ("plugins", "general_analytics")
+    effort: str | None = "low"
+    prompt_via_stdin: bool = True
     max_retries: int = 0
     retry_backoff_sec: float = 0.0
     repair_on_schema_failure: bool = True
     _runner: _RunnerWrapper = PrivateAttr(default_factory=lambda: _RunnerWrapper(subprocess_runner))
 
     def __init__(self, *, runner: CLIRunner | None = None, **kwargs: Any) -> None:
+        if "model_reasoning_effort" in kwargs:
+            kwargs.setdefault("effort", kwargs.pop("model_reasoning_effort"))
         super().__init__(**kwargs)
         if runner is not None:
             self._runner = _RunnerWrapper(runner)
@@ -118,7 +128,19 @@ class CodexCLIAdapter(CustomLLM):
         if self.approval_policy:
             # --ask-for-approval is a top-level Codex option, before `exec`.
             cmd.extend(["--ask-for-approval", self.approval_policy])
-        cmd.extend(["exec", "--model", self.model, "--sandbox", self.sandbox])
+        cmd.append("exec")
+        for feature in self.disable_features:
+            feature_name = str(feature).strip()
+            if feature_name:
+                cmd.extend(["--disable", feature_name])
+        if self.effort:
+            cmd.extend(
+                [
+                    "--config",
+                    f"model_reasoning_effort={json.dumps(self.effort)}",
+                ]
+            )
+        cmd.extend(["--model", self.model, "--sandbox", self.sandbox])
         cleanup_paths: list[Path] = []
         if self.ephemeral:
             cmd.append("--ephemeral")
@@ -142,7 +164,10 @@ class CodexCLIAdapter(CustomLLM):
             cleanup_paths.append(path)
             cmd.extend(["--output-schema", str(path)])
 
-        cmd.append(prompt)
+        if self.prompt_via_stdin:
+            cmd.append("-")
+        else:
+            cmd.append(prompt)
         return cmd, cleanup_paths
 
     def _complete_once(
@@ -153,7 +178,7 @@ class CodexCLIAdapter(CustomLLM):
             result = run_cli_command(
                 self._runner,
                 cmd,
-                stdin_text=None,
+                stdin_text=prompt if self.prompt_via_stdin else None,
                 timeout_sec=self.timeout_sec,
                 adapter_name="Codex CLI",
             )
@@ -191,6 +216,7 @@ class ClaudeCLIAdapter(CustomLLM):
     disable_slash_commands: bool = True
     tools: str = ""
     output_format: str = "json"
+    effort: str | None = "low"
     max_retries: int = 0
     retry_backoff_sec: float = 0.0
     repair_on_schema_failure: bool = True
@@ -270,6 +296,8 @@ class ClaudeCLIAdapter(CustomLLM):
         cmd = [self.command, "--print"]
         if self.model:
             cmd.extend(["--model", self.model])
+        if self.effort:
+            cmd.extend(["--effort", self.effort])
         if self.no_session_persistence:
             cmd.append("--no-session-persistence")
         if self.disable_slash_commands:

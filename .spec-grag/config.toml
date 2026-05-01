@@ -1,0 +1,114 @@
+[sources]
+include = ["テスト用ドキュメント/**/*.md"]
+exclude = ["テスト用ドキュメント/01_システム目標.md"]
+
+[core]
+purpose_file = "テスト用ドキュメント/01_システム目標.md"
+concept_file = "docs/core/concept.md"
+extraction_mode = "schema_llm"
+
+[graph]
+storage = ".spec-grag/graph/"
+
+[llm]
+provider = "codex_cli"
+
+[llm.codex_cli]
+command = "codex"
+model = "gpt-5.4"
+effort = "low"
+
+[llm.claude_cli]
+command = "claude"
+model = "claude-sonnet-4-6"
+effort = "low"
+
+[extraction]
+mode = "schema_llm"
+max_triplets_per_chunk = 20
+num_workers = 1
+batch_size = 6
+batch_max_chars = 4000
+section_max_heading_level = 4
+grounding_score_threshold = 0.9
+grounding_score_margin = 0.15
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[extraction.codex]
+model = "gpt-5.4-mini"
+effort = "low"
+
+[extraction.claude]
+model = "claude-haiku-4-5"
+effort = "low"
+
+[answer]
+failure_fallback = "failed"
+sandbox = "read-only"
+tools = ""
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[classification]
+sandbox = "read-only"
+tools = ""
+max_items = 8
+fallback_on_error = false
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[concept_diff]
+sandbox = "read-only"
+tools = ""
+fallback_on_error = false
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[community_report]
+sandbox = "read-only"
+tools = ""
+fallback_on_error = false
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[retrieval]
+chunk_size = 1600
+chunk_overlap = 200
+vector_top_k = 8
+bm25_top_k = 12
+graph_expansion_hops = 1
+rank_fusion = "rrf"
+max_source_chunks = 12
+
+[query_planner]
+fallback_on_error = false
+sandbox = "read-only"
+tools = ""
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+repair_on_schema_failure = true
+
+[embedding]
+provider = "ollama"
+model = "bge-m3"
+dimension = 1024
+timeout_sec = 120
+max_retries = 0
+retry_backoff_sec = 0.0
+
+[run]
+save_artifacts = true
+artifact_dir = ".spec-grag/runs"
+include_request = true

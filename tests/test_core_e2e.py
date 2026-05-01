@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import spec_grag.core as core_module
+from spec_grag.core import resolve_source_paths, run_core_update
 from spec_grag.concept_diff import (
     ConceptDiffTaskContext,
     PendingConceptDiff,
@@ -60,9 +64,12 @@ def request_json(project_root: Path, *, all_sources: bool = False) -> str:
 
 
 def run_cli(stdin_json: str) -> ResultEnvelope:
+    env = os.environ.copy()
+    env["SPEC_GRAG_SMOKE"] = "1"
     result = subprocess.run(
         [sys.executable, "-m", "spec_grag.cli"],
         input=stdin_json,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -76,6 +83,24 @@ def write_auth_source(project_root: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def test_resolve_source_paths_honors_exclude(tmp_path: Path) -> None:
+    included = write_auth_source(tmp_path, "# Auth\n\nOAuth.\n")
+    excluded = tmp_path / "docs/spec/purpose.md"
+    excluded.write_text("# Purpose\n\nKeep goals.\n", encoding="utf-8")
+
+    paths = resolve_source_paths(
+        tmp_path,
+        {
+            "sources": {
+                "include": ["docs/spec/**/*.md"],
+                "exclude": ["docs/spec/purpose.md"],
+            }
+        },
+    )
+
+    assert paths == [included.resolve()]
 
 
 def test_spec_core_all_generates_manifest_graph_vector_and_sidecars(tmp_path: Path) -> None:
@@ -143,6 +168,141 @@ def test_spec_core_incremental_body_change_updates_only_changed_section(
     )
 
 
+def test_spec_core_incremental_no_change_reuses_cluster_snapshot_without_llm(
+    tmp_path: Path, monkeypatch
+) -> None:
+    write_auth_source(
+        tmp_path,
+        "# Auth\n\nIntro.\n\n## Login\n\nOAuth is optional.\n",
+    )
+    config = {
+        "sources": {"include": ["docs/spec/**/*.md"]},
+        "graph": {"storage": ".spec-grag/graph/"},
+        "embedding": {"provider": "stable_hash", "dimension": 8},
+        "community_report": {"provider": "codex"},
+    }
+    calls: list[str] = []
+
+    class FakeCommunityReportLLM:
+        def complete(self, prompt: str, **_kwargs: object) -> SimpleNamespace:
+            calls.append(prompt)
+            payload = json.loads(prompt.split("INPUT_JSON:", 1)[1])
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "reports": [
+                            {
+                                "cluster_id": cluster["cluster_id"],
+                                "summary": f"LLM report for {cluster['cluster_id']}",
+                                "findings": ["Uses supplied source evidence."],
+                                "confidence": "high",
+                            }
+                            for cluster in payload["clusters"]
+                        ]
+                    }
+                )
+            )
+
+    monkeypatch.setattr(
+        "spec_grag.core.make_community_report_llm_from_config",
+        lambda _config: FakeCommunityReportLLM(),
+    )
+
+    first = run_core_update(tmp_path, config, all_sources=True)
+    graph_dir = tmp_path / ".spec-grag/graph"
+    first_snapshot = load_cluster_snapshot(graph_dir / "cluster_snapshot.json")
+
+    assert first.status == ResultStatus.OK
+    assert calls
+
+    calls.clear()
+
+    def fail_graph_rebuild(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("no-change incremental should not rebuild graph artifacts")
+
+    monkeypatch.setattr("spec_grag.core.build_deterministic_graph", fail_graph_rebuild)
+    second = run_core_update(tmp_path, config, all_sources=False)
+    second_snapshot = load_cluster_snapshot(graph_dir / "cluster_snapshot.json")
+
+    assert second.status == ResultStatus.OK
+    assert second.updated_sources == []
+    assert calls == []
+    assert second_snapshot.generated_at == first_snapshot.generated_at
+
+
+def test_spec_core_incremental_format_only_change_updates_manifest_without_rebuild(
+    tmp_path: Path, monkeypatch
+) -> None:
+    source = write_auth_source(tmp_path, "# Auth\n\nOAuth is required.\n")
+    config = {
+        "sources": {"include": ["docs/spec/**/*.md"]},
+        "graph": {"storage": ".spec-grag/graph/"},
+        "embedding": {"provider": "stable_hash", "dimension": 8},
+    }
+    first = run_core_update(tmp_path, config, all_sources=True)
+    graph_dir = tmp_path / ".spec-grag/graph"
+    before = load_source_manifest(graph_dir / "source_manifest.json")
+
+    assert first.status == ResultStatus.OK
+
+    def fail_graph_rebuild(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("format-only incremental should not rebuild graph artifacts")
+
+    monkeypatch.setattr("spec_grag.core.build_deterministic_graph", fail_graph_rebuild)
+    source.write_text("# Auth\n\nOAuth is required.  \n\n\n", encoding="utf-8")
+    second = run_core_update(tmp_path, config, all_sources=False)
+    after = load_source_manifest(graph_dir / "source_manifest.json")
+
+    assert second.status == ResultStatus.OK
+    assert second.updated_sources == ["docs/spec/auth.md#auth"]
+    assert second.freshness_report.graph_revision == first.freshness_report.graph_revision
+    assert (
+        before.by_section_id()["docs/spec/auth.md#auth"].source_hash
+        != after.by_section_id()["docs/spec/auth.md#auth"].source_hash
+    )
+    assert (
+        before.by_section_id()["docs/spec/auth.md#auth"].semantic_hash
+        == after.by_section_id()["docs/spec/auth.md#auth"].semantic_hash
+    )
+
+
+def test_spec_core_incremental_concept_change_bypasses_no_change_fast_path(
+    tmp_path: Path, monkeypatch
+) -> None:
+    write_auth_source(tmp_path, "# Auth\n\nIntro.\n")
+    concept_file = tmp_path / "docs/core/concept.md"
+    concept_file.parent.mkdir(parents=True, exist_ok=True)
+    concept_file.write_text("# Concept\n\nAuth is optional.\n", encoding="utf-8")
+    config = {
+        "sources": {"include": ["docs/spec/**/*.md"]},
+        "core": {"concept_file": "docs/core/concept.md"},
+        "graph": {"storage": ".spec-grag/graph/"},
+        "embedding": {"provider": "stable_hash", "dimension": 8},
+    }
+
+    first = run_core_update(tmp_path, config, all_sources=True)
+    assert first.status == ResultStatus.OK
+
+    original = core_module.build_deterministic_graph
+    graph_rebuilds: list[str] = []
+
+    def recording_graph_rebuild(*args: object, **kwargs: object) -> object:
+        graph_rebuilds.append("called")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "spec_grag.core.build_deterministic_graph",
+        recording_graph_rebuild,
+    )
+    concept_file.write_text("# Concept\n\nAuth is required.\n", encoding="utf-8")
+
+    second = run_core_update(tmp_path, config, all_sources=False)
+
+    assert second.status == ResultStatus.OK
+    assert second.updated_sources == []
+    assert graph_rebuilds == ["called"]
+
+
 def test_spec_core_incremental_section_delete_and_rename(tmp_path: Path) -> None:
     write_config(tmp_path)
     source = write_auth_source(
@@ -189,9 +349,12 @@ dimension = 12
     )
     source.write_text("# Auth\n\nChanged intro.\n", encoding="utf-8")
 
+    env = os.environ.copy()
+    env["SPEC_GRAG_SMOKE"] = "1"
     result = subprocess.run(
         [sys.executable, "-m", "spec_grag.cli"],
         input=request_json(tmp_path),
+        env=env,
         text=True,
         capture_output=True,
         check=False,

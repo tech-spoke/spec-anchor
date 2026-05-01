@@ -92,7 +92,8 @@ def test_concept_diff_llm_proposal_keeps_evidence_span() -> None:
                         "source_span": "L4-L6",
                         "proposed_text": "OAuth 2.0 login policy",
                     }
-                ]
+                ],
+                "warnings": [],
             }
         ),
     )
