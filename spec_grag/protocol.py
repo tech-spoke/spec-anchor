@@ -40,6 +40,7 @@ class ResultType(StrEnum):
     INJECTION_CONTEXT = "InjectionContext"
     REALIGN_RESULT = "RealignResult"
     CONCEPT_APPROVAL_REQUIRED_RESULT = "ConceptApprovalRequiredResult"
+    CONFLICT_APPROVAL_REQUIRED_RESULT = "ConflictApprovalRequiredResult"
     NEED_MORE_CONTEXT_RESULT = "NeedMoreContextResult"
     ERROR_RESULT = "ErrorResult"
 
@@ -67,6 +68,48 @@ class AgentCapabilities(StrictModel):
     can_answer: bool
 
 
+class ApprovalDecision(StrictModel):
+    subject: Literal["concept_diff", "conflict_candidate"]
+    action: Literal["accept", "reject", "revise", "apply", "defer"]
+    diff_id: str | None = None
+    hunk_id: str | None = None
+    review_id: str | None = None
+    candidate_id: str | None = None
+    revision_instruction: str | None = None
+    apply: bool = True
+
+    @model_validator(mode="after")
+    def validate_decision_target(self) -> ApprovalDecision:
+        if self.subject == "concept_diff":
+            if self.action == "defer":
+                raise ValueError("concept_diff approval does not support defer")
+            if self.action == "apply":
+                if not self.diff_id or self.hunk_id is not None:
+                    raise ValueError("concept_diff apply requires diff_id only")
+            elif not self.diff_id or not self.hunk_id:
+                raise ValueError("concept_diff approval requires diff_id and hunk_id")
+            if self.action == "revise" and not self.revision_instruction:
+                raise ValueError("revision_instruction is required with revise")
+            if self.action != "revise" and self.revision_instruction is not None:
+                raise ValueError("revision_instruction requires revise")
+            if self.review_id is not None or self.candidate_id is not None:
+                raise ValueError("concept_diff approval must not set conflict identifiers")
+            return self
+
+        if self.action == "apply":
+            if not self.review_id or self.candidate_id is not None:
+                raise ValueError("conflict apply requires review_id only")
+        elif not self.review_id or not self.candidate_id:
+            raise ValueError("conflict approval requires review_id and candidate_id")
+        if self.action == "revise" and not self.revision_instruction:
+            raise ValueError("revision_instruction is required with revise")
+        if self.action != "revise" and self.revision_instruction is not None:
+            raise ValueError("revision_instruction requires revise")
+        if self.diff_id is not None or self.hunk_id is not None:
+            raise ValueError("conflict approval must not set concept identifiers")
+        return self
+
+
 class RequestOptions(StrictModel):
     all: bool = False
     output_format: Literal["json"] = "json"
@@ -75,6 +118,7 @@ class RequestOptions(StrictModel):
     revise: str | None = None
     revision_instruction: str | None = None
     apply: str | None = None
+    approval: ApprovalDecision | None = None
 
     @model_validator(mode="after")
     def validate_concept_diff_operation(self) -> RequestOptions:
@@ -83,8 +127,10 @@ class RequestOptions(StrictModel):
             for value in (self.accept, self.reject, self.revise, self.apply)
             if value is not None
         ]
+        if self.approval is not None:
+            operations.append(self.approval.subject)
         if len(operations) > 1:
-            raise ValueError("only one Concept diff operation may be requested")
+            raise ValueError("only one approval operation may be requested")
         if self.revise is not None and not self.revision_instruction:
             raise ValueError("revision_instruction is required with revise")
         if self.revision_instruction is not None and self.revise is None:
@@ -144,6 +190,7 @@ class FreshnessReport(StrictModel):
     graph_revision: str | None = None
     graph_storage_path: str
     source_manifest_path: str | None = None
+    readiness_report: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -190,14 +237,26 @@ class CoreResult(StrictModel):
     graph_storage: str
     freshness_report: FreshnessReport
     concept_diff: dict[str, Any] | None = None
+    conflict_review: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
 class ConceptApprovalRequiredResult(StrictModel):
     task_prompt: str | None = None
     concept_diff: dict[str, Any]
+    approval_prompt: dict[str, Any] = Field(default_factory=dict)
     required_actions: list[Literal["accept", "reject", "revise"]] = Field(
         default_factory=lambda: ["accept", "reject", "revise"]
+    )
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ConflictApprovalRequiredResult(StrictModel):
+    task_prompt: str | None = None
+    conflict_review: dict[str, Any]
+    approval_prompt: dict[str, Any] = Field(default_factory=dict)
+    required_actions: list[Literal["accept", "reject", "defer", "revise"]] = Field(
+        default_factory=lambda: ["accept", "reject", "defer", "revise"]
     )
     warnings: list[str] = Field(default_factory=list)
 
@@ -217,8 +276,11 @@ class ErrorResult(StrictModel):
 class ExecutionMetadata(StrictModel):
     context_ready: bool | None = None
     pending_concept_diff_id: str | None = None
+    pending_conflict_review_id: str | None = None
+    pending_conflict_candidate_ids: list[str] = Field(default_factory=list)
     failed_sources: list[str] = Field(default_factory=list)
     degraded_components: list[str] = Field(default_factory=list)
+    runtime_policy: dict[str, Any] = Field(default_factory=dict)
 
 
 Payload = (
@@ -226,6 +288,7 @@ Payload = (
     | InjectionContext
     | RealignResult
     | ConceptApprovalRequiredResult
+    | ConflictApprovalRequiredResult
     | NeedMoreContextResult
     | ErrorResult
 )
@@ -236,6 +299,7 @@ _PAYLOAD_TYPE_BY_RESULT_TYPE: dict[ResultType, type[BaseModel]] = {
     ResultType.INJECTION_CONTEXT: InjectionContext,
     ResultType.REALIGN_RESULT: RealignResult,
     ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT: ConceptApprovalRequiredResult,
+    ResultType.CONFLICT_APPROVAL_REQUIRED_RESULT: ConflictApprovalRequiredResult,
     ResultType.NEED_MORE_CONTEXT_RESULT: NeedMoreContextResult,
     ResultType.ERROR_RESULT: ErrorResult,
 }

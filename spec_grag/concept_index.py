@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from llama_index.core.graph_stores import SimplePropertyGraphStore
 from pydantic import Field, ValidationError
 
 from spec_grag.concept_diff import (
@@ -19,6 +20,7 @@ from spec_grag.concept_diff import (
     PendingConceptHunk,
     concept_file_hash,
     create_pending_concept_diff,
+    first_unresolved_pending_concept_diff,
 )
 from spec_grag.embedding import (
     EmbeddingMetadata,
@@ -30,6 +32,13 @@ from spec_grag.embedding import (
 )
 from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.protocol import Command, StrictModel
+from spec_grag.watch_state import (
+    enqueue_source_changes,
+    load_watch_queue,
+    remove_watch_queue_changes,
+    update_provisional_concept_cache,
+    watch_queue_path,
+)
 
 
 CONCEPT_INDEX_VERSION = "1"
@@ -241,6 +250,7 @@ def generate_concept_diff_candidate(
     graph_data: Mapping[str, Any],
     concept_index: ConceptIndex | None,
     changed_source_section_ids: Sequence[str],
+    changed_source_section_hashes: Mapping[str, str] | None = None,
     extract_run_id: str,
     generated_at: str,
 ) -> ConceptDiffCandidateResult:
@@ -250,12 +260,42 @@ def generate_concept_diff_candidate(
     if not changed_source_section_ids:
         return ConceptDiffCandidateResult()
 
+    pending_diff = first_unresolved_pending_concept_diff(
+        project_root / ".spec-grag" / "pending"
+    )
+    semantic_hashes = changed_source_section_hashes or {}
+
     terms = source_derived_terms(
         graph_data,
         changed_source_section_ids=changed_source_section_ids,
         concept_text=concept_file.read_text(encoding="utf-8"),
     )
     proposal_warnings: list[str] = []
+    if pending_diff is not None:
+        enqueue_source_changes(
+            project_root,
+            config=config,
+            source_section_ids=list(changed_source_section_ids),
+            semantic_hashes=semantic_hashes,
+            reason="pending_concept_diff_unresolved",
+            pending_concept_diff_id=pending_diff.diff_id,
+            detected_at=generated_at,
+        )
+        update_provisional_concept_cache(
+            project_root,
+            terms=terms,
+            semantic_hashes=semantic_hashes,
+            provider=str(_mapping(config.get("concept_diff")).get("provider", "")),
+            model=str(_mapping(config.get("concept_diff")).get("model", "")),
+            prompt_version="concept_diff_proposal_v1",
+            seen_at=generated_at,
+        )
+        return ConceptDiffCandidateResult(
+            warnings=[
+                *proposal_warnings,
+                f"concept_diff_pending_queue_updated:{pending_diff.diff_id}",
+            ]
+        )
     terms, proposal_warnings = concept_diff_terms_from_config(
         config=config,
         concept_text=concept_file.read_text(encoding="utf-8"),
@@ -273,6 +313,15 @@ def generate_concept_diff_candidate(
         extract_run_id=extract_run_id,
         generated_at=generated_at,
     )
+    update_provisional_concept_cache(
+        project_root,
+        terms=terms,
+        semantic_hashes=semantic_hashes,
+        provider=str(_mapping(config.get("concept_diff")).get("provider", "")),
+        model=str(_mapping(config.get("concept_diff")).get("model", "")),
+        prompt_version="concept_diff_proposal_v1",
+        seen_at=generated_at,
+    )
     pending_dir = project_root / ".spec-grag" / "pending"
     path = pending_dir / f"concept_diff_{diff.diff_id}.json"
     if path.exists():
@@ -287,6 +336,90 @@ def generate_concept_diff_candidate(
         pending_diff=diff,
         created_path=str(created),
         warnings=proposal_warnings,
+    )
+
+
+def generate_queued_concept_diff_candidate(
+    *,
+    project_root: Path,
+    config: Mapping[str, Any],
+    graph_storage: Path,
+    extract_run_id: str,
+    generated_at: str,
+) -> ConceptDiffCandidateResult:
+    queue = load_watch_queue(watch_queue_path(project_root, config))
+    concept_changes = [
+        change
+        for change in queue.changes
+        if change.reason == "pending_concept_diff_unresolved"
+    ]
+    changed_source_section_ids = [
+        change.source_section_id for change in concept_changes
+    ]
+    if not changed_source_section_ids:
+        return ConceptDiffCandidateResult()
+
+    if first_unresolved_pending_concept_diff(project_root / ".spec-grag" / "pending") is not None:
+        return ConceptDiffCandidateResult(
+            warnings=["queued_concept_diff_waiting_for_existing_pending"]
+        )
+
+    concept_index = load_concept_index(concept_index_path(graph_storage))
+    if concept_index is None:
+        try:
+            concept_index, concept_index_warnings = refresh_concept_index(
+                project_root,
+                config,
+                graph_storage,
+                generated_at=generated_at,
+            )
+        except Exception as exc:
+            return ConceptDiffCandidateResult(
+                warnings=[f"queued_concept_index_refresh_failed:{exc}"]
+            )
+    else:
+        concept_index_warnings = []
+
+    try:
+        graph_store = SimplePropertyGraphStore.from_persist_dir(str(graph_storage))
+        graph_data = graph_store.graph.model_dump()
+    except Exception as exc:
+        return ConceptDiffCandidateResult(
+            warnings=[*concept_index_warnings, f"queued_concept_graph_load_failed:{exc}"]
+        )
+
+    semantic_hashes = {
+        change.source_section_id: change.semantic_hash for change in concept_changes
+    }
+    result = generate_concept_diff_candidate(
+        project_root=project_root,
+        config=config,
+        graph_storage=graph_storage,
+        graph_data=graph_data,
+        concept_index=concept_index,
+        changed_source_section_ids=changed_source_section_ids,
+        changed_source_section_hashes=semantic_hashes,
+        extract_run_id=extract_run_id,
+        generated_at=generated_at,
+    )
+    if result.pending_diff is not None or not result.warnings:
+        remove_watch_queue_changes(
+            project_root,
+            config=config,
+            reasons={"pending_concept_diff_unresolved"},
+        )
+    elif all(
+        not warning.startswith("queued_concept_diff_waiting")
+        and not warning.startswith("concept_diff_pending_queue_updated")
+        for warning in result.warnings
+    ):
+        remove_watch_queue_changes(
+            project_root,
+            config=config,
+            reasons={"pending_concept_diff_unresolved"},
+        )
+    return result.model_copy(
+        update={"warnings": [*concept_index_warnings, *result.warnings]}
     )
 
 

@@ -23,7 +23,9 @@ from spec_grag.concept_index import (
     load_concept_index,
     refresh_concept_index,
 )
+from spec_grag.config import ExecutionRole
 from spec_grag.concept_diff import concept_file_hash
+from spec_grag.conflict_review import generate_source_conflict_review
 from spec_grag.chunk_index import (
     BM25_INDEX_FILENAME,
     CHUNK_VECTOR_INDEX_FILENAME,
@@ -110,6 +112,9 @@ class CoreUpdate:
     reconciliation: ManifestReconciliation | None = None
     concept_diff: dict[str, Any] | None = None
     pending_concept_diff_id: str | None = None
+    conflict_review: dict[str, Any] | None = None
+    pending_conflict_review_id: str | None = None
+    execution_role: str = ExecutionRole.FOREGROUND_HUMAN.value
 
 
 def run_core_update(
@@ -118,6 +123,9 @@ def run_core_update(
     *,
     all_sources: bool,
     schema_extractor: SchemaExtractor | None = None,
+    execution_role: ExecutionRole | str = ExecutionRole.FOREGROUND_HUMAN,
+    source_manifest: SourceManifest | None = None,
+    source_document_texts: Mapping[str, str] | None = None,
 ) -> CoreUpdate:
     graph_storage = _graph_storage_path(project_root, config)
     scanned_at = datetime.now(UTC).isoformat()
@@ -181,7 +189,7 @@ def run_core_update(
 
     source_paths = resolve_source_paths(project_root, config)
 
-    if not source_paths:
+    if not source_paths and source_manifest is None:
         freshness = FreshnessReport(
             last_core_run=scanned_at,
             graph_revision=None,
@@ -200,13 +208,14 @@ def run_core_update(
             warnings=freshness.warnings,
         )
 
-    current_manifest = build_current_section_manifest(
+    current_manifest = source_manifest or build_current_section_manifest(
         project_root,
         source_paths,
         generated_at=scanned_at,
         section_max_heading_level=int(
             _mapping(config.get("extraction")).get("section_max_heading_level", 6)
         ),
+        document_texts=source_document_texts,
     )
     manifest_path = graph_storage / "source_manifest.json"
     previous_manifest = SourceManifest(entries=[]) if all_sources else load_source_manifest(manifest_path)
@@ -243,15 +252,24 @@ def run_core_update(
             if reconciliation.format_only_section_ids
             else None
         ) or graph_revision
+        conflict_review_result = generate_source_conflict_review(
+            project_root=project_root,
+            graph_storage=graph_storage,
+            manifest=current_manifest,
+            graph_revision=reported_graph_revision,
+            generated_at=scanned_at,
+            document_texts=source_document_texts,
+        )
+        warnings = [*conflict_review_result.warnings]
         freshness = FreshnessReport(
             last_core_run=scanned_at,
             graph_revision=reported_graph_revision,
             graph_storage_path=str(graph_storage),
             source_manifest_path=str(manifest_path),
-            warnings=[],
+            warnings=warnings,
         )
         return CoreUpdate(
-            status=ResultStatus.OK,
+            status=ResultStatus.OK if not warnings else ResultStatus.DEGRADED,
             mode="incremental",
             updated_sources=updated_sources_for(
                 reconciliation,
@@ -262,8 +280,14 @@ def run_core_update(
             failed_sources=[],
             graph_storage=str(graph_storage),
             freshness_report=freshness,
-            warnings=[],
+            warnings=warnings,
             reconciliation=reconciliation,
+            conflict_review=conflict_review_result.pending_review.model_dump(mode="json")
+            if conflict_review_result.pending_review is not None
+            else None,
+            pending_conflict_review_id=conflict_review_result.pending_review.review_id
+            if conflict_review_result.pending_review is not None
+            else None,
         )
 
     graph_store = build_deterministic_graph(
@@ -308,6 +332,7 @@ def run_core_update(
             extracted_at=scanned_at,
             section_ids_to_extract=section_ids_to_extract,
             schema_extractor=schema_extractor,
+            document_texts=source_document_texts,
         )
         graph_store = extraction_result.graph_store
         extraction_warnings.extend(extraction_result.warnings)
@@ -350,6 +375,7 @@ def run_core_update(
             config=config,
             graph_revision=graph_revision,
             generated_at=scanned_at,
+            document_texts=source_document_texts,
         )
         previous_chunk_vector_index = (
             None
@@ -505,6 +531,15 @@ def run_core_update(
         all_sources=all_sources,
         failed_section_ids=extraction_failed_section_ids,
     )
+    current_by_section_id = current_manifest.by_section_id()
+    changed_concept_hashes = {
+        section_id: (
+            current_by_section_id[section_id].semantic_hash
+            or current_by_section_id[section_id].source_hash
+        )
+        for section_id in changed_for_concept
+        if section_id in current_by_section_id
+    }
     try:
         concept_diff_result = generate_concept_diff_candidate(
             project_root=project_root,
@@ -513,6 +548,7 @@ def run_core_update(
             graph_data=graph_store.graph.model_dump(),
             concept_index=concept_index,
             changed_source_section_ids=changed_for_concept,
+            changed_source_section_hashes=changed_concept_hashes,
             extract_run_id=extract_run_id,
             generated_at=scanned_at,
         )
@@ -549,6 +585,14 @@ def run_core_update(
         failed_section_ids=extraction_failed_section_ids,
     )
     write_source_manifest_atomic(manifest_path, next_manifest)
+    conflict_review_result = generate_source_conflict_review(
+        project_root=project_root,
+        graph_storage=graph_storage,
+        manifest=next_manifest,
+        graph_revision=graph_revision,
+        generated_at=scanned_at,
+        document_texts=source_document_texts,
+    )
 
     warnings = [
         *extraction_warnings,
@@ -556,6 +600,7 @@ def run_core_update(
         *cluster_warnings,
         *concept_index_warnings,
         *concept_diff_result.warnings,
+        *conflict_review_result.warnings,
     ]
     freshness = FreshnessReport(
         last_core_run=scanned_at,
@@ -580,6 +625,13 @@ def run_core_update(
         pending_concept_diff_id=concept_diff_result.pending_diff.diff_id
         if concept_diff_result.pending_diff is not None
         else None,
+        conflict_review=conflict_review_result.pending_review.model_dump(mode="json")
+        if conflict_review_result.pending_review is not None
+        else None,
+        pending_conflict_review_id=conflict_review_result.pending_review.review_id
+        if conflict_review_result.pending_review is not None
+        else None,
+        execution_role=str(execution_role),
     )
 
 

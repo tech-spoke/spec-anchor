@@ -146,6 +146,7 @@ def build_document_chunks(
     config: Mapping[str, Any],
     graph_revision: str,
     generated_at: str,
+    document_texts: Mapping[str, str] | None = None,
 ) -> DocumentChunksSidecar:
     chunk_size = retrieval_int(config, "chunk_size", DEFAULT_CHUNK_SIZE)
     chunk_overlap = retrieval_int(config, "chunk_overlap", DEFAULT_CHUNK_OVERLAP)
@@ -161,7 +162,14 @@ def build_document_chunks(
         path = Path(document_id)
         if not path.is_absolute():
             path = project_root / path
-        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        text = (
+            document_texts.get(document_id)
+            if document_texts is not None
+            else None
+        )
+        if text is None:
+            text = path.read_text(encoding="utf-8")
+        lines = text.splitlines(keepends=True)
         ordered = sorted(entries, key=lambda item: (item.heading_start_line, item.section_id))
         for index, entry in enumerate(ordered):
             start = max(entry.heading_start_line, 1)

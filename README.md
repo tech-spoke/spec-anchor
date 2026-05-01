@@ -91,13 +91,11 @@ spec-grag-slash spec-inject "task or current user message"
 spec-grag-slash spec-realign "task prompt"
 ```
 
-Concept diff operations:
+Approval operations use the `approval_prompt.items[].transport.approval` object
+returned by `ConceptApprovalRequiredResult` or `ConflictApprovalRequiredResult`:
 
 ```bash
-spec-grag-slash spec-core --accept <diff_id>:<hunk_id>
-spec-grag-slash spec-core --reject <diff_id>:<hunk_id>
-spec-grag-slash spec-core --revise <diff_id>:<hunk_id> "instruction"
-spec-grag-slash spec-core --apply <diff_id>
+spec-grag-slash spec-core --approval-json '{"subject":"concept_diff","action":"accept","diff_id":"diff-1","hunk_id":"hunk-1","apply":true}'
 ```
 
 If the console script is not on `PATH`, use:

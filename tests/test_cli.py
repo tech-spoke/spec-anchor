@@ -17,6 +17,16 @@ from spec_grag.concept_diff import (
     load_pending_concept_diff,
     pending_concept_diff_path,
 )
+from spec_grag.conflict_review import (
+    ConflictCandidateStatus,
+    PendingConflictCandidate,
+    PendingConflictReview,
+    approved_conflicts_path,
+    create_pending_conflict_review,
+    load_approved_conflicts,
+    load_pending_conflict_review,
+    pending_conflict_review_path,
+)
 from spec_grag.protocol import Command
 from spec_grag.protocol import ResultEnvelope, ResultStatus, ResultType
 
@@ -364,6 +374,35 @@ def write_concept_and_pending_diff(tmp_path: Path) -> Path:
     return create_pending_concept_diff(tmp_path / ".spec-grag/pending", diff)
 
 
+def write_pending_conflict_review(tmp_path: Path) -> Path:
+    review = PendingConflictReview(
+        review_id="review-1",
+        base_graph_revision="rev-1",
+        base_source_manifest_hash="manifest-1",
+        generated_at="2026-05-02T00:00:00+00:00",
+        candidates=[
+            PendingConflictCandidate(
+                candidate_id="candidate-1",
+                conflict_type="source_rule",
+                severity="high",
+                rule_id="required_optional",
+                summary="Auth is both required and optional.",
+                reason="Required and optional language conflict.",
+                evidence_spans=[
+                    {
+                        "source_document_id": "docs/spec/auth.md",
+                        "source_section_id": "docs/spec/auth.md#auth",
+                        "source_span": "L1-L2",
+                        "source_hash": "hash-1",
+                        "excerpt": "Auth is required. Auth is optional.",
+                    }
+                ],
+            )
+        ],
+    )
+    return create_pending_conflict_review(tmp_path / ".spec-grag/pending", review)
+
+
 def test_cli_spec_core_accept_reject_revise_updates_pending_diff(tmp_path: Path) -> None:
     write_config(tmp_path)
     pending_path = write_concept_and_pending_diff(tmp_path)
@@ -387,8 +426,10 @@ def test_cli_spec_core_accept_reject_revise_updates_pending_diff(tmp_path: Path)
     revised = run_cli(json.dumps(payload))
     assert revised.returncode == 0
     hunk = load_pending_concept_diff(pending_path).hunks[0]
-    assert hunk.status == HunkStatus.REVISED
-    assert hunk.revision_instruction == "根拠を短くする"
+    assert hunk.status == HunkStatus.PENDING
+    assert hunk.revision_instruction is None
+    assert hunk.revision_history == ["根拠を短くする"]
+    assert "根拠を短くする" in hunk.diff_text
 
 
 def test_cli_spec_core_apply_updates_concept_and_removes_pending(tmp_path: Path) -> None:
@@ -414,6 +455,154 @@ def test_cli_spec_core_apply_updates_concept_and_removes_pending(tmp_path: Path)
     assert not pending_path.exists()
 
 
+def test_cli_structured_concept_approval_accept_applies_and_clears_pending(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    pending_path = write_concept_and_pending_diff(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "concept_diff",
+            "action": "accept",
+            "diff_id": "diff-1",
+            "hunk_id": "hunk-1",
+            "apply": True,
+        },
+    }
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.OK
+    assert envelope.result_type == ResultType.CORE_RESULT
+    assert not pending_path.exists()
+    assert "Auth is required." in (tmp_path / "docs/core/concept.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_cli_structured_approval_can_be_sent_with_any_spec_command(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    pending_path = write_concept_and_pending_diff(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-inject"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "concept_diff",
+            "action": "accept",
+            "diff_id": "diff-1",
+            "hunk_id": "hunk-1",
+            "apply": True,
+        },
+    }
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.OK
+    assert envelope.result_type == ResultType.CORE_RESULT
+    assert not pending_path.exists()
+
+
+def test_cli_structured_concept_revision_regenerates_then_accept_applies(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    pending_path = write_concept_and_pending_diff(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "concept_diff",
+            "action": "revise",
+            "diff_id": "diff-1",
+            "hunk_id": "hunk-1",
+            "revision_instruction": "Auth requires MFA for administrators.",
+            "apply": False,
+        },
+    }
+
+    revised = run_cli(json.dumps(payload))
+
+    assert revised.returncode == 0
+    revised_envelope = ResultEnvelope.from_json(revised.stdout)
+    assert revised_envelope.status == ResultStatus.BLOCKED
+    assert revised_envelope.result_type == ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT
+    hunk = load_pending_concept_diff(pending_path).hunks[0]
+    assert hunk.status == HunkStatus.PENDING
+    assert "Auth requires MFA for administrators." in hunk.diff_text
+
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "concept_diff",
+            "action": "accept",
+            "diff_id": "diff-1",
+            "hunk_id": "hunk-1",
+            "apply": True,
+        },
+    }
+    accepted = run_cli(json.dumps(payload))
+
+    assert accepted.returncode == 0
+    assert not pending_path.exists()
+    assert "Auth requires MFA for administrators." in (
+        tmp_path / "docs/core/concept.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_cli_spec_core_nonapproval_keeps_pending_for_next_prompt(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    pending_path = write_concept_and_pending_diff(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"]["reject"] = "diff-1:hunk-1"
+    run_cli(json.dumps(payload))
+
+    payload["options"] = {"output_format": "json", "apply": "diff-1"}
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.BLOCKED
+    assert envelope.result_type == ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT
+    assert envelope.execution.pending_concept_diff_id == "diff-1"
+    assert pending_path.exists()
+    assert load_pending_concept_diff(pending_path).hunks[0].status == HunkStatus.REJECTED
+
+
+def test_cli_structured_concept_nonapproval_returns_same_prompt(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    pending_path = write_concept_and_pending_diff(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "concept_diff",
+            "action": "reject",
+            "diff_id": "diff-1",
+            "hunk_id": "hunk-1",
+        },
+    }
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.BLOCKED
+    assert envelope.result_type == ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT
+    assert envelope.payload.approval_prompt["items"][0]["hunk_id"] == "hunk-1"
+    assert pending_path.exists()
+    assert load_pending_concept_diff(pending_path).hunks[0].status == HunkStatus.REJECTED
+
+
 def test_cli_spec_core_apply_hash_mismatch_returns_blocked(tmp_path: Path) -> None:
     write_config(tmp_path)
     pending_path = write_concept_and_pending_diff(tmp_path)
@@ -435,3 +624,142 @@ def test_cli_spec_core_apply_hash_mismatch_returns_blocked(tmp_path: Path) -> No
     assert envelope.execution.pending_concept_diff_id == "diff-1"
     assert pending_path == pending_concept_diff_path(tmp_path / ".spec-grag/pending", "diff-1")
     assert pending_path.exists()
+
+
+def test_cli_pending_conflict_review_returns_approval_prompt(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    write_pending_conflict_review(tmp_path)
+
+    result = run_cli(request_json(tmp_path, "spec-core"))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.BLOCKED
+    assert envelope.result_type == ResultType.CONFLICT_APPROVAL_REQUIRED_RESULT
+    assert envelope.execution.pending_conflict_review_id == "review-1"
+    assert envelope.execution.pending_conflict_candidate_ids == ["candidate-1"]
+    assert envelope.payload.approval_prompt["items"][0]["candidate_id"] == "candidate-1"
+
+
+def test_cli_spec_core_auto_generates_source_level_conflict_review(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    source_dir = tmp_path / "docs/spec"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "auth.md").write_text(
+        "# Auth\n\n## Required\n\nOAuth is required.\n\n## Optional\n\nOAuth is optional.\n",
+        encoding="utf-8",
+    )
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"]["all"] = True
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.BLOCKED
+    assert envelope.result_type == ResultType.CONFLICT_APPROVAL_REQUIRED_RESULT
+    assert envelope.execution.pending_conflict_review_id is not None
+    pending_path = pending_conflict_review_path(
+        tmp_path / ".spec-grag/pending",
+        envelope.execution.pending_conflict_review_id,
+    )
+    review = load_pending_conflict_review(pending_path)
+    assert review.candidates[0].rule_id == "required_optional"
+    assert len(review.candidates[0].evidence_spans) == 2
+    assert all(item["source_hash"] for item in review.candidates[0].evidence_spans)
+
+
+def test_cli_structured_conflict_accept_applies_sidecar_and_clears_pending(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    pending_path = write_pending_conflict_review(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "conflict_candidate",
+            "action": "accept",
+            "review_id": "review-1",
+            "candidate_id": "candidate-1",
+            "apply": True,
+        },
+    }
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.OK
+    assert envelope.result_type == ResultType.CORE_RESULT
+    assert not pending_path.exists()
+    sidecar = load_approved_conflicts(
+        approved_conflicts_path(tmp_path / ".spec-grag/graph")
+    )
+    assert [conflict.source_candidate_id for conflict in sidecar.conflicts] == [
+        "candidate-1"
+    ]
+
+
+def test_cli_structured_conflict_reject_writes_fingerprint_and_clears_pending(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    pending_path = write_pending_conflict_review(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "conflict_candidate",
+            "action": "reject",
+            "review_id": "review-1",
+            "candidate_id": "candidate-1",
+            "apply": True,
+        },
+    }
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.OK
+    assert not pending_path.exists()
+    sidecar = load_approved_conflicts(
+        approved_conflicts_path(tmp_path / ".spec-grag/graph")
+    )
+    assert sidecar.conflicts == []
+    assert sidecar.rejected_fingerprints[0].source_candidate_id == "candidate-1"
+
+
+def test_cli_structured_conflict_defer_keeps_pending(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    pending_path = write_pending_conflict_review(tmp_path)
+    payload = json.loads(request_json(tmp_path, "spec-core"))
+    payload["options"] = {
+        "output_format": "json",
+        "approval": {
+            "subject": "conflict_candidate",
+            "action": "defer",
+            "review_id": "review-1",
+            "candidate_id": "candidate-1",
+            "apply": False,
+        },
+    }
+
+    result = run_cli(json.dumps(payload))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.BLOCKED
+    assert envelope.result_type == ResultType.CONFLICT_APPROVAL_REQUIRED_RESULT
+    assert pending_path.exists()
+    review = load_pending_conflict_review(
+        pending_conflict_review_path(tmp_path / ".spec-grag/pending", "review-1")
+    )
+    assert review.candidates[0].status == ConflictCandidateStatus.DEFERRED

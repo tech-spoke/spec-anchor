@@ -25,6 +25,10 @@ from spec_grag.concept_index import (
     concept_index_path,
     load_concept_index,
 )
+from spec_grag.conflict_review import (
+    approved_conflict_notes,
+    pending_conflict_review_notes,
+)
 from spec_grag.core import run_core_update
 from spec_grag.embedding import embedding_for_text
 from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
@@ -101,40 +105,57 @@ def build_injection(
     project_root: Path,
     config: dict[str, Any],
     request: SlashCommandRequest,
+    *,
+    core_update: Any | None = None,
+    freshness_report: FreshnessReport | None = None,
 ) -> InjectionBuild:
-    core_update = run_core_update(project_root, config, all_sources=False)
-    if core_update.status == ResultStatus.FAILED:
-        payload = ErrorResult(
-            error_code="spec_core_failed",
-            message="SPEC-grag core update failed before injection",
-            details={
-                "failed_sources": core_update.failed_sources,
-                "warnings": core_update.warnings,
-            },
+    if core_update is None and freshness_report is None:
+        core_update = run_core_update(project_root, config, all_sources=False)
+    if core_update is not None:
+        if core_update.status == ResultStatus.FAILED:
+            payload = ErrorResult(
+                error_code="spec_core_failed",
+                message="SPEC-grag core update failed before injection",
+                details={
+                    "failed_sources": core_update.failed_sources,
+                    "warnings": core_update.warnings,
+                },
+            )
+            return InjectionBuild(
+                status=ResultStatus.FAILED,
+                result_type=ResultType.ERROR_RESULT,
+                payload=payload,
+                freshness_report=core_update.freshness_report,
+                warnings=core_update.warnings,
+                failed_sources=core_update.failed_sources,
+            )
+        if core_update.concept_diff is not None:
+            payload = ConceptApprovalRequiredResult(
+                concept_diff=core_update.concept_diff,
+                warnings=["pending_concept_diff_created"],
+            )
+            return InjectionBuild(
+                status=ResultStatus.BLOCKED,
+                result_type=ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT,
+                payload=payload,
+                freshness_report=core_update.freshness_report,
+                warnings=["pending_concept_diff_created"],
+                context_ready=False,
+            )
+        graph_dir = Path(core_update.graph_storage)
+        active_freshness = core_update.freshness_report
+        core_status = core_update.status
+        core_warnings = core_update.warnings
+        failed_sources = core_update.failed_sources
+    else:
+        active_freshness = freshness_report or FreshnessReport(
+            graph_storage_path=str(graph_storage_path(project_root, config)),
+            source_manifest_path=str(graph_storage_path(project_root, config) / "source_manifest.json"),
         )
-        return InjectionBuild(
-            status=ResultStatus.FAILED,
-            result_type=ResultType.ERROR_RESULT,
-            payload=payload,
-            freshness_report=core_update.freshness_report,
-            warnings=core_update.warnings,
-            failed_sources=core_update.failed_sources,
-        )
-    if core_update.concept_diff is not None:
-        payload = ConceptApprovalRequiredResult(
-            concept_diff=core_update.concept_diff,
-            warnings=["pending_concept_diff_created"],
-        )
-        return InjectionBuild(
-            status=ResultStatus.BLOCKED,
-            result_type=ResultType.CONCEPT_APPROVAL_REQUIRED_RESULT,
-            payload=payload,
-            freshness_report=core_update.freshness_report,
-            warnings=["pending_concept_diff_created"],
-            context_ready=False,
-        )
-
-    graph_dir = Path(core_update.graph_storage)
+        graph_dir = Path(active_freshness.graph_storage_path)
+        core_status = ResultStatus.OK
+        core_warnings = list(active_freshness.warnings)
+        failed_sources = []
     manifest = load_source_manifest(graph_dir / "source_manifest.json")
     query = central_query(request)
     classification_llm = make_classification_llm_from_config(config)
@@ -203,7 +224,7 @@ def build_injection(
     )
 
     warnings = [
-        *core_update.warnings,
+        *core_warnings,
         *graph_retrieval.warnings,
         *purpose_warning,
         *concept_warning,
@@ -230,7 +251,7 @@ def build_injection(
             status=ResultStatus.BLOCKED,
             result_type=ResultType.NEED_MORE_CONTEXT_RESULT,
             payload=need_more,
-            freshness_report=core_update.freshness_report,
+            freshness_report=active_freshness,
             warnings=warnings,
             context_ready=False,
             degraded_components=["retrieval"],
@@ -343,12 +364,14 @@ def build_injection(
                 *cluster_items,
                 *chapter_anchor_items,
             ],
-        ),
+        )
+        + approved_conflict_notes(graph_dir),
         review_notes=[
             *review_notes_for_invalid_agentic(invalid_agentic),
             *review_notes_for_unresolved(graph_dir),
             *review_notes_for_cluster_stale(graph_dir),
             *review_notes_for_graph_structure(graph_retrieval.graph_data),
+            *pending_conflict_review_notes(project_root),
             *review_notes_for_semantic_candidates(
                 [
                     *concept_items,
@@ -358,25 +381,34 @@ def build_injection(
                 ]
             ),
         ],
-        freshness_report=core_update.freshness_report,
+        freshness_report=active_freshness,
         approved_concept_update=None,
         warnings=warnings,
     )
 
     status = (
         ResultStatus.DEGRADED
-        if warnings and core_update.status == ResultStatus.OK
-        else core_update.status
+        if warnings and core_status == ResultStatus.OK
+        else core_status
     )
     return InjectionBuild(
         status=status,
         result_type=ResultType.INJECTION_CONTEXT,
         payload=context,
-        freshness_report=core_update.freshness_report,
+        freshness_report=active_freshness,
         warnings=warnings,
         context_ready=True,
+        failed_sources=failed_sources,
         degraded_components=warnings and ["retrieval"] or [],
     )
+
+
+def graph_storage_path(project_root: Path, config: dict[str, Any]) -> Path:
+    configured = config.get("graph", {}).get("storage", ".spec-grag/graph/")
+    path = Path(configured)
+    if not path.is_absolute():
+        path = project_root / path
+    return path
 
 
 def central_query(request: SlashCommandRequest) -> str:

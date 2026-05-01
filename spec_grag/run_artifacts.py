@@ -36,6 +36,7 @@ def maybe_write_run_artifact(
         "status": envelope.status.value,
         "result_type": envelope.result_type.value,
         "runtime_mode": str(config.get("_runtime_mode", "production")),
+        "runtime_policy": envelope.execution.runtime_policy,
         "providers": provider_summary(config),
         "warnings": envelope.warnings,
         "degraded_components": envelope.execution.degraded_components,

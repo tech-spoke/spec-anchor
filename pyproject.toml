@@ -18,6 +18,7 @@ dependencies = [
 spec-grag = "spec_grag.cli:main"
 spec-grag-slash = "spec_grag.slash:main"
 spec-grag-setup-project = "spec_grag.project_setup:main"
+spec-grag-watch = "spec_grag.watcher:main"
 
 [tool.setuptools.packages.find]
 include = ["spec_grag*"]

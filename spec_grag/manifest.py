@@ -7,7 +7,7 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
 from importlib.metadata import PackageNotFoundError, version
@@ -92,15 +92,22 @@ def build_current_section_manifest(
     *,
     generated_at: str | None = None,
     section_max_heading_level: int = 6,
+    document_texts: Mapping[str, str] | None = None,
 ) -> SourceManifest:
     entries: list[SourceManifestEntry] = []
     root = project_root.resolve()
     for source_path in sorted(Path(path) for path in source_paths):
+        resolved = source_path.resolve()
+        document_id = _document_id(root, resolved)
+        text = None
+        if document_texts is not None:
+            text = document_texts.get(document_id)
         entries.extend(
             _entries_for_markdown_file(
                 root,
-                source_path,
+                resolved,
                 section_max_heading_level=section_max_heading_level,
+                text=text,
             )
         )
     return SourceManifest(
@@ -253,10 +260,12 @@ def _entries_for_markdown_file(
     source_path: Path,
     *,
     section_max_heading_level: int,
+    text: str | None = None,
 ) -> list[SourceManifestEntry]:
     resolved = source_path.resolve()
     document_id = _document_id(project_root, resolved)
-    text = resolved.read_text(encoding="utf-8")
+    if text is None:
+        text = resolved.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
     headings = [
         heading

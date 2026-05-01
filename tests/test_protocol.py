@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from spec_grag.protocol import (
     AgentCapabilities,
+    ApprovalDecision,
     Command,
     ConversationContext,
     CoreResult,
@@ -83,6 +84,37 @@ def test_request_options_revise_requires_instruction() -> None:
 
     assert options.revise == "d:h"
     assert options.revision_instruction == "短くする"
+
+
+def test_request_options_accepts_structured_concept_approval() -> None:
+    options = RequestOptions(
+        output_format="json",
+        approval=ApprovalDecision(
+            subject="concept_diff",
+            action="accept",
+            diff_id="diff-1",
+            hunk_id="hunk-1",
+            apply=True,
+        ),
+    )
+
+    assert options.approval is not None
+    assert options.approval.subject == "concept_diff"
+    assert options.approval.apply is True
+
+
+def test_request_options_rejects_mixed_legacy_and_structured_approval() -> None:
+    with pytest.raises(ValidationError):
+        RequestOptions(
+            output_format="json",
+            accept="diff-1:hunk-1",
+            approval=ApprovalDecision(
+                subject="concept_diff",
+                action="reject",
+                diff_id="diff-1",
+                hunk_id="hunk-1",
+            ),
+        )
 
 
 def test_result_envelope_roundtrip_core_result() -> None:

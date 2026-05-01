@@ -27,7 +27,8 @@ spec-grag-slash spec-realign "task prompt"
 ```
 
 Use the returned `RealignResult.answer` as the answer basis. Respect
-`NeedMoreContextResult` and `ConceptApprovalRequiredResult` as blockers.
+`NeedMoreContextResult`, `ConceptApprovalRequiredResult`, and
+`ConflictApprovalRequiredResult` as blockers.
 
 Answer phase constraint: do not escape into raw source reads, broad grep, or
 additional agentic search after this command unless the JSON envelope explicitly

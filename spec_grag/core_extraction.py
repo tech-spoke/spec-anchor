@@ -469,10 +469,15 @@ def extract_schema_llm_artifacts(
     extracted_at: str,
     section_ids_to_extract: Sequence[str],
     schema_extractor: SchemaExtractor | None = None,
+    document_texts: Mapping[str, str] | None = None,
 ) -> SchemaLLMExtractionResult:
     extraction_config = _mapping(config.get("extraction"))
     entries_by_id = manifest.by_section_id()
-    section_texts = read_section_texts(project_root, manifest)
+    section_texts = read_section_texts(
+        project_root,
+        manifest,
+        document_texts=document_texts,
+    )
     grounding = _GroundingIndex(
         manifest,
         section_texts=section_texts,
@@ -898,7 +903,12 @@ def carry_forward_schema_llm_artifacts(
     return graph_store
 
 
-def read_section_texts(project_root: Path, manifest: SourceManifest) -> dict[str, str]:
+def read_section_texts(
+    project_root: Path,
+    manifest: SourceManifest,
+    *,
+    document_texts: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     texts: dict[str, str] = {}
     by_document: dict[str, list[SourceManifestEntry]] = defaultdict(list)
     for entry in manifest.entries:
@@ -908,7 +918,14 @@ def read_section_texts(project_root: Path, manifest: SourceManifest) -> dict[str
         path = Path(document_id)
         if not path.is_absolute():
             path = project_root / path
-        lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+        text = (
+            document_texts.get(document_id)
+            if document_texts is not None
+            else None
+        )
+        if text is None:
+            text = path.read_text(encoding="utf-8")
+        lines = text.splitlines(keepends=True)
         ordered = sorted(entries, key=lambda item: (item.heading_start_line, item.section_id))
         for index, entry in enumerate(ordered):
             start = max(entry.heading_start_line - 1, 0)

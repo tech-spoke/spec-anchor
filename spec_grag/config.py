@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import Field, field_validator, model_validator
@@ -14,6 +15,7 @@ from spec_grag.protocol import StrictModel
 SMOKE_ENV_VAR = "SPEC_GRAG_SMOKE"
 RUNTIME_MODE_ENV_VAR = "SPEC_GRAG_RUNTIME_MODE"
 SMOKE_TRUE_VALUES = {"1", "true", "yes", "on", "smoke"}
+RUNTIME_MODES = {"smoke", "local_daily", "ci", "production"}
 LLM_PROVIDERS = {"codex", "claude"}
 LLM_PROVIDER_TO_STAGE_PROVIDER = {
     "codex_cli": "codex",
@@ -53,11 +55,38 @@ class ConfigPolicyError(ValueError):
     """Raised when a valid config schema violates runtime policy."""
 
 
+class RuntimeMode(StrEnum):
+    SMOKE = "smoke"
+    LOCAL_DAILY = "local_daily"
+    CI = "ci"
+    PRODUCTION = "production"
+
+
+class ExecutionRole(StrEnum):
+    FOREGROUND_HUMAN = "foreground_human"
+    BACKGROUND_WATCHER = "background_watcher"
+    CI_NO_WATCHER = "ci_no_watcher"
+    PRODUCTION = "production"
+
+
 def smoke_mode_enabled(env: Mapping[str, str] | None = None) -> bool:
     values = env if env is not None else os.environ
     smoke_value = str(values.get(SMOKE_ENV_VAR, "")).strip().lower()
     runtime_value = str(values.get(RUNTIME_MODE_ENV_VAR, "")).strip().lower()
     return smoke_value in SMOKE_TRUE_VALUES or runtime_value == "smoke"
+
+
+class RuntimePolicy(StrictModel):
+    mode: RuntimeMode
+    execution_role: ExecutionRole
+    watcher_required: bool
+    foreground_incremental: bool
+    fail_fast_on_dirty: bool
+    fail_fast_on_pending: bool
+    fail_fast_on_stale: bool
+
+    def as_artifact(self) -> dict[str, Any]:
+        return self.model_dump(mode="json")
 
 
 class SourcesConfig(StrictModel):
@@ -369,6 +398,31 @@ class RunConfig(StrictModel):
         return value
 
 
+class RuntimeConfig(StrictModel):
+    mode: Literal["smoke", "local_daily", "ci", "production"] | None = None
+    watcher_required: bool | None = None
+    foreground_incremental: bool | None = None
+    fail_fast_on_dirty: bool | None = None
+    fail_fast_on_pending: bool | None = None
+    fail_fast_on_stale: bool | None = None
+
+
+class WatcherConfig(StrictModel):
+    enabled: bool = True
+    interval_ms: int = Field(default=2000, ge=50, le=3_600_000)
+    debounce_ms: int = Field(default=500, ge=0, le=600_000)
+    stale_lock_ms: int = Field(default=300_000, ge=1000, le=86_400_000)
+    state_file: str = ".spec-grag/state/watch_state.json"
+    queue_file: str = ".spec-grag/state/watch_queue.json"
+
+    @field_validator("state_file", "queue_file")
+    @classmethod
+    def path_must_not_be_empty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("watcher path must be a non-empty string")
+        return value
+
+
 class ProjectConfig(StrictModel):
     sources: SourcesConfig
     core: CoreConfig = Field(default_factory=CoreConfig)
@@ -383,6 +437,8 @@ class ProjectConfig(StrictModel):
     llm: ProjectLLMConfig | None = None
     embedding: EmbeddingConfig | None = None
     run: RunConfig = Field(default_factory=RunConfig)
+    runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
+    watcher: WatcherConfig = Field(default_factory=WatcherConfig)
 
     @model_validator(mode="after")
     def stage_effort_must_match_provider(self) -> ProjectConfig:
@@ -406,12 +462,116 @@ def validate_project_config(
     smoke_mode = smoke_mode_enabled() if smoke is None else smoke
     validated = ProjectConfig.model_validate(apply_llm_provider_defaults(config))
     normalized = validated.model_dump(mode="python", exclude_none=True)
+    runtime_mode = resolve_runtime_mode(normalized, smoke_mode=smoke_mode)
     if smoke_mode:
-        normalized["_runtime_mode"] = "smoke"
+        normalized["_runtime_mode"] = runtime_mode
+        normalized["_smoke_mode"] = True
         return normalized
     enforce_production_policy(normalized)
-    normalized["_runtime_mode"] = "production"
+    normalized["_runtime_mode"] = runtime_mode
+    normalized["_smoke_mode"] = False
     return normalized
+
+
+def resolve_runtime_mode(
+    config: Mapping[str, Any],
+    *,
+    smoke_mode: bool | None = None,
+    env: Mapping[str, str] | None = None,
+) -> str:
+    values = env if env is not None else os.environ
+    runtime_config = _mapping(config.get("runtime"))
+    configured = _normalized_text(runtime_config.get("mode"))
+    env_mode = _normalized_text(values.get(RUNTIME_MODE_ENV_VAR))
+    if configured in RUNTIME_MODES:
+        return configured
+    if env_mode in RUNTIME_MODES:
+        return env_mode
+    if smoke_mode is None:
+        smoke_mode = smoke_mode_enabled(values)
+    return RuntimeMode.SMOKE.value if smoke_mode else RuntimeMode.PRODUCTION.value
+
+
+def resolve_runtime_policy(
+    config: Mapping[str, Any],
+    *,
+    execution_role: ExecutionRole | str | None = None,
+) -> RuntimePolicy:
+    mode_value = _normalized_text(config.get("_runtime_mode")) or resolve_runtime_mode(config)
+    if mode_value not in RUNTIME_MODES:
+        mode_value = RuntimeMode.PRODUCTION.value
+    mode = RuntimeMode(mode_value)
+    role = (
+        ExecutionRole(execution_role)
+        if execution_role is not None
+        else default_execution_role_for_mode(mode)
+    )
+
+    defaults = _runtime_policy_defaults(mode)
+    runtime_config = _mapping(config.get("runtime"))
+    values = {
+        key: bool(runtime_config.get(key, defaults[key]))
+        for key in (
+            "watcher_required",
+            "foreground_incremental",
+            "fail_fast_on_dirty",
+            "fail_fast_on_pending",
+            "fail_fast_on_stale",
+        )
+    }
+
+    if mode == RuntimeMode.PRODUCTION:
+        values["foreground_incremental"] = False
+        values["fail_fast_on_dirty"] = True
+        values["fail_fast_on_pending"] = True
+        values["fail_fast_on_stale"] = True
+
+    if role == ExecutionRole.BACKGROUND_WATCHER:
+        values["foreground_incremental"] = False
+
+    return RuntimePolicy(mode=mode, execution_role=role, **values)
+
+
+def default_execution_role_for_mode(mode: RuntimeMode) -> ExecutionRole:
+    if mode == RuntimeMode.CI:
+        return ExecutionRole.CI_NO_WATCHER
+    if mode == RuntimeMode.PRODUCTION:
+        return ExecutionRole.PRODUCTION
+    return ExecutionRole.FOREGROUND_HUMAN
+
+
+def _runtime_policy_defaults(mode: RuntimeMode) -> dict[str, bool]:
+    if mode == RuntimeMode.LOCAL_DAILY:
+        return {
+            "watcher_required": True,
+            "foreground_incremental": False,
+            "fail_fast_on_dirty": False,
+            "fail_fast_on_pending": False,
+            "fail_fast_on_stale": False,
+        }
+    if mode == RuntimeMode.CI:
+        return {
+            "watcher_required": False,
+            "foreground_incremental": True,
+            "fail_fast_on_dirty": False,
+            "fail_fast_on_pending": False,
+            "fail_fast_on_stale": False,
+        }
+    if mode == RuntimeMode.SMOKE:
+        return {
+            "watcher_required": False,
+            "foreground_incremental": True,
+            "fail_fast_on_dirty": False,
+            "fail_fast_on_pending": False,
+            "fail_fast_on_stale": False,
+        }
+    return {
+        "watcher_required": False,
+        "foreground_incremental": False,
+        "fail_fast_on_dirty": True,
+        "fail_fast_on_pending": True,
+        "fail_fast_on_stale": True,
+    }
 
 
 def apply_llm_provider_defaults(config: Mapping[str, Any]) -> dict[str, Any]:

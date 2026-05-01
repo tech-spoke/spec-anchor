@@ -153,6 +153,26 @@ def test_slash_wrapper_builds_concept_diff_revision_payload() -> None:
     assert request.task_prompt is None
 
 
+def test_slash_wrapper_builds_structured_approval_payload() -> None:
+    approval = json.dumps(
+        {
+            "subject": "concept_diff",
+            "action": "accept",
+            "diff_id": "diff-1",
+            "hunk_id": "hunk-1",
+            "apply": True,
+        }
+    )
+    args = parse_args(["spec-core", "--approval-json", approval])
+
+    payload = build_payload(args)
+    request = SlashCommandRequest.model_validate(payload)
+
+    assert request.options.approval is not None
+    assert request.options.approval.subject == "concept_diff"
+    assert request.options.approval.apply is True
+
+
 def test_slash_script_print_request_uses_current_transport_schema(tmp_path: Path) -> None:
     result = run_command(
         [
@@ -227,6 +247,9 @@ def test_project_setup_installs_templates_and_protects_existing_files(tmp_path: 
     assert config["embedding"]["provider"] == "ollama"
     assert config["answer"]["provider"] == "codex"
     assert config["answer"]["effort"] == "low"
+    assert config["watcher"]["enabled"] is True
+    assert config["watcher"]["debounce_ms"] == 500
+    assert config["watcher"]["state_file"] == ".spec-grag/state/watch_state.json"
 
     config_path.write_text("[sources]\ninclude = [\"changed.md\"]\n", encoding="utf-8")
     conflict = run_command(

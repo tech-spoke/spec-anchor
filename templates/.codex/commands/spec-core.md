@@ -1,6 +1,6 @@
 ---
 description: Refresh SPEC-grag graph state and manage guarded Concept diffs.
-argument-hint: "[--all] [--accept diff:hunk | --reject diff:hunk | --revise diff:hunk \"instruction\" | --apply diff]"
+argument-hint: "[--all] [--approval-json '<approval transport JSON>']"
 allowed-tools: Bash(spec-grag-slash:*), Bash(python:*)
 ---
 
@@ -24,12 +24,11 @@ Argument contract:
 
 - `/spec-core`
 - `/spec-core --all`
-- `/spec-core --accept <diff_id>:<hunk_id>`
-- `/spec-core --reject <diff_id>:<hunk_id>`
-- `/spec-core --revise <diff_id>:<hunk_id> "<instruction>"`
-- `/spec-core --apply <diff_id>`
+- internal approval transport through `--approval-json`
 
 Read the JSON envelope before acting. If the result is
-`ConceptApprovalRequiredResult`, ask the user for hunk-level approval before
-running accept, reject, revise, or apply. Do not edit `docs/core/concept.md`
-directly to bypass the pending diff protocol.
+`ConceptApprovalRequiredResult` or `ConflictApprovalRequiredResult`, summarize
+`approval_prompt.items` in chat and ask the user for approval, revision
+instructions, non-approval, or defer where available. Then pass the selected
+`transport.approval` object back through `--approval-json`. Do not edit
+`docs/core/concept.md` directly to bypass the pending diff protocol.

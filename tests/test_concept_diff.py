@@ -18,6 +18,7 @@ from spec_grag.concept_diff import (
     load_pending_concept_diff,
     parse_hunk_ref,
     pending_concept_diff_path,
+    regenerate_revised_hunks,
     reject_hunk,
     revise_hunk,
 )
@@ -73,6 +74,30 @@ def test_pending_concept_diff_roundtrip_and_hunk_statuses(tmp_path: Path) -> Non
     assert path == pending_concept_diff_path(pending_dir, "diff-1")
     assert revised.hunks[0].status == HunkStatus.REVISED
     assert revised.hunks[0].revision_instruction == "認証必須の根拠を短くする"
+
+
+def test_regenerate_revised_hunk_returns_pending_approval_candidate(
+    tmp_path: Path,
+) -> None:
+    concept_file = tmp_path / "docs/core/concept.md"
+    concept_file.parent.mkdir(parents=True)
+    concept_file.write_text(
+        "# Concept\nAuth is optional.\nKeep sessions short.\n",
+        encoding="utf-8",
+    )
+    revised = revise_hunk(
+        make_pending_diff(concept_file),
+        "hunk-1",
+        "Auth requires MFA for administrators.",
+    )
+
+    regenerated = regenerate_revised_hunks(revised, concept_file)
+
+    hunk = regenerated.hunks[0]
+    assert hunk.status == HunkStatus.PENDING
+    assert hunk.revision_instruction is None
+    assert hunk.revision_history == ["Auth requires MFA for administrators."]
+    assert "Auth requires MFA for administrators." in hunk.diff_text
 
 
 def test_apply_pending_concept_diff_applies_only_accepted_hunks_and_removes_pending(
@@ -131,6 +156,24 @@ def test_apply_pending_concept_diff_blocks_on_unresolved_hunks(tmp_path: Path) -
 
     assert result.status == ConceptApplyStatus.BLOCKED
     assert result.blocked_reason == "unresolved_hunks:hunk-1"
+
+
+def test_rejected_hunk_stays_unresolved_so_same_approval_is_requested(
+    tmp_path: Path,
+) -> None:
+    concept_file = tmp_path / "docs/core/concept.md"
+    concept_file.parent.mkdir(parents=True)
+    concept_file.write_text(
+        "# Concept\nAuth is optional.\nKeep sessions short.\n",
+        encoding="utf-8",
+    )
+    diff = reject_hunk(make_pending_diff(concept_file), "hunk-1")
+
+    result = apply_pending_concept_diff(diff, concept_file)
+
+    assert result.status == ConceptApplyStatus.BLOCKED
+    assert result.blocked_reason == "unresolved_hunks:hunk-1"
+    assert "Auth is optional." in concept_file.read_text(encoding="utf-8")
 
 
 def test_apply_pending_concept_diff_detects_hunk_mismatch(tmp_path: Path) -> None:

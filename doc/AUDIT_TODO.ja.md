@@ -60,14 +60,14 @@
 
 | 契約 | 期待 | 実装 | test / 証跡 | 判定 | 備考 |
 |---|---|---|---|---|---|
-| GRAG Freshness | readiness gate で fresh / dirty / pending / stale を判定し、mode 別に扱う | 外部設計更新済み | `doc/EXTERNAL_DESIGN.ja.md` 3.2 | PARTIAL | 実装 / E2E は未 |
+| GRAG Freshness | readiness gate で fresh / dirty / pending / stale を判定し、mode 別に扱う | `spec_grag/readiness.py` | `tests/test_phase10_readiness.py` | OK |  |
 | Purpose read-only | Purpose を更新しない |  |  |  |  |
 | Concept diff 承認 | 未承認 Concept を採用しない |  |  |  |  |
-| Concept diff 単一 pending | pending 中は追加 diff を多重生成せず queue/cache に積む | 外部設計更新済み | `doc/EXTERNAL_DESIGN.ja.md` 3.4 | MISSING | 実装 / E2E は未 |
-| provisional concept cache | 未承認 Concept 候補を差分検出効率化だけに使う | 外部設計更新済み | `doc/EXTERNAL_DESIGN.ja.md` 3.4 | MISSING | accepted Concept と混ぜない |
-| foreground approval | 人が呼ぶ spec-core / inject / realign は pending 承認フロー対象 | 外部設計更新済み | `doc/EXTERNAL_DESIGN.ja.md` 3.4 / 4.3 | PARTIAL | 現行CLIとの差分確認が必要 |
-| watcher background role | watcher は承認プロンプトを出さず pending / queue / cache 更新で停止 | 外部設計更新済み | `doc/EXTERNAL_DESIGN.ja.md` 3.4 | MISSING | watcher 未実装 |
-| Conflict 候補 | 未承認 Conflict を確定扱いしない |  |  |  |  |
+| Concept diff 単一 pending | pending 中は追加 diff を多重生成せず queue/cache に積む | `spec_grag/concept_index.py` / `watch_state.py` | `tests/test_phase10_readiness.py` | OK |  |
+| provisional concept cache | 未承認 Concept 候補を差分検出効率化だけに使う | `spec_grag/watch_state.py` | `tests/test_phase10_readiness.py` | OK | accepted Concept と混ぜない |
+| foreground approval | 人が呼ぶ spec-core / inject / realign は pending 承認フロー対象 | `options.approval` / approval_prompt | `tests/test_cli.py` | OK | 外部 slash command 追加なし |
+| watcher background role | watcher は承認プロンプトを出さず pending / queue / cache 更新で停止 | `spec_grag/watcher.py` | `tests/test_phase10_readiness.py` | OK | polling 実装 |
+| Conflict 候補 | 未承認 Conflict を確定扱いしない | `spec_grag/conflict_review.py` | `tests/test_cli.py` / `tests/test_injection_realign.py` | OK | `/spec-core` auto generation + approved_conflicts sidecar |
 | Answer 入力境界 | task_prompt + InjectionContext のみ |  |  |  |  |
 | Source evidence | source_section_id / source_span / source_hash を保持 |  |  |  |  |
 | section 化規約 | `section_max_heading_level` 超過を親へ統合 |  |  |  |  |
@@ -116,7 +116,7 @@ full build 後に実行する。
 | injection | `spec-inject` | InjectionContext |  |  |  |
 | realign | `spec-realign` | RealignResult または NeedMoreContext |  |  |  |
 | pending Concept block | pending diff 作成後 `spec-inject` | blocked |  |  |  |
-| Concept accept/reject/revise/apply | slash options | state 遷移 OK |  |  |  |
+| Concept accept/reject/revise/apply | `options.approval` | state 遷移 OK | `tests/test_cli.py` | OK | legacy wrapper flags は内部互換 |
 | hash mismatch | stale pending diff apply | blocked |  |  |  |
 | Answer NeedMoreContext | LLM が needs_more_context | blocked |  |  |  |
 | ConflictNotes / ReviewNotes | conflict / review evidence | Answer で明示 |  |  |  |
@@ -126,30 +126,40 @@ full build 後に実行する。
 
 日常利用では watcher が Source specs 変更を検知し、background incremental を実行する。slash command は重い core 更新を毎回同期実行せず、readiness gate と承認フローだけを担う。
 
-- [ ] `watch_state` artifact を設計する
+- [x] `watch_state` artifact を設計する
   - 期待: `fresh` / `dirty` / `pending` / `stale`、last processed semantic hash、running / failed 状態、last run id を保存する
-- [ ] `watch_queue` artifact を設計する
+- [x] `watch_queue` artifact を設計する
   - 期待: pending 中に変更された `source_section_id`、semantic hash、理由、発生時刻を保存する
-- [ ] provisional concept cache を設計する
-  - 期待: label、normalized label、supporting sections、source semantic hashes、confidence、first_seen / last_seen、provider / model / prompt version、rejected / suppressed 履歴を保存する
+- [x] provisional concept cache を設計する
+  - 期待: label、normalized label、supporting sections、source semantic hashes、confidence、first_seen / last_seen、provider / model / prompt version を保存する
+  - 期待: 非承認時は cache / pending を残し、次回コマンドで同じ承認を求める
   - 禁止: InjectionContext / Answer / Conflict 確定 / production readiness の authoritative input に使わない
-- [ ] Concept diff の単一 pending 制約を実装する
+- [x] Concept diff の単一 pending 制約を実装する
   - 期待: pending がある間は新しい diff を作らず queue/cache 更新だけ行う
   - 期待: pending 解消後、queued change を最新 Concept base hash で再評価する
-- [ ] foreground `/spec-core` の承認フローを実装 / 監査する
+- [x] foreground `/spec-core` の承認フローを実装 / 監査する
   - 期待: 人が呼んだ `/spec-core` は pending Concept diff / Conflict 候補を `/spec-inject` と同じく確認対象にする
   - 期待: background watcher の core 更新では承認プロンプトを出さない
-- [ ] `/spec-inject` / `/spec-realign` を readiness gate 経由へ変更する
+- [x] `/spec-inject` / `/spec-realign` を readiness gate 経由へ変更する
   - local daily: dirty なら同期 core 更新せず blocked / watcher waiting
   - CI / watcherなし: foreground incremental 可
   - production: dirty / pending / stale は fail-fast
-- [ ] E2E を追加する
+- [x] E2E を追加する
   - pending Concept diff 中に source 追加変更しても diff が多重生成されない
   - pending 解消後に queued section が再評価される
   - provisional cache が未承認 Concept として InjectionContext に混入しない
   - local daily dirty で inject / realign が同期 core を走らせない
   - CI mode では watcherなしでも foreground incremental が走る
   - production mode では dirty / pending / stale が fail-fast する
+
+実装証跡（2026-05-02）:
+
+- `spec_grag/config.py`: `[runtime]` schema と `resolve_runtime_policy()`、`[watcher]` schema を追加。production は dirty / pending / stale fail-fast を強制し、watcher は `enabled` / timing / state path / queue path を config から解決。
+- `spec_grag/readiness.py`: source manifest / semantic hash / artifact / embedding metadata / extractor version / pending state を横断した readiness gate を追加。
+- `spec_grag/watch_state.py`: `watch_state.json`、`watch_queue.json`、`provisional_concept_cache.json`、heartbeat lock を追加。
+- `spec_grag/watcher.py`: `spec-grag-watch` 常駐 polling watcher を追加。single worker で開始時 snapshot を処理し、実行中追加変更は `watch_queue` に積んで次サイクルで drain する。
+- `spec_grag/readiness.py`: watcher running / queued changes を readiness gate に統合。local daily は blocked、production は fail-fast、CI / watcherなしは foreground incremental を許可。
+- `tests/test_phase10_readiness.py`: local daily blocked、CI foreground incremental、production fail-fast、単一 pending queue、queued 再評価、provisional cache 非混入、background watcher 非承認、watcher running / queue blocker、実行中変更 queue、次サイクル drain を regression 化。
 
 ## D. GRAG Quality / Retrieval Evaluation
 
@@ -295,8 +305,9 @@ uv run spec-grag-slash spec-core --all --pretty
   - 判定: `community_report` の `Argument list too long` は解消。degraded は pending Concept diff による通常状態
 - [x] pending Concept diff を解消して no-change incremental を実測する
   - 判定: OK
-  - 処理: `diff-76f8e35d58b55cb2:hunk-1` は Core Concept へ入れるには粒度が細かいため reject し、`--apply diff-76f8e35d58b55cb2` で pending を除去
+  - 処理（Phase 10 前の旧挙動）: `diff-76f8e35d58b55cb2:hunk-1` は Core Concept へ入れるには粒度が細かいため reject し、`--apply diff-76f8e35d58b55cb2` で pending を除去
   - 証跡: `applied_hunk_ids = []`、`pending_concept_diff_id = null`
+  - Phase 10 後の方針: reject / 非承認は pending を除去せず、同じ承認を次回も求める。pending 解消は承認 apply または修正後の承認 apply で行う
 - [x] no-change incremental の性能確認
   - 判定: OK
   - 1回目: pending 解消後の no-change `spec-core` は `updated_sources = []` / `status = ok` だが `real 74.13s`
@@ -315,7 +326,7 @@ uv run spec-grag-slash spec-core --all --pretty
   - `10_問題点一覧.md` の空行変更: `updated_sources = 1`、`pending_concept_diff_id = diff-1b28c01ddea0259d`、`real 38.91s`
   - 測定用変更の復元: `updated_sources = 2`、`pending_concept_diff_id = diff-8e0665d9be88c021`、`real 71.76s`
   - 復元後 no-change 確認: `updated_sources = []`、`concept_diff = null`、`real 2.93s`
-  - 対応: 測定で生成された Concept diff はすべて reject/apply 済み。`テスト用ドキュメント/10_問題点一覧.md` と `テスト用ドキュメント/20_管理画面の基本設計.md` は差分なしへ復元済み
+  - 対応（Phase 10 前の旧挙動）: 測定で生成された Concept diff はすべて reject/apply 済み。`テスト用ドキュメント/10_問題点一覧.md` と `テスト用ドキュメント/20_管理画面の基本設計.md` は差分なしへ復元済み
 - [x] format-only change の heavy path を抑制する
   - 判定: OK
   - 修正: source manifest に `raw_hash` / `semantic_hash` を分離して保存し、空行・末尾空白・通常 prose の空白差分は `format_only_section_ids` として扱う
@@ -333,6 +344,6 @@ uv run spec-grag-slash spec-core --all --pretty
 | 2026-05-01 | Preflight / provider前提一部 | OK。production config valid、Purpose除外OK、418 sections / 84 batches、pytest 161 passed、Ollama bge-m3 dim 1024 | なし | full build 前に ccusage baseline と既存 graph metadata を記録 |
 | 2026-05-01 | production `spec-core --all` 1回目 | FAILED。Codex extraction と embedding artifact は生成されたが、community_report が argv 長すぎで失敗 | Codex prompt argv 渡し、failed 時 artifact 部分更新 | Codex prompt stdin 化、embedding差分再利用、artifact transaction監査 |
 | 2026-05-01 | 修正後 incremental `spec-core` | DEGRADED。約1分30秒で完了、pending Concept diff 作成、community_report ARG_MAX 解消 | pending Concept diff | Concept diff を処理して no-change incremental / inject / realign へ進む |
-| 2026-05-01 | no-change incremental 実測 | OK。Concept diff reject/apply 後、`updated_sources = []`。不要な community_report LLM と artifact 再構築を抑制し 74.13s -> 17.77s -> 2.99s | source manifest 読み取りと hash 比較の数秒は残る | inject / realign E2E、artifact transaction監査 |
+| 2026-05-01 | no-change incremental 実測 | OK。Phase 10 前の旧 reject/apply 後、`updated_sources = []`。不要な community_report LLM と artifact 再構築を抑制し 74.13s -> 17.77s -> 2.99s | source manifest 読み取りと hash 比較の数秒は残る | inject / realign E2E、artifact transaction監査 |
 | 2026-05-01 | source specs 変更時 incremental 実測 | RISK。1 section の空行変更でも Concept が空に近いため pending Concept diff が発生。38.91s〜77.08s | Concept baseline 未整備により Concept diff が過敏 | Concept 初期採用方針、Concept diff 粒度、changed section 後段コスト削減を検討 |
 | 2026-05-01 | format-only semantic hash 対応 | OK。空行変更は heavy path に入らず `concept_diff = null`、約2〜3秒。full pytest 168 passed | 意味変更時の Concept diff 過敏さは別課題 | watcher / readiness gate、provisional concept cache、単一 pending を実装する |

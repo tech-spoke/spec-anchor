@@ -15,6 +15,12 @@ from spec_grag.concept_diff import (
     concept_file_hash,
     create_pending_concept_diff,
 )
+from spec_grag.conflict_review import (
+    ApprovedConflict,
+    ApprovedConflictsSidecar,
+    approved_conflicts_path,
+    write_approved_conflicts_atomic,
+)
 from spec_grag.manifest import build_current_section_manifest, load_source_manifest
 from spec_grag.protocol import (
     AgenticSearchCandidate,
@@ -474,6 +480,44 @@ def test_llm_semantic_candidate_requires_review_without_hard_conflict() -> None:
             "review_required": True,
         }
     ]
+
+
+def test_injection_context_includes_approved_conflict_sidecar(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_docs(tmp_path)
+    graph_dir = tmp_path / ".spec-grag/graph"
+    write_approved_conflicts_atomic(
+        approved_conflicts_path(graph_dir),
+        ApprovedConflictsSidecar(
+            conflicts=[
+                ApprovedConflict(
+                    conflict_id="conflict-1",
+                    source_candidate_id="candidate-1",
+                    conflict_type="source_rule",
+                    severity="high",
+                    summary="Auth required and optional conflict.",
+                    reason="Human approved this as a source-level conflict.",
+                    evidence_spans=[],
+                    approved_at="2026-05-02T00:00:00+00:00",
+                )
+            ]
+        ),
+    )
+
+    envelope = run_cli(
+        request_payload(
+            tmp_path,
+            "spec-inject",
+            explicit_files=["docs/spec/auth.md"],
+        )
+    )
+
+    assert envelope.status in {ResultStatus.OK, ResultStatus.DEGRADED}
+    assert any(
+        note.get("source_origin") == "approved_conflicts"
+        and note.get("source_candidate_id") == "candidate-1"
+        for note in envelope.payload.conflict_notes
+    )
 
 
 @pytest.mark.parametrize(

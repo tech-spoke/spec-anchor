@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--revise")
     parser.add_argument("--revision-instruction")
     parser.add_argument("--apply")
+    parser.add_argument("--approval-json")
     parser.add_argument("--pretty", action="store_true")
     parser.add_argument("--print-request", action="store_true")
     return parser
@@ -40,7 +41,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     args.prompt = prompt
     operation_count = sum(
         value is not None
-        for value in (args.accept, args.reject, args.revise, args.apply)
+        for value in (
+            args.accept,
+            args.reject,
+            args.revise,
+            args.apply,
+            args.approval_json,
+        )
     )
     if operation_count > 1:
         parser.error("only one of --accept, --reject, --revise, or --apply may be set")
@@ -67,6 +74,8 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
             options[key] = value
     if revision_instruction:
         options["revision_instruction"] = revision_instruction
+    if args.approval_json:
+        options["approval"] = json.loads(args.approval_json)
 
     current_message = args.message or task_text or ""
     return {

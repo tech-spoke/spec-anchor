@@ -37,6 +37,7 @@ class PendingConceptHunk(StrictModel):
     diff_text: str
     status: HunkStatus = HunkStatus.PENDING
     revision_instruction: str | None = None
+    revision_history: list[str] = Field(default_factory=list)
 
 
 class PendingConceptDiff(StrictModel):
@@ -81,6 +82,8 @@ class ConceptPatchApplyError(ConceptDiffError):
 
 
 _HUNK_HEADER_RE = re.compile(r"^@@ -(?P<old_start>\d+)(?:,(?P<old_count>\d+))? ")
+_SOURCE_MARKER_RE = re.compile(r"\(source:\s*(?P<source>[^)]+)\)")
+_SOURCE_DERIVED_HEADING = "Source-derived concepts"
 
 
 def concept_file_hash(path: Path) -> str:
@@ -95,6 +98,27 @@ def load_pending_concept_diff(path: Path) -> PendingConceptDiff:
     if not path.exists():
         raise ConceptDiffNotFoundError(f"pending Concept diff not found: {path}")
     return PendingConceptDiff.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def first_unresolved_pending_concept_diff(pending_dir: Path) -> PendingConceptDiff | None:
+    if not pending_dir.exists():
+        return None
+    for path in sorted(pending_dir.glob("concept_diff_*.json")):
+        try:
+            diff = load_pending_concept_diff(path)
+        except ConceptDiffError:
+            continue
+        if pending_concept_diff_is_unresolved(diff):
+            return diff
+    return None
+
+
+def pending_concept_diff_is_unresolved(diff: PendingConceptDiff) -> bool:
+    return any(
+        hunk.status
+        in {HunkStatus.PENDING, HunkStatus.ACCEPTED, HunkStatus.REJECTED, HunkStatus.REVISED}
+        for hunk in diff.hunks
+    )
 
 
 def write_pending_concept_diff_atomic(path: Path, diff: PendingConceptDiff) -> None:
@@ -136,6 +160,88 @@ def revise_hunk(
         HunkStatus.REVISED,
         revision_instruction=revision_instruction,
     )
+
+
+def regenerate_revised_hunks(
+    diff: PendingConceptDiff,
+    concept_file: Path,
+    *,
+    generated_at: str | None = None,
+) -> PendingConceptDiff:
+    updated_hunks: list[PendingConceptHunk] = []
+    changed = False
+    for hunk in diff.hunks:
+        if hunk.status != HunkStatus.REVISED:
+            updated_hunks.append(hunk)
+            continue
+        instruction = (hunk.revision_instruction or "").strip()
+        if not instruction:
+            updated_hunks.append(hunk)
+            continue
+        updated_hunks.append(
+            build_revised_append_hunk(
+                concept_file,
+                hunk,
+                revision_instruction=instruction,
+                source_ref=_source_ref_for_revised_hunk(diff, hunk),
+            )
+        )
+        changed = True
+    if not changed:
+        return diff
+    return diff.model_copy(
+        update={
+            "generated_at": generated_at or datetime.now(UTC).isoformat(),
+            "hunks": updated_hunks,
+        }
+    )
+
+
+def build_revised_append_hunk(
+    concept_file: Path,
+    hunk: PendingConceptHunk,
+    *,
+    revision_instruction: str,
+    source_ref: str,
+) -> PendingConceptHunk:
+    text = concept_file.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    old_start = len(lines) + 1
+    prefix = [] if text.endswith("\n") or not text else ["\n"]
+    new_lines = [
+        *prefix,
+        f"## {_SOURCE_DERIVED_HEADING}\n",
+        "\n",
+        f"- {revision_instruction} (source: {source_ref})\n",
+    ]
+    diff_lines = [
+        f"--- a/{hunk.file}\n",
+        f"+++ b/{hunk.file}\n",
+        f"@@ -{old_start},0 +{old_start},{len(new_lines)} @@\n",
+        *[f"+{line}" for line in new_lines],
+    ]
+    return hunk.model_copy(
+        update={
+            "old_range": f"-{old_start},0",
+            "new_range": f"+{old_start},{len(new_lines)}",
+            "diff_text": "".join(diff_lines),
+            "status": HunkStatus.PENDING,
+            "revision_instruction": None,
+            "revision_history": [*hunk.revision_history, revision_instruction],
+        }
+    )
+
+
+def _source_ref_for_revised_hunk(
+    diff: PendingConceptDiff,
+    hunk: PendingConceptHunk,
+) -> str:
+    match = _SOURCE_MARKER_RE.search(hunk.diff_text)
+    if match:
+        return match.group("source").strip()
+    if diff.task_context.changed_source_section_ids:
+        return ",".join(diff.task_context.changed_source_section_ids)
+    return f"revision:{hunk.hunk_id}"
 
 
 def update_hunk_status(
@@ -186,7 +292,7 @@ def apply_pending_concept_diff(
     unresolved = [
         hunk.hunk_id
         for hunk in diff.hunks
-        if hunk.status in {HunkStatus.PENDING, HunkStatus.REVISED}
+        if hunk.status in {HunkStatus.PENDING, HunkStatus.REJECTED, HunkStatus.REVISED}
     ]
     if unresolved:
         return ConceptApplyResult(
