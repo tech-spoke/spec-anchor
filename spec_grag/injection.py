@@ -60,6 +60,7 @@ from spec_grag.sidecars import (
     load_cluster_snapshot,
     load_unresolved_relations,
 )
+from spec_grag.timing import TimingRecorder, llm_config_metrics
 
 
 @dataclass(frozen=True)
@@ -108,9 +109,11 @@ def build_injection(
     *,
     core_update: Any | None = None,
     freshness_report: FreshnessReport | None = None,
+    timer: TimingRecorder | None = None,
 ) -> InjectionBuild:
+    timer = timer or TimingRecorder()
     if core_update is None and freshness_report is None:
-        core_update = run_core_update(project_root, config, all_sources=False)
+        core_update = run_core_update(project_root, config, all_sources=False, timer=timer)
     if core_update is not None:
         if core_update.status == ResultStatus.FAILED:
             payload = ErrorResult(
@@ -164,64 +167,107 @@ def build_injection(
     )
     classification_limit = int(config.get("classification", {}).get("max_items", 8))
     classification_budget = {"remaining": classification_limit}
-    expected_requests = expected_search_requests(request, manifest, query)
-    valid_agentic, invalid_agentic = validate_agentic_candidates(
-        request.agentic_search_candidates,
-        expected_requests,
-        manifest,
-        project_root,
-    )
-    graph_retrieval = retrieve_graph_context(
-        graph_dir,
-        manifest,
-        query,
-        request.conversation_context,
-        valid_agentic,
-        project_root=project_root,
-        config=config,
-        classification_llm=classification_llm,
-        classification_budget=classification_budget,
-        classification_fallback_on_error=classification_fallback_on_error,
-    )
+    with timer.stage(
+        "retrieval",
+        metrics={
+            "input_sections": len(manifest.entries),
+            "agentic_candidates": len(request.agentic_search_candidates),
+            **llm_config_metrics(
+                config,
+                "query_planner",
+                default_provider="template",
+                disabled_providers={"template", "deterministic", "none", "disabled", ""},
+            ),
+        },
+    ) as retrieval_stage:
+        expected_requests = expected_search_requests(request, manifest, query)
+        valid_agentic, invalid_agentic = validate_agentic_candidates(
+            request.agentic_search_candidates,
+            expected_requests,
+            manifest,
+            project_root,
+        )
+        graph_retrieval = retrieve_graph_context(
+            graph_dir,
+            manifest,
+            query,
+            request.conversation_context,
+            valid_agentic,
+            project_root=project_root,
+            config=config,
+            classification_llm=classification_llm,
+            classification_budget=classification_budget,
+            classification_fallback_on_error=classification_fallback_on_error,
+        )
+        retrieval_stage.metrics["returned_sections"] = len(graph_retrieval.source_sections)
+        retrieval_stage.metrics["returned_entities"] = len(graph_retrieval.related_entities)
+        retrieval_stage.metrics["warnings"] = len(graph_retrieval.warnings)
     source_sections = graph_retrieval.source_sections
     source_evidence = graph_retrieval.source_evidence
-    purpose_item, purpose_warning = read_purpose_constraint(project_root, config)
-    concept_items, concept_warning = read_concept_constraints(
-        graph_dir,
-        project_root,
+    classification_metrics = llm_config_metrics(
         config,
-        query,
-        classification_llm=classification_llm,
-        classification_budget=classification_budget,
-        classification_fallback_on_error=classification_fallback_on_error,
+        "classification",
+        default_provider="orchestrator_rule_based",
+        disabled_providers={
+            "orchestrator_rule_based",
+            "rule_based",
+            "none",
+            "disabled",
+            "",
+        },
     )
-    chapter_anchors = retrieve_chapter_anchors(
-        graph_dir,
-        source_sections,
-        valid_agentic,
+    classification_metrics.update(
+        {
+            "input_sections": len(source_sections),
+            "classification_budget": classification_limit,
+        }
     )
-    chapter_anchor_items = [
-        classify_context_item(
-            chapter_anchor_item(anchor, source_origin=anchor.source_origin),
-            item_type="chapter_anchor",
-            query=query,
-            llm=classification_llm,
-            llm_budget=classification_budget,
-            fallback_on_error=classification_fallback_on_error,
+    with timer.stage("classification", metrics=classification_metrics) as classification_stage:
+        purpose_item, purpose_warning = read_purpose_constraint(project_root, config)
+        concept_items, concept_warning = read_concept_constraints(
+            graph_dir,
+            project_root,
+            config,
+            query,
+            classification_llm=classification_llm,
+            classification_budget=classification_budget,
+            classification_fallback_on_error=classification_fallback_on_error,
         )
-        for anchor in chapter_anchors
-    ]
-    cluster_items = retrieve_cluster_items(
-        graph_dir,
-        source_sections=source_sections,
-        concept_items=concept_items,
-        related_entities=graph_retrieval.related_entities,
-        query=query,
-        allow_query_text_match=runtime_mode(config) == "smoke",
-        classification_llm=classification_llm,
-        classification_budget=classification_budget,
-        classification_fallback_on_error=classification_fallback_on_error,
-    )
+        chapter_anchors = retrieve_chapter_anchors(
+            graph_dir,
+            source_sections,
+            valid_agentic,
+        )
+        chapter_anchor_items = [
+            classify_context_item(
+                chapter_anchor_item(anchor, source_origin=anchor.source_origin),
+                item_type="chapter_anchor",
+                query=query,
+                llm=classification_llm,
+                llm_budget=classification_budget,
+                fallback_on_error=classification_fallback_on_error,
+            )
+            for anchor in chapter_anchors
+        ]
+        cluster_items = retrieve_cluster_items(
+            graph_dir,
+            source_sections=source_sections,
+            concept_items=concept_items,
+            related_entities=graph_retrieval.related_entities,
+            query=query,
+            allow_query_text_match=runtime_mode(config) == "smoke",
+            classification_llm=classification_llm,
+            classification_budget=classification_budget,
+            classification_fallback_on_error=classification_fallback_on_error,
+        )
+        classification_stage.metrics["concept_items"] = len(concept_items)
+        classification_stage.metrics["chapter_anchors"] = len(chapter_anchor_items)
+        classification_stage.metrics["cluster_items"] = len(cluster_items)
+        classification_stage.metrics["llm_calls"] = (
+            classification_limit - classification_budget.get("remaining", classification_limit)
+            if classification_llm is not None
+            else 0
+        )
 
     warnings = [
         *core_warnings,

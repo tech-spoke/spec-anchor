@@ -608,6 +608,13 @@ InjectionContext.approved_concept_update / warnings:
 | `[embedding]` | `timeout_sec` / `max_retries` / `retry_backoff_sec` | 任意 | embedding API の timeout / retry |
 | `[run]` | `save_artifacts` / `artifact_dir` / `include_request` | 任意 | run artifact 保存設定 |
 
+`[run].save_artifacts = true` の場合、run artifact は診断情報として
+`timing_summary` と `stage_timings` を保存する。`stage_timings` は
+`stage`、`duration_ms`、`status`、軽量 metrics を持つ配列である。
+Source specs 本文、LLM prompt 本文、LLM 応答本文は stage timing metrics
+として保存しない。blocked / failed の場合も、完了済み stage timings は
+artifact に残す。
+
 最小構成例:
 
 ```toml

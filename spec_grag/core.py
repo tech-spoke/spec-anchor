@@ -6,7 +6,7 @@ import hashlib
 import glob
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -92,6 +92,11 @@ from spec_grag.sidecars import (
     write_cluster_snapshot_atomic,
     write_unresolved_relations_atomic,
 )
+from spec_grag.timing import (
+    TimingRecorder,
+    embedding_config_metrics,
+    llm_config_metrics,
+)
 
 
 EXTRACTOR_VERSION = "deterministic-core-v1"
@@ -115,6 +120,8 @@ class CoreUpdate:
     conflict_review: dict[str, Any] | None = None
     pending_conflict_review_id: str | None = None
     execution_role: str = ExecutionRole.FOREGROUND_HUMAN.value
+    timing_summary: dict[str, Any] = field(default_factory=dict)
+    stage_timings: list[dict[str, Any]] = field(default_factory=list)
 
 
 def run_core_update(
@@ -126,7 +133,9 @@ def run_core_update(
     execution_role: ExecutionRole | str = ExecutionRole.FOREGROUND_HUMAN,
     source_manifest: SourceManifest | None = None,
     source_document_texts: Mapping[str, str] | None = None,
+    timer: TimingRecorder | None = None,
 ) -> CoreUpdate:
+    timer = timer or TimingRecorder()
     graph_storage = _graph_storage_path(project_root, config)
     scanned_at = datetime.now(UTC).isoformat()
     extract_run_id = f"core-{hashlib.sha256(scanned_at.encode('utf-8')).hexdigest()[:12]}"
@@ -144,6 +153,12 @@ def run_core_update(
         and not embedding_identity_matches(previous_embedding_metadata, embedding_metadata)
     ):
         warnings = [embedding_mismatch_warning(previous_embedding_metadata, embedding_metadata)]
+        with timer.stage(
+            "embedding_update",
+            metrics={**embedding_config_metrics(config), "operation": "metadata_check"},
+            status="failed",
+        ):
+            pass
         freshness = FreshnessReport(
             last_core_run=scanned_at,
             graph_revision=None,
@@ -151,7 +166,7 @@ def run_core_update(
             source_manifest_path=str(graph_storage / "source_manifest.json"),
             warnings=warnings,
         )
-        return CoreUpdate(
+        return _with_core_timing(CoreUpdate(
             status=ResultStatus.FAILED,
             mode="incremental",
             updated_sources=[],
@@ -160,7 +175,7 @@ def run_core_update(
             graph_storage=str(graph_storage),
             freshness_report=freshness,
             warnings=warnings,
-        )
+        ), timer)
     try:
         mode = extraction_mode(config)
         if mode == EXTRACTION_MODE_SCHEMA_LLM and schema_extractor is None:
@@ -176,7 +191,7 @@ def run_core_update(
             source_manifest_path=str(graph_storage / "source_manifest.json"),
             warnings=[f"config_invalid:{exc}"],
         )
-        return CoreUpdate(
+        return _with_core_timing(CoreUpdate(
             status=ResultStatus.FAILED,
             mode="full" if all_sources else "incremental",
             updated_sources=[],
@@ -185,81 +200,122 @@ def run_core_update(
             graph_storage=str(graph_storage),
             freshness_report=freshness,
             warnings=freshness.warnings,
-        )
+        ), timer)
 
-    source_paths = resolve_source_paths(project_root, config)
+    with timer.stage("manifest_reconcile") as stage:
+        source_paths = resolve_source_paths(project_root, config)
+        stage.metrics["source_files"] = len(source_paths)
 
-    if not source_paths and source_manifest is None:
-        freshness = FreshnessReport(
-            last_core_run=scanned_at,
-            graph_revision=None,
-            graph_storage_path=str(graph_storage),
-            source_manifest_path=str(graph_storage / "source_manifest.json"),
-            warnings=["sources.include did not match any files"],
-        )
-        return CoreUpdate(
-            status=ResultStatus.FAILED,
-            mode="full" if all_sources else "incremental",
-            updated_sources=[],
-            skipped_sources=[],
-            failed_sources=["sources.include"],
-            graph_storage=str(graph_storage),
-            freshness_report=freshness,
-            warnings=freshness.warnings,
-        )
+        if not source_paths and source_manifest is None:
+            stage.set_status("failed")
+            freshness = FreshnessReport(
+                last_core_run=scanned_at,
+                graph_revision=None,
+                graph_storage_path=str(graph_storage),
+                source_manifest_path=str(graph_storage / "source_manifest.json"),
+                warnings=["sources.include did not match any files"],
+            )
+            return _with_core_timing(CoreUpdate(
+                status=ResultStatus.FAILED,
+                mode="full" if all_sources else "incremental",
+                updated_sources=[],
+                skipped_sources=[],
+                failed_sources=["sources.include"],
+                graph_storage=str(graph_storage),
+                freshness_report=freshness,
+                warnings=freshness.warnings,
+            ), timer)
 
-    current_manifest = source_manifest or build_current_section_manifest(
-        project_root,
-        source_paths,
-        generated_at=scanned_at,
-        section_max_heading_level=int(
-            _mapping(config.get("extraction")).get("section_max_heading_level", 6)
-        ),
-        document_texts=source_document_texts,
-    )
-    manifest_path = graph_storage / "source_manifest.json"
-    previous_manifest = SourceManifest(entries=[]) if all_sources else load_source_manifest(manifest_path)
-    reconciliation = reconcile_manifests(previous_manifest, current_manifest)
-    graph_revision = graph_revision_for_manifest(
-        current_manifest,
-        embedding_metadata=embedding_metadata,
-    )
-    if _can_return_no_change_incremental(
-        project_root,
-        config,
-        graph_storage,
-        reconciliation,
-        previous_manifest,
-        embedding_metadata,
-        graph_revision=graph_revision,
-        all_sources=all_sources,
-    ):
-        if (
+        current_manifest = source_manifest or build_current_section_manifest(
+            project_root,
+            source_paths,
+            generated_at=scanned_at,
+            section_max_heading_level=int(
+                _mapping(config.get("extraction")).get("section_max_heading_level", 6)
+            ),
+            document_texts=source_document_texts,
+        )
+        manifest_path = graph_storage / "source_manifest.json"
+        previous_manifest = SourceManifest(entries=[]) if all_sources else load_source_manifest(manifest_path)
+        reconciliation = reconcile_manifests(previous_manifest, current_manifest)
+        graph_revision = graph_revision_for_manifest(
+            current_manifest,
+            embedding_metadata=embedding_metadata,
+        )
+        stage.metrics.update(
+            {
+                "current_sections": len(current_manifest.entries),
+                "previous_sections": len(previous_manifest.entries),
+                "changed_sections": len(reconciliation.changed_section_ids),
+                "added_sections": len(reconciliation.added_section_ids),
+                "removed_sections": len(reconciliation.removed_section_ids),
+                "format_only_sections": len(reconciliation.format_only_section_ids),
+            }
+        )
+    with timer.stage("semantic_noop_filter") as stage:
+        semantic_noop = not (
+            reconciliation.changed_section_ids
+            or reconciliation.added_section_ids
+            or reconciliation.removed_section_ids
+        )
+        stage.metrics.update(
+            {
+                "semantic_noop": semantic_noop,
+                "format_only": bool(reconciliation.format_only_section_ids),
+            }
+        )
+        can_return_no_change_incremental = _can_return_no_change_incremental(
+            project_root,
+            config,
+            graph_storage,
+            reconciliation,
+            previous_manifest,
+            embedding_metadata,
+            graph_revision=graph_revision,
+            all_sources=all_sources,
+        )
+        stage.metrics["fast_path"] = can_return_no_change_incremental
+    timer.set_flag("semantic_noop", semantic_noop)
+    timer.set_flag("heavy_path", not can_return_no_change_incremental)
+    if can_return_no_change_incremental:
+        should_write_manifest = (
             reconciliation.format_only_section_ids
             or _manifest_needs_hash_migration(previous_manifest)
+        )
+        with timer.stage(
+            "artifact_write",
+            metrics={
+                "artifact_count": 1 if should_write_manifest else 0,
+                "artifact_kind": "source_manifest",
+            },
         ):
-            next_manifest = next_source_manifest(
-                previous_manifest,
-                current_manifest,
-                status=ManifestUpdateStatus.OK,
-                scanned_at=scanned_at,
-                extract_run_id=extract_run_id,
-                extractor_versions=_extractor_versions_for_mode(mode),
-            )
-            write_source_manifest_atomic(manifest_path, next_manifest)
+            if should_write_manifest:
+                next_manifest = next_source_manifest(
+                    previous_manifest,
+                    current_manifest,
+                    status=ManifestUpdateStatus.OK,
+                    scanned_at=scanned_at,
+                    extract_run_id=extract_run_id,
+                    extractor_versions=_extractor_versions_for_mode(mode),
+                )
+                write_source_manifest_atomic(manifest_path, next_manifest)
         reported_graph_revision = (
             _existing_graph_revision(graph_storage)
             if reconciliation.format_only_section_ids
             else None
         ) or graph_revision
-        conflict_review_result = generate_source_conflict_review(
-            project_root=project_root,
-            graph_storage=graph_storage,
-            manifest=current_manifest,
-            graph_revision=reported_graph_revision,
-            generated_at=scanned_at,
-            document_texts=source_document_texts,
-        )
+        with timer.stage(
+            "conflict_review",
+            metrics={"input_sections": len(current_manifest.entries)},
+        ):
+            conflict_review_result = generate_source_conflict_review(
+                project_root=project_root,
+                graph_storage=graph_storage,
+                manifest=current_manifest,
+                graph_revision=reported_graph_revision,
+                generated_at=scanned_at,
+                document_texts=source_document_texts,
+            )
         warnings = [*conflict_review_result.warnings]
         freshness = FreshnessReport(
             last_core_run=scanned_at,
@@ -268,7 +324,7 @@ def run_core_update(
             source_manifest_path=str(manifest_path),
             warnings=warnings,
         )
-        return CoreUpdate(
+        return _with_core_timing(CoreUpdate(
             status=ResultStatus.OK if not warnings else ResultStatus.DEGRADED,
             mode="incremental",
             updated_sources=updated_sources_for(
@@ -288,13 +344,17 @@ def run_core_update(
             pending_conflict_review_id=conflict_review_result.pending_review.review_id
             if conflict_review_result.pending_review is not None
             else None,
-        )
+        ), timer)
 
-    graph_store = build_deterministic_graph(
-        current_manifest,
-        embedding_metadata=embedding_metadata,
-        include_heading_anchors=mode != EXTRACTION_MODE_SCHEMA_LLM,
-    )
+    with timer.stage(
+        "graph_sidecar_update",
+        metrics={"input_sections": len(current_manifest.entries), "operation": "build_graph"},
+    ):
+        graph_store = build_deterministic_graph(
+            current_manifest,
+            embedding_metadata=embedding_metadata,
+            include_heading_anchors=mode != EXTRACTION_MODE_SCHEMA_LLM,
+        )
 
     extraction_warnings: list[str] = []
     extraction_failed_section_ids: set[str] = set()
@@ -310,84 +370,124 @@ def run_core_update(
             previous_manifest_has_entries=bool(previous_manifest.entries),
         )
         if previous_graph_store is not None and not all_sources:
-            for section_id in [
-                *reconciliation.changed_section_ids,
-                *reconciliation.removed_section_ids,
-            ]:
-                previous_graph_store = safe_delete_by_section(
+            with timer.stage(
+                "stale_carry_forward",
+                metrics={
+                    "kept_sections": len(_keep_section_ids_for_incremental(reconciliation)),
+                    "removed_sections": len(reconciliation.removed_section_ids),
+                    "changed_sections": len(reconciliation.changed_section_ids),
+                },
+            ):
+                for section_id in [
+                    *reconciliation.changed_section_ids,
+                    *reconciliation.removed_section_ids,
+                ]:
+                    previous_graph_store = safe_delete_by_section(
+                        previous_graph_store,
+                        section_id=section_id,
+                    )
+                graph_store = carry_forward_schema_llm_artifacts(
+                    graph_store,
                     previous_graph_store,
-                    section_id=section_id,
+                    keep_section_ids=_keep_section_ids_for_incremental(reconciliation),
                 )
-            graph_store = carry_forward_schema_llm_artifacts(
-                graph_store,
-                previous_graph_store,
-                keep_section_ids=_keep_section_ids_for_incremental(reconciliation),
-            )
-        extraction_result = extract_schema_llm_artifacts(
-            project_root=project_root,
-            manifest=current_manifest,
-            graph_store=graph_store,
-            config=config,
-            extract_run_id=extract_run_id,
-            extracted_at=scanned_at,
-            section_ids_to_extract=section_ids_to_extract,
-            schema_extractor=schema_extractor,
-            document_texts=source_document_texts,
+        extraction_metrics = llm_config_metrics(
+            config,
+            "extraction",
+            default_provider="codex",
+            disabled_providers={"none", "disabled", "deterministic", ""},
         )
+        extraction_metrics["input_sections"] = len(section_ids_to_extract)
+        extraction_metrics["llm_calls"] = _schema_llm_call_count(
+            config,
+            section_ids_to_extract,
+            schema_extractor=schema_extractor,
+        )
+        with timer.stage("schema_llm_extraction", metrics=extraction_metrics) as stage:
+            extraction_result = extract_schema_llm_artifacts(
+                project_root=project_root,
+                manifest=current_manifest,
+                graph_store=graph_store,
+                config=config,
+                extract_run_id=extract_run_id,
+                extracted_at=scanned_at,
+                section_ids_to_extract=section_ids_to_extract,
+                schema_extractor=schema_extractor,
+                document_texts=source_document_texts,
+            )
+            stage.metrics["failed_sections"] = len(extraction_result.failed_section_ids)
+            if extraction_result.failed_section_ids:
+                stage.set_status("degraded")
         graph_store = extraction_result.graph_store
         extraction_warnings.extend(extraction_result.warnings)
         extraction_failed_section_ids = set(extraction_result.failed_section_ids)
         extracted_unresolved_entries = extraction_result.unresolved_entries
 
     unresolved_path = graph_storage / "unresolved_relations.json"
-    unresolved = (
-        UnresolvedRelationsSidecar(graph_revision=graph_revision, generated_at=scanned_at)
-        if all_sources
-        else drop_unresolved_relations_by_sections(
-            load_unresolved_relations(unresolved_path),
-            [*reconciliation.changed_section_ids, *reconciliation.removed_section_ids],
-            graph_revision=graph_revision,
-            generated_at=scanned_at,
+    with timer.stage(
+        "graph_sidecar_update",
+        metrics={
+            "operation": "unresolved_relations",
+            "input_sections": len(current_manifest.entries),
+        },
+    ) as stage:
+        unresolved = (
+            UnresolvedRelationsSidecar(graph_revision=graph_revision, generated_at=scanned_at)
+            if all_sources
+            else drop_unresolved_relations_by_sections(
+                load_unresolved_relations(unresolved_path),
+                [*reconciliation.changed_section_ids, *reconciliation.removed_section_ids],
+                graph_revision=graph_revision,
+                generated_at=scanned_at,
+            )
         )
-    )
-    if extracted_unresolved_entries:
-        unresolved = upsert_unresolved_relations(
-            unresolved,
-            extracted_unresolved_entries,
-            graph_revision=graph_revision,
-            generated_at=scanned_at,
-        )
-    write_unresolved_relations_atomic(unresolved_path, unresolved)
+        if extracted_unresolved_entries:
+            unresolved = upsert_unresolved_relations(
+                unresolved,
+                extracted_unresolved_entries,
+                graph_revision=graph_revision,
+                generated_at=scanned_at,
+            )
+        stage.metrics["unresolved_entries"] = len(unresolved.entries)
+    with timer.stage(
+        "artifact_write",
+        metrics={"artifact_count": 1, "artifact_kind": "unresolved_relations"},
+    ):
+        write_unresolved_relations_atomic(unresolved_path, unresolved)
 
     try:
-        previous_vector_store = (
-            None if all_sources else _load_previous_vector_store(graph_storage)
-        )
-        vector_store = build_vector_store(
-            graph_store,
-            embedding_metadata=embedding_metadata,
-            embedding_config=_mapping(config.get("embedding")),
-            previous_vector_store=previous_vector_store,
-        )
-        document_chunks = build_document_chunks(
-            project_root,
-            current_manifest,
-            config=config,
-            graph_revision=graph_revision,
-            generated_at=scanned_at,
-            document_texts=source_document_texts,
-        )
-        previous_chunk_vector_index = (
-            None
-            if all_sources
-            else load_chunk_vector_index(graph_storage / CHUNK_VECTOR_INDEX_FILENAME)
-        )
-        chunk_vector_index = build_chunk_vector_index(
-            document_chunks,
-            embedding_metadata=embedding_metadata,
-            embedding_config=_mapping(config.get("embedding")),
-            previous_index=previous_chunk_vector_index,
-        )
+        embedding_metrics = embedding_config_metrics(config)
+        embedding_metrics["input_nodes"] = _embedding_input_node_count(graph_store)
+        with timer.stage("embedding_update", metrics=embedding_metrics) as stage:
+            previous_vector_store = (
+                None if all_sources else _load_previous_vector_store(graph_storage)
+            )
+            vector_store = build_vector_store(
+                graph_store,
+                embedding_metadata=embedding_metadata,
+                embedding_config=_mapping(config.get("embedding")),
+                previous_vector_store=previous_vector_store,
+            )
+            document_chunks = build_document_chunks(
+                project_root,
+                current_manifest,
+                config=config,
+                graph_revision=graph_revision,
+                generated_at=scanned_at,
+                document_texts=source_document_texts,
+            )
+            previous_chunk_vector_index = (
+                None
+                if all_sources
+                else load_chunk_vector_index(graph_storage / CHUNK_VECTOR_INDEX_FILENAME)
+            )
+            chunk_vector_index = build_chunk_vector_index(
+                document_chunks,
+                embedding_metadata=embedding_metadata,
+                embedding_config=_mapping(config.get("embedding")),
+                previous_index=previous_chunk_vector_index,
+            )
+            stage.metrics["input_chunks"] = len(document_chunks.chunks)
     except EmbeddingProviderError as exc:
         warnings = [f"embedding_provider_failed:{exc}"]
         return _failed_core_update(
@@ -397,22 +497,31 @@ def run_core_update(
             failed_sources=["embedding"],
             warnings=warnings,
             reconciliation=reconciliation,
+            timer=timer,
         )
-    bm25_index = build_bm25_index(document_chunks)
+    with timer.stage(
+        "chunk_index_update",
+        metrics={"input_chunks": len(document_chunks.chunks)},
+    ):
+        bm25_index = build_bm25_index(document_chunks)
 
     graph_storage.mkdir(parents=True, exist_ok=True)
-    graph_store.persist(str(graph_storage / GRAPH_STORE_FILENAME))
-    vector_store.persist(str(graph_storage / VECTOR_STORE_FILENAME))
-    write_document_chunks_atomic(
-        graph_storage / DOCUMENT_CHUNKS_FILENAME,
-        document_chunks,
-    )
-    write_chunk_vector_index_atomic(
-        graph_storage / CHUNK_VECTOR_INDEX_FILENAME,
-        chunk_vector_index,
-    )
-    write_bm25_index_atomic(graph_storage / BM25_INDEX_FILENAME, bm25_index)
-    write_embedding_metadata_atomic(embedding_metadata_file, embedding_metadata)
+    with timer.stage(
+        "artifact_write",
+        metrics={"artifact_count": 6, "artifact_kind": "core_graph"},
+    ):
+        graph_store.persist(str(graph_storage / GRAPH_STORE_FILENAME))
+        vector_store.persist(str(graph_storage / VECTOR_STORE_FILENAME))
+        write_document_chunks_atomic(
+            graph_storage / DOCUMENT_CHUNKS_FILENAME,
+            document_chunks,
+        )
+        write_chunk_vector_index_atomic(
+            graph_storage / CHUNK_VECTOR_INDEX_FILENAME,
+            chunk_vector_index,
+        )
+        write_bm25_index_atomic(graph_storage / BM25_INDEX_FILENAME, bm25_index)
+        write_embedding_metadata_atomic(embedding_metadata_file, embedding_metadata)
 
     chapter_anchors_path = graph_storage / "chapter_anchors.json"
     affected_chapters = (
@@ -420,30 +529,47 @@ def run_core_update(
         if all_sources
         else reconciliation.affected_chapter_ids
     )
-    if all_sources:
-        chapter_anchors = ChapterAnchorsSidecar(
+    with timer.stage(
+        "graph_sidecar_update",
+        metrics={
+            "operation": "chapter_anchors",
+            "affected_chapters": len(affected_chapters),
+        },
+    ) as stage:
+        if all_sources:
+            chapter_anchors = ChapterAnchorsSidecar(
+                graph_revision=graph_revision,
+                generated_at=scanned_at,
+            )
+        else:
+            chapter_anchors = load_chapter_anchors(chapter_anchors_path)
+        chapter_refresh = refresh_chapter_anchors(
+            chapter_anchors,
+            graph_store,
+            current_manifest,
+            affected_chapters,
             graph_revision=graph_revision,
             generated_at=scanned_at,
         )
-    else:
-        chapter_anchors = load_chapter_anchors(chapter_anchors_path)
-    chapter_refresh = refresh_chapter_anchors(
-        chapter_anchors,
-        graph_store,
-        current_manifest,
-        affected_chapters,
-        graph_revision=graph_revision,
-        generated_at=scanned_at,
-    )
-    write_chapter_anchors_atomic(chapter_anchors_path, chapter_refresh.chapter_anchors)
+        stage.metrics["anchor_count"] = len(chapter_refresh.chapter_anchors.anchors)
+    with timer.stage(
+        "artifact_write",
+        metrics={"artifact_count": 1, "artifact_kind": "chapter_anchors"},
+    ):
+        write_chapter_anchors_atomic(chapter_anchors_path, chapter_refresh.chapter_anchors)
 
     try:
-        concept_index, concept_index_warnings = refresh_concept_index(
-            project_root,
-            config,
-            graph_storage,
-            generated_at=scanned_at,
-        )
+        with timer.stage(
+            "embedding_update",
+            metrics={**embedding_config_metrics(config), "operation": "concept_index"},
+        ) as stage:
+            concept_index, concept_index_warnings = refresh_concept_index(
+                project_root,
+                config,
+                graph_storage,
+                generated_at=scanned_at,
+            )
+            stage.metrics["input_chunks"] = len(concept_index.chunks) if concept_index else 0
     except EmbeddingProviderError as exc:
         warnings = [f"embedding_provider_failed:{exc}"]
         return _failed_core_update(
@@ -453,6 +579,7 @@ def run_core_update(
             failed_sources=["embedding"],
             warnings=warnings,
             reconciliation=reconciliation,
+            timer=timer,
         )
     concept_index_cluster_entries = (
         [
@@ -473,42 +600,62 @@ def run_core_update(
         *reconciliation.removed_section_ids,
     ]
     try:
-        if all_sources:
-            community_report_llm = make_community_report_llm_from_config(config)
-            cluster_snapshot = build_cluster_snapshot(
-                graph_store,
-                graph_revision=graph_revision,
-                generated_at=scanned_at,
-                concept_index=concept_index_cluster_entries,
-                document_chunks=document_chunks.chunks,
-                community_report_llm=community_report_llm,
-            )
-            cluster_warnings: list[str] = []
-        else:
-            previous_cluster_snapshot = load_cluster_snapshot(cluster_path)
-            if _can_reuse_cluster_snapshot(
-                previous_cluster_snapshot,
-                graph_revision=graph_revision,
-                changed_section_ids=changed_cluster_section_ids,
-                concept_index=concept_index_cluster_entries,
-            ):
-                cluster_snapshot = previous_cluster_snapshot
-                cluster_warnings = []
-            else:
+        community_metrics = llm_config_metrics(
+            config,
+            "community_report",
+            default_provider="deterministic",
+            disabled_providers={"deterministic", "template", "none", "disabled", ""},
+        )
+        community_metrics.update(
+            {
+                "input_sections": len(changed_cluster_section_ids)
+                if not all_sources
+                else len(current_manifest.entries),
+                "input_chunks": len(document_chunks.chunks),
+            }
+        )
+        with timer.stage("community_report", metrics=community_metrics) as stage:
+            if all_sources:
                 community_report_llm = make_community_report_llm_from_config(config)
-                cluster_refresh = refresh_cluster_snapshot(
-                    previous_cluster_snapshot,
+                stage.metrics["llm_calls"] = 0 if community_report_llm is None else 1
+                cluster_snapshot = build_cluster_snapshot(
                     graph_store,
-                    changed_section_ids=changed_cluster_section_ids,
                     graph_revision=graph_revision,
                     generated_at=scanned_at,
-                    seed_chapter_ids=affected_chapters,
                     concept_index=concept_index_cluster_entries,
                     document_chunks=document_chunks.chunks,
                     community_report_llm=community_report_llm,
                 )
-                cluster_snapshot = cluster_refresh.cluster_snapshot
-                cluster_warnings = cluster_refresh.warnings
+                cluster_warnings: list[str] = []
+            else:
+                previous_cluster_snapshot = load_cluster_snapshot(cluster_path)
+                if _can_reuse_cluster_snapshot(
+                    previous_cluster_snapshot,
+                    graph_revision=graph_revision,
+                    changed_section_ids=changed_cluster_section_ids,
+                    concept_index=concept_index_cluster_entries,
+                ):
+                    stage.metrics["cache_hit"] = True
+                    stage.metrics["llm_calls"] = 0
+                    cluster_snapshot = previous_cluster_snapshot
+                    cluster_warnings = []
+                else:
+                    community_report_llm = make_community_report_llm_from_config(config)
+                    stage.metrics["llm_calls"] = 0 if community_report_llm is None else 1
+                    cluster_refresh = refresh_cluster_snapshot(
+                        previous_cluster_snapshot,
+                        graph_store,
+                        changed_section_ids=changed_cluster_section_ids,
+                        graph_revision=graph_revision,
+                        generated_at=scanned_at,
+                        seed_chapter_ids=affected_chapters,
+                        concept_index=concept_index_cluster_entries,
+                        document_chunks=document_chunks.chunks,
+                        community_report_llm=community_report_llm,
+                    )
+                    cluster_snapshot = cluster_refresh.cluster_snapshot
+                    cluster_warnings = cluster_refresh.warnings
+            stage.metrics["cluster_count"] = len(cluster_snapshot.clusters)
     except CommunityReportGenerationError as exc:
         warnings = [
             *extraction_warnings,
@@ -523,8 +670,13 @@ def run_core_update(
             failed_sources=["community_report"],
             warnings=warnings,
             reconciliation=reconciliation,
+            timer=timer,
         )
-    write_cluster_snapshot_atomic(cluster_path, cluster_snapshot)
+    with timer.stage(
+        "artifact_write",
+        metrics={"artifact_count": 1, "artifact_kind": "cluster_snapshot"},
+    ):
+        write_cluster_snapshot_atomic(cluster_path, cluster_snapshot)
     changed_for_concept = _changed_section_ids_for_concept_diff(
         current_manifest,
         reconciliation,
@@ -541,17 +693,31 @@ def run_core_update(
         if section_id in current_by_section_id
     }
     try:
-        concept_diff_result = generate_concept_diff_candidate(
-            project_root=project_root,
-            config=config,
-            graph_storage=graph_storage,
-            graph_data=graph_store.graph.model_dump(),
-            concept_index=concept_index,
-            changed_source_section_ids=changed_for_concept,
-            changed_source_section_hashes=changed_concept_hashes,
-            extract_run_id=extract_run_id,
-            generated_at=scanned_at,
+        concept_diff_metrics = llm_config_metrics(
+            config,
+            "concept_diff",
+            default_provider="source_derived",
+            disabled_providers={"source_derived", "template", "none", "disabled", ""},
         )
+        concept_diff_metrics["input_sections"] = len(changed_for_concept)
+        if not changed_for_concept:
+            concept_diff_metrics["llm_calls"] = 0
+        with timer.stage("concept_diff", metrics=concept_diff_metrics) as stage:
+            concept_diff_result = generate_concept_diff_candidate(
+                project_root=project_root,
+                config=config,
+                graph_storage=graph_storage,
+                graph_data=graph_store.graph.model_dump(),
+                concept_index=concept_index,
+                changed_source_section_ids=changed_for_concept,
+                changed_source_section_hashes=changed_concept_hashes,
+                extract_run_id=extract_run_id,
+                generated_at=scanned_at,
+            )
+            stage.metrics["pending_created"] = (
+                concept_diff_result.pending_diff is not None
+            )
+            stage.metrics["warnings"] = len(concept_diff_result.warnings)
     except ConceptDiffProposalError as exc:
         warnings = [
             *extraction_warnings,
@@ -567,6 +733,7 @@ def run_core_update(
             failed_sources=["concept_diff"],
             warnings=warnings,
             reconciliation=reconciliation,
+            timer=timer,
         )
 
     manifest_status = (
@@ -584,15 +751,27 @@ def run_core_update(
         extractor_versions=extractor_versions,
         failed_section_ids=extraction_failed_section_ids,
     )
-    write_source_manifest_atomic(manifest_path, next_manifest)
-    conflict_review_result = generate_source_conflict_review(
-        project_root=project_root,
-        graph_storage=graph_storage,
-        manifest=next_manifest,
-        graph_revision=graph_revision,
-        generated_at=scanned_at,
-        document_texts=source_document_texts,
-    )
+    with timer.stage(
+        "artifact_write",
+        metrics={"artifact_count": 1, "artifact_kind": "source_manifest"},
+    ):
+        write_source_manifest_atomic(manifest_path, next_manifest)
+    with timer.stage(
+        "conflict_review",
+        metrics={"input_sections": len(next_manifest.entries)},
+    ) as stage:
+        conflict_review_result = generate_source_conflict_review(
+            project_root=project_root,
+            graph_storage=graph_storage,
+            manifest=next_manifest,
+            graph_revision=graph_revision,
+            generated_at=scanned_at,
+            document_texts=source_document_texts,
+        )
+        stage.metrics["pending_created"] = (
+            conflict_review_result.pending_review is not None
+        )
+        stage.metrics["warnings"] = len(conflict_review_result.warnings)
 
     warnings = [
         *extraction_warnings,
@@ -609,7 +788,7 @@ def run_core_update(
         source_manifest_path=str(manifest_path),
         warnings=warnings,
     )
-    return CoreUpdate(
+    return _with_core_timing(CoreUpdate(
         status=ResultStatus.OK if not warnings else ResultStatus.DEGRADED,
         mode="full" if all_sources else "incremental",
         updated_sources=updated_sources_for(reconciliation, all_sources=all_sources, current=current_manifest),
@@ -632,7 +811,7 @@ def run_core_update(
         if conflict_review_result.pending_review is not None
         else None,
         execution_role=str(execution_role),
-    )
+    ), timer)
 
 
 def _failed_core_update(
@@ -643,6 +822,7 @@ def _failed_core_update(
     failed_sources: list[str],
     warnings: list[str],
     reconciliation: ManifestReconciliation | None = None,
+    timer: TimingRecorder | None = None,
 ) -> CoreUpdate:
     freshness = FreshnessReport(
         last_core_run=scanned_at,
@@ -651,7 +831,7 @@ def _failed_core_update(
         source_manifest_path=str(graph_storage / "source_manifest.json"),
         warnings=warnings,
     )
-    return CoreUpdate(
+    update = CoreUpdate(
         status=ResultStatus.FAILED,
         mode=mode,
         updated_sources=[],
@@ -661,6 +841,15 @@ def _failed_core_update(
         freshness_report=freshness,
         warnings=warnings,
         reconciliation=reconciliation,
+    )
+    return _with_core_timing(update, timer) if timer is not None else update
+
+
+def _with_core_timing(update: CoreUpdate, timer: TimingRecorder) -> CoreUpdate:
+    return replace(
+        update,
+        timing_summary=timer.summary(status=update.status.value),
+        stage_timings=timer.stage_timings(),
     )
 
 
@@ -876,6 +1065,27 @@ def _entity_embedding(
         embedding_metadata,
         config=embedding_config,
     )
+
+
+def _embedding_input_node_count(graph_store: SimplePropertyGraphStore) -> int:
+    return sum(1 for node in graph_store.get() if node.label in {"ANCHOR", "SECTION"})
+
+
+def _schema_llm_call_count(
+    config: Mapping[str, Any],
+    section_ids_to_extract: list[str],
+    *,
+    schema_extractor: SchemaExtractor | None,
+) -> int:
+    if not section_ids_to_extract:
+        return 0
+    if schema_extractor is not None:
+        return len(section_ids_to_extract)
+    extraction_config = _mapping(config.get("extraction"))
+    batch_size = max(1, int(extraction_config.get("batch_size", 1)))
+    if batch_size <= 1:
+        return len(section_ids_to_extract)
+    return (len(section_ids_to_extract) + batch_size - 1) // batch_size
 
 
 def _embedding_metadata_matches(

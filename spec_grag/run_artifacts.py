@@ -42,6 +42,8 @@ def maybe_write_run_artifact(
         "degraded_components": envelope.execution.degraded_components,
         "fallback_events": fallback_events(config, envelope),
         "retrieval_summary": retrieval_summary(envelope),
+        "timing_summary": envelope.execution.timing_summary,
+        "stage_timings": envelope.execution.stage_timings,
         "execution": envelope.execution.model_dump(mode="json"),
         "response": json.loads(envelope.to_json()),
     }

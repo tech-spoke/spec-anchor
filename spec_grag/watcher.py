@@ -274,6 +274,8 @@ def run_watch_once(
                     "skipped_sources": update.skipped_sources,
                     "failed_sources": update.failed_sources,
                     "pending_concept_diff_id": update.pending_concept_diff_id,
+                    "timing_summary": update.timing_summary,
+                    "stage_timings": update.stage_timings,
                     "warnings": update.warnings,
                 },
             )

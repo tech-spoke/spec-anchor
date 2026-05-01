@@ -82,6 +82,10 @@ from spec_grag.realign import (
     make_answer_llm_from_config,
 )
 from spec_grag.run_artifacts import maybe_write_run_artifact
+from spec_grag.timing import (
+    TimingRecorder,
+    llm_config_metrics,
+)
 from spec_grag.watch_state import clear_provisional_concept_cache
 
 
@@ -117,10 +121,14 @@ def run_transport(stdin: TextIO) -> ResultEnvelope:
 
 
 def run_request(request: SlashCommandRequest) -> ResultEnvelope:
+    timer = TimingRecorder()
     project_root = Path(request.project_root).expanduser().resolve()
-    config_result = load_project_config(project_root)
+    with timer.stage("config_load") as stage:
+        config_result = load_project_config(project_root)
+        if isinstance(config_result, ResultEnvelope):
+            stage.set_status("failed")
     if isinstance(config_result, ResultEnvelope):
-        return config_result
+        return with_timing_diagnostics(config_result, timer)
 
     config = config_result
     graph_storage = graph_storage_path(project_root, config)
@@ -138,11 +146,13 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
         freshness,
     )
     if approval_envelope is not None:
+        approval_envelope = with_runtime_policy(approval_envelope, runtime_policy)
+        approval_envelope = with_timing_diagnostics(approval_envelope, timer)
         return with_run_artifact(
             project_root,
             config,
             request,
-            with_runtime_policy(approval_envelope, runtime_policy),
+            approval_envelope,
         )
 
     if request.command == Command.SPEC_CORE:
@@ -153,12 +163,15 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
             graph_storage,
             freshness,
             runtime_policy,
+            timer=timer,
         )
+        envelope = with_runtime_policy(envelope, runtime_policy)
+        envelope = with_timing_diagnostics(envelope, timer)
         return with_run_artifact(
             project_root,
             config,
             request,
-            with_runtime_policy(envelope, runtime_policy),
+            envelope,
         )
     if request.command == Command.SPEC_INJECT:
         envelope = run_spec_inject(
@@ -167,12 +180,15 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
             config,
             freshness,
             runtime_policy,
+            timer=timer,
         )
+        envelope = with_runtime_policy(envelope, runtime_policy)
+        envelope = with_timing_diagnostics(envelope, timer)
         return with_run_artifact(
             project_root,
             config,
             request,
-            with_runtime_policy(envelope, runtime_policy),
+            envelope,
         )
     if request.command == Command.SPEC_REALIGN:
         envelope = run_spec_realign(
@@ -181,18 +197,24 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
             config,
             freshness,
             runtime_policy,
+            timer=timer,
         )
+        envelope = with_runtime_policy(envelope, runtime_policy)
+        envelope = with_timing_diagnostics(envelope, timer)
         return with_run_artifact(
             project_root,
             config,
             request,
-            with_runtime_policy(envelope, runtime_policy),
+            envelope,
         )
 
-    return error_envelope(
-        "unsupported_command",
-        f"Unsupported command: {request.command}",
-        {"command": request.command},
+    return with_timing_diagnostics(
+        error_envelope(
+            "unsupported_command",
+            f"Unsupported command: {request.command}",
+            {"command": request.command},
+        ),
+        timer,
     )
 
 
@@ -253,6 +275,48 @@ def with_runtime_policy(
         update={"runtime_policy": runtime_policy.as_artifact()}
     )
     return envelope.model_copy(update={"execution": execution})
+
+
+def with_timing_diagnostics(
+    envelope: ResultEnvelope,
+    timer: TimingRecorder,
+) -> ResultEnvelope:
+    execution = envelope.execution.model_copy(
+        update={
+            "timing_summary": timer.summary(status=envelope.status.value),
+            "stage_timings": timer.stage_timings(),
+        }
+    )
+    return envelope.model_copy(update={"execution": execution})
+
+
+def record_readiness_metrics(
+    metrics: dict[str, Any],
+    readiness: ReadinessReport,
+) -> None:
+    metrics.update(
+        {
+            "readiness_status": readiness.status.value
+            if hasattr(readiness.status, "value")
+            else str(readiness.status),
+            "dirty_sections": len(readiness.dirty_section_ids),
+            "format_only_sections": len(readiness.format_only_section_ids),
+            "queued_sections": len(readiness.queued_section_ids),
+            "pending_conflict_candidates": len(readiness.pending_conflict_candidate_ids),
+            "pending_concept_diff": readiness.pending_concept_diff_id is not None,
+            "watcher_run_state": readiness.watcher_run_state,
+        }
+    )
+
+
+def _gate_stage_status(envelope: ResultEnvelope) -> str:
+    if envelope.status == ResultStatus.FAILED:
+        return "failed"
+    if envelope.status == ResultStatus.BLOCKED:
+        return "blocked"
+    if envelope.status == ResultStatus.DEGRADED:
+        return "degraded"
+    return "ok"
 
 
 def load_project_config(project_root: Path) -> dict[str, Any] | ResultEnvelope:
@@ -327,12 +391,17 @@ def run_spec_core(
     graph_storage: str,
     freshness: FreshnessReport,
     runtime_policy: RuntimePolicy,
+    *,
+    timer: TimingRecorder | None = None,
 ) -> ResultEnvelope:
-    readiness = evaluate_grag_readiness(
-        project_root,
-        config,
-        runtime_policy=runtime_policy,
-    )
+    timer = timer or TimingRecorder()
+    with timer.stage("readiness_gate") as stage:
+        readiness = evaluate_grag_readiness(
+            project_root,
+            config,
+            runtime_policy=runtime_policy,
+        )
+        record_readiness_metrics(stage.metrics, readiness)
     freshness = freshness_with_readiness(freshness, readiness)
     conflict_operation = run_conflict_review_operation(
         request,
@@ -380,6 +449,7 @@ def run_spec_core(
         config,
         all_sources=request.options.all,
         execution_role=runtime_policy.execution_role,
+        timer=timer,
     )
     if update.status == ResultStatus.FAILED:
         return error_envelope(
@@ -1047,27 +1117,36 @@ def run_spec_inject(
     config: dict[str, Any],
     freshness: FreshnessReport,
     runtime_policy: RuntimePolicy,
+    *,
+    timer: TimingRecorder | None = None,
 ) -> ResultEnvelope:
-    readiness = evaluate_grag_readiness(
-        project_root,
-        config,
-        runtime_policy=runtime_policy,
-    )
-    freshness = freshness_with_readiness(freshness, readiness)
-    pending_gate = pending_readiness_envelope(project_root, freshness, readiness, runtime_policy)
-    if pending_gate is not None:
-        return pending_gate
+    timer = timer or TimingRecorder()
+    with timer.stage("readiness_gate") as stage:
+        readiness = evaluate_grag_readiness(
+            project_root,
+            config,
+            runtime_policy=runtime_policy,
+        )
+        record_readiness_metrics(stage.metrics, readiness)
+        freshness = freshness_with_readiness(freshness, readiness)
+        pending_gate = pending_readiness_envelope(project_root, freshness, readiness, runtime_policy)
+        if pending_gate is not None:
+            stage.set_status(_gate_stage_status(pending_gate))
+            return pending_gate
 
     core_update = None
     if readiness.status in {"dirty", "stale"}:
-        gate = dirty_or_stale_readiness_envelope(readiness, runtime_policy)
-        if gate is not None:
-            return gate
+        with timer.stage("readiness_gate", metrics={"recheck": "dirty_or_stale"}) as stage:
+            gate = dirty_or_stale_readiness_envelope(readiness, runtime_policy)
+            if gate is not None:
+                stage.set_status(_gate_stage_status(gate))
+                return gate
         core_update = run_core_update(
             project_root,
             config,
             all_sources=False,
             execution_role=runtime_policy.execution_role,
+            timer=timer,
         )
         if core_update.status == ResultStatus.FAILED:
             return error_envelope(
@@ -1098,6 +1177,7 @@ def run_spec_inject(
             request,
             core_update=core_update,
             freshness_report=None if core_update is not None else freshness,
+            timer=timer,
         )
     except (ClassificationError, ValidationError, ValueError, RuntimeError) as exc:
         return context_build_failed_envelope(exc)
@@ -1110,27 +1190,36 @@ def run_spec_realign(
     config: dict[str, Any],
     freshness: FreshnessReport,
     runtime_policy: RuntimePolicy,
+    *,
+    timer: TimingRecorder | None = None,
 ) -> ResultEnvelope:
-    readiness = evaluate_grag_readiness(
-        project_root,
-        config,
-        runtime_policy=runtime_policy,
-    )
-    freshness = freshness_with_readiness(freshness, readiness)
-    pending_gate = pending_readiness_envelope(project_root, freshness, readiness, runtime_policy)
-    if pending_gate is not None:
-        return pending_gate
+    timer = timer or TimingRecorder()
+    with timer.stage("readiness_gate") as stage:
+        readiness = evaluate_grag_readiness(
+            project_root,
+            config,
+            runtime_policy=runtime_policy,
+        )
+        record_readiness_metrics(stage.metrics, readiness)
+        freshness = freshness_with_readiness(freshness, readiness)
+        pending_gate = pending_readiness_envelope(project_root, freshness, readiness, runtime_policy)
+        if pending_gate is not None:
+            stage.set_status(_gate_stage_status(pending_gate))
+            return pending_gate
 
     core_update = None
     if readiness.status in {"dirty", "stale"}:
-        gate = dirty_or_stale_readiness_envelope(readiness, runtime_policy)
-        if gate is not None:
-            return gate
+        with timer.stage("readiness_gate", metrics={"recheck": "dirty_or_stale"}) as stage:
+            gate = dirty_or_stale_readiness_envelope(readiness, runtime_policy)
+            if gate is not None:
+                stage.set_status(_gate_stage_status(gate))
+                return gate
         core_update = run_core_update(
             project_root,
             config,
             all_sources=False,
             execution_role=runtime_policy.execution_role,
+            timer=timer,
         )
         if core_update.status == ResultStatus.FAILED:
             return error_envelope(
@@ -1161,6 +1250,7 @@ def run_spec_realign(
             request,
             core_update=core_update,
             freshness_report=None if core_update is not None else freshness,
+            timer=timer,
         )
     except (ClassificationError, ValidationError, ValueError, RuntimeError) as exc:
         return context_build_failed_envelope(exc)
@@ -1173,8 +1263,16 @@ def run_spec_realign(
 
     task_prompt = request.task_prompt or ""
     try:
-        answer_llm = make_answer_llm_from_config(config)
-        answer = generate_realign_answer(task_prompt, build.payload, llm=answer_llm)
+        answer_metrics = llm_config_metrics(
+            config,
+            "answer",
+            default_provider="template",
+            disabled_providers={"template", "deterministic", "none", "disabled", ""},
+        )
+        with timer.stage("answer_generation", metrics=answer_metrics) as stage:
+            answer_llm = make_answer_llm_from_config(config)
+            stage.metrics["llm_calls"] = 0 if answer_llm is None else 1
+            answer = generate_realign_answer(task_prompt, build.payload, llm=answer_llm)
     except ValueError as exc:
         return error_envelope(
             "answer_config_invalid",
@@ -1204,7 +1302,12 @@ def run_spec_realign(
         )
     except AnswerGenerationError as exc:
         if answer_failure_fallback_from_config(config) == "template":
-            answer = generate_realign_answer(task_prompt, build.payload, llm=None)
+            with timer.stage(
+                "answer_generation",
+                metrics={"provider": "template", "llm_calls": 0, "fallback": True},
+                status="degraded",
+            ):
+                answer = generate_realign_answer(task_prompt, build.payload, llm=None)
             warnings = [
                 *build.warnings,
                 "answer_generation_fallback_template",

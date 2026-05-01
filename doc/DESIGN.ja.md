@@ -158,6 +158,8 @@ ResultEnvelope:
     failed_sources[]?: string
     degraded_components[]?: string
     runtime_policy?: object
+    timing_summary?: object
+    stage_timings[]?: object
   warnings[]: string
 ```
 
@@ -166,6 +168,12 @@ ResultEnvelope:
 Phase 10 以降、`execution.runtime_policy` には解決済み runtime policy を保存する。`[runtime].mode` は `local_daily` / `ci` / `production`（smoke 実行時は `smoke`）を取り、`watcher_required`、`foreground_incremental`、`fail_fast_on_dirty`、`fail_fast_on_pending`、`fail_fast_on_stale` を mode 既定値と明示上書きから解決する。production mode では dirty / pending / stale を自動修復しないよう、明示上書きより fail-fast guard を優先する。
 
 `FreshnessReport.readiness_report` には GRAG readiness gate の判定結果を保存する。InjectionContext のトップレベル構造は増やさず、CoreResult / InjectionContext / RealignResult から辿れる FreshnessReport 内に機械判定情報を置く。
+
+Phase 11 以降、`execution.timing_summary` と `execution.stage_timings`
+には performance observability 用の診断情報を保存する。`stage_timings`
+は `time.perf_counter_ns()` ベースの duration と count / provider identity
+だけを持ち、Source specs 本文、LLM prompt 本文、LLM 応答本文は保存しない。
+run artifact では同じ情報を top-level にも複写する。
 
 ```text
 readiness_report:
@@ -1264,6 +1272,8 @@ ResultEnvelope:
     failed_sources[]?: string
     degraded_components[]?: string
     runtime_policy?: object
+    timing_summary?: object
+    stage_timings[]?: object
   warnings[]: string
 ```
 

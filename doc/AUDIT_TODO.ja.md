@@ -215,7 +215,7 @@ full build 後に実行する。
 | `chapter_anchors.json` |  |  |  |  |  |
 | `cluster_snapshot.json` |  |  |  |  |  |
 | `concept_index.json` |  |  |  |  |  |
-| run artifacts |  |  |  |  |  |
+| run artifacts | run artifact / execution diagnostics に timing_summary / stage_timings を保存し、blocked / failed でも完了済み timings を残す | `spec_grag/timing.py`, `spec_grag/run_artifacts.py`, `spec_grag/cli.py` | `tests/test_phase11_timings.py` | OK | token usage は provider から安定取得できる場合に追加 |
 
 ## G. Real Provider Optional Smoke
 
@@ -267,7 +267,8 @@ uv run spec-grag-slash spec-core --all --pretty
 - [!] token / call 数
   - 判定: PARTIAL
   - 証跡: `ccusage-codex` は現在の対話 session の増分は見えるが、`codex exec --ephemeral --json` subprocess は session 集計に出ていない
-  - 要修正: LLM adapter / run artifact に CLI usage と call 数を保存する
+  - 対応: Phase 11 で run artifact に `timing_summary` / `stage_timings` と stage 別 `llm_calls` を保存
+  - 残課題: CLI token usage は provider から安定取得できる場合に追加する
 - [x] warnings / degraded_components
   - warnings: `concept_index_embedding_metadata_mismatch_rebuilt`、`community_report_provider_failed:*Argument list too long*`
   - degraded_components: `[]`

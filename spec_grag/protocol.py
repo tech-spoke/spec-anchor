@@ -281,6 +281,8 @@ class ExecutionMetadata(StrictModel):
     failed_sources: list[str] = Field(default_factory=list)
     degraded_components: list[str] = Field(default_factory=list)
     runtime_policy: dict[str, Any] = Field(default_factory=dict)
+    timing_summary: dict[str, Any] | None = None
+    stage_timings: list[dict[str, Any]] = Field(default_factory=list)
 
 
 Payload = (
