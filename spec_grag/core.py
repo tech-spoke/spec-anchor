@@ -79,6 +79,11 @@ from spec_grag.manifest import (
 )
 from spec_grag.protocol import FreshnessReport, ResultStatus
 from spec_grag.retrieval import add_entities_to_vector_store
+from spec_grag.retrieval_index import (
+    RETRIEVAL_INDEX_FILENAME,
+    build_retrieval_index,
+    write_retrieval_index_atomic,
+)
 from spec_grag.sidecars import (
     ChapterAnchorsSidecar,
     CommunityReportGenerationError,
@@ -515,13 +520,21 @@ def run_core_update(
     with timer.stage(
         "chunk_index_update",
         metrics={"input_chunks": len(document_chunks.chunks)},
-    ):
+    ) as stage:
         bm25_index = build_bm25_index(document_chunks)
+        retrieval_index = build_retrieval_index(
+            graph_data=graph_store.graph.model_dump(),
+            document_chunks=document_chunks,
+            graph_revision=graph_revision,
+            generated_at=scanned_at,
+        )
+        stage.metrics["bm25_posting_terms"] = len(bm25_index.postings)
+        stage.metrics["retrieval_index_relations"] = len(retrieval_index.relations)
 
     artifact_graph_storage.mkdir(parents=True, exist_ok=True)
     with timer.stage(
         "artifact_write",
-        metrics={"artifact_count": 6, "artifact_kind": "core_graph"},
+        metrics={"artifact_count": 7, "artifact_kind": "core_graph"},
     ):
         graph_store.persist(str(artifact_graph_storage / GRAPH_STORE_FILENAME))
         vector_store.persist(str(artifact_graph_storage / VECTOR_STORE_FILENAME))
@@ -534,6 +547,10 @@ def run_core_update(
             chunk_vector_index,
         )
         write_bm25_index_atomic(artifact_graph_storage / BM25_INDEX_FILENAME, bm25_index)
+        write_retrieval_index_atomic(
+            artifact_graph_storage / RETRIEVAL_INDEX_FILENAME,
+            retrieval_index,
+        )
         write_embedding_metadata_atomic(artifact_embedding_metadata_file, embedding_metadata)
 
     chapter_anchors_path = artifact_graph_storage / "chapter_anchors.json"
@@ -1074,6 +1091,7 @@ def build_deterministic_graph(
                 "document_id": entry.document_id,
                 "chapter_id": entry.chapter_id,
                 "section_id": entry.section_id,
+                "stable_section_uid": entry.stable_section_uid,
                 "heading_path": entry.heading_path,
                 "heading_start_line": entry.heading_start_line,
                 "source_hash": entry.source_hash,
@@ -1112,6 +1130,7 @@ def build_deterministic_graph(
                         "source_document_id": entry.document_id,
                         "source_chapter_id": entry.chapter_id,
                         "source_section_id": entry.section_id,
+                        "stable_section_uid": entry.stable_section_uid,
                         "source_chunk_id": entry.section_id,
                         "source_hash": entry.source_hash,
                         "extract_run_id": "deterministic",
@@ -1330,6 +1349,7 @@ def anchor_for_entry(
             "document_id": entry.document_id,
             "chapter_id": entry.chapter_id,
             "section_id": entry.section_id,
+            "stable_section_uid": entry.stable_section_uid,
             "source_document_id": entry.document_id,
             "source_chapter_id": entry.chapter_id,
             "source_section_id": entry.section_id,
@@ -1475,6 +1495,7 @@ def _required_incremental_artifacts_exist(graph_storage: Path) -> bool:
         DOCUMENT_CHUNKS_FILENAME,
         CHUNK_VECTOR_INDEX_FILENAME,
         BM25_INDEX_FILENAME,
+        RETRIEVAL_INDEX_FILENAME,
         "embedding_metadata.json",
         "source_manifest.json",
         "unresolved_relations.json",
@@ -1486,7 +1507,10 @@ def _required_incremental_artifacts_exist(graph_storage: Path) -> bool:
 
 def _manifest_needs_hash_migration(manifest: SourceManifest) -> bool:
     return any(
-        entry.raw_hash is None or entry.semantic_hash is None
+        entry.raw_hash is None
+        or entry.semantic_hash is None
+        or entry.stable_section_uid is None
+        or not entry.section_aliases
         for entry in manifest.entries
     )
 

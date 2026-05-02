@@ -161,6 +161,18 @@ def test_source_hash_changes_only_when_section_content_changes(tmp_path: Path) -
     assert first.entries[0].source_hash != second.entries[0].source_hash
 
 
+def test_stable_section_uid_survives_heading_rename_when_body_is_same(tmp_path: Path) -> None:
+    source = write_markdown(tmp_path / "docs/spec/auth.md", "# Auth\n\nOAuth is required.\n")
+    first = build_current_section_manifest(tmp_path, [source])
+
+    source.write_text("# Authentication\n\nOAuth is required.\n", encoding="utf-8")
+    second = build_current_section_manifest(tmp_path, [source])
+
+    assert first.entries[0].section_id != second.entries[0].section_id
+    assert first.entries[0].stable_section_uid == second.entries[0].stable_section_uid
+    assert first.entries[0].section_aliases == [first.entries[0].section_id]
+
+
 def test_manifest_tracks_raw_and_semantic_hashes_separately(tmp_path: Path) -> None:
     source = write_markdown(tmp_path / "docs/spec/auth.md", "# Auth\n\nOAuth is required.\n")
     first = build_current_section_manifest(tmp_path, [source])

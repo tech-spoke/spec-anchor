@@ -15,6 +15,7 @@ from spec_grag.chunk_index import (
     CHUNK_VECTOR_INDEX_FILENAME,
     DOCUMENT_CHUNKS_FILENAME,
 )
+from spec_grag.retrieval_index import RETRIEVAL_INDEX_FILENAME
 from spec_grag.conflict_review import pending_conflict_candidate_ids
 from spec_grag.concept_diff import first_unresolved_pending_concept_diff
 from spec_grag.concept_index import concept_index_path, configured_concept_file, load_concept_index
@@ -355,6 +356,7 @@ def _missing_required_artifacts(graph_storage: Path) -> list[str]:
         DOCUMENT_CHUNKS_FILENAME,
         CHUNK_VECTOR_INDEX_FILENAME,
         BM25_INDEX_FILENAME,
+        RETRIEVAL_INDEX_FILENAME,
         "embedding_metadata.json",
         "source_manifest.json",
         "unresolved_relations.json",

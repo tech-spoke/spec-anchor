@@ -28,9 +28,14 @@ def maybe_write_run_artifact(
         artifact_dir = project_root / artifact_dir
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     digest = hashlib.sha256(envelope.to_json().encode("utf-8")).hexdigest()[:12]
+    response_json = json.loads(envelope.to_json())
+    trace_id = hashlib.sha256(
+        f"{timestamp}:{request.command.value}:{digest}".encode("utf-8")
+    ).hexdigest()[:16]
     path = artifact_dir / f"{timestamp}-{request.command.value}-{digest}.json"
     payload: dict[str, Any] = {
         "version": "1",
+        "trace_id": trace_id,
         "generated_at": datetime.now(UTC).isoformat(),
         "command": request.command.value,
         "status": envelope.status.value,
@@ -42,15 +47,79 @@ def maybe_write_run_artifact(
         "degraded_components": envelope.execution.degraded_components,
         "fallback_events": fallback_events(config, envelope),
         "retrieval_summary": retrieval_summary(envelope),
+        "graph_revision": _graph_revision(response_json),
+        "artifact_revision": _artifact_revision(project_root, response_json),
         "timing_summary": envelope.execution.timing_summary,
         "stage_timings": envelope.execution.stage_timings,
         "execution": envelope.execution.model_dump(mode="json"),
-        "response": json.loads(envelope.to_json()),
+        "response": _artifact_payload(response_json, run_config),
     }
-    if bool(run_config.get("include_request", True)):
-        payload["request"] = request.model_dump(mode="json")
+    if bool(run_config.get("include_request", False)):
+        payload["request"] = _artifact_payload(request.model_dump(mode="json"), run_config)
     _write_text_atomic(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return str(path)
+
+
+def _graph_revision(response_json: dict[str, Any]) -> str | None:
+    freshness = _freshness_payload(response_json)
+    value = freshness.get("graph_revision")
+    return str(value) if value else None
+
+
+def _artifact_revision(project_root: Path, response_json: dict[str, Any]) -> dict[str, Any] | None:
+    freshness = _freshness_payload(response_json)
+    graph_storage_path = freshness.get("graph_storage_path")
+    if not graph_storage_path:
+        return None
+    path = Path(str(graph_storage_path))
+    if not path.is_absolute():
+        path = project_root / path
+    revision_path = path / "artifact_revision.json"
+    if not revision_path.exists():
+        return None
+    try:
+        return json.loads(revision_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _freshness_payload(response_json: dict[str, Any]) -> dict[str, Any]:
+    payload = response_json.get("payload")
+    if not isinstance(payload, dict):
+        return {}
+    freshness = payload.get("freshness_report")
+    return freshness if isinstance(freshness, dict) else {}
+
+
+def _artifact_payload(value: Any, run_config: dict[str, Any]) -> Any:
+    if not bool(run_config.get("redact_payload", False)):
+        return value
+    return _redact_value(value)
+
+
+def _redact_value(value: Any) -> Any:
+    sensitive_keys = {
+        "task_prompt",
+        "current_user_message",
+        "recent_messages",
+        "excerpt",
+        "text",
+        "response",
+        "answer",
+        "injection_context",
+        "context_item",
+    }
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            if str(key) in sensitive_keys:
+                redacted[str(key)] = "[redacted]"
+            else:
+                redacted[str(key)] = _redact_value(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    return value
 
 
 def provider_summary(config: dict[str, Any]) -> dict[str, Any]:

@@ -606,10 +606,10 @@ InjectionContext.approved_concept_update / warnings:
 | `[retrieval]` | `chunk_size` / `chunk_overlap` / `vector_top_k` / `bm25_top_k` / `graph_expansion_hops` / `rank_fusion` / `max_source_chunks` | 任意 | raw chunk / vector / BM25 / graph retrieval の取得幅 |
 | `[embedding]` | `provider` / `model` / `dimension` | production 必須 | embedding provider。標準は Ollama `bge-m3` / `1024` |
 | `[embedding]` | `timeout_sec` / `max_retries` / `retry_backoff_sec` | 任意 | embedding API の timeout / retry |
-| `[run]` | `save_artifacts` / `artifact_dir` / `include_request` | 任意 | run artifact 保存設定 |
+| `[run]` | `save_artifacts` / `artifact_dir` / `include_request` / `redact_payload` | 任意 | run artifact 保存設定。`include_request` の既定は false |
 
 `[run].save_artifacts = true` の場合、run artifact は診断情報として
-`timing_summary` と `stage_timings` を保存する。`stage_timings` は
+`trace_id`、`graph_revision`、`artifact_revision`、`timing_summary` と `stage_timings` を保存する。`stage_timings` は
 `stage`、`duration_ms`、`status`、軽量 metrics を持つ配列である。
 Source specs 本文、LLM prompt 本文、LLM 応答本文は stage timing metrics
 として保存しない。blocked / failed の場合も、完了済み stage timings は

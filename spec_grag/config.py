@@ -388,7 +388,8 @@ class EmbeddingConfig(StrictModel):
 class RunConfig(StrictModel):
     save_artifacts: bool = False
     artifact_dir: str = ".spec-grag/runs"
-    include_request: bool = True
+    include_request: bool = False
+    redact_payload: bool = False
 
     @field_validator("artifact_dir")
     @classmethod

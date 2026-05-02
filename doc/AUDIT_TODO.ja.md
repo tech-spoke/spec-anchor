@@ -5,6 +5,8 @@
 
 本書は `doc/TODO.md` の肥大化を避けるための監査専用 TODO である。通常の実装作業順は `doc/TODO.md`、外部契約は `doc/EXTERNAL_DESIGN.ja.md`、内部設計は `doc/DESIGN.ja.md` を正とする。
 
+Phase 12 で production query path / artifact consistency / Graph RAG retrieval hardening の初回修正を実施した。監査で High とした「低レベル injection API の暗黙 core update」「failed core update による active artifact 部分更新」「graph expansion の未接続」「entity embedding 入力の貧弱さ」「classification budget の silent fallback」は regression test 付きで解消済み。残る監査対象は production self-run の実測、retrieval policy の config 化、stable ID の primary key 移行、external ANN / vector DB 差し替えである。
+
 ## 記録形式
 
 - 状態: `[ ]` 未着手、`[x]` 完了、`[~]` 実行中、`[!]` 要修正、`[-]` 対象外
@@ -275,11 +277,12 @@ uv run spec-grag-slash spec-core --all --pretty
 - [x] fallback_events
   - 判定: OK
   - 証跡: fallback ではなく provider fail-fast として `failed`
-- [!] generated artifacts
-  - 判定: PARTIAL / RISK
-  - 証跡: `failed` だが `property_graph_store.json`、`vector_store.json`、`document_chunks.json`、`chunk_vector_index.json`、`bm25_index.json`、`embedding_metadata.json`、`chapter_anchors.json`、`concept_index.json` は production artifact に更新済み
-  - 未完了: `cluster_snapshot.json` と `source_manifest.json` は旧 artifact のまま
-  - 要修正: `/spec-core` failed 時の artifact transaction / rollback / staging 方針を監査する
+- [x] generated artifacts
+  - 判定: OK
+  - 証跡: Phase 12 で heavy core path は `.spec-grag/.staging/<graph>/<revision>/` への書き込み後に active graph directory へ commit する方式へ変更
+  - 証跡: `artifact_revision.json` と `retrieval_index.json` を必須 artifact に追加
+  - 検証: `tests/test_phase12_hardening.py::test_core_update_failure_keeps_active_artifacts`
+  - 残課題: readiness report への active / staging / failed revision diagnostics 表示は別タスク
 - [x] unresolved relation 件数
   - 証跡: `unresolved_relations.json` 更新済み、size `32776` bytes
 - [x] Concept diff pending 有無

@@ -263,6 +263,9 @@ artifact_dir = ".spec-grag/runs"
     assert len(artifacts) == 1
     data = json.loads(artifacts[0].read_text(encoding="utf-8"))
     assert data["command"] == "spec-core"
+    assert data["trace_id"]
+    assert data["graph_revision"]
+    assert data["artifact_revision"]["graph_revision"] == data["graph_revision"]
     assert data["runtime_mode"] == "smoke"
     assert data["providers"]["embedding"]["provider"] == "stable_hash"
     assert data["degraded_components"] == envelope.execution.degraded_components
@@ -273,7 +276,7 @@ artifact_dir = ".spec-grag/runs"
         "code": "smoke_provider:stable_hash",
         "source": "provider_config",
     } in data["fallback_events"]
-    assert data["request"]["project_root"] == str(tmp_path)
+    assert "request" not in data
 
 
 def test_cli_answer_failure_can_fallback_to_template(tmp_path: Path) -> None:

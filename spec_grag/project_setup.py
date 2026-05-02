@@ -468,7 +468,8 @@ retry_backoff_sec = 0.0
 [run]
 save_artifacts = false
 artifact_dir = ".spec-grag/runs"
-include_request = true
+include_request = false
+redact_payload = false
 
 [watcher]
 enabled = true

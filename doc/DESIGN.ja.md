@@ -175,6 +175,11 @@ Phase 11 以降、`execution.timing_summary` と `execution.stage_timings`
 だけを持ち、Source specs 本文、LLM prompt 本文、LLM 応答本文は保存しない。
 run artifact では同じ情報を top-level にも複写する。
 
+Phase 12 以降、run artifact には `trace_id`、`graph_revision`、
+`artifact_revision` も保存する。`[run].include_request` の既定値は false
+であり、request / response payload を保存する場合も `[run].redact_payload`
+で本文系 field を redaction できる。
+
 ```text
 readiness_report:
   status: fresh | dirty | pending | stale
@@ -199,6 +204,8 @@ Phase 10 の watcher は single worker の常駐 polling watcher である。Sou
 watcher の挙動は `.spec-grag/config.toml` の `[watcher]` で設定できる。`enabled=false` の場合、`spec-grag-watch` は core 更新を行わず終了する。`interval_ms` は常駐 polling 間隔、`debounce_ms` は変更検知後に snapshot が安定するまで待つ時間、`stale_lock_ms` は heartbeat lock を stale とみなすまでの時間である。`state_file` と `queue_file` は relative path の場合 project root から解決する。
 
 foreground context generation は watcher state を readiness gate で確認する。local daily では `run_state=running` または queue 非空の間、`/spec-inject` / `/spec-realign` は InjectionContext / Answer を生成せず blocked になる。production では同じ状態を fail-fast として扱う。CI / watcherなし mode では foreground incremental が許可され、watcher state に依存しない。
+
+Phase 12 以降、低レベル API の `build_injection()` は read-only default とする。CLI は必要な `core_update` / `freshness_report` を readiness gate で解決してから渡し、`build_injection()` 自身は `allow_core_update=True` が明示された test / helper 経路を除いて `run_core_update()` を起動しない。query-time の build side effect は production path では禁止し、foreground incremental / watcher / `spec-core` に閉じ込める。
 
 ```text
 watch_state（.spec-grag/state/watch_state.json）:
@@ -527,6 +534,8 @@ EXTERNAL_DESIGN.ja.md §4 / §5 / §6 の 3 コマンドを、§1.1 の責務境
         - VectorContextRetriever + 章間 relation 探索で修正対象候補を取得
      - 各 graph 候補は (node, relation, source span, evidence, confidence, score) を持つ
      - graph の relation は「読むべき場所のヒント」、確定事実ではない
+     - `retrieval.graph_expansion_hops` は seed section / chunk / explicit target からの bounded traversal 上限であり、結果には hop / path / relation_type / confidence / source_section_id / evidence_excerpt を保持する
+     - `retrieval_index.json` は query-time の section / chunk / node / relation 逆引き artifact であり、Graph RAG traversal の主要な全件走査を避けるために使う
   6. GRAG: 該当章 / 関連章の chapter_anchors（ANCHOR）を取得
   7. Orchestrator: cluster snapshot から Hierarchical Cluster を読み込み、
      関連 cluster を InjectionContext に反映（§3.5）
@@ -1369,6 +1378,8 @@ source_manifest（.spec-grag/graph/source_manifest.json）:
     document_id: string
     chapter_id: string
     section_id: string
+    stable_section_uid: string（heading rename に強い互換 ID）
+    section_aliases[]: string
     heading_path: string
     heading_start_line: integer
     source_hash: string（section 単位 SHA-256）
@@ -1396,6 +1407,13 @@ source_manifest（.spec-grag/graph/source_manifest.json）:
 5. status=failed / blocked の場合:
    - source_manifest は更新しない
 ```
+
+Phase 12 以降の heavy core path は `.spec-grag/.staging/<graph>/<revision>/`
+へ graph / vector / raw chunk / BM25 / retrieval index / sidecar を書き出し、
+`artifact_revision.json` を生成してから active graph directory へ commit する。
+後段 stage が失敗した場合は staging を破棄し、active artifact は旧 revision の
+一貫した状態を維持する。no-change / format-only fast path は従来通り
+個別 atomic file write を使う。
 
 Conflict 段階 2 の「scanned_at より新しい修正との食い違い」は、source_manifest の `scanned_at` と実ファイルの `mtime` / 再計算 hash を比較して検出する。ただし `mtime` は Git checkout や touch で内容変更なしに更新されるため、再スキャンの補助トリガーにとどめる。真の変更判定は section 単位 SHA-256 の `source_hash` 比較を優先する。
 

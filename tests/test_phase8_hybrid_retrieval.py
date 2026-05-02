@@ -12,10 +12,12 @@ from spec_grag.chunk_index import (
     DOCUMENT_CHUNKS_FILENAME,
     analyze_text,
     document_chunks_path,
+    load_bm25_index,
     load_document_chunks,
     validate_chunk_source,
 )
 from spec_grag.protocol import ResultEnvelope, ResultStatus, ResultType
+from spec_grag.retrieval_index import RETRIEVAL_INDEX_FILENAME, load_retrieval_index
 
 
 def write_config(project_root: Path) -> None:
@@ -103,7 +105,16 @@ def test_spec_core_writes_raw_chunk_dense_and_bm25_indexes(tmp_path: Path) -> No
     assert (graph_dir / DOCUMENT_CHUNKS_FILENAME).exists()
     assert (graph_dir / CHUNK_VECTOR_INDEX_FILENAME).exists()
     assert (graph_dir / BM25_INDEX_FILENAME).exists()
+    assert (graph_dir / RETRIEVAL_INDEX_FILENAME).exists()
     assert chunks.chunks
+    bm25 = load_bm25_index(graph_dir / BM25_INDEX_FILENAME)
+    assert bm25.postings
+    assert any(chunks.chunks[0].chunk_id in chunk_ids for chunk_ids in bm25.postings.values())
+    assert chunks.chunks[0].stable_section_uid
+    assert chunks.chunks[0].stable_chunk_uid
+    retrieval_index = load_retrieval_index(graph_dir / RETRIEVAL_INDEX_FILENAME)
+    assert retrieval_index is not None
+    assert chunks.chunks[0].section_id in retrieval_index.section_chunks
     assert validate_chunk_source(tmp_path, chunks.chunks[0]) is None
 
 

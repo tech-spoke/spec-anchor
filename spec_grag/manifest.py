@@ -42,6 +42,8 @@ class SourceManifestEntry(StrictModel):
     document_id: str
     chapter_id: str
     section_id: str
+    stable_section_uid: str | None = None
+    section_aliases: list[str] = Field(default_factory=list)
     heading_path: str
     heading_start_line: int
     source_hash: str
@@ -432,12 +434,28 @@ def _manifest_entry(
         document_id=document_id,
         chapter_id=chapter_id,
         section_id=section_id,
+        stable_section_uid=stable_section_uid_for(document_id, section_text),
+        section_aliases=[section_id],
         heading_path=heading_path,
         heading_start_line=heading_start_line,
         source_hash=raw_hash,
         raw_hash=raw_hash,
         semantic_hash=semantic_hash,
     )
+
+
+def stable_section_uid_for(document_id: str, section_text: str) -> str:
+    body_text = _section_body_without_heading(section_text)
+    normalized_body = _semantic_normalize_markdown(_normalize_line_endings(body_text))
+    digest = _sha256_text(f"{document_id}\n{normalized_body}")[:24]
+    return f"stable-section:{digest}"
+
+
+def _section_body_without_heading(section_text: str) -> str:
+    lines = _normalize_line_endings(section_text).splitlines(keepends=True)
+    if lines and lines[0].lstrip().startswith("#"):
+        return "".join(lines[1:])
+    return "".join(lines)
 
 
 def _entry_raw_hash(entry: SourceManifestEntry) -> str:
