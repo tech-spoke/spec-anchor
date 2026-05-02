@@ -30,7 +30,7 @@ classification は high priority skip なしまで改善したが、`classificat
 2026-05-02 監査追補:
 
 - `doc/AUDIT_TODO.ja.md` の古い `classification.max_items=8` 起因 RISK は stale として Phase 14 後の PARTIAL 判定へ更新した
-- medium / low priority incomplete の production policy は degraded 維持に決定。warning-only は採用しない。deferred classification は別タスクとして残す
+- medium / low priority incomplete の production policy は degraded 維持に決定。warning-only は採用しない。当時 deferred classification は別タスクとして残したが、2026-05-03 追補で実装済み
 - retrieval query set 5本を実測。Source evidence は概ね妥当だが、Concept 巨大 chunk 混入、query planner 語過多、answer 40秒台が残る
 - `Concept にないが Source specs にある制約の扱い` で、type budget が tier 0 graph entity を落として `classification_high_priority_incomplete` / failed になる不具合を発見し修正した
 - 修正後 artifact `.spec-grag/runs/20260502T084927.386804Z-spec-inject-2bf9dae9cfe6.json`: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=4`、`degraded_components=['classification']`

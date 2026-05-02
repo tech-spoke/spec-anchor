@@ -119,7 +119,7 @@ Phase 14 の priority / budget policy は効いた。batch classification と pe
 - `uv run --with pytest python -m pytest -q` -> `229 passed in 187.76s`
 - 再実行 artifact `.spec-grag/runs/20260502T084927.386804Z-spec-inject-2bf9dae9cfe6.json`: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=4`、`degraded_components=['classification']`
 
-production policy は、medium / low priority incomplete でも warning-only にはせず degraded 維持とする。silent rule-based fallback は引き続き不可。deferred classification は別タスクとして残す。
+production policy は、medium / low priority incomplete でも warning-only にはせず degraded 維持とする。silent rule-based fallback は引き続き不可。この時点では deferred classification を別タスクとして残したが、下記 2026-05-03 監査実装追補で実装済み。
 
 ## 2026-05-03 監査実装追補
 
