@@ -11,6 +11,7 @@ import tempfile
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
@@ -74,16 +75,28 @@ class DocumentChunksSidecar(StrictModel):
     chunks: list[DocumentChunk] = Field(default_factory=list)
 
     def by_chunk_id(self) -> dict[str, DocumentChunk]:
-        return {chunk.chunk_id: chunk for chunk in self.chunks}
+        return self._by_chunk_id
 
     def by_stable_chunk_uid(self) -> dict[str, DocumentChunk]:
+        return self._by_stable_chunk_uid
+
+    def by_retrieval_key(self) -> dict[str, DocumentChunk]:
+        return self._by_retrieval_key
+
+    @cached_property
+    def _by_chunk_id(self) -> dict[str, DocumentChunk]:
+        return {chunk.chunk_id: chunk for chunk in self.chunks}
+
+    @cached_property
+    def _by_stable_chunk_uid(self) -> dict[str, DocumentChunk]:
         return {
             chunk.stable_chunk_uid: chunk
             for chunk in self.chunks
             if chunk.stable_chunk_uid
         }
 
-    def by_retrieval_key(self) -> dict[str, DocumentChunk]:
+    @cached_property
+    def _by_retrieval_key(self) -> dict[str, DocumentChunk]:
         chunks: dict[str, DocumentChunk] = {}
         for chunk in self.chunks:
             chunks[chunk_primary_key(chunk)] = chunk
@@ -106,16 +119,28 @@ class ChunkVectorIndex(StrictModel):
     embeddings: list[ChunkEmbedding] = Field(default_factory=list)
 
     def by_chunk_id(self) -> dict[str, ChunkEmbedding]:
-        return {item.chunk_id: item for item in self.embeddings}
+        return self._by_chunk_id
 
     def by_stable_chunk_uid(self) -> dict[str, ChunkEmbedding]:
+        return self._by_stable_chunk_uid
+
+    def by_retrieval_key(self) -> dict[str, ChunkEmbedding]:
+        return self._by_retrieval_key
+
+    @cached_property
+    def _by_chunk_id(self) -> dict[str, ChunkEmbedding]:
+        return {item.chunk_id: item for item in self.embeddings}
+
+    @cached_property
+    def _by_stable_chunk_uid(self) -> dict[str, ChunkEmbedding]:
         return {
             item.stable_chunk_uid: item
             for item in self.embeddings
             if item.stable_chunk_uid
         }
 
-    def by_retrieval_key(self) -> dict[str, ChunkEmbedding]:
+    @cached_property
+    def _by_retrieval_key(self) -> dict[str, ChunkEmbedding]:
         embeddings: dict[str, ChunkEmbedding] = {}
         for item in self.embeddings:
             embeddings[chunk_embedding_primary_key(item)] = item
@@ -143,16 +168,28 @@ class BM25Index(StrictModel):
     documents: list[BM25Document] = Field(default_factory=list)
 
     def by_chunk_id(self) -> dict[str, BM25Document]:
-        return {item.chunk_id: item for item in self.documents}
+        return self._by_chunk_id
 
     def by_stable_chunk_uid(self) -> dict[str, BM25Document]:
+        return self._by_stable_chunk_uid
+
+    def by_retrieval_key(self) -> dict[str, BM25Document]:
+        return self._by_retrieval_key
+
+    @cached_property
+    def _by_chunk_id(self) -> dict[str, BM25Document]:
+        return {item.chunk_id: item for item in self.documents}
+
+    @cached_property
+    def _by_stable_chunk_uid(self) -> dict[str, BM25Document]:
         return {
             item.stable_chunk_uid: item
             for item in self.documents
             if item.stable_chunk_uid
         }
 
-    def by_retrieval_key(self) -> dict[str, BM25Document]:
+    @cached_property
+    def _by_retrieval_key(self) -> dict[str, BM25Document]:
         documents: dict[str, BM25Document] = {}
         for item in self.documents:
             documents[bm25_document_primary_key(item)] = item

@@ -10,6 +10,12 @@ from spec_grag.chunk_index import (
     BM25_INDEX_FILENAME,
     CHUNK_VECTOR_INDEX_FILENAME,
     DOCUMENT_CHUNKS_FILENAME,
+    BM25Document,
+    BM25Index,
+    ChunkEmbedding,
+    ChunkVectorIndex,
+    DocumentChunk,
+    DocumentChunksSidecar,
     QueryPlan,
     analyze_text,
     bm25_query_text_for_plan,
@@ -216,6 +222,50 @@ def test_bm25_analyzer_keeps_identifiers_and_char_ngrams() -> None:
     assert "id:flattenrefs" in tokens
     assert "id:@core/ui" in tokens
     assert "char2:設計" in tokens
+
+
+def test_chunk_lookup_indexes_are_cached() -> None:
+    chunk = DocumentChunk(
+        chunk_id="chunk:auth:0",
+        stable_chunk_uid="stable:auth:0",
+        document_id="docs/spec/auth.md",
+        chapter_id="docs/spec/auth.md#auth",
+        section_id="docs/spec/auth.md#auth-login",
+        stable_section_uid="stable:section:auth",
+        heading_path="Auth / Login",
+        source_span="1-3",
+        source_hash="hash-source",
+        text="OAuth is required.",
+        chunk_hash="hash-chunk",
+        generated_at="t1",
+    )
+    chunks = DocumentChunksSidecar(chunks=[chunk])
+    vector = ChunkVectorIndex(
+        embedding_metadata={"provider": "stable_hash", "model": "sha256-v1", "dimension": 1},
+        embeddings=[
+            ChunkEmbedding(
+                chunk_id=chunk.chunk_id,
+                stable_chunk_uid=chunk.stable_chunk_uid,
+                chunk_hash=chunk.chunk_hash,
+                embedding=[1.0],
+            )
+        ],
+    )
+    bm25 = BM25Index(
+        documents=[
+            BM25Document(
+                chunk_id=chunk.chunk_id,
+                stable_chunk_uid=chunk.stable_chunk_uid,
+                chunk_hash=chunk.chunk_hash,
+                length=3,
+            )
+        ]
+    )
+
+    assert chunks.by_retrieval_key() is chunks.by_retrieval_key()
+    assert vector.by_retrieval_key() is vector.by_retrieval_key()
+    assert bm25.by_retrieval_key() is bm25.by_retrieval_key()
+    assert "_by_retrieval_key" not in chunks.model_dump()
 
 
 def test_bm25_query_uses_raw_query_and_identifier_plan_parts_only() -> None:
