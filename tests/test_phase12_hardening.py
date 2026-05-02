@@ -7,7 +7,7 @@ from typing import Any
 
 from spec_grag.config import validate_project_config
 from spec_grag.concept_index import ConceptDiffProposalError
-from spec_grag.core import run_core_update
+from spec_grag.core import ARTIFACT_REVISION_FILENAME, run_core_update
 from spec_grag.injection import (
     build_injection,
     classify_context_item,
@@ -290,3 +290,29 @@ def test_core_update_failure_keeps_active_artifacts(tmp_path: Path, monkeypatch)
         first.freshness_report.graph_revision
     )
     assert diagnostics["failed_revisions"][0]["staging_path_exists"] is False
+
+
+def test_artifact_revision_is_required_for_freshness(tmp_path: Path) -> None:
+    write_auth_source(tmp_path, "# Auth\n\n## Login\n\nOAuth is required.\n")
+    first = run_core_update(tmp_path, config(), all_sources=True)
+    graph_dir = tmp_path / ".spec-grag/graph"
+    revision_path = graph_dir / ARTIFACT_REVISION_FILENAME
+
+    assert first.status == ResultStatus.OK
+    assert revision_path.exists()
+
+    revision_path.unlink()
+    stale = evaluate_grag_readiness(tmp_path, config())
+
+    assert stale.status.value == "stale"
+    assert "artifact_missing" in stale.stale_reason_codes
+    assert any(
+        reason.code == "artifact_missing"
+        and ARTIFACT_REVISION_FILENAME in reason.details["artifacts"]
+        for reason in stale.reasons
+    )
+
+    repaired = run_core_update(tmp_path, config(), all_sources=False)
+
+    assert repaired.status == ResultStatus.OK
+    assert revision_path.exists()

@@ -21,6 +21,7 @@ from spec_grag.concept_diff import first_unresolved_pending_concept_diff
 from spec_grag.concept_index import concept_index_path, configured_concept_file, load_concept_index
 from spec_grag.config import ExecutionRole, RuntimePolicy, resolve_runtime_policy
 from spec_grag.core import (
+    ARTIFACT_REVISION_FILENAME,
     EXTRACTOR_VERSION,
     GRAPH_STORE_FILENAME,
     VECTOR_STORE_FILENAME,
@@ -368,6 +369,7 @@ def _missing_required_artifacts(graph_storage: Path) -> list[str]:
         CHUNK_VECTOR_INDEX_FILENAME,
         BM25_INDEX_FILENAME,
         RETRIEVAL_INDEX_FILENAME,
+        ARTIFACT_REVISION_FILENAME,
         "embedding_metadata.json",
         "source_manifest.json",
         "unresolved_relations.json",

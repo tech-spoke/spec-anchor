@@ -445,6 +445,8 @@ InjectionContext
 
 `Source specs` も同様に、守るべき既存仕様として働く場合は `ConstraintContext` に入り、修正対象の章・節として扱う場合は `TargetContext` に入る。同じ Source specs が制約側と修正対象側の両方に現れる場合もある。
 
+InjectionContext 内の Source specs 由来 item は、少なくとも `source_document_id`、`source_section_id`、`source_span`、`source_hash` を持つ。chunk 由来 item はこれに加えて `stable_chunk_uid` を持つ。section 由来 item は、実装が stable identity を保持する場合 `stable_section_uid` を持つ。`stable_section_uid` / `stable_chunk_uid` は retrieval / provenance / artifact 間の内部参照軸であり、`source_section_id` / `chunk_id` は表示、引用、後方互換、debug 用 alias として残す。
+
 Concept diff が未解決の場合、`/spec-inject` は InjectionContext を出力しない。その場合は、Concept を書き換えず、ユーザーに accept / reject / 修正指示を求める確認要求だけを出力する。
 
 ### 5.5 LLM への要求
@@ -606,14 +608,15 @@ InjectionContext.approved_concept_update / warnings:
 | `[retrieval]` | `chunk_size` / `chunk_overlap` / `vector_top_k` / `bm25_top_k` / `graph_expansion_hops` / `graph_relation_allowlist` / `graph_min_relation_confidence` / `max_graph_entities` / `rank_fusion` / `max_source_chunks` | 任意 | raw chunk / vector / BM25 / graph retrieval の取得幅と graph traversal policy |
 | `[embedding]` | `provider` / `model` / `dimension` | production 必須 | embedding provider。標準は Ollama `bge-m3` / `1024` |
 | `[embedding]` | `timeout_sec` / `max_retries` / `retry_backoff_sec` | 任意 | embedding API の timeout / retry |
-| `[run]` | `save_artifacts` / `artifact_dir` / `include_request` / `redact_payload` | 任意 | run artifact 保存設定。`include_request` の既定は false |
+| `[run]` | `save_artifacts` / `artifact_dir` / `include_request` / `include_response` / `redact_payload` | 任意 | run artifact 保存設定。`include_request` / `include_response` の既定は false |
 
 `[run].save_artifacts = true` の場合、run artifact は診断情報として
 `trace_id`、`graph_revision`、`artifact_revision`、`timing_summary` と `stage_timings` を保存する。`stage_timings` は
 `stage`、`duration_ms`、`status`、軽量 metrics を持つ配列である。
 Source specs 本文、LLM prompt 本文、LLM 応答本文は stage timing metrics
 として保存しない。blocked / failed の場合も、完了済み stage timings は
-artifact に残す。
+artifact に残す。request / response payload はそれぞれ `[run].include_request` /
+`[run].include_response` を明示した場合だけ保存する。
 
 `[retrieval]` の graph traversal 既定値は `graph_expansion_hops = 1`、
 `graph_relation_allowlist = ["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"]`、
@@ -708,6 +711,9 @@ effort = "low"
   `gpt-5.5`、`gpt-5.4`、`gpt-5.4-mini`、`gpt-5.3-codex`、`gpt-5.2`
 - `[llm.codex_cli].effort` は `minimal | low | medium | high | xhigh` を指定する。
   実行時は `codex exec --config model_reasoning_effort="<effort>"` に変換する。
+  分析送信の抑止は feature flag 名に依存せず、`codex exec --config analytics.enabled=false`
+  として渡す。`--ask-for-approval never` は Codex CLI の top-level option であるため、
+  実行コマンド上は `codex --ask-for-approval never exec ...` の位置に残る。
 - Claude Code では alias ではなく full model name を推奨する。例:
   `claude-sonnet-4-6`、`claude-opus-4-6`
 - `[llm.claude_cli].effort` は `low | medium | high | xhigh | max` を指定する。
@@ -784,6 +790,8 @@ InjectionContext
   approved_concept_update?
   warnings[]
 ```
+
+Source specs 由来の配列要素は、証跡として `source_document_id`、`source_section_id`、`source_span`、`source_hash` を持つ。実装が chunk 単位 retrieval を使う場合は `stable_chunk_uid` を持ち、section 単位の stable identity を保持する場合は `stable_section_uid` を持つ。これらは item metadata であり、InjectionContext のトップレベル構造を増やしてはいけない。
 
 ### 8.2 RealignResult
 

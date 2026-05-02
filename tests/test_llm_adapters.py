@@ -57,14 +57,14 @@ def test_codex_cli_adapter_complete_uses_runner_and_schema() -> None:
         for index, item in enumerate(cmd)
         if item == "--disable"
     ]
-    assert disable_features == ["plugins", "general_analytics"]
+    assert disable_features == ["plugins"]
     assert cmd.index("exec") < cmd.index("--disable") < cmd.index("--model")
     config_values = [
         cmd[index + 1]
         for index, item in enumerate(cmd)
         if item == "--config"
     ]
-    assert config_values == ['model_reasoning_effort="low"']
+    assert config_values == ["analytics.enabled=false", 'model_reasoning_effort="low"']
     assert cmd.index("exec") < cmd.index("--config") < cmd.index("--model")
     assert "--ephemeral" in calls[0]
     assert "--ignore-rules" in calls[0]
@@ -102,7 +102,7 @@ def test_codex_cli_adapter_can_disable_effort_override() -> None:
             args=list(cmd), returncode=0, stdout='{"result": "done"}', stderr=""
         )
 
-    llm = CodexCLIAdapter(runner=runner, effort=None)
+    llm = CodexCLIAdapter(runner=runner, effort=None, disable_analytics=False)
     response = llm.complete("prompt")
 
     assert response.text == "done"

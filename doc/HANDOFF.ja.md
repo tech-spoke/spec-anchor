@@ -90,7 +90,7 @@ Codex:
 - `codex login status` で ChatGPT ログイン済みを確認
 - `codex --ask-for-approval never exec ... --output-schema ...` で schema 準拠 JSON 出力を確認
 - 注意: `--ask-for-approval` は `exec` ではなく Codex 本体のトップレベルオプション。正しい順序は `codex --ask-for-approval never exec ...`
-- adapter のデフォルトは `--ask-for-approval never` / `exec --disable plugins --disable general_analytics --config model_reasoning_effort="low"` / `--sandbox read-only` / `--ephemeral` / `--ignore-rules` / `--skip-git-repo-check` / `--json`
+- adapter のデフォルトは `--ask-for-approval never` / `exec --disable plugins --config analytics.enabled=false --config model_reasoning_effort="low"` / `--sandbox read-only` / `--ephemeral` / `--ignore-rules` / `--skip-git-repo-check` / `--json`
 
 Claude:
 

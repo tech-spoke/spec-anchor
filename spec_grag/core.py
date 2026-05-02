@@ -1706,6 +1706,7 @@ def _required_incremental_artifacts_exist(graph_storage: Path) -> bool:
         CHUNK_VECTOR_INDEX_FILENAME,
         BM25_INDEX_FILENAME,
         RETRIEVAL_INDEX_FILENAME,
+        ARTIFACT_REVISION_FILENAME,
         "embedding_metadata.json",
         "source_manifest.json",
         "unresolved_relations.json",

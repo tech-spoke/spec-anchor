@@ -72,7 +72,8 @@ class CodexCLIAdapter(CustomLLM):
     ignore_rules: bool = True
     use_json_events: bool = True
     skip_git_repo_check: bool = True
-    disable_features: tuple[str, ...] = ("plugins", "general_analytics")
+    disable_features: tuple[str, ...] = ("plugins",)
+    disable_analytics: bool = True
     effort: str | None = "low"
     prompt_via_stdin: bool = True
     max_retries: int = 0
@@ -133,6 +134,8 @@ class CodexCLIAdapter(CustomLLM):
             feature_name = str(feature).strip()
             if feature_name:
                 cmd.extend(["--disable", feature_name])
+        if self.disable_analytics:
+            cmd.extend(["--config", "analytics.enabled=false"])
         if self.effort:
             cmd.extend(
                 [

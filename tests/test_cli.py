@@ -277,6 +277,34 @@ artifact_dir = ".spec-grag/runs"
         "source": "provider_config",
     } in data["fallback_events"]
     assert "request" not in data
+    assert "response" not in data
+
+
+def test_cli_run_artifact_response_requires_opt_in_and_can_redact(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+    config_path = tmp_path / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + """
+
+[run]
+save_artifacts = true
+artifact_dir = ".spec-grag/runs"
+include_response = true
+redact_payload = true
+""",
+        encoding="utf-8",
+    )
+
+    result = run_cli(request_json(tmp_path, "spec-realign"))
+
+    assert result.returncode == 0
+    artifacts = list((tmp_path / ".spec-grag/runs").glob("*.json"))
+    assert len(artifacts) == 1
+    data = json.loads(artifacts[0].read_text(encoding="utf-8"))
+    assert "request" not in data
+    assert data["response"]["payload"]["answer"] == "[redacted]"
 
 
 def test_cli_answer_failure_can_fallback_to_template(tmp_path: Path) -> None:

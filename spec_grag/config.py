@@ -415,6 +415,7 @@ class RunConfig(StrictModel):
     save_artifacts: bool = False
     artifact_dir: str = ".spec-grag/runs"
     include_request: bool = False
+    include_response: bool = False
     redact_payload: bool = False
 
     @field_validator("artifact_dir")

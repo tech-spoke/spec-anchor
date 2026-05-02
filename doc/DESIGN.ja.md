@@ -176,9 +176,9 @@ Phase 11 以降、`execution.timing_summary` と `execution.stage_timings`
 run artifact では同じ情報を top-level にも複写する。
 
 Phase 12 以降、run artifact には `trace_id`、`graph_revision`、
-`artifact_revision` も保存する。`[run].include_request` の既定値は false
-であり、request / response payload を保存する場合も `[run].redact_payload`
-で本文系 field を redaction できる。
+`artifact_revision` も保存する。`[run].include_request` と
+`[run].include_response` の既定値は false であり、request / response payload
+を保存する場合も `[run].redact_payload` で本文系 field を redaction できる。
 
 ```text
 readiness_report:
@@ -1366,7 +1366,7 @@ vector retrieval なしでも、経路 3/4 は graph traversal（PGRetriever + `
 
 Phase 13 時点では、大多数の project が 5,000 chunks 未満に収まる想定のため、raw chunk dense retrieval は `document_chunks.json` と `chunk_vector_index.json` を正本 / index とする JSON scan を既定として維持する。`dense_scanned_embeddings`、retrieval stage latency、`chunk_vector_index.json` size を観測し、概ね 5,000〜10,000 chunks で Qdrant backend 導入を検討、10,000 chunks 以上または retrieval stage が 500ms〜1s を継続して超える場合は Qdrant backend を推奨する。
 
-Qdrant 導入時も、初期案では `document_chunks.json` を citation / provenance / fallback の正本として残し、Qdrant は ANN index として `chunk_id`、section metadata、hash、graph/artifact revision、短い excerpt、embedding を保持する。query-time は Qdrant search で `chunk_id` top-k を取得し、本文と根拠情報は `document_chunks.json` から引く。これにより Qdrant collection が壊れた場合も `.spec-grag/graph` artifacts から再構築でき、既存の artifact transaction / readiness / offline audit を保てる。
+Qdrant 導入時も、初期案では `document_chunks.json` を citation / provenance / fallback の正本として残し、Qdrant は ANN index として `stable_chunk_uid` を point id / payload の主キーにする。`chunk_id` は current alias / debug / 後方互換用 payload として保持し、section metadata、hash、graph/artifact revision、短い excerpt、embedding も payload に含める。query-time は Qdrant search で `stable_chunk_uid` top-k を取得し、本文と根拠情報は `document_chunks.json` の `stable_chunk_uid` lookup から引く。旧 artifact や移行中 collection では `chunk_id` alias fallback を許可するが、retrieval / provenance の主軸にはしない。これにより Qdrant collection が壊れた場合も `.spec-grag/graph` artifacts から再構築でき、既存の artifact transaction / readiness / offline audit を保てる。
 
 Qdrant backend は local-only 運用を前提に optional backend とする。設定案は `[retrieval].vector_backend = "json" | "qdrant"`、`[retrieval].qdrant_fallback_to_json = true`、`[qdrant].url = "http://localhost:6333"`、`[qdrant].collection = "spec_grag_chunks"` とし、llm-helper とは collection を分離する。Qdrant を chunk 正本へ一元化する案は、CI / local / packaging で Qdrant 必須化、collection schema version、backup/restore、revision rollback を設計できた段階で別途検討する。
 

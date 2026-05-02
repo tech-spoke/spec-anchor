@@ -52,10 +52,11 @@ def maybe_write_run_artifact(
         "timing_summary": envelope.execution.timing_summary,
         "stage_timings": envelope.execution.stage_timings,
         "execution": envelope.execution.model_dump(mode="json"),
-        "response": _artifact_payload(response_json, run_config),
     }
     if bool(run_config.get("include_request", False)):
         payload["request"] = _artifact_payload(request.model_dump(mode="json"), run_config)
+    if bool(run_config.get("include_response", False)):
+        payload["response"] = _artifact_payload(response_json, run_config)
     _write_text_atomic(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return str(path)
 

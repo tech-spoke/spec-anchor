@@ -472,6 +472,7 @@ retry_backoff_sec = 0.0
 save_artifacts = false
 artifact_dir = ".spec-grag/runs"
 include_request = false
+include_response = false
 redact_payload = false
 
 [watcher]
