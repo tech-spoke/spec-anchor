@@ -1,13 +1,53 @@
 # spec-grag 実装引き継ぎ
 
-> 最終更新: 2026-05-01
+> 最終更新: 2026-05-02
 > 位置づけ: 実装・調査結果の現在地メモ。外部契約は `doc/EXTERNAL_DESIGN.ja.md`、内部設計は `doc/DESIGN.ja.md`、作業順は `doc/TODO.md`、Phase 9 後の監査作業は `doc/AUDIT_TODO.ja.md` を正とする。
 
 このファイルは、次の作業者が「どこまで実装・検証済みか」「何を前提に進めてよいか」を短時間で把握するための引き継ぎである。設計判断そのものを変更する場所ではない。
 
-Phase 1 の詳細な結果・気づき・問題点・残リスクは `doc/PHASE1_REPORT.ja.md` を参照する。Phase 2 の結果は `doc/PHASE2_REPORT.ja.md`、Phase 3 の結果は `doc/PHASE3_REPORT.ja.md`、Phase 4 の結果は `doc/PHASE4_REPORT.ja.md`、Phase 5 の結果は `doc/PHASE5_REPORT.ja.md`、Phase 6 の結果は `doc/PHASE6_REPORT.ja.md`、Phase 7 の結果は `doc/PHASE7_REPORT.ja.md`、Phase 8 の結果は `doc/PHASE8_REPORT.ja.md`、Phase 9 の結果は `doc/PHASE9_REPORT.ja.md` を参照する。
+各 Phase の詳細な結果・気づき・問題点・残リスクは `doc/PHASE<N>_REPORT.ja.md` を参照する。直近は `doc/PHASE14_REPORT.ja.md`。
 
-## 現在地
+## 最新引き継ぎ（2026-05-02 / Phase 14 後）
+
+現在の先頭 commit は `9bafb82 feat: add classification priority budgets`。Phase 14 着手前の退避 commit は `a305dd3 chore: checkpoint before phase 14 policy`。この引き継ぎ作成前の `git status --short` は clean。
+
+Phase 14 は実装・検証済み。`ClassificationCandidate` 収集、`classification_key` dedup、priority sort、type budget、batch classification、persistent classification cache、priority-aware incomplete policy、stage metrics 拡張を入れた。詳細は `doc/PHASE14_REPORT.ja.md`。
+
+検証:
+
+- `uv run --with pytest python -m pytest tests/test_phase9_production_policy.py tests/test_phase12_hardening.py tests/test_injection_realign.py tests/test_phase7_packaging.py::test_template_resources_are_packaged_for_wheel_install -q` -> `51 passed in 25.53s`
+- `uv run --with pytest python -m pytest -q` -> `228 passed in 197.40s`
+
+Phase 14 後の production self E2E:
+
+- `spec-inject` batch 初回: total `72,489ms`、retrieval `19,104ms`、classification `53,085ms`、classification LLM calls 4、cache hit 0、`high_priority_skipped_count=0`
+- `spec-inject` persistent cache 再実行: total `44,670ms`、retrieval `14,124ms`、classification `30,277ms`、classification LLM calls 3、cache hit 15、`high_priority_skipped_count=0`
+- `spec-realign` batch/cache 後: total `89,423ms`、retrieval `17,615ms`、classification `28,672ms`、answer `42,844ms`、classification LLM calls 2、cache hit 19、`high_priority_skipped_count=0`
+- artifact: `.spec-grag/runs/20260502T081601.899646Z-spec-inject-7b71d453395a.json`、`.spec-grag/runs/20260502T081700.397111Z-spec-inject-925565b62f5d.json`、`.spec-grag/runs/20260502T082150.417804Z-spec-realign-fd72d9ad2316.json`
+
+classification は high priority skip なしまで改善したが、`classification_medium_priority_incomplete` は残る。これは Purpose / raw source / approved Concept を落としている状態ではなく、主に graph entity / chapter anchor / cluster 側の未分類で degraded になっている。次セッションでは、この degraded を仕様上許容するか、必要時 deferred classification へ寄せるかを決める。
+
+次セッションの残監査キュー:
+
+1. `doc/AUDIT_TODO.ja.md` の古い E2E 行を Phase 14 後の結果へ更新する。特に `classification.max_items=8` 起因の `RISK` は stale。Phase 14 後は high priority skipped 0、medium incomplete 残りとして再判定する。
+2. Retrieval 品質監査を進める。`Core と Customize の境界`、`ImageUploadField / FileUploadField / ImageGalleryField`、`Action signal と emit / 購読`、`section_max_heading_level`、`Concept にない Source 制約` の query set を run artifact と source evidence で評価する。
+3. query planner latency を見る。no-change inject / realign でも retrieval stage の query planner LLM が残るため、cache または deterministic fast path を検討する。
+4. answer generation latency を見る。`spec-realign` では answer LLM が 40 秒台を占めるため、prompt / model / schema / cache / NeedMoreContext policy を分けて調査する。
+5. Contract / design drift 監査を進める。`EXTERNAL_DESIGN` / `DESIGN` / implementation / test / artifact matrix を埋め、`PARTIAL` を `OK` / `DRIFT` へ確定する。
+6. Failure / recovery と artifact lifecycle を確認する。failed staging diagnostics、old smoke artifact から production artifact への再生成手順、stable ID 導入後の incremental alias 混入を重点に見る。
+7. Security / privacy / production reachability を再確認する。mock / fake provider 到達性、query path read-only 全 entrypoint、run artifact request/response opt-in、prompt untrusted boundary を静的 trace と artifact で見る。
+
+次セッション開始時の推奨:
+
+```bash
+git status --short
+sed -n '1,140p' doc/AUDIT_TODO.ja.md
+sed -n '1,180p' doc/PHASE14_REPORT.ja.md
+```
+
+`.spec-grag/cache/classification_cache.json` は ignored artifact で、warm cache の E2E 時間に効く。cold cache を測る時だけ明示的に退避または削除する。
+
+## 現在地（Phase 9 時点の旧メモ）
 
 - フェーズ: Phase 9 production policy gate 実装済み。Phase 9 残件は community report / semantic conflict fixture 拡充 / 実 provider 評価
 - 方針: MVP 縮小ではなく、外部設計を満たす方向で内部契約を実装する

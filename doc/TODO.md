@@ -6,8 +6,8 @@
 
 - 外部契約: `doc/EXTERNAL_DESIGN.ja.md`
 - 内部設計: `doc/DESIGN.ja.md`
-- 現フェーズ: Phase 13 stable identity migration 完了
-- 次フェーズ: Phase 14 classification priority / budget policy
+- 現フェーズ: Phase 14 classification priority / budget policy 完了
+- 次フェーズ: 残監査。classification medium incomplete policy、retrieval 品質、query planner / answer latency、contract / design drift を `doc/AUDIT_TODO.ja.md` で追跡する
 - 方針: 縮小版ではなく、外部契約を満たす実装を前提に、未実証の実装方式を検証する
 - 監査 TODO: Phase 9 後の契約監査 / production readiness / E2E / GRAG 品質 / 障害系は `doc/AUDIT_TODO.ja.md` に分離する
 
