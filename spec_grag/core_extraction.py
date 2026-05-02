@@ -26,6 +26,7 @@ from spec_grag.extraction import (
     SPEC_GRAG_BATCH_EXTRACT_PROMPT,
     make_schema_llm_path_extractor,
 )
+from spec_grag.chunk_index import stable_chunk_uid_for
 from spec_grag.embedding import stable_embedding
 from spec_grag.llm_adapters import ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.manifest import SourceManifest, SourceManifestEntry
@@ -510,6 +511,8 @@ def extract_schema_llm_artifacts(
             source_chapter_id=entry.chapter_id,
             source_section_id=entry.section_id,
             source_chunk_id=entry.section_id,
+            stable_source_section_uid=entry.stable_section_uid,
+            stable_source_chunk_uid=_section_level_stable_chunk_uid(entry),
             source_hash=entry.source_hash,
             extract_run_id=extract_run_id,
             extractor_name=SCHEMA_LLM_EXTRACTOR_NAME,
@@ -1062,6 +1065,7 @@ def _anchor_from_raw(
             "document_id": entry.document_id,
             "chapter_id": entry.chapter_id,
             "section_id": entry.section_id,
+            "stable_section_uid": entry.stable_section_uid,
             "display_name": display_name,
             "description": str(props.get("description") or display_name),
             "evidence_excerpt": _evidence_excerpt(props) or display_name,
@@ -1102,6 +1106,12 @@ def _unresolved_entry(
         reason=reason,
         evidence_excerpt=evidence_excerpt,
     )
+
+
+def _section_level_stable_chunk_uid(entry: SourceManifestEntry) -> str | None:
+    if not entry.stable_section_uid:
+        return None
+    return stable_chunk_uid_for(entry.stable_section_uid, "", 0)
 
 
 def _display_name(node: EntityNode | None, fallback: str) -> str:

@@ -115,6 +115,8 @@ class ExtractionProvenance(StrictModel):
     source_chapter_id: str
     source_section_id: str
     source_chunk_id: str
+    stable_source_section_uid: str | None = None
+    stable_source_chunk_uid: str | None = None
     source_hash: str
     extract_run_id: str
     extractor_name: str
@@ -122,7 +124,7 @@ class ExtractionProvenance(StrictModel):
     extracted_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_metadata(self) -> dict[str, str]:
-        return self.model_dump(mode="json")
+        return self.model_dump(mode="json", exclude_none=True)
 
 
 def make_schema_llm_path_extractor(

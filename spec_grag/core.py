@@ -37,6 +37,7 @@ from spec_grag.chunk_index import (
     build_chunk_vector_index,
     build_document_chunks,
     load_chunk_vector_index,
+    stable_chunk_uid_for,
     write_bm25_index_atomic,
     write_chunk_vector_index_atomic,
     write_document_chunks_atomic,
@@ -72,6 +73,7 @@ from spec_grag.manifest import (
     SourceManifest,
     SourceManifestEntry,
     build_current_section_manifest,
+    inherit_stable_section_identities,
     load_source_manifest,
     next_source_manifest,
     reconcile_manifests,
@@ -237,6 +239,9 @@ def run_core_update(
                 warnings=freshness.warnings,
             ), timer)
 
+        manifest_path = graph_storage / "source_manifest.json"
+        stored_manifest = load_source_manifest(manifest_path)
+        previous_manifest = SourceManifest(entries=[]) if all_sources else stored_manifest
         current_manifest = source_manifest or build_current_section_manifest(
             project_root,
             source_paths,
@@ -246,8 +251,10 @@ def run_core_update(
             ),
             document_texts=source_document_texts,
         )
-        manifest_path = graph_storage / "source_manifest.json"
-        previous_manifest = SourceManifest(entries=[]) if all_sources else load_source_manifest(manifest_path)
+        current_manifest = inherit_stable_section_identities(
+            stored_manifest,
+            current_manifest,
+        )
         reconciliation = reconcile_manifests(previous_manifest, current_manifest)
         graph_revision = graph_revision_for_manifest(
             current_manifest,
@@ -260,6 +267,7 @@ def run_core_update(
                 "changed_sections": len(reconciliation.changed_section_ids),
                 "added_sections": len(reconciliation.added_section_ids),
                 "removed_sections": len(reconciliation.removed_section_ids),
+                "renamed_sections": len(reconciliation.renamed_sections),
                 "format_only_sections": len(reconciliation.format_only_section_ids),
             }
         )
@@ -396,15 +404,22 @@ def run_core_update(
                     "kept_sections": len(_keep_section_ids_for_incremental(reconciliation)),
                     "removed_sections": len(reconciliation.removed_section_ids),
                     "changed_sections": len(reconciliation.changed_section_ids),
+                    "renamed_sections": len(reconciliation.renamed_sections),
                 },
             ):
                 for section_id in [
                     *reconciliation.changed_section_ids,
                     *reconciliation.removed_section_ids,
+                    *_renamed_previous_section_ids(reconciliation),
                 ]:
                     previous_graph_store = safe_delete_by_section(
                         previous_graph_store,
                         section_id=section_id,
+                        stable_section_uid=_stable_section_uid_for_cleanup(
+                            section_id,
+                            previous_manifest=previous_manifest,
+                            current_manifest=current_manifest,
+                        ),
                     )
                 graph_store = carry_forward_schema_llm_artifacts(
                     graph_store,
@@ -456,7 +471,11 @@ def run_core_update(
             if all_sources
             else drop_unresolved_relations_by_sections(
                 load_unresolved_relations(unresolved_path),
-                [*reconciliation.changed_section_ids, *reconciliation.removed_section_ids],
+                [
+                    *reconciliation.changed_section_ids,
+                    *reconciliation.removed_section_ids,
+                    *_renamed_previous_section_ids(reconciliation),
+                ],
                 graph_revision=graph_revision,
                 generated_at=scanned_at,
             )
@@ -640,6 +659,8 @@ def run_core_update(
         *reconciliation.changed_section_ids,
         *reconciliation.added_section_ids,
         *reconciliation.removed_section_ids,
+        *_renamed_current_section_ids(reconciliation),
+        *_renamed_previous_section_ids(reconciliation),
     ]
     try:
         community_metrics = llm_config_metrics(
@@ -1236,6 +1257,8 @@ def build_deterministic_graph(
                 "chapter_id": entry.chapter_id,
                 "section_id": entry.section_id,
                 "stable_section_uid": entry.stable_section_uid,
+                "source_section_id": entry.section_id,
+                "stable_source_section_uid": entry.stable_section_uid,
                 "heading_path": entry.heading_path,
                 "heading_start_line": entry.heading_start_line,
                 "source_hash": entry.source_hash,
@@ -1259,6 +1282,7 @@ def build_deterministic_graph(
                     "document_id": entry.document_id,
                     "chapter_id": entry.chapter_id,
                     "section_id": entry.section_id,
+                    "stable_section_uid": entry.stable_section_uid,
                 },
             ),
         ]
@@ -1275,7 +1299,9 @@ def build_deterministic_graph(
                         "source_chapter_id": entry.chapter_id,
                         "source_section_id": entry.section_id,
                         "stable_section_uid": entry.stable_section_uid,
+                        "stable_source_section_uid": entry.stable_section_uid,
                         "source_chunk_id": entry.section_id,
+                        "stable_source_chunk_uid": _section_level_stable_chunk_uid(entry),
                         "source_hash": entry.source_hash,
                         "extract_run_id": "deterministic",
                         "extractor_name": "spec-grag-core",
@@ -1437,6 +1463,8 @@ def updated_sources_for(
         *reconciliation.changed_section_ids,
         *reconciliation.added_section_ids,
         *reconciliation.removed_section_ids,
+        *_renamed_current_section_ids(reconciliation),
+        *_renamed_previous_section_ids(reconciliation),
     ]
     return sorted(section_ids)
 
@@ -1451,6 +1479,33 @@ def skipped_sources_for(
     return reconciliation.unchanged_section_ids
 
 
+def _renamed_current_section_ids(
+    reconciliation: ManifestReconciliation,
+) -> list[str]:
+    return [item.current_section_id for item in reconciliation.renamed_sections]
+
+
+def _renamed_previous_section_ids(
+    reconciliation: ManifestReconciliation,
+) -> list[str]:
+    return [item.previous_section_id for item in reconciliation.renamed_sections]
+
+
+def _stable_section_uid_for_cleanup(
+    section_id: str,
+    *,
+    previous_manifest: SourceManifest,
+    current_manifest: SourceManifest,
+) -> str | None:
+    previous_entry = previous_manifest.by_section_id().get(section_id)
+    if previous_entry is not None and previous_entry.stable_section_uid:
+        return previous_entry.stable_section_uid
+    current_entry = current_manifest.by_section_id().get(section_id)
+    if current_entry is not None:
+        return current_entry.stable_section_uid
+    return None
+
+
 def graph_revision_for_manifest(
     manifest: SourceManifest,
     *,
@@ -1461,6 +1516,7 @@ def graph_revision_for_manifest(
             "document_id": entry.document_id,
             "chapter_id": entry.chapter_id,
             "section_id": entry.section_id,
+            "stable_section_uid": entry.stable_section_uid,
             "source_hash": entry.source_hash,
         }
         for entry in sorted(manifest.entries, key=lambda item: item.section_id)
@@ -1475,6 +1531,12 @@ def graph_revision_for_manifest(
 
 def section_node_id_for(section_id: str) -> str:
     return f"section:{section_id}"
+
+
+def _section_level_stable_chunk_uid(entry: SourceManifestEntry) -> str | None:
+    if not entry.stable_section_uid:
+        return None
+    return stable_chunk_uid_for(entry.stable_section_uid, "", 0)
 
 
 def anchor_for_entry(
@@ -1497,7 +1559,9 @@ def anchor_for_entry(
             "source_document_id": entry.document_id,
             "source_chapter_id": entry.chapter_id,
             "source_section_id": entry.section_id,
+            "stable_source_section_uid": entry.stable_section_uid,
             "source_chunk_id": entry.section_id,
+            "stable_source_chunk_uid": _section_level_stable_chunk_uid(entry),
             "source_hash": entry.source_hash,
             "extract_run_id": "deterministic",
             "extractor_name": "spec-grag-core",
@@ -1554,6 +1618,7 @@ def _section_ids_for_schema_extraction(
         {
             *reconciliation.changed_section_ids,
             *reconciliation.added_section_ids,
+            *_renamed_current_section_ids(reconciliation),
         }
     )
 
@@ -1610,6 +1675,7 @@ def _can_return_no_change_incremental(
         reconciliation.changed_section_ids
         or reconciliation.added_section_ids
         or reconciliation.removed_section_ids
+        or reconciliation.renamed_sections
     )
     if has_semantic_changes:
         return False
@@ -1653,6 +1719,7 @@ def _manifest_needs_hash_migration(manifest: SourceManifest) -> bool:
     return any(
         entry.raw_hash is None
         or entry.semantic_hash is None
+        or entry.body_semantic_hash is None
         or entry.stable_section_uid is None
         or not entry.section_aliases
         for entry in manifest.entries

@@ -158,7 +158,13 @@ def test_schema_llm_core_path_persists_provenance_and_unresolved_sidecar(
     assert update.status == ResultStatus.OK
     assert graph["nodes"][anchor_id]["properties"]["extractor_name"] == "SchemaLLMPathExtractor"
     assert graph["nodes"][anchor_id]["properties"]["source_section_id"] == "docs/spec/auth.md#auth"
+    assert (
+        graph["nodes"][anchor_id]["properties"]["stable_source_section_uid"]
+        == manifest.by_section_id()["docs/spec/auth.md#auth"].stable_section_uid
+    )
     assert graph["relations"][relation_key]["properties"]["source_hash"]
+    assert graph["relations"][relation_key]["properties"]["stable_source_section_uid"]
+    assert graph["relations"][relation_key]["properties"]["stable_source_chunk_uid"]
     assert low_relation_key not in graph["relations"]
     assert any(entry.target_hint == "Missing chapter" for entry in unresolved.entries)
     assert any(entry.reason == "low_confidence" for entry in unresolved.entries)

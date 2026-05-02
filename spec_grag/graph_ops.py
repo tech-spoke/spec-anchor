@@ -9,7 +9,12 @@ def safe_delete_by_section(
     store: Any,
     *,
     section_id: str,
+    stable_section_uid: str | None = None,
     provenance_keys: tuple[str, ...] = ("source_section_id",),
+    stable_provenance_keys: tuple[str, ...] = (
+        "stable_source_section_uid",
+        "stable_section_uid",
+    ),
 ) -> Any:
     """Delete LLM-extracted graph artifacts for one source section.
 
@@ -27,13 +32,25 @@ def safe_delete_by_section(
     kept_nodes = {
         node_id: node
         for node_id, node in raw_nodes.items()
-        if not _has_section_provenance(node, section_id, provenance_keys)
+        if not _has_section_provenance(
+            node,
+            section_id=section_id,
+            stable_section_uid=stable_section_uid,
+            provenance_keys=provenance_keys,
+            stable_provenance_keys=stable_provenance_keys,
+        )
     }
     kept_node_ids = set(kept_nodes)
     kept_relations = {
         rel_key: rel
         for rel_key, rel in raw_relations.items()
-        if not _has_section_provenance(rel, section_id, provenance_keys)
+        if not _has_section_provenance(
+            rel,
+            section_id=section_id,
+            stable_section_uid=stable_section_uid,
+            provenance_keys=provenance_keys,
+            stable_provenance_keys=stable_provenance_keys,
+        )
     }
 
     kept_triplets = set()
@@ -55,9 +72,18 @@ def safe_delete_by_section(
 
 
 def _has_section_provenance(
-    artifact: dict[str, Any], section_id: str, provenance_keys: tuple[str, ...]
+    artifact: dict[str, Any],
+    *,
+    section_id: str,
+    stable_section_uid: str | None,
+    provenance_keys: tuple[str, ...],
+    stable_provenance_keys: tuple[str, ...],
 ) -> bool:
     props = artifact.get("properties") or {}
+    if stable_section_uid and any(
+        props.get(key) == stable_section_uid for key in stable_provenance_keys
+    ):
+        return True
     return any(props.get(key) == section_id for key in provenance_keys)
 
 

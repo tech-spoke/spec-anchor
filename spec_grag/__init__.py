@@ -95,6 +95,7 @@ from spec_grag.injection import (
 )
 from spec_grag.manifest import (
     ManifestReconciliation,
+    ManifestSectionRename,
     ManifestUpdateStatus,
     SourceManifest,
     SourceManifestEntry,
@@ -235,6 +236,7 @@ __all__ = [
     "InjectionContext",
     "KG_VALIDATION_SCHEMA",
     "ManifestReconciliation",
+    "ManifestSectionRename",
     "ManifestUpdateStatus",
     "NeedMoreContextResult",
     "ApprovalDecision",

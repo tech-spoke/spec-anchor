@@ -627,12 +627,11 @@ def invalid_agentic_reason(
     manifest: SourceManifest,
     project_root: Path,
 ) -> str | None:
-    manifest_by_section = manifest.by_section_id()
     if candidate.request_id not in expected_by_id:
         return "unknown_request_id"
     if not candidate.source_section_id:
         return "missing_source_section_id"
-    entry = manifest_by_section.get(candidate.source_section_id)
+    entry = manifest_entry_for_source_id(manifest, candidate.source_section_id)
     if entry is None:
         return "unknown_source_section_id"
     if candidate.source_document_id != entry.document_id:
@@ -640,6 +639,24 @@ def invalid_agentic_reason(
     if candidate.source_hash and candidate.source_hash != entry.source_hash:
         return "source_hash_mismatch"
     return candidate_source_grounding_error(candidate, entry, manifest, project_root)
+
+
+def manifest_entry_for_source_id(
+    manifest: SourceManifest,
+    source_section_id: str,
+) -> SourceManifestEntry | None:
+    by_section = manifest.by_section_id()
+    entry = by_section.get(source_section_id)
+    if entry is not None:
+        return entry
+    by_stable = manifest.by_stable_section_uid()
+    entry = by_stable.get(source_section_id)
+    if entry is not None:
+        return entry
+    for candidate in manifest.entries:
+        if source_section_id in candidate.section_aliases:
+            return candidate
+    return None
 
 
 @dataclass(frozen=True)
@@ -735,15 +752,28 @@ def retrieve_graph_context(
         hit.chunk.section_id
         for hit in chunk_hits
     }
+    selected_stable_section_uids = {
+        hit.chunk.stable_section_uid
+        for hit in chunk_hits
+        if hit.chunk.stable_section_uid
+    }
     selected_section_ids.update(
         candidate.source_section_id
         for candidate in valid_agentic
         if candidate.source_section_id
     )
+    manifest_by_section = manifest.by_section_id()
+    selected_stable_section_uids.update(
+        entry.stable_section_uid
+        for section_id in selected_section_ids
+        if (entry := manifest_by_section.get(section_id)) is not None
+        and entry.stable_section_uid
+    )
 
     graph_matches = graph_node_matches_from_sections(
         graph_data,
         selected_section_ids=selected_section_ids,
+        selected_stable_section_uids=selected_stable_section_uids,
         chunk_hits=chunk_hits,
         retrieval_index=retrieval_index,
     )
@@ -752,10 +782,17 @@ def retrieve_graph_context(
         for item in graph_matches
         if item.get("source_section_id")
     )
+    selected_stable_section_uids.update(
+        item.get("stable_section_uid")
+        or item.get("stable_source_section_uid")
+        for item in graph_matches
+        if item.get("stable_section_uid") or item.get("stable_source_section_uid")
+    )
     graph_matches = merge_graph_traversal_matches(
         graph_data,
         graph_matches,
         selected_section_ids=selected_section_ids,
+        selected_stable_section_uids=selected_stable_section_uids,
         max_hops=int(config.get("retrieval", {}).get("graph_expansion_hops", 1)),
         relation_allowlist=config.get("retrieval", {}).get(
             "graph_relation_allowlist",
@@ -778,8 +815,13 @@ def retrieve_graph_context(
         for item in graph_matches
         if item.get("source_section_id")
     )
+    selected_stable_section_uids.update(
+        item.get("stable_section_uid")
+        or item.get("stable_source_section_uid")
+        for item in graph_matches
+        if item.get("stable_section_uid") or item.get("stable_source_section_uid")
+    )
 
-    manifest_by_section = manifest.by_section_id()
     merged_sections: dict[str, SourceManifestEntry] = {}
     for section_id in selected_section_ids:
         if section_id in manifest_by_section:
@@ -824,11 +866,15 @@ def graph_node_matches_from_sections(
     graph_data: dict[str, Any],
     *,
     selected_section_ids: set[str],
+    selected_stable_section_uids: set[str] | None = None,
     chunk_hits: list[ChunkSearchHit],
     retrieval_index: RetrievalIndex | None = None,
 ) -> list[dict[str, Any]]:
+    stable_ids = selected_stable_section_uids or set()
     methods_by_section: dict[str, set[str]] = {}
+    methods_by_stable_section: dict[str, set[str]] = {}
     scores_by_section: dict[str, float] = {}
+    scores_by_stable_section: dict[str, float] = {}
     for hit in chunk_hits:
         methods = methods_by_section.setdefault(hit.chunk.section_id, set())
         methods.update(hit.retrieval_methods)
@@ -836,10 +882,27 @@ def graph_node_matches_from_sections(
             scores_by_section.get(hit.chunk.section_id, 0.0),
             hit.score,
         )
+        if hit.chunk.stable_section_uid:
+            stable_methods = methods_by_stable_section.setdefault(
+                hit.chunk.stable_section_uid,
+                set(),
+            )
+            stable_methods.update(hit.retrieval_methods)
+            scores_by_stable_section[hit.chunk.stable_section_uid] = max(
+                scores_by_stable_section.get(hit.chunk.stable_section_uid, 0.0),
+                hit.score,
+            )
     nodes = graph_data.get("nodes") or {}
     candidate_node_ids: set[str] | None = None
-    if retrieval_index is not None and retrieval_index.section_graph_nodes:
+    if retrieval_index is not None and (
+        retrieval_index.stable_section_graph_nodes
+        or retrieval_index.section_graph_nodes
+    ):
         candidate_node_ids = set()
+        for stable_section_uid in stable_ids:
+            candidate_node_ids.update(
+                retrieval_index.stable_section_graph_nodes.get(stable_section_uid, [])
+            )
         for section_id in selected_section_ids:
             candidate_node_ids.update(retrieval_index.section_graph_nodes.get(section_id, []))
 
@@ -857,13 +920,23 @@ def graph_node_matches_from_sections(
             continue
         props = node_properties(node)
         section_id = str(props.get("section_id") or props.get("source_section_id") or "")
-        if section_id not in selected_section_ids:
+        stable_section_uid = str(
+            props.get("stable_section_uid")
+            or props.get("stable_source_section_uid")
+            or ""
+        )
+        if section_id not in selected_section_ids and stable_section_uid not in stable_ids:
             continue
         methods = {
             "raw_chunk_hybrid",
             *methods_by_section.get(section_id, set()),
+            *methods_by_stable_section.get(stable_section_uid, set()),
         }
-        score = scores_by_section.get(section_id, 0.5)
+        score = max(
+            scores_by_section.get(section_id, 0.0),
+            scores_by_stable_section.get(stable_section_uid, 0.0),
+            0.5,
+        )
         results.append(
             graph_entity_item(
                 node_id,
@@ -880,6 +953,7 @@ def merge_graph_traversal_matches(
     graph_matches: list[dict[str, Any]],
     *,
     selected_section_ids: set[str],
+    selected_stable_section_uids: set[str] | None = None,
     max_hops: int = 1,
     relation_allowlist: list[str] | tuple[str, ...] | set[str] | None = None,
     min_relation_confidence: Any | None = None,
@@ -889,6 +963,7 @@ def merge_graph_traversal_matches(
     nodes = graph_data.get("nodes") or {}
     relations = graph_data.get("relations") or {}
     max_hops = max(0, min(int(max_hops), 3))
+    stable_ids = selected_stable_section_uids or set()
     relation_allowlist_set = relation_allowlist_from_config(relation_allowlist)
     min_relation_confidence_score = (
         relation_confidence_score(min_relation_confidence)
@@ -948,13 +1023,29 @@ def merge_graph_traversal_matches(
                     continue
                 relation = indexed_relation_data(ref, relations.get(relation_id))
                 add_selected_section_edge(ref.source_id, ref.target_id, relation_id, relation)
+        for stable_section_uid in stable_ids:
+            for relation_id in retrieval_index.stable_section_relations.get(
+                stable_section_uid,
+                [],
+            ):
+                ref = retrieval_index.relations.get(relation_id)
+                if ref is None:
+                    continue
+                relation = indexed_relation_data(ref, relations.get(relation_id))
+                add_selected_section_edge(ref.source_id, ref.target_id, relation_id, relation)
     else:
         for relation_id, relation in relations.items():
             relation_key = str(relation_id)
             add_adjacency_relation(relation_key, relation)
             props = node_properties(relation)
             relation_section_id = props.get("section_id") or props.get("source_section_id")
-            if relation_section_id in selected_section_ids:
+            stable_relation_section_uid = props.get("stable_source_section_uid") or props.get(
+                "stable_section_uid"
+            )
+            if (
+                relation_section_id in selected_section_ids
+                or stable_relation_section_uid in stable_ids
+            ):
                 source_id = str(relation.get("source_id") or "")
                 target_id = str(relation.get("target_id") or "")
                 if source_id and target_id:
@@ -979,6 +1070,9 @@ def merge_graph_traversal_matches(
         relation_label = relation.get("label")
         props = node_properties(relation)
         relation_section_id = props.get("section_id") or props.get("source_section_id")
+        stable_relation_section_uid = props.get("stable_source_section_uid") or props.get(
+            "stable_section_uid"
+        )
         confidence = props.get("confidence")
         ranking_score = max(0.1, 0.62 - (0.12 * hop))
         existing = merged.get(endpoint)
@@ -1294,9 +1388,11 @@ def source_evidence_for_hits(
             {
                 "source_origin": "GRAG",
                 "retrieval_unit": "raw_document_chunk",
+                "stable_chunk_uid": hit.chunk.stable_chunk_uid,
                 "chunk_id": hit.chunk.chunk_id,
                 "document_id": hit.chunk.document_id,
                 "chapter_id": hit.chunk.chapter_id,
+                "stable_section_uid": hit.chunk.stable_section_uid,
                 "section_id": hit.chunk.section_id,
                 "heading_path": hit.chunk.heading_path,
                 "source_span": hit.chunk.source_span,
@@ -1329,6 +1425,7 @@ def source_section_item(
         "document_id": entry.document_id,
         "chapter_id": entry.chapter_id,
         "section_id": entry.section_id,
+        "stable_section_uid": entry.stable_section_uid,
         "heading_path": entry.heading_path,
         "source_hash": entry.source_hash,
         "constraint_relevance": relevance,
@@ -1414,7 +1511,12 @@ def graph_entity_item(
         "document_id": props.get("document_id") or props.get("source_document_id"),
         "chapter_id": props.get("chapter_id") or props.get("source_chapter_id"),
         "section_id": props.get("section_id"),
+        "stable_section_uid": props.get("stable_section_uid")
+        or props.get("stable_source_section_uid"),
         "source_section_id": props.get("source_section_id") or props.get("section_id"),
+        "stable_source_section_uid": props.get("stable_source_section_uid")
+        or props.get("stable_section_uid"),
+        "stable_source_chunk_uid": props.get("stable_source_chunk_uid"),
         "source_hash": props.get("source_hash"),
         "description": props.get("description"),
         "evidence_excerpt": props.get("evidence_excerpt"),
@@ -1442,6 +1544,9 @@ def graph_path_edge(relation_id: str, relation: dict[str, Any]) -> dict[str, Any
         "source_id": relation.get("source_id"),
         "target_id": relation.get("target_id"),
         "source_section_id": props.get("section_id") or props.get("source_section_id"),
+        "stable_source_section_uid": props.get("stable_source_section_uid")
+        or props.get("stable_section_uid"),
+        "stable_source_chunk_uid": props.get("stable_source_chunk_uid"),
         "confidence": props.get("confidence"),
     }
 
@@ -1456,6 +1561,8 @@ def indexed_relation_data(ref: Any, existing: dict[str, Any] | None) -> dict[str
         "properties": {
             "source_section_id": ref.source_section_id,
             "source_chunk_id": ref.source_chunk_id,
+            "stable_source_section_uid": ref.stable_source_section_uid,
+            "stable_source_chunk_uid": ref.stable_source_chunk_uid,
             "confidence": ref.confidence,
         },
     }

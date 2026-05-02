@@ -109,12 +109,20 @@ def test_spec_core_writes_raw_chunk_dense_and_bm25_indexes(tmp_path: Path) -> No
     assert chunks.chunks
     bm25 = load_bm25_index(graph_dir / BM25_INDEX_FILENAME)
     assert bm25.postings
-    assert any(chunks.chunks[0].chunk_id in chunk_ids for chunk_ids in bm25.postings.values())
     assert chunks.chunks[0].stable_section_uid
     assert chunks.chunks[0].stable_chunk_uid
+    assert any(
+        chunks.chunks[0].stable_chunk_uid in chunk_ids
+        for chunk_ids in bm25.postings.values()
+    )
     retrieval_index = load_retrieval_index(graph_dir / RETRIEVAL_INDEX_FILENAME)
     assert retrieval_index is not None
     assert chunks.chunks[0].section_id in retrieval_index.section_chunks
+    assert chunks.chunks[0].stable_section_uid in retrieval_index.stable_section_chunks
+    assert (
+        chunks.chunks[0].stable_chunk_uid
+        in retrieval_index.stable_section_chunks[chunks.chunks[0].stable_section_uid]
+    )
     assert validate_chunk_source(tmp_path, chunks.chunks[0]) is None
 
 
@@ -143,6 +151,33 @@ def test_japanese_no_space_query_retrieves_body_chunk_with_source_span(tmp_path:
     assert any("StoreGroup設計原則" in item["excerpt"] for item in related)
     assert all(item.get("source_span") for item in related)
     assert any("bm25" in item.get("retrieval_methods", []) for item in related)
+
+
+def test_stable_chunk_uid_survives_body_edit_at_same_chunk_ordinal(
+    tmp_path: Path,
+) -> None:
+    write_config(tmp_path)
+    write_core_docs(tmp_path)
+    source = tmp_path / "docs/spec/store.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text(
+        "# Store\n\n## State Ownership\n\nStoreGroup設計原則を本文に保持する。\n",
+        encoding="utf-8",
+    )
+    run_cli(request_payload(tmp_path, "StoreGroup設計原則を確認する"))
+    graph_dir = tmp_path / ".spec-grag/graph"
+    before = load_document_chunks(document_chunks_path(graph_dir)).chunks[0]
+
+    source.write_text(
+        "# Store\n\n## State Ownership\n\nStoreGroup設計原則を本文に保持し、境界を明確にする。\n",
+        encoding="utf-8",
+    )
+    run_cli(request_payload(tmp_path, "StoreGroup設計原則の境界を確認する"))
+    after = load_document_chunks(document_chunks_path(graph_dir)).chunks[0]
+
+    assert before.chunk_hash != after.chunk_hash
+    assert before.stable_section_uid == after.stable_section_uid
+    assert before.stable_chunk_uid == after.stable_chunk_uid
 
 
 def test_identifier_query_retrieves_terms_that_only_exist_in_body(tmp_path: Path) -> None:

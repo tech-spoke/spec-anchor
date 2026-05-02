@@ -7,6 +7,7 @@ import json
 import os
 import re
 import tempfile
+from collections import Counter
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -49,6 +50,7 @@ class SourceManifestEntry(StrictModel):
     source_hash: str
     raw_hash: str | None = None
     semantic_hash: str | None = None
+    body_semantic_hash: str | None = None
     scanned_at: str | None = None
     extract_run_id: str | None = None
     extractor_versions: dict[str, str] = Field(default_factory=dict)
@@ -64,6 +66,19 @@ class SourceManifest(StrictModel):
     def by_section_id(self) -> dict[str, SourceManifestEntry]:
         return {entry.section_id: entry for entry in self.entries}
 
+    def by_stable_section_uid(self) -> dict[str, SourceManifestEntry]:
+        return {
+            entry.stable_section_uid: entry
+            for entry in self.entries
+            if entry.stable_section_uid
+        }
+
+
+class ManifestSectionRename(StrictModel):
+    stable_section_uid: str
+    previous_section_id: str
+    current_section_id: str
+
 
 class ManifestReconciliation(StrictModel):
     unchanged_section_ids: list[str] = Field(default_factory=list)
@@ -71,6 +86,7 @@ class ManifestReconciliation(StrictModel):
     changed_section_ids: list[str] = Field(default_factory=list)
     added_section_ids: list[str] = Field(default_factory=list)
     removed_section_ids: list[str] = Field(default_factory=list)
+    renamed_sections: list[ManifestSectionRename] = Field(default_factory=list)
     structure_changed_chapter_ids: list[str] = Field(default_factory=list)
     affected_chapter_ids: list[str] = Field(default_factory=list)
 
@@ -123,10 +139,17 @@ def build_current_section_manifest(
 def reconcile_manifests(
     previous: SourceManifest, current: SourceManifest
 ) -> ManifestReconciliation:
-    previous_by_id = previous.by_section_id()
-    current_by_id = current.by_section_id()
-    previous_ids = set(previous_by_id)
-    current_ids = set(current_by_id)
+    current = inherit_stable_section_identities(previous, current)
+    previous_entries = [_ensure_stable_identity(entry) for entry in previous.entries]
+    current_entries = [_ensure_stable_identity(entry) for entry in current.entries]
+    previous_by_stable, previous_ambiguous = _unique_entries_by_stable_section_uid(
+        previous_entries
+    )
+    current_by_stable, current_ambiguous = _unique_entries_by_stable_section_uid(
+        current_entries
+    )
+    previous_stable_ids = set(previous_by_stable)
+    current_stable_ids = set(current_by_stable)
     parser_changed = bool(previous.entries) and (
         previous.parser_name != current.parser_name
         or previous.parser_version != current.parser_version
@@ -135,31 +158,69 @@ def reconcile_manifests(
     unchanged: list[str] = []
     format_only: list[str] = []
     changed: list[str] = []
-    for section_id in sorted(previous_ids & current_ids):
-        previous_entry = previous_by_id[section_id]
-        current_entry = current_by_id[section_id]
+    renamed: list[ManifestSectionRename] = []
+    for stable_section_uid in sorted(previous_stable_ids & current_stable_ids):
+        previous_entry = previous_by_stable[stable_section_uid]
+        current_entry = current_by_stable[stable_section_uid]
         if parser_changed:
-            changed.append(section_id)
+            changed.append(current_entry.section_id)
+            continue
+        if previous_entry.section_id != current_entry.section_id:
+            renamed.append(
+                ManifestSectionRename(
+                    stable_section_uid=stable_section_uid,
+                    previous_section_id=previous_entry.section_id,
+                    current_section_id=current_entry.section_id,
+                )
+            )
+            if _entry_body_semantic_hash(previous_entry) == _entry_body_semantic_hash(
+                current_entry
+            ):
+                continue
+            changed.append(current_entry.section_id)
             continue
         previous_raw_hash = _entry_raw_hash(previous_entry)
         current_raw_hash = _entry_raw_hash(current_entry)
         previous_semantic_hash = _entry_semantic_hash(previous_entry)
         current_semantic_hash = _entry_semantic_hash(current_entry)
         if previous_raw_hash == current_raw_hash:
-            unchanged.append(section_id)
+            unchanged.append(current_entry.section_id)
         elif previous_semantic_hash == current_semantic_hash:
-            format_only.append(section_id)
+            format_only.append(current_entry.section_id)
         else:
-            changed.append(section_id)
-    added = sorted(current_ids - previous_ids)
-    removed = sorted(previous_ids - current_ids)
+            changed.append(current_entry.section_id)
+    added = sorted(
+        [
+            *(
+                current_by_stable[stable_id].section_id
+                for stable_id in current_stable_ids - previous_stable_ids
+            ),
+            *(entry.section_id for entry in current_ambiguous),
+        ]
+    )
+    removed = sorted(
+        [
+            *(
+                previous_by_stable[stable_id].section_id
+                for stable_id in previous_stable_ids - current_stable_ids
+            ),
+            *(entry.section_id for entry in previous_ambiguous),
+        ]
+    )
+
+    current_by_id = {entry.section_id: entry for entry in current_entries}
+    previous_by_id = {entry.section_id: entry for entry in previous_entries}
 
     affected_chapters = {
         current_by_id[section_id].chapter_id for section_id in added + changed
-    } | {previous_by_id[section_id].chapter_id for section_id in removed}
+    } | {previous_by_id[section_id].chapter_id for section_id in removed} | {
+        current_by_id[item.current_section_id].chapter_id for item in renamed
+    } | {previous_by_id[item.previous_section_id].chapter_id for item in renamed}
     structure_changed_chapters = {
         current_by_id[section_id].chapter_id for section_id in added
-    } | {previous_by_id[section_id].chapter_id for section_id in removed}
+    } | {previous_by_id[section_id].chapter_id for section_id in removed} | {
+        current_by_id[item.current_section_id].chapter_id for item in renamed
+    } | {previous_by_id[item.previous_section_id].chapter_id for item in renamed}
 
     return ManifestReconciliation(
         unchanged_section_ids=unchanged,
@@ -167,9 +228,65 @@ def reconcile_manifests(
         changed_section_ids=changed,
         added_section_ids=added,
         removed_section_ids=removed,
+        renamed_sections=sorted(
+            renamed,
+            key=lambda item: (item.previous_section_id, item.current_section_id),
+        ),
         structure_changed_chapter_ids=sorted(structure_changed_chapters),
         affected_chapter_ids=sorted(affected_chapters),
     )
+
+
+def inherit_stable_section_identities(
+    previous: SourceManifest, current: SourceManifest
+) -> SourceManifest:
+    if not current.entries:
+        return current
+
+    previous_by_id = previous.by_section_id()
+    previous_by_alias = _unique_previous_entries_by_alias(previous.entries)
+    previous_by_body = _unique_previous_entries_by_body_semantic_hash(previous.entries)
+    duplicated_previous_stable_uids = _duplicated_stable_section_uids(previous.entries)
+    current_body_counts = Counter(
+        key
+        for entry in current.entries
+        if (key := _body_semantic_match_key(entry)) is not None
+    )
+    consumed_previous_keys: set[str] = set()
+    inherited_entries: list[SourceManifestEntry] = []
+
+    for entry in current.entries:
+        previous_entry = previous_by_id.get(entry.section_id)
+        if previous_entry is None:
+            previous_entry = previous_by_alias.get(entry.section_id)
+        if previous_entry is None:
+            body_key = _body_semantic_match_key(entry)
+            if body_key is not None and current_body_counts[body_key] == 1:
+                candidate = previous_by_body.get(body_key)
+                candidate_key = _previous_identity_key(candidate)
+                if candidate is not None and candidate_key not in consumed_previous_keys:
+                    previous_entry = candidate
+
+        if previous_entry is None:
+            inherited_entries.append(_ensure_stable_identity(entry))
+            continue
+
+        consumed_previous_keys.add(_previous_identity_key(previous_entry))
+        previous_stable_uid = previous_entry.stable_section_uid
+        if previous_stable_uid in duplicated_previous_stable_uids:
+            previous_stable_uid = None
+        inherited_entries.append(
+            entry.model_copy(
+                update={
+                    "stable_section_uid": previous_stable_uid
+                    or entry.stable_section_uid
+                    or stable_section_uid_for(entry.document_id, entry.section_id),
+                    "section_aliases": _merged_section_aliases(previous_entry, entry),
+                }
+            )
+        )
+
+    return current.model_copy(update={"entries": inherited_entries})
 
 
 def load_source_manifest(path: Path) -> SourceManifest:
@@ -213,6 +330,8 @@ def next_source_manifest(
 ) -> SourceManifest:
     if status in {ManifestUpdateStatus.FAILED, ManifestUpdateStatus.BLOCKED}:
         return previous
+
+    current = inherit_stable_section_identities(previous, current)
 
     versions = extractor_versions or {}
     if status == ManifestUpdateStatus.OK:
@@ -430,24 +549,26 @@ def _manifest_entry(
     raw_text = _normalize_line_endings(section_text)
     raw_hash = _sha256_text(raw_text)
     semantic_hash = _sha256_text(_semantic_normalize_markdown(raw_text))
+    body_semantic_hash = _sha256_text(
+        _semantic_normalize_markdown(_section_body_without_heading(raw_text))
+    )
     return SourceManifestEntry(
         document_id=document_id,
         chapter_id=chapter_id,
         section_id=section_id,
-        stable_section_uid=stable_section_uid_for(document_id, section_text),
+        stable_section_uid=stable_section_uid_for(document_id, section_id),
         section_aliases=[section_id],
         heading_path=heading_path,
         heading_start_line=heading_start_line,
         source_hash=raw_hash,
         raw_hash=raw_hash,
         semantic_hash=semantic_hash,
+        body_semantic_hash=body_semantic_hash,
     )
 
 
-def stable_section_uid_for(document_id: str, section_text: str) -> str:
-    body_text = _section_body_without_heading(section_text)
-    normalized_body = _semantic_normalize_markdown(_normalize_line_endings(body_text))
-    digest = _sha256_text(f"{document_id}\n{normalized_body}")[:24]
+def stable_section_uid_for(document_id: str, section_id: str) -> str:
+    digest = _sha256_text(f"stable-section-v2\n{document_id}\n{section_id}")[:24]
     return f"stable-section:{digest}"
 
 
@@ -455,7 +576,126 @@ def _section_body_without_heading(section_text: str) -> str:
     lines = _normalize_line_endings(section_text).splitlines(keepends=True)
     if lines and lines[0].lstrip().startswith("#"):
         return "".join(lines[1:])
+    if len(lines) >= 2 and re.match(r"^[ \t]*(=+|-+)[ \t]*$", lines[1]):
+        return "".join(lines[2:])
     return "".join(lines)
+
+
+def _ensure_stable_identity(entry: SourceManifestEntry) -> SourceManifestEntry:
+    updates: dict[str, object] = {}
+    if not entry.stable_section_uid:
+        updates["stable_section_uid"] = stable_section_uid_for(
+            entry.document_id, entry.section_id
+        )
+    aliases = _normalized_aliases([*entry.section_aliases, entry.section_id])
+    if aliases != entry.section_aliases:
+        updates["section_aliases"] = aliases
+    if not updates:
+        return entry
+    return entry.model_copy(update=updates)
+
+
+def _unique_previous_entries_by_alias(
+    entries: Iterable[SourceManifestEntry],
+) -> dict[str, SourceManifestEntry]:
+    by_alias: dict[str, SourceManifestEntry] = {}
+    ambiguous: set[str] = set()
+    for entry in entries:
+        for alias in _normalized_aliases([entry.section_id, *entry.section_aliases]):
+            if alias in by_alias and by_alias[alias] != entry:
+                ambiguous.add(alias)
+                continue
+            by_alias[alias] = entry
+    for alias in ambiguous:
+        by_alias.pop(alias, None)
+    return by_alias
+
+
+def _unique_entries_by_stable_section_uid(
+    entries: Iterable[SourceManifestEntry],
+) -> tuple[dict[str, SourceManifestEntry], list[SourceManifestEntry]]:
+    by_uid: dict[str, SourceManifestEntry] = {}
+    ambiguous_uids = _duplicated_stable_section_uids(entries)
+    ambiguous_entries: list[SourceManifestEntry] = []
+    for entry in entries:
+        uid = entry.stable_section_uid
+        if not uid:
+            ambiguous_entries.append(entry)
+            continue
+        if uid in ambiguous_uids:
+            ambiguous_entries.append(entry)
+            continue
+        by_uid[uid] = entry
+    return by_uid, ambiguous_entries
+
+
+def _duplicated_stable_section_uids(
+    entries: Iterable[SourceManifestEntry],
+) -> set[str]:
+    counts = Counter(
+        entry.stable_section_uid for entry in entries if entry.stable_section_uid
+    )
+    return {uid for uid, count in counts.items() if count > 1}
+
+
+def _unique_previous_entries_by_body_semantic_hash(
+    entries: Iterable[SourceManifestEntry],
+) -> dict[tuple[str, str], SourceManifestEntry]:
+    by_hash: dict[tuple[str, str], SourceManifestEntry] = {}
+    ambiguous: set[tuple[str, str]] = set()
+    for entry in entries:
+        key = _body_semantic_match_key(entry)
+        if key is None:
+            continue
+        if key in by_hash and by_hash[key] != entry:
+            ambiguous.add(key)
+            continue
+        by_hash[key] = entry
+    for key in ambiguous:
+        by_hash.pop(key, None)
+    return by_hash
+
+
+def _body_semantic_match_key(entry: SourceManifestEntry) -> tuple[str, str] | None:
+    body_hash = entry.body_semantic_hash
+    if not body_hash:
+        return None
+    return (entry.document_id, body_hash)
+
+
+def _entry_body_semantic_hash(entry: SourceManifestEntry) -> str:
+    return entry.body_semantic_hash or entry.semantic_hash or entry.source_hash
+
+
+def _previous_identity_key(entry: SourceManifestEntry | None) -> str:
+    if entry is None:
+        return ""
+    return entry.stable_section_uid or entry.section_id
+
+
+def _merged_section_aliases(
+    previous_entry: SourceManifestEntry, current_entry: SourceManifestEntry
+) -> list[str]:
+    return _normalized_aliases(
+        [
+            previous_entry.section_id,
+            *previous_entry.section_aliases,
+            current_entry.section_id,
+            *current_entry.section_aliases,
+        ]
+    )
+
+
+def _normalized_aliases(values: Iterable[str]) -> list[str]:
+    aliases: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        alias = str(value).strip()
+        if not alias or alias in seen:
+            continue
+        aliases.append(alias)
+        seen.add(alias)
+    return aliases
 
 
 def _entry_raw_hash(entry: SourceManifestEntry) -> str:

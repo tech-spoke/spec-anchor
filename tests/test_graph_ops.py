@@ -42,3 +42,42 @@ def test_safe_delete_by_section_removes_only_matching_provenance() -> None:
         (rel.get("properties") or {}).get("source_section_id") != "s1"
         for rel in data["relations"].values()
     )
+
+
+def test_safe_delete_by_section_prefers_stable_provenance() -> None:
+    store = SimplePropertyGraphStore()
+    store.upsert_nodes(
+        [
+            EntityNode(
+                label="ANCHOR",
+                name="auth",
+                properties={"stable_source_section_uid": "stable:s1"},
+            ),
+            EntityNode(
+                label="ANCHOR",
+                name="session",
+                properties={"stable_source_section_uid": "stable:s2"},
+            ),
+        ]
+    )
+    store.upsert_relations(
+        [
+            Relation(
+                label="RELATED_TO",
+                source_id="auth",
+                target_id="session",
+                properties={"stable_source_section_uid": "stable:s1"},
+            ),
+        ]
+    )
+
+    updated = safe_delete_by_section(
+        store,
+        section_id="renamed-section",
+        stable_section_uid="stable:s1",
+    )
+    data = updated.graph.model_dump()
+
+    assert "auth" not in data["nodes"]
+    assert "session" in data["nodes"]
+    assert not data["relations"]

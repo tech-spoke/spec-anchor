@@ -72,9 +72,24 @@ class DocumentChunksSidecar(StrictModel):
     def by_chunk_id(self) -> dict[str, DocumentChunk]:
         return {chunk.chunk_id: chunk for chunk in self.chunks}
 
+    def by_stable_chunk_uid(self) -> dict[str, DocumentChunk]:
+        return {
+            chunk.stable_chunk_uid: chunk
+            for chunk in self.chunks
+            if chunk.stable_chunk_uid
+        }
+
+    def by_retrieval_key(self) -> dict[str, DocumentChunk]:
+        chunks: dict[str, DocumentChunk] = {}
+        for chunk in self.chunks:
+            chunks[chunk_primary_key(chunk)] = chunk
+            chunks.setdefault(chunk.chunk_id, chunk)
+        return chunks
+
 
 class ChunkEmbedding(StrictModel):
     chunk_id: str
+    stable_chunk_uid: str | None = None
     chunk_hash: str
     embedding: list[float] = Field(default_factory=list)
 
@@ -89,9 +104,24 @@ class ChunkVectorIndex(StrictModel):
     def by_chunk_id(self) -> dict[str, ChunkEmbedding]:
         return {item.chunk_id: item for item in self.embeddings}
 
+    def by_stable_chunk_uid(self) -> dict[str, ChunkEmbedding]:
+        return {
+            item.stable_chunk_uid: item
+            for item in self.embeddings
+            if item.stable_chunk_uid
+        }
+
+    def by_retrieval_key(self) -> dict[str, ChunkEmbedding]:
+        embeddings: dict[str, ChunkEmbedding] = {}
+        for item in self.embeddings:
+            embeddings[chunk_embedding_primary_key(item)] = item
+            embeddings.setdefault(item.chunk_id, item)
+        return embeddings
+
 
 class BM25Document(StrictModel):
     chunk_id: str
+    stable_chunk_uid: str | None = None
     chunk_hash: str
     length: int
     term_frequencies: dict[str, int] = Field(default_factory=dict)
@@ -110,6 +140,20 @@ class BM25Index(StrictModel):
 
     def by_chunk_id(self) -> dict[str, BM25Document]:
         return {item.chunk_id: item for item in self.documents}
+
+    def by_stable_chunk_uid(self) -> dict[str, BM25Document]:
+        return {
+            item.stable_chunk_uid: item
+            for item in self.documents
+            if item.stable_chunk_uid
+        }
+
+    def by_retrieval_key(self) -> dict[str, BM25Document]:
+        documents: dict[str, BM25Document] = {}
+        for item in self.documents:
+            documents[bm25_document_primary_key(item)] = item
+            documents.setdefault(item.chunk_id, item)
+        return documents
 
 
 class QueryPlan(StrictModel):
@@ -295,9 +339,21 @@ def split_entry_into_chunks(
 
 def stable_chunk_uid_for(stable_section_uid: str, chunk_hash: str, chunk_index: int) -> str:
     digest = hashlib.sha256(
-        f"{stable_section_uid}\n{chunk_hash}\n{chunk_index}".encode("utf-8")
+        f"stable-chunk-v2\n{stable_section_uid}\n{chunk_index}".encode("utf-8")
     ).hexdigest()[:24]
     return f"stable-chunk:{digest}"
+
+
+def chunk_primary_key(chunk: DocumentChunk) -> str:
+    return chunk.stable_chunk_uid or chunk.chunk_id
+
+
+def chunk_embedding_primary_key(item: ChunkEmbedding) -> str:
+    return item.stable_chunk_uid or item.chunk_id
+
+
+def bm25_document_primary_key(item: BM25Document) -> str:
+    return item.stable_chunk_uid or item.chunk_id
 
 
 def chunk_has_body_text(text: str) -> bool:
@@ -329,6 +385,7 @@ def build_chunk_vector_index(
         embeddings=[
             ChunkEmbedding(
                 chunk_id=chunk.chunk_id,
+                stable_chunk_uid=chunk.stable_chunk_uid,
                 chunk_hash=chunk.chunk_hash,
                 embedding=_chunk_embedding(
                     chunk,
@@ -351,7 +408,7 @@ def _reusable_chunk_embeddings(
         return {}
     if not embedding_identity_matches(previous_index.embedding_metadata, embedding_metadata):
         return {}
-    return previous_index.by_chunk_id()
+    return previous_index.by_retrieval_key()
 
 
 def _chunk_embedding(
@@ -361,7 +418,9 @@ def _chunk_embedding(
     embedding_metadata: EmbeddingMetadata,
     embedding_config: Mapping[str, Any] | None,
 ) -> list[float]:
-    previous = reusable_embeddings.get(chunk.chunk_id)
+    previous = reusable_embeddings.get(chunk_primary_key(chunk))
+    if previous is None:
+        previous = reusable_embeddings.get(chunk.chunk_id)
     if (
         previous is not None
         and previous.chunk_hash == chunk.chunk_hash
@@ -386,10 +445,11 @@ def build_bm25_index(chunks: DocumentChunksSidecar) -> BM25Index:
         total_length += length
         document_frequencies.update(frequencies.keys())
         for term in frequencies:
-            postings[term].add(chunk.chunk_id)
+            postings[term].add(chunk_primary_key(chunk))
         documents.append(
             BM25Document(
                 chunk_id=chunk.chunk_id,
+                stable_chunk_uid=chunk.stable_chunk_uid,
                 chunk_hash=chunk.chunk_hash,
                 length=length,
                 term_frequencies=dict(sorted(frequencies.items())),
@@ -580,7 +640,7 @@ def bm25_search(
     scores: list[tuple[str, float]] = []
     k1 = 1.5
     b = 0.75
-    documents_by_id = index.by_chunk_id()
+    documents_by_id = index.by_retrieval_key()
     candidate_ids: set[str] = set()
     for term in query_terms:
         candidate_ids.update(index.postings.get(term, []))
@@ -620,7 +680,7 @@ def bm25_search(
                 term_frequency * (k1 + 1.0) / denominator
             )
         if score > 0 and bm25_match_is_meaningful(matched_terms):
-            scores.append((document.chunk_id, round(score, 6)))
+            scores.append((bm25_document_primary_key(document), round(score, 6)))
     return sorted(scores, key=lambda item: (-item[1], item[0]))[:limit]
 
 
@@ -647,7 +707,10 @@ def dense_search(
         config=embedding_config,
     )
     scores = [
-        (item.chunk_id, round(cosine_similarity(query_embedding, item.embedding), 6))
+        (
+            chunk_embedding_primary_key(item),
+            round(cosine_similarity(query_embedding, item.embedding), 6),
+        )
         for item in index.embeddings
         if item.embedding
     ]
@@ -665,7 +728,7 @@ def explicit_chunk_hits(
     hits = []
     for chunk in chunks.chunks:
         if chunk.document_id in explicit_files or chunk.document_id == working_target:
-            hits.append((chunk.chunk_id, 1.0))
+            hits.append((chunk_primary_key(chunk), 1.0))
     return hits
 
 
@@ -678,13 +741,14 @@ def fuse_chunk_hits(
     dense_enabled: bool,
     limit: int,
 ) -> list[ChunkSearchHit]:
-    chunk_by_id = chunks.by_chunk_id()
+    chunk_by_id = chunks.by_retrieval_key()
     scores: dict[str, float] = defaultdict(float)
     methods: dict[str, set[str]] = defaultdict(set)
     method_scores: dict[str, dict[str, float]] = defaultdict(dict)
 
     add_ranked_hits(
         bm25_hits,
+        chunk_lookup=chunk_by_id,
         scores=scores,
         methods=methods,
         method_scores=method_scores,
@@ -693,16 +757,19 @@ def fuse_chunk_hits(
     if dense_enabled:
         add_ranked_hits(
             dense_hits,
+            chunk_lookup=chunk_by_id,
             scores=scores,
             methods=methods,
             method_scores=method_scores,
             method="dense_vector",
         )
     for chunk_id, score in explicit_hits:
-        if chunk_id in chunk_by_id:
-            scores[chunk_id] += 1.0 + score
-            methods[chunk_id].add("explicit_target")
-            method_scores[chunk_id]["explicit_target"] = score
+        chunk = chunk_by_id.get(chunk_id)
+        if chunk is not None:
+            key = chunk_primary_key(chunk)
+            scores[key] += 1.0 + score
+            methods[key].add("explicit_target")
+            method_scores[key]["explicit_target"] = score
 
     hits = [
         ChunkSearchHit(
@@ -716,22 +783,32 @@ def fuse_chunk_hits(
     ]
     return sorted(
         hits,
-        key=lambda hit: (-hit.score, hit.chunk.document_id, hit.chunk.source_span, hit.chunk.chunk_id),
+        key=lambda hit: (
+            -hit.score,
+            hit.chunk.document_id,
+            hit.chunk.source_span,
+            chunk_primary_key(hit.chunk),
+        ),
     )[:limit]
 
 
 def add_ranked_hits(
     hits: Sequence[tuple[str, float]],
     *,
+    chunk_lookup: Mapping[str, DocumentChunk],
     scores: dict[str, float],
     methods: dict[str, set[str]],
     method_scores: dict[str, dict[str, float]],
     method: str,
 ) -> None:
     for rank, (chunk_id, raw_score) in enumerate(hits, start=1):
-        scores[chunk_id] += 1.0 / (DEFAULT_RRF_K + rank)
-        methods[chunk_id].add(method)
-        method_scores[chunk_id][method] = raw_score
+        chunk = chunk_lookup.get(chunk_id)
+        if chunk is None:
+            continue
+        key = chunk_primary_key(chunk)
+        scores[key] += 1.0 / (DEFAULT_RRF_K + rank)
+        methods[key].add(method)
+        method_scores[key][method] = raw_score
 
 
 def analyze_text(text: str) -> list[str]:

@@ -26,9 +26,16 @@ def entity_text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def document_chunk(chunk_id: str, *, chunk_hash: str, text: str) -> DocumentChunk:
+def document_chunk(
+    chunk_id: str,
+    *,
+    chunk_hash: str,
+    text: str,
+    stable_chunk_uid: str | None = None,
+) -> DocumentChunk:
     return DocumentChunk(
         chunk_id=chunk_id,
+        stable_chunk_uid=stable_chunk_uid,
         document_id="docs/spec/auth.md",
         chapter_id="docs/spec/auth.md#auth",
         section_id="docs/spec/auth.md#auth",
@@ -86,6 +93,53 @@ def test_chunk_vector_index_reuses_unchanged_embeddings(monkeypatch) -> None:
     assert by_chunk["chunk:auth:0"].embedding == [0.1, 0.2]
     assert by_chunk["chunk:auth:1"].embedding == [1.0, 2.0]
     assert calls == ["changed"]
+
+
+def test_chunk_vector_index_reuses_stable_chunk_uid_when_chunk_id_changes(
+    monkeypatch,
+) -> None:
+    metadata = embedding_metadata()
+    chunks = DocumentChunksSidecar(
+        graph_revision="graph:new",
+        generated_at="new",
+        chunks=[
+            document_chunk(
+                "chunk:renamed:0",
+                stable_chunk_uid="stable-chunk:auth-0",
+                chunk_hash="hash-same",
+                text="same",
+            ),
+        ],
+    )
+    previous = ChunkVectorIndex(
+        graph_revision="graph:old",
+        generated_at="old",
+        embedding_metadata=metadata,
+        embeddings=[
+            ChunkEmbedding(
+                chunk_id="chunk:auth:0",
+                stable_chunk_uid="stable-chunk:auth-0",
+                chunk_hash="hash-same",
+                embedding=[0.1, 0.2],
+            ),
+        ],
+    )
+    calls: list[str] = []
+
+    def fake_embedding(text: str, *_args, **_kwargs) -> list[float]:
+        calls.append(text)
+        return [1.0, 2.0]
+
+    monkeypatch.setattr("spec_grag.chunk_index.embedding_for_text", fake_embedding)
+
+    index = build_chunk_vector_index(
+        chunks,
+        embedding_metadata=metadata,
+        previous_index=previous,
+    )
+
+    assert index.by_stable_chunk_uid()["stable-chunk:auth-0"].embedding == [0.1, 0.2]
+    assert calls == []
 
 
 def test_vector_store_reuses_unchanged_entity_embeddings(monkeypatch) -> None:

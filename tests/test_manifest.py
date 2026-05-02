@@ -7,6 +7,7 @@ from spec_grag.manifest import (
     SourceManifest,
     ManifestUpdateStatus,
     build_current_section_manifest,
+    inherit_stable_section_identities,
     load_source_manifest,
     next_source_manifest,
     reconcile_manifests,
@@ -166,11 +167,87 @@ def test_stable_section_uid_survives_heading_rename_when_body_is_same(tmp_path: 
     first = build_current_section_manifest(tmp_path, [source])
 
     source.write_text("# Authentication\n\nOAuth is required.\n", encoding="utf-8")
-    second = build_current_section_manifest(tmp_path, [source])
+    raw_second = build_current_section_manifest(tmp_path, [source])
+    second = inherit_stable_section_identities(first, raw_second)
 
     assert first.entries[0].section_id != second.entries[0].section_id
+    assert raw_second.entries[0].stable_section_uid != first.entries[0].stable_section_uid
     assert first.entries[0].stable_section_uid == second.entries[0].stable_section_uid
-    assert first.entries[0].section_aliases == [first.entries[0].section_id]
+    assert second.entries[0].section_aliases == [
+        first.entries[0].section_id,
+        second.entries[0].section_id,
+    ]
+    plan = reconcile_manifests(first, raw_second)
+    assert plan.added_section_ids == []
+    assert plan.removed_section_ids == []
+    assert plan.changed_section_ids == []
+    assert [item.previous_section_id for item in plan.renamed_sections] == [
+        first.entries[0].section_id
+    ]
+    assert [item.current_section_id for item in plan.renamed_sections] == [
+        second.entries[0].section_id
+    ]
+
+
+def test_stable_section_uid_survives_body_edit_by_manifest_inheritance(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(tmp_path / "docs/spec/auth.md", "# Auth\n\nOAuth is required.\n")
+    first = build_current_section_manifest(tmp_path, [source])
+
+    source.write_text("# Auth\n\nOAuth is optional.\n", encoding="utf-8")
+    second = inherit_stable_section_identities(
+        first,
+        build_current_section_manifest(tmp_path, [source]),
+    )
+    plan = reconcile_manifests(first, second)
+
+    assert first.entries[0].stable_section_uid == second.entries[0].stable_section_uid
+    assert first.entries[0].semantic_hash != second.entries[0].semantic_hash
+    assert plan.changed_section_ids == ["docs/spec/auth.md#auth"]
+
+
+def test_duplicate_body_sections_do_not_collide_stable_section_uid(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(
+        tmp_path / "docs/spec/auth.md",
+        "# Auth\n\n## Login\n\nSame body.\n\n## Logout\n\nSame body.\n",
+    )
+    manifest = build_current_section_manifest(tmp_path, [source])
+    by_stable = manifest.by_stable_section_uid()
+
+    assert len({entry.stable_section_uid for entry in manifest.entries}) == len(
+        manifest.entries
+    )
+    assert len(by_stable) == len(manifest.entries)
+
+
+def test_stable_section_uid_survives_unique_body_chapter_move(
+    tmp_path: Path,
+) -> None:
+    source = write_markdown(
+        tmp_path / "docs/spec/auth.md",
+        "# Auth\n\n## Login\n\nOAuth unique body.\n\n# Session\n\nIntro.\n",
+    )
+    previous = build_current_section_manifest(tmp_path, [source])
+
+    source.write_text(
+        "# Auth\n\nIntro.\n\n# Session\n\n## Login\n\nOAuth unique body.\n",
+        encoding="utf-8",
+    )
+    current = build_current_section_manifest(tmp_path, [source])
+    plan = reconcile_manifests(previous, current)
+
+    previous_login = previous.by_section_id()["docs/spec/auth.md#auth-login"]
+    current_login = inherit_stable_section_identities(previous, current).by_section_id()[
+        "docs/spec/auth.md#session-login"
+    ]
+    assert previous_login.stable_section_uid == current_login.stable_section_uid
+    assert [
+        (item.previous_section_id, item.current_section_id)
+        for item in plan.renamed_sections
+    ] == [("docs/spec/auth.md#auth-login", "docs/spec/auth.md#session-login")]
 
 
 def test_manifest_tracks_raw_and_semantic_hashes_separately(tmp_path: Path) -> None:
@@ -216,7 +293,7 @@ def test_build_current_section_manifest_preserves_unicode_heading_ids(
     ]
 
 
-def test_reconcile_detects_changed_removed_added_and_rename_as_removed_added(
+def test_reconcile_detects_changed_removed_added_and_rename_separately(
     tmp_path: Path,
 ) -> None:
     source = write_markdown(
@@ -233,8 +310,14 @@ def test_reconcile_detects_changed_removed_added_and_rename_as_removed_added(
     plan = reconcile_manifests(previous, current)
 
     assert "docs/spec/auth.md#auth" in plan.changed_section_ids
-    assert "docs/spec/auth.md#auth-login" in plan.removed_section_ids
-    assert "docs/spec/auth.md#auth-authentication" in plan.added_section_ids
+    assert "docs/spec/auth.md#auth-login" not in plan.removed_section_ids
+    assert "docs/spec/auth.md#auth-authentication" not in plan.added_section_ids
+    assert [
+        (item.previous_section_id, item.current_section_id)
+        for item in plan.renamed_sections
+    ] == [
+        ("docs/spec/auth.md#auth-login", "docs/spec/auth.md#auth-authentication")
+    ]
     assert "docs/spec/auth.md#auth-tokens" in plan.added_section_ids
     assert plan.structure_changed_chapter_ids == ["docs/spec/auth.md#auth"]
 

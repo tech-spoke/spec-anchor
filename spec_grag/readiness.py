@@ -118,6 +118,14 @@ def evaluate_grag_readiness(
             *reconciliation.changed_section_ids,
             *reconciliation.added_section_ids,
             *reconciliation.removed_section_ids,
+            *(
+                item.current_section_id
+                for item in reconciliation.renamed_sections
+            ),
+            *(
+                item.previous_section_id
+                for item in reconciliation.renamed_sections
+            ),
         }
     )
     if not previous_manifest.entries and current_manifest.entries:
