@@ -167,10 +167,19 @@ def test_semantic_change_and_schema_extraction_timings_are_recorded(tmp_path: Pa
 
     second = run_core_update(tmp_path, config, all_sources=False, schema_extractor=EmptySchemaExtractor())
     names = {stage["stage"] for stage in second.stage_timings}
+    staging_stage = next(
+        stage
+        for stage in second.stage_timings
+        if stage["stage"] == "artifact_write"
+        and stage["metrics"].get("operation") == "prepare"
+    )
 
     assert second.timing_summary["semantic_noop"] is False
     assert second.timing_summary["heavy_path"] is True
     assert {"schema_llm_extraction", "embedding_update"} <= names
+    assert staging_stage["metrics"]["active_exists"] is True
+    assert staging_stage["metrics"]["staging_exists"] is True
+    assert staging_stage["metrics"]["staging_file_count"] >= 1
 
 
 def test_blocked_and_failed_artifacts_keep_completed_timings(tmp_path: Path) -> None:

@@ -62,10 +62,12 @@ classification は high priority skip なしまで改善したが、`classificat
 - BM25 search は broad char candidate が広がった時、identifier / word term の candidate があれば strong-term candidate へ prune する
 - `cli.py` の inject / realign 共通 readiness + injection pipeline を `run_injection_pipeline()` に抽出した
 - foreground `/spec-core` と dirty/stale 時の inject / realign core update は watcher と `WatchLock` を共有し、lock 取得不可なら `watcher_processing` blocked にする
+- staging prepare stage は active / staging directory の file count、dir count、bytes を timing metrics に残す
 - focused regression: `32 passed in 15.23s` と `67 passed in 69.05s`
 - Concept / retrieval focused regression: `19 passed in 12.27s`
 - CLI focused regression: `26 passed in 59.47s`
-- full regression: `uv run --with pytest python -m pytest -q` -> `246 passed in 201.81s`
+- Timing focused regression: `4 passed in 13.48s`
+- full regression: `uv run --with pytest python -m pytest -q` -> `246 passed in 201.30s`
 
 2026-05-03 実測:
 

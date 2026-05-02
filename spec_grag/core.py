@@ -373,8 +373,10 @@ def run_core_update(
         "artifact_write",
         metrics={"artifact_kind": "artifact_staging", "operation": "prepare"},
     ) as stage:
+        stage.metrics.update(_directory_summary(graph_storage, prefix="active"))
         artifact_graph_storage = _prepare_artifact_staging(graph_storage, graph_revision)
         stage.metrics["staging_path"] = str(artifact_graph_storage)
+        stage.metrics.update(_directory_summary(artifact_graph_storage, prefix="staging"))
     artifact_manifest_path = artifact_graph_storage / "source_manifest.json"
     artifact_embedding_metadata_file = embedding_metadata_path(artifact_graph_storage)
 
@@ -1009,6 +1011,34 @@ def _prepare_artifact_staging(graph_storage: Path, graph_revision: str) -> Path:
     else:
         staging.mkdir(parents=True, exist_ok=True)
     return staging
+
+
+def _directory_summary(path: Path, *, prefix: str) -> dict[str, Any]:
+    if not path.exists():
+        return {
+            f"{prefix}_exists": False,
+            f"{prefix}_file_count": 0,
+            f"{prefix}_dir_count": 0,
+            f"{prefix}_bytes": 0,
+        }
+    file_count = 0
+    dir_count = 0
+    total_bytes = 0
+    for child in path.rglob("*"):
+        try:
+            if child.is_dir():
+                dir_count += 1
+            elif child.is_file():
+                file_count += 1
+                total_bytes += child.stat().st_size
+        except OSError:
+            continue
+    return {
+        f"{prefix}_exists": True,
+        f"{prefix}_file_count": file_count,
+        f"{prefix}_dir_count": dir_count,
+        f"{prefix}_bytes": total_bytes,
+    }
 
 
 def artifact_staging_root(graph_storage: Path) -> Path:
