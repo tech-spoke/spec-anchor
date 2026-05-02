@@ -29,7 +29,6 @@ from spec_grag.conflict_review import (
     approved_conflict_notes,
     pending_conflict_review_notes,
 )
-from spec_grag.core import run_core_update
 from spec_grag.embedding import embedding_for_text
 from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.manifest import SourceManifest, SourceManifestEntry, load_source_manifest
@@ -109,10 +108,13 @@ def build_injection(
     *,
     core_update: Any | None = None,
     freshness_report: FreshnessReport | None = None,
+    allow_core_update: bool = False,
     timer: TimingRecorder | None = None,
 ) -> InjectionBuild:
     timer = timer or TimingRecorder()
-    if core_update is None and freshness_report is None:
+    if core_update is None and freshness_report is None and allow_core_update:
+        from spec_grag.core import run_core_update
+
         core_update = run_core_update(project_root, config, all_sources=False, timer=timer)
     if core_update is not None:
         if core_update.status == ResultStatus.FAILED:
@@ -166,7 +168,10 @@ def build_injection(
         config.get("classification", {}).get("fallback_on_error", True)
     )
     classification_limit = int(config.get("classification", {}).get("max_items", 8))
-    classification_budget = {"remaining": classification_limit}
+    classification_budget = {"remaining": classification_limit, "skipped": 0}
+    classification_cache: dict[str, dict[str, Any]] | None = (
+        {} if classification_llm is not None else None
+    )
     with timer.stage(
         "retrieval",
         metrics={
@@ -198,6 +203,7 @@ def build_injection(
             classification_llm=classification_llm,
             classification_budget=classification_budget,
             classification_fallback_on_error=classification_fallback_on_error,
+            classification_cache=classification_cache,
         )
         retrieval_stage.metrics["returned_sections"] = len(graph_retrieval.source_sections)
         retrieval_stage.metrics["returned_entities"] = len(graph_retrieval.related_entities)
@@ -232,6 +238,7 @@ def build_injection(
             classification_llm=classification_llm,
             classification_budget=classification_budget,
             classification_fallback_on_error=classification_fallback_on_error,
+            classification_cache=classification_cache,
         )
         chapter_anchors = retrieve_chapter_anchors(
             graph_dir,
@@ -246,6 +253,7 @@ def build_injection(
                 llm=classification_llm,
                 llm_budget=classification_budget,
                 fallback_on_error=classification_fallback_on_error,
+                classification_cache=classification_cache,
             )
             for anchor in chapter_anchors
         ]
@@ -259,6 +267,7 @@ def build_injection(
             classification_llm=classification_llm,
             classification_budget=classification_budget,
             classification_fallback_on_error=classification_fallback_on_error,
+            classification_cache=classification_cache,
         )
         classification_stage.metrics["concept_items"] = len(concept_items)
         classification_stage.metrics["chapter_anchors"] = len(chapter_anchor_items)
@@ -268,6 +277,7 @@ def build_injection(
             if classification_llm is not None
             else 0
         )
+        classification_stage.metrics["skipped"] = classification_budget.get("skipped", 0)
 
     warnings = [
         *core_warnings,
@@ -275,6 +285,8 @@ def build_injection(
         *purpose_warning,
         *concept_warning,
     ]
+    if classification_budget.get("skipped", 0):
+        warnings.append("classification_incomplete")
     if invalid_agentic:
         warnings.append("some AgenticSearchCandidate entries were rejected")
 
@@ -316,6 +328,7 @@ def build_injection(
                     llm=classification_llm,
                     llm_budget=classification_budget,
                     fallback_on_error=classification_fallback_on_error,
+                    classification_cache=classification_cache,
                 )
             ]
             if purpose_item
@@ -333,6 +346,7 @@ def build_injection(
                     llm=classification_llm,
                     llm_budget=classification_budget,
                     fallback_on_error=classification_fallback_on_error,
+                    classification_cache=classification_cache,
                 )
                 for item in source_evidence
             ],
@@ -360,6 +374,7 @@ def build_injection(
                     llm=classification_llm,
                     llm_budget=classification_budget,
                     fallback_on_error=classification_fallback_on_error,
+                    classification_cache=classification_cache,
                 )
                 for candidate in valid_agentic
                 if expected_use_for_candidate(candidate, expected_requests)
@@ -376,6 +391,7 @@ def build_injection(
                     llm=classification_llm,
                     llm_budget=classification_budget,
                     fallback_on_error=classification_fallback_on_error,
+                    classification_cache=classification_cache,
                 )
                 for item in source_evidence
             ],
@@ -431,12 +447,18 @@ def build_injection(
         approved_concept_update=None,
         warnings=warnings,
     )
+    if classification_budget.get("skipped", 0) and "classification_incomplete" not in warnings:
+        warnings.append("classification_incomplete")
+        context = context.model_copy(update={"warnings": warnings})
 
     status = (
         ResultStatus.DEGRADED
         if warnings and core_status == ResultStatus.OK
         else core_status
     )
+    degraded_components = ["retrieval"] if warnings else []
+    if "classification_incomplete" in warnings:
+        degraded_components.append("classification")
     return InjectionBuild(
         status=status,
         result_type=ResultType.INJECTION_CONTEXT,
@@ -445,7 +467,7 @@ def build_injection(
         warnings=warnings,
         context_ready=True,
         failed_sources=failed_sources,
-        degraded_components=warnings and ["retrieval"] or [],
+        degraded_components=degraded_components,
     )
 
 
@@ -682,6 +704,7 @@ def retrieve_graph_context(
     classification_llm: Any | None = None,
     classification_budget: dict[str, int] | None = None,
     classification_fallback_on_error: bool = True,
+    classification_cache: dict[str, dict[str, Any]] | None = None,
 ) -> GraphRetrievalResult:
     graph_data, warnings = load_graph_data(graph_dir)
     chunk_hits, query_plan, retrieval_warnings = retrieve_hybrid_chunks(
@@ -722,6 +745,7 @@ def retrieve_graph_context(
         graph_data,
         graph_matches,
         selected_section_ids=selected_section_ids,
+        max_hops=int(config.get("retrieval", {}).get("graph_expansion_hops", 1)),
     )
     selected_section_ids.update(
         item.get("source_section_id")
@@ -743,6 +767,7 @@ def retrieve_graph_context(
             llm=classification_llm,
             llm_budget=classification_budget,
             fallback_on_error=classification_fallback_on_error,
+            classification_cache=classification_cache,
         )
         for item in dedupe_items(graph_matches, key="entity_id")
     ]
@@ -814,41 +839,107 @@ def merge_graph_traversal_matches(
     graph_matches: list[dict[str, Any]],
     *,
     selected_section_ids: set[str],
+    max_hops: int = 1,
 ) -> list[dict[str, Any]]:
     nodes = graph_data.get("nodes") or {}
     relations = graph_data.get("relations") or {}
+    max_hops = max(0, min(int(max_hops), 3))
     matched_node_ids = {item["entity_id"] for item in graph_matches}
     merged = {item["entity_id"]: dict(item) for item in graph_matches}
 
-    for relation in relations.values():
+    if max_hops <= 0:
+        return sorted(
+            merged.values(),
+            key=lambda item: (-float(item.get("ranking_score") or 0), item.get("entity_id") or ""),
+        )
+
+    adjacency: dict[str, list[tuple[str, str, dict[str, Any]]]] = {}
+    selected_section_edges: list[tuple[str, str, dict[str, Any]]] = []
+    for relation_id, relation in relations.items():
+        source_id = str(relation.get("source_id") or "")
+        target_id = str(relation.get("target_id") or "")
+        if not source_id or not target_id:
+            continue
+        adjacency.setdefault(source_id, []).append((target_id, str(relation_id), relation))
+        adjacency.setdefault(target_id, []).append((source_id, str(relation_id), relation))
         props = node_properties(relation)
         relation_section_id = props.get("section_id") or props.get("source_section_id")
-        endpoints = [str(relation.get("source_id") or ""), str(relation.get("target_id") or "")]
-        if not (
-            relation_section_id in selected_section_ids
-            or any(endpoint in matched_node_ids for endpoint in endpoints)
-        ):
-            continue
-        for endpoint in endpoints:
-            node = nodes.get(endpoint)
-            if not node or node_label(node) not in {"SECTION", "ANCHOR"}:
-                continue
-            existing = merged.get(endpoint)
-            if existing is None:
-                merged[endpoint] = graph_entity_item(
-                    endpoint,
-                    node,
-                    retrieval_methods=["graph_traversal"],
-                    ranking_score=0.5,
-                    relation_type=relation.get("label"),
+        if relation_section_id in selected_section_ids:
+            selected_section_edges.append((source_id, str(relation_id), relation))
+            selected_section_edges.append((target_id, str(relation_id), relation))
+
+    visited = set(matched_node_ids)
+    frontier = set(matched_node_ids)
+    paths_by_node: dict[str, list[dict[str, Any]]] = {node_id: [] for node_id in frontier}
+    section_relation_frontier: set[str] = set()
+
+    def merge_endpoint(
+        endpoint: str,
+        *,
+        relation_id: str,
+        relation: dict[str, Any],
+        hop: int,
+        path: list[dict[str, Any]],
+    ) -> None:
+        node = nodes.get(endpoint)
+        if not node or node_label(node) not in {"SECTION", "ANCHOR"}:
+            return
+        relation_label = relation.get("label")
+        props = node_properties(relation)
+        relation_section_id = props.get("section_id") or props.get("source_section_id")
+        confidence = props.get("confidence")
+        ranking_score = max(0.1, 0.62 - (0.12 * hop))
+        existing = merged.get(endpoint)
+        if existing is None:
+            merged[endpoint] = graph_entity_item(
+                endpoint,
+                node,
+                retrieval_methods=["graph_traversal"],
+                ranking_score=ranking_score,
+                relation_type=relation_label,
+                graph_hop=hop,
+                graph_path=path,
+                relation_confidence=confidence,
+                relation_source_section_id=relation_section_id,
+            )
+        else:
+            methods = set(existing.get("retrieval_methods") or [])
+            methods.add("graph_traversal")
+            existing["retrieval_methods"] = sorted(methods)
+            existing.setdefault("relation_types", [])
+            if relation_label not in existing["relation_types"]:
+                existing["relation_types"].append(relation_label)
+            existing["graph_hop"] = min(int(existing.get("graph_hop") or hop), hop)
+            existing.setdefault("graph_paths", [])
+            if path and path not in existing["graph_paths"]:
+                existing["graph_paths"].append(path)
+
+    for endpoint, relation_id, relation in selected_section_edges:
+        path = [graph_path_edge(relation_id, relation)]
+        merge_endpoint(endpoint, relation_id=relation_id, relation=relation, hop=1, path=path)
+        if endpoint not in visited:
+            visited.add(endpoint)
+            section_relation_frontier.add(endpoint)
+            paths_by_node[endpoint] = path
+
+    for hop in range(1, max_hops + 1):
+        next_frontier: set[str] = set(section_relation_frontier) if hop == 1 else set()
+        for node_id in sorted(frontier):
+            for neighbor_id, relation_id, relation in adjacency.get(node_id, []):
+                edge = graph_path_edge(relation_id, relation)
+                path = [*paths_by_node.get(node_id, []), edge]
+                merge_endpoint(
+                    neighbor_id,
+                    relation_id=relation_id,
+                    relation=relation,
+                    hop=hop,
+                    path=path,
                 )
-            else:
-                methods = set(existing.get("retrieval_methods") or [])
-                methods.add("graph_traversal")
-                existing["retrieval_methods"] = sorted(methods)
-                existing.setdefault("relation_types", [])
-                if relation.get("label") not in existing["relation_types"]:
-                    existing["relation_types"].append(relation.get("label"))
+                if neighbor_id not in visited:
+                    visited.add(neighbor_id)
+                    next_frontier.add(neighbor_id)
+                    paths_by_node[neighbor_id] = path
+        frontier = next_frontier
 
     return sorted(
         merged.values(),
@@ -886,6 +977,7 @@ def retrieve_cluster_items(
     classification_llm: Any | None = None,
     classification_budget: dict[str, int] | None = None,
     classification_fallback_on_error: bool = True,
+    classification_cache: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     snapshot = load_cluster_snapshot(graph_dir / "cluster_snapshot.json")
     selected_chapter_ids = {entry.chapter_id for entry in source_sections}
@@ -918,6 +1010,7 @@ def retrieve_cluster_items(
                 llm=classification_llm,
                 llm_budget=classification_budget,
                 fallback_on_error=classification_fallback_on_error,
+                classification_cache=classification_cache,
             )
         )
     return items
@@ -1020,6 +1113,7 @@ def read_concept_constraints(
     classification_llm: Any | None = None,
     classification_budget: dict[str, int] | None = None,
     classification_fallback_on_error: bool = True,
+    classification_cache: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     path = configured_path(project_root, config, "core", "concept_file")
     if path is None or not path.exists():
@@ -1043,6 +1137,7 @@ def read_concept_constraints(
             llm=classification_llm,
             llm_budget=classification_budget,
             fallback_on_error=classification_fallback_on_error,
+            classification_cache=classification_cache,
         )
         for chunk, score in chunks
     ], []
@@ -1169,10 +1264,14 @@ def graph_entity_item(
     retrieval_methods: list[str],
     ranking_score: float,
     relation_type: str | None = None,
+    graph_hop: int | None = None,
+    graph_path: list[dict[str, Any]] | None = None,
+    relation_confidence: Any | None = None,
+    relation_source_section_id: Any | None = None,
 ) -> dict[str, Any]:
     props = node_properties(node)
     relation_types = [relation_type] if relation_type else []
-    return {
+    item = {
         "entity_id": entity_id,
         "entity_type": node_label(node),
         "heading_path": props.get("heading_path"),
@@ -1187,6 +1286,27 @@ def graph_entity_item(
         "relation_types": relation_types,
         "source_origin": "GRAG",
         "ranking_score": round(ranking_score, 6),
+    }
+    if graph_hop is not None:
+        item["graph_hop"] = graph_hop
+    if graph_path:
+        item["graph_paths"] = [graph_path]
+    if relation_confidence is not None:
+        item["relation_confidences"] = [relation_confidence]
+    if relation_source_section_id:
+        item["relation_source_section_ids"] = [relation_source_section_id]
+    return item
+
+
+def graph_path_edge(relation_id: str, relation: dict[str, Any]) -> dict[str, Any]:
+    props = node_properties(relation)
+    return {
+        "relation_id": relation_id,
+        "relation_type": relation.get("label"),
+        "source_id": relation.get("source_id"),
+        "target_id": relation.get("target_id"),
+        "source_section_id": props.get("section_id") or props.get("source_section_id"),
+        "confidence": props.get("confidence"),
     }
 
 
@@ -1826,6 +1946,43 @@ def json_dumps_sorted(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2)
 
 
+def classification_key_for_item(item: dict[str, Any], *, item_type: str) -> str:
+    explicit = item.get("classification_key")
+    if explicit:
+        return f"{item_type}:{explicit}"
+    for field in (
+        "concept_chunk_id",
+        "chapter_anchor_id",
+        "cluster_id",
+        "entity_id",
+        "request_id",
+    ):
+        value = item.get(field)
+        if value:
+            return f"{item_type}:{field}:{value}"
+    section_id = item.get("source_section_id") or item.get("section_id")
+    source_hash = item.get("source_hash")
+    source_span = item.get("source_span")
+    if section_id or source_hash or source_span:
+        digest = hashlib.sha256(
+            "|".join(
+                str(value or "")
+                for value in (
+                    item.get("document_id") or item.get("source_document_id"),
+                    section_id,
+                    source_span,
+                    source_hash,
+                    normalize_excerpt(str(item.get("excerpt") or ""))[:512],
+                )
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+        return f"{item_type}:source:{digest}"
+    digest = hashlib.sha256(
+        json.dumps(item, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()[:16]
+    return f"{item_type}:content:{digest}"
+
+
 def classify_context_item(
     item: dict[str, Any],
     *,
@@ -1834,7 +1991,14 @@ def classify_context_item(
     llm: Any | None = None,
     llm_budget: dict[str, int] | None = None,
     fallback_on_error: bool = True,
+    classification_cache: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    cache_key = classification_key_for_item(item, item_type=item_type)
+    if classification_cache is not None and cache_key in classification_cache:
+        cached = dict(classification_cache[cache_key])
+        cached["classification_cache_hit"] = True
+        return cached
+
     annotated = (
         classify_context_item_rule_based(item, item_type=item_type, query=query)
         if llm is None or fallback_on_error
@@ -1845,12 +2009,28 @@ def classify_context_item(
     if llm_budget is not None:
         remaining = llm_budget.get("remaining", 0)
         if remaining <= 0:
-            annotated = classify_context_item_rule_based(
-                item,
-                item_type=item_type,
-                query=query,
-            )
+            llm_budget["skipped"] = llm_budget.get("skipped", 0) + 1
+            if fallback_on_error:
+                annotated = classify_context_item_rule_based(
+                    item,
+                    item_type=item_type,
+                    query=query,
+                )
+            else:
+                annotated = {
+                    **item,
+                    "constraint_relevance": item.get("constraint_relevance", "none"),
+                    "target_relevance": item.get("target_relevance", "none"),
+                    "semantic_conflict_candidate": bool(
+                        item.get("semantic_conflict_candidate", False)
+                    ),
+                    "review_required": True,
+                    "classification_source": "classification_incomplete",
+                    "reason_for_current_task": "classification LLM budget exhausted",
+                }
             annotated["classification_llm_skipped"] = "max_items_exhausted"
+            if classification_cache is not None:
+                classification_cache[cache_key] = dict(annotated)
             return annotated
         llm_budget["remaining"] = remaining - 1
     try:
@@ -1866,6 +2046,8 @@ def classify_context_item(
         annotated["classification_partial_output_recovered"] = True
         annotated["classification_fallback_reason"] = str(exc)
         annotated["review_required"] = True
+        if classification_cache is not None:
+            classification_cache[cache_key] = dict(annotated)
         return annotated
 
     annotated.update(
@@ -1880,6 +2062,8 @@ def classify_context_item(
             "reason_for_current_task": decision.reason_for_current_task,
         }
     )
+    if classification_cache is not None:
+        classification_cache[cache_key] = dict(annotated)
     return annotated
 
 

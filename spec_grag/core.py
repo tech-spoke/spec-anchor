@@ -5,6 +5,9 @@ from __future__ import annotations
 import hashlib
 import glob
 import json
+import os
+import shutil
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -347,6 +350,15 @@ def run_core_update(
         ), timer)
 
     with timer.stage(
+        "artifact_write",
+        metrics={"artifact_kind": "artifact_staging", "operation": "prepare"},
+    ) as stage:
+        artifact_graph_storage = _prepare_artifact_staging(graph_storage, graph_revision)
+        stage.metrics["staging_path"] = str(artifact_graph_storage)
+    artifact_manifest_path = artifact_graph_storage / "source_manifest.json"
+    artifact_embedding_metadata_file = embedding_metadata_path(artifact_graph_storage)
+
+    with timer.stage(
         "graph_sidecar_update",
         metrics={"input_sections": len(current_manifest.entries), "operation": "build_graph"},
     ):
@@ -423,7 +435,7 @@ def run_core_update(
         extraction_failed_section_ids = set(extraction_result.failed_section_ids)
         extracted_unresolved_entries = extraction_result.unresolved_entries
 
-    unresolved_path = graph_storage / "unresolved_relations.json"
+    unresolved_path = artifact_graph_storage / "unresolved_relations.json"
     with timer.stage(
         "graph_sidecar_update",
         metrics={
@@ -489,6 +501,7 @@ def run_core_update(
             )
             stage.metrics["input_chunks"] = len(document_chunks.chunks)
     except EmbeddingProviderError as exc:
+        _discard_artifact_staging(artifact_graph_storage)
         warnings = [f"embedding_provider_failed:{exc}"]
         return _failed_core_update(
             scanned_at=scanned_at,
@@ -505,25 +518,25 @@ def run_core_update(
     ):
         bm25_index = build_bm25_index(document_chunks)
 
-    graph_storage.mkdir(parents=True, exist_ok=True)
+    artifact_graph_storage.mkdir(parents=True, exist_ok=True)
     with timer.stage(
         "artifact_write",
         metrics={"artifact_count": 6, "artifact_kind": "core_graph"},
     ):
-        graph_store.persist(str(graph_storage / GRAPH_STORE_FILENAME))
-        vector_store.persist(str(graph_storage / VECTOR_STORE_FILENAME))
+        graph_store.persist(str(artifact_graph_storage / GRAPH_STORE_FILENAME))
+        vector_store.persist(str(artifact_graph_storage / VECTOR_STORE_FILENAME))
         write_document_chunks_atomic(
-            graph_storage / DOCUMENT_CHUNKS_FILENAME,
+            artifact_graph_storage / DOCUMENT_CHUNKS_FILENAME,
             document_chunks,
         )
         write_chunk_vector_index_atomic(
-            graph_storage / CHUNK_VECTOR_INDEX_FILENAME,
+            artifact_graph_storage / CHUNK_VECTOR_INDEX_FILENAME,
             chunk_vector_index,
         )
-        write_bm25_index_atomic(graph_storage / BM25_INDEX_FILENAME, bm25_index)
-        write_embedding_metadata_atomic(embedding_metadata_file, embedding_metadata)
+        write_bm25_index_atomic(artifact_graph_storage / BM25_INDEX_FILENAME, bm25_index)
+        write_embedding_metadata_atomic(artifact_embedding_metadata_file, embedding_metadata)
 
-    chapter_anchors_path = graph_storage / "chapter_anchors.json"
+    chapter_anchors_path = artifact_graph_storage / "chapter_anchors.json"
     affected_chapters = (
         sorted({entry.chapter_id for entry in current_manifest.entries})
         if all_sources
@@ -566,11 +579,12 @@ def run_core_update(
             concept_index, concept_index_warnings = refresh_concept_index(
                 project_root,
                 config,
-                graph_storage,
+                artifact_graph_storage,
                 generated_at=scanned_at,
             )
             stage.metrics["input_chunks"] = len(concept_index.chunks) if concept_index else 0
     except EmbeddingProviderError as exc:
+        _discard_artifact_staging(artifact_graph_storage)
         warnings = [f"embedding_provider_failed:{exc}"]
         return _failed_core_update(
             scanned_at=scanned_at,
@@ -593,7 +607,7 @@ def run_core_update(
         if concept_index is not None
         else []
     )
-    cluster_path = graph_storage / "cluster_snapshot.json"
+    cluster_path = artifact_graph_storage / "cluster_snapshot.json"
     changed_cluster_section_ids = [
         *reconciliation.changed_section_ids,
         *reconciliation.added_section_ids,
@@ -657,6 +671,7 @@ def run_core_update(
                     cluster_warnings = cluster_refresh.warnings
             stage.metrics["cluster_count"] = len(cluster_snapshot.clusters)
     except CommunityReportGenerationError as exc:
+        _discard_artifact_staging(artifact_graph_storage)
         warnings = [
             *extraction_warnings,
             *chapter_refresh.warnings,
@@ -719,6 +734,7 @@ def run_core_update(
             )
             stage.metrics["warnings"] = len(concept_diff_result.warnings)
     except ConceptDiffProposalError as exc:
+        _discard_artifact_staging(artifact_graph_storage)
         warnings = [
             *extraction_warnings,
             *chapter_refresh.warnings,
@@ -755,14 +771,14 @@ def run_core_update(
         "artifact_write",
         metrics={"artifact_count": 1, "artifact_kind": "source_manifest"},
     ):
-        write_source_manifest_atomic(manifest_path, next_manifest)
+        write_source_manifest_atomic(artifact_manifest_path, next_manifest)
     with timer.stage(
         "conflict_review",
         metrics={"input_sections": len(next_manifest.entries)},
     ) as stage:
         conflict_review_result = generate_source_conflict_review(
             project_root=project_root,
-            graph_storage=graph_storage,
+            graph_storage=artifact_graph_storage,
             manifest=next_manifest,
             graph_revision=graph_revision,
             generated_at=scanned_at,
@@ -772,6 +788,38 @@ def run_core_update(
             conflict_review_result.pending_review is not None
         )
         stage.metrics["warnings"] = len(conflict_review_result.warnings)
+
+    with timer.stage(
+        "artifact_write",
+        metrics={"artifact_kind": "artifact_commit", "operation": "commit"},
+    ) as stage:
+        try:
+            _write_artifact_revision(
+                artifact_graph_storage,
+                graph_revision=graph_revision,
+                extract_run_id=extract_run_id,
+                generated_at=scanned_at,
+            )
+            _commit_artifact_staging(graph_storage, artifact_graph_storage)
+        except OSError as exc:
+            stage.set_status("failed")
+            return _failed_core_update(
+                scanned_at=scanned_at,
+                graph_storage=graph_storage,
+                mode="full" if all_sources else "incremental",
+                failed_sources=["artifact_commit"],
+                warnings=[
+                    *extraction_warnings,
+                    *chapter_refresh.warnings,
+                    *cluster_warnings,
+                    *concept_index_warnings,
+                    *concept_diff_result.warnings,
+                    *conflict_review_result.warnings,
+                    f"artifact_commit_failed:{exc}",
+                ],
+                reconciliation=reconciliation,
+                timer=timer,
+            )
 
     warnings = [
         *extraction_warnings,
@@ -843,6 +891,106 @@ def _failed_core_update(
         reconciliation=reconciliation,
     )
     return _with_core_timing(update, timer) if timer is not None else update
+
+
+def _prepare_artifact_staging(graph_storage: Path, graph_revision: str) -> Path:
+    safe_revision = _safe_path_component(graph_revision)
+    staging = graph_storage.parent / ".staging" / graph_storage.name / safe_revision
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.parent.mkdir(parents=True, exist_ok=True)
+    if graph_storage.exists():
+        shutil.copytree(
+            graph_storage,
+            staging,
+            ignore=shutil.ignore_patterns(".staging", "*.tmp"),
+        )
+    else:
+        staging.mkdir(parents=True, exist_ok=True)
+    return staging
+
+
+def _commit_artifact_staging(graph_storage: Path, staging: Path) -> None:
+    if not staging.exists():
+        raise OSError(f"staging artifact directory missing: {staging}")
+    backup = (
+        graph_storage.parent
+        / ".staging"
+        / "backups"
+        / f"{graph_storage.name}-{hashlib.sha256(str(staging).encode('utf-8')).hexdigest()[:12]}"
+    )
+    if backup.exists():
+        shutil.rmtree(backup)
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    moved_active = False
+    try:
+        if graph_storage.exists():
+            os.replace(graph_storage, backup)
+            moved_active = True
+        os.replace(staging, graph_storage)
+    except OSError:
+        if moved_active and backup.exists() and not graph_storage.exists():
+            os.replace(backup, graph_storage)
+        raise
+    else:
+        if backup.exists():
+            shutil.rmtree(backup)
+        _cleanup_empty_staging_parents(staging.parent)
+
+
+def _discard_artifact_staging(staging: Path) -> None:
+    if staging.exists():
+        shutil.rmtree(staging)
+
+
+def _write_artifact_revision(
+    graph_storage: Path,
+    *,
+    graph_revision: str,
+    extract_run_id: str,
+    generated_at: str,
+) -> None:
+    _write_json_atomic(
+        graph_storage / "artifact_revision.json",
+        {
+            "graph_revision": graph_revision,
+            "extract_run_id": extract_run_id,
+            "generated_at": generated_at,
+            "commit_protocol": "staging-directory-v1",
+        },
+    )
+
+
+def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, path)
+    finally:
+        tmp_path = Path(tmp_name)
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
+def _cleanup_empty_staging_parents(path: Path) -> None:
+    current = path
+    for _ in range(3):
+        try:
+            current.rmdir()
+        except OSError:
+            return
+        current = current.parent
+
+
+def _safe_path_component(value: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "-" for ch in value)[:96]
 
 
 def _with_core_timing(update: CoreUpdate, timer: TimingRecorder) -> CoreUpdate:
@@ -995,19 +1143,8 @@ def build_vector_store(
     for node in graph_store.get():
         if node.label not in {"ANCHOR", "SECTION"}:
             continue
-        node.embedding = _entity_embedding(
-            node,
-            reusable_embeddings=previous_embeddings,
-            embedding_metadata=metadata,
-            embedding_config=embedding_config,
-        )
-        node.properties = {
-            **(node.properties or {}),
-            **embedding_properties(metadata),
-        }
-        entities.append(node)
         props = node.properties or {}
-        text_by_entity_id[node.id] = " ".join(
+        entity_text = " ".join(
             str(value)
             for value in (
                 node.label,
@@ -1018,6 +1155,20 @@ def build_vector_store(
             )
             if value
         )
+        node.embedding = _entity_embedding(
+            node,
+            entity_text=entity_text,
+            reusable_embeddings=previous_embeddings,
+            embedding_metadata=metadata,
+            embedding_config=embedding_config,
+        )
+        node.properties = {
+            **(node.properties or {}),
+            **embedding_properties(metadata),
+            "entity_text_hash": hashlib.sha256(entity_text.encode("utf-8")).hexdigest(),
+        }
+        entities.append(node)
+        text_by_entity_id[node.id] = entity_text
     add_entities_to_vector_store(vector_store, entities, text_by_entity_id=text_by_entity_id)
     return vector_store
 
@@ -1050,18 +1201,25 @@ def _reusable_vector_embeddings(
 def _entity_embedding(
     node: EntityNode,
     *,
+    entity_text: str,
     reusable_embeddings: Mapping[str, tuple[list[float], Mapping[str, Any]]],
     embedding_metadata: EmbeddingMetadata,
     embedding_config: Mapping[str, Any] | None,
 ) -> list[float]:
     reusable = reusable_embeddings.get(node.id)
     current_source_hash = (node.properties or {}).get("source_hash")
+    current_text_hash = hashlib.sha256(entity_text.encode("utf-8")).hexdigest()
     if reusable is not None and current_source_hash:
         embedding, previous_metadata = reusable
-        if previous_metadata.get("source_hash") == current_source_hash and embedding:
+        previous_text_hash = previous_metadata.get("entity_text_hash")
+        if (
+            previous_metadata.get("source_hash") == current_source_hash
+            and previous_text_hash == current_text_hash
+            and embedding
+        ):
             return list(embedding)
     return embedding_for_text(
-        node.name,
+        entity_text,
         embedding_metadata,
         config=embedding_config,
     )

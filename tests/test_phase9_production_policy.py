@@ -313,8 +313,9 @@ def test_classification_budget_exhaustion_is_policy_skip_not_provider_fallback()
         fallback_on_error=False,
     )
 
-    assert item["classification_source"] == "orchestrator_rule_based"
+    assert item["classification_source"] == "classification_incomplete"
     assert item["classification_llm_skipped"] == "max_items_exhausted"
+    assert item["review_required"] is True
 
 
 def test_classification_llm_path_does_not_preapply_fixed_intent_words() -> None:

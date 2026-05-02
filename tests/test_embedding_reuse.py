@@ -20,6 +20,12 @@ def embedding_metadata() -> EmbeddingMetadata:
     return EmbeddingMetadata(provider="ollama", model="bge-m3", dimension=2)
 
 
+def entity_text_hash(text: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def document_chunk(chunk_id: str, *, chunk_hash: str, text: str) -> DocumentChunk:
     return DocumentChunk(
         chunk_id=chunk_id,
@@ -108,6 +114,7 @@ def test_vector_store_reuses_unchanged_entity_embeddings(monkeypatch) -> None:
                 embedding=[0.1, 0.2],
                 metadata={
                     "source_hash": "hash-same",
+                    "entity_text_hash": entity_text_hash("ANCHOR auth_anchor"),
                     "embedding_provider": "ollama",
                     "embedding_model": "bge-m3",
                     "embedding_dimension": 2,
@@ -119,6 +126,7 @@ def test_vector_store_reuses_unchanged_entity_embeddings(monkeypatch) -> None:
                 embedding=[9.0, 9.0],
                 metadata={
                     "source_hash": "hash-old",
+                    "entity_text_hash": entity_text_hash("ANCHOR session_anchor"),
                     "embedding_provider": "ollama",
                     "embedding_model": "bge-m3",
                     "embedding_dimension": 2,
@@ -142,4 +150,54 @@ def test_vector_store_reuses_unchanged_entity_embeddings(monkeypatch) -> None:
 
     assert vector_store.data.embedding_dict["auth_anchor"] == [0.1, 0.2]
     assert vector_store.data.embedding_dict["session_anchor"] == [1.0, 2.0]
-    assert calls == ["session_anchor"]
+    assert calls == ["ANCHOR session_anchor"]
+
+
+def test_vector_store_recomputes_when_entity_text_changes(monkeypatch) -> None:
+    metadata = embedding_metadata()
+    graph_store = SimplePropertyGraphStore()
+    graph_store.upsert_nodes(
+        [
+            EntityNode(
+                label="ANCHOR",
+                name="auth_anchor",
+                properties={
+                    "source_hash": "hash-same",
+                    "description": "new description",
+                },
+            ),
+        ]
+    )
+    previous = SimpleVectorStore()
+    previous.add(
+        [
+            TextNode(
+                id_="auth_anchor",
+                text="ANCHOR auth_anchor old description",
+                embedding=[0.1, 0.2],
+                metadata={
+                    "source_hash": "hash-same",
+                    "entity_text_hash": entity_text_hash("ANCHOR auth_anchor old description"),
+                    "embedding_provider": "ollama",
+                    "embedding_model": "bge-m3",
+                    "embedding_dimension": 2,
+                },
+            ),
+        ]
+    )
+    calls: list[str] = []
+
+    def fake_embedding(text: str, *_args, **_kwargs) -> list[float]:
+        calls.append(text)
+        return [1.0, 2.0]
+
+    monkeypatch.setattr("spec_grag.core.embedding_for_text", fake_embedding)
+
+    vector_store = build_vector_store(
+        graph_store,
+        embedding_metadata=metadata,
+        previous_vector_store=previous,
+    )
+
+    assert vector_store.data.embedding_dict["auth_anchor"] == [1.0, 2.0]
+    assert calls == ["ANCHOR auth_anchor new description"]
