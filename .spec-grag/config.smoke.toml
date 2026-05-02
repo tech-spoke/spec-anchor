@@ -59,6 +59,9 @@ chunk_overlap = 200
 vector_top_k = 8
 bm25_top_k = 12
 graph_expansion_hops = 1
+graph_relation_allowlist = ["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"]
+graph_min_relation_confidence = "medium"
+max_graph_entities = 12
 rank_fusion = "rrf"
 max_source_chunks = 12
 

@@ -19,6 +19,11 @@ from spec_grag.chunk_index import (
     retrieve_hybrid_chunks,
     validate_chunk_source,
 )
+from spec_grag.config import (
+    DEFAULT_GRAPH_MIN_RELATION_CONFIDENCE,
+    DEFAULT_GRAPH_RELATION_ALLOWLIST,
+    DEFAULT_MAX_GRAPH_ENTITIES,
+)
 from spec_grag.concept_index import (
     ConceptIndex,
     ConceptIndexChunk,
@@ -752,6 +757,20 @@ def retrieve_graph_context(
         graph_matches,
         selected_section_ids=selected_section_ids,
         max_hops=int(config.get("retrieval", {}).get("graph_expansion_hops", 1)),
+        relation_allowlist=config.get("retrieval", {}).get(
+            "graph_relation_allowlist",
+            list(DEFAULT_GRAPH_RELATION_ALLOWLIST),
+        ),
+        min_relation_confidence=config.get("retrieval", {}).get(
+            "graph_min_relation_confidence",
+            DEFAULT_GRAPH_MIN_RELATION_CONFIDENCE,
+        ),
+        max_graph_entities=int(
+            config.get("retrieval", {}).get(
+                "max_graph_entities",
+                DEFAULT_MAX_GRAPH_ENTITIES,
+            )
+        ),
         retrieval_index=retrieval_index,
     )
     selected_section_ids.update(
@@ -862,48 +881,84 @@ def merge_graph_traversal_matches(
     *,
     selected_section_ids: set[str],
     max_hops: int = 1,
+    relation_allowlist: list[str] | tuple[str, ...] | set[str] | None = None,
+    min_relation_confidence: Any | None = None,
+    max_graph_entities: int | None = None,
     retrieval_index: RetrievalIndex | None = None,
 ) -> list[dict[str, Any]]:
     nodes = graph_data.get("nodes") or {}
     relations = graph_data.get("relations") or {}
     max_hops = max(0, min(int(max_hops), 3))
+    relation_allowlist_set = relation_allowlist_from_config(relation_allowlist)
+    min_relation_confidence_score = (
+        relation_confidence_score(min_relation_confidence)
+        if min_relation_confidence is not None
+        else 0.0
+    )
     matched_node_ids = {item["entity_id"] for item in graph_matches}
     merged = {item["entity_id"]: dict(item) for item in graph_matches}
 
     if max_hops <= 0:
-        return sorted(
-            merged.values(),
-            key=lambda item: (-float(item.get("ranking_score") or 0), item.get("entity_id") or ""),
+        return limit_graph_entities(
+            sorted(
+                merged.values(),
+                key=lambda item: (-float(item.get("ranking_score") or 0), item.get("entity_id") or ""),
+            ),
+            max_graph_entities=max_graph_entities,
         )
+
+    def relation_allowed(relation: dict[str, Any]) -> bool:
+        relation_label = str(relation.get("label") or "")
+        if relation_allowlist_set is not None and relation_label not in relation_allowlist_set:
+            return False
+        props = node_properties(relation)
+        return relation_confidence_score(props.get("confidence")) >= min_relation_confidence_score
+
+    def add_adjacency_relation(relation_id: str, relation: dict[str, Any]) -> None:
+        if not relation_allowed(relation):
+            return
+        source_id = str(relation.get("source_id") or "")
+        target_id = str(relation.get("target_id") or "")
+        if not source_id or not target_id:
+            return
+        adjacency.setdefault(source_id, []).append((target_id, relation_id, relation))
+        adjacency.setdefault(target_id, []).append((source_id, relation_id, relation))
+
+    def add_selected_section_edge(
+        source_id: str,
+        target_id: str,
+        relation_id: str,
+        relation: dict[str, Any],
+    ) -> None:
+        if not relation_allowed(relation):
+            return
+        selected_section_edges.append((source_id, relation_id, relation))
+        selected_section_edges.append((target_id, relation_id, relation))
 
     adjacency: dict[str, list[tuple[str, str, dict[str, Any]]]] = {}
     selected_section_edges: list[tuple[str, str, dict[str, Any]]] = []
     if retrieval_index is not None and retrieval_index.relations:
         for relation_id, ref in retrieval_index.relations.items():
             relation = indexed_relation_data(ref, relations.get(relation_id))
-            adjacency.setdefault(ref.source_id, []).append((ref.target_id, relation_id, relation))
-            adjacency.setdefault(ref.target_id, []).append((ref.source_id, relation_id, relation))
+            add_adjacency_relation(relation_id, relation)
         for section_id in selected_section_ids:
             for relation_id in retrieval_index.section_relations.get(section_id, []):
                 ref = retrieval_index.relations.get(relation_id)
                 if ref is None:
                     continue
                 relation = indexed_relation_data(ref, relations.get(relation_id))
-                selected_section_edges.append((ref.source_id, relation_id, relation))
-                selected_section_edges.append((ref.target_id, relation_id, relation))
+                add_selected_section_edge(ref.source_id, ref.target_id, relation_id, relation)
     else:
         for relation_id, relation in relations.items():
-            source_id = str(relation.get("source_id") or "")
-            target_id = str(relation.get("target_id") or "")
-            if not source_id or not target_id:
-                continue
-            adjacency.setdefault(source_id, []).append((target_id, str(relation_id), relation))
-            adjacency.setdefault(target_id, []).append((source_id, str(relation_id), relation))
+            relation_key = str(relation_id)
+            add_adjacency_relation(relation_key, relation)
             props = node_properties(relation)
             relation_section_id = props.get("section_id") or props.get("source_section_id")
             if relation_section_id in selected_section_ids:
-                selected_section_edges.append((source_id, str(relation_id), relation))
-                selected_section_edges.append((target_id, str(relation_id), relation))
+                source_id = str(relation.get("source_id") or "")
+                target_id = str(relation.get("target_id") or "")
+                if source_id and target_id:
+                    add_selected_section_edge(source_id, target_id, relation_key, relation)
 
     visited = set(matched_node_ids)
     frontier = set(matched_node_ids)
@@ -978,10 +1033,54 @@ def merge_graph_traversal_matches(
                     paths_by_node[neighbor_id] = path
         frontier = next_frontier
 
-    return sorted(
-        merged.values(),
-        key=lambda item: (-float(item.get("ranking_score") or 0), item.get("entity_id") or ""),
+    return limit_graph_entities(
+        sorted(
+            merged.values(),
+            key=lambda item: (-float(item.get("ranking_score") or 0), item.get("entity_id") or ""),
+        ),
+        max_graph_entities=max_graph_entities,
     )
+
+
+def relation_allowlist_from_config(
+    value: list[str] | tuple[str, ...] | set[str] | None,
+) -> set[str] | None:
+    if value is None:
+        return None
+    return {str(item) for item in value if str(item)}
+
+
+def relation_confidence_score(value: Any | None) -> float:
+    scores = {
+        "low": 0.25,
+        "medium": 0.6,
+        "high": 0.9,
+    }
+    if value is None:
+        return scores["medium"]
+    if isinstance(value, bool):
+        return scores["medium"]
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().lower()
+    if not text:
+        return scores["medium"]
+    if text in scores:
+        return scores[text]
+    try:
+        return float(text)
+    except ValueError:
+        return scores["medium"]
+
+
+def limit_graph_entities(
+    items: list[dict[str, Any]],
+    *,
+    max_graph_entities: int | None,
+) -> list[dict[str, Any]]:
+    if max_graph_entities is None:
+        return items
+    return items[: max(0, int(max_graph_entities))]
 
 
 def retrieve_chapter_anchors(

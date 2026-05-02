@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from spec_grag.config import validate_project_config
 from spec_grag.concept_index import ConceptDiffProposalError
 from spec_grag.core import run_core_update
 from spec_grag.injection import (
@@ -109,6 +110,96 @@ def test_graph_expansion_obeys_hop_limit() -> None:
     c_item = next(item for item in two_hop if item["entity_id"] == "c")
     assert c_item["graph_hop"] == 2
     assert c_item["graph_paths"][0][-1]["relation_id"] == "r2"
+
+
+def test_graph_traversal_policy_filters_relation_type_confidence_and_caps() -> None:
+    graph_data = {
+        "nodes": {
+            "a": {"label": "ANCHOR", "properties": {"source_section_id": "s-a"}},
+            "b": {"label": "ANCHOR", "properties": {"source_section_id": "s-b"}},
+            "c": {"label": "ANCHOR", "properties": {"source_section_id": "s-c"}},
+            "d": {"label": "ANCHOR", "properties": {"source_section_id": "s-d"}},
+            "e": {"label": "ANCHOR", "properties": {"source_section_id": "s-e"}},
+        },
+        "relations": {
+            "r-depends": {
+                "label": "DEPENDS_ON",
+                "source_id": "a",
+                "target_id": "b",
+                "properties": {"source_section_id": "s-a", "confidence": "high"},
+            },
+            "r-low": {
+                "label": "RELATED_TO",
+                "source_id": "a",
+                "target_id": "c",
+                "properties": {"source_section_id": "s-a", "confidence": "low"},
+            },
+            "r-mentions": {
+                "label": "MENTIONS",
+                "source_id": "a",
+                "target_id": "d",
+                "properties": {"source_section_id": "s-a", "confidence": "high"},
+            },
+            "r-contrast": {
+                "label": "CONTRASTS_WITH",
+                "source_id": "a",
+                "target_id": "e",
+                "properties": {"source_section_id": "s-a", "confidence": "medium"},
+            },
+        },
+    }
+    seed = [
+        {
+            "entity_id": "a",
+            "entity_type": "ANCHOR",
+            "source_section_id": "s-a",
+            "retrieval_methods": ["raw_chunk_hybrid"],
+            "ranking_score": 1.0,
+        }
+    ]
+
+    matches = merge_graph_traversal_matches(
+        graph_data,
+        seed,
+        selected_section_ids={"s-a"},
+        max_hops=1,
+        relation_allowlist=["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"],
+        min_relation_confidence="medium",
+        max_graph_entities=10,
+    )
+
+    assert {item["entity_id"] for item in matches} == {"a", "b", "e"}
+    contrast = next(item for item in matches if item["entity_id"] == "e")
+    assert contrast["relation_types"] == ["CONTRASTS_WITH"]
+
+    capped = merge_graph_traversal_matches(
+        graph_data,
+        seed,
+        selected_section_ids={"s-a"},
+        max_hops=1,
+        relation_allowlist=["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"],
+        min_relation_confidence="medium",
+        max_graph_entities=2,
+    )
+
+    assert [item["entity_id"] for item in capped] == ["a", "b"]
+
+
+def test_retrieval_policy_config_defaults_include_contrast_for_conflicts() -> None:
+    validated = validate_project_config(
+        {"sources": {"include": ["docs/spec/**/*.md"]}},
+        smoke=True,
+    )
+
+    assert validated["retrieval"]["graph_expansion_hops"] == 1
+    assert validated["retrieval"]["graph_relation_allowlist"] == [
+        "DEPENDS_ON",
+        "REFINES",
+        "RELATED_TO",
+        "CONTRASTS_WITH",
+    ]
+    assert validated["retrieval"]["graph_min_relation_confidence"] == "medium"
+    assert validated["retrieval"]["max_graph_entities"] == 12
 
 
 def test_classification_cache_deduplicates_llm_calls() -> None:

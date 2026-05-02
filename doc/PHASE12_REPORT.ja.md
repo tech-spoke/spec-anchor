@@ -9,15 +9,17 @@
 - classification cache を追加し、同一 context item の LLM classification を再利用するようにした。
 - production で classification budget が尽きた場合、silent rule fallback ではなく `classification_incomplete` として degraded に出すようにした。
 - `retrieval_index.json` を追加し、section/chunk/node/relation の逆引きを query-time traversal で使うようにした。
+- graph traversal policy として relation allowlist、confidence threshold、max graph entities を config 化した。
 - BM25 index に postings list を追加し、query term に関係する chunk だけを scoring するようにした。
 - `stable_section_uid` / `stable_chunk_uid` / `entity_text_hash` を追加し、heading rename や entity text 変更の追跡をしやすくした。
 - extraction / query planning / classification / answer prompt に untrusted input 境界を明記した。
+- source / query / context に埋め込まれた命令を untrusted data として扱う prompt regression を追加した。
 - run artifact の `include_request` default を false にし、任意の `redact_payload` と `trace_id` / revision diagnostics を追加した。
 
 ## 検証
 
 - `uv run --with pytest python -m pytest -q`
-- 結果: `210 passed in 188.98s (0:03:08)`。
+- 結果: `216 passed in 180.65s (0:03:00)`。
 
 追加した主な regression:
 
@@ -27,12 +29,13 @@
 - concept diff 失敗時に active `source_manifest.json` が旧 hash のまま維持される
 - entity rich text が変わると embedding が再計算される
 - `retrieval_index.json` と BM25 postings が生成される
+- graph traversal policy が relation type / confidence / max entities を適用し、`CONTRASTS_WITH` で矛盾候補を拾う
+- extraction / query planner / classification / answer prompt が source 内 instruction を untrusted data として境界付ける
 - heading rename しても本文が同じ section は `stable_section_uid` が維持される
 - run artifact は既定で request を保存しない
 
 ## 残タスク
 
-- relation type allowlist / confidence threshold / max graph entities の config 化
 - external vector DB / ANN への実差し替え
 - stable ID を primary key にする全面移行
 - production self-run での latency / token / cost 実測

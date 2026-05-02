@@ -41,6 +41,16 @@ LLM_STAGE_SECTIONS = (
     "community_report",
     "query_planner",
 )
+GraphRelationType = Literal["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"]
+GraphConfidenceThreshold = Literal["low", "medium", "high"]
+DEFAULT_GRAPH_RELATION_ALLOWLIST: tuple[GraphRelationType, ...] = (
+    "DEPENDS_ON",
+    "REFINES",
+    "RELATED_TO",
+    "CONTRASTS_WITH",
+)
+DEFAULT_GRAPH_MIN_RELATION_CONFIDENCE: GraphConfidenceThreshold = "medium"
+DEFAULT_MAX_GRAPH_ENTITIES = 12
 LLM_INHERITED_KEYS = (
     "command",
     "model",
@@ -296,8 +306,24 @@ class RetrievalConfig(StrictModel):
     vector_top_k: int = Field(default=8, ge=0, le=200)
     bm25_top_k: int = Field(default=12, ge=0, le=200)
     graph_expansion_hops: int = Field(default=1, ge=0, le=3)
+    graph_relation_allowlist: list[GraphRelationType] = Field(
+        default_factory=lambda: list(DEFAULT_GRAPH_RELATION_ALLOWLIST)
+    )
+    graph_min_relation_confidence: GraphConfidenceThreshold = (
+        DEFAULT_GRAPH_MIN_RELATION_CONFIDENCE
+    )
+    max_graph_entities: int = Field(default=DEFAULT_MAX_GRAPH_ENTITIES, ge=1, le=200)
     rank_fusion: Literal["rrf"] = "rrf"
     max_source_chunks: int = Field(default=12, ge=1, le=100)
+
+    @field_validator("graph_relation_allowlist")
+    @classmethod
+    def graph_relation_allowlist_must_not_be_empty(
+        cls, value: list[GraphRelationType]
+    ) -> list[GraphRelationType]:
+        if not value:
+            raise ValueError("retrieval.graph_relation_allowlist must not be empty")
+        return list(dict.fromkeys(value))
 
     @model_validator(mode="after")
     def overlap_must_be_smaller_than_chunk_size(self) -> RetrievalConfig:

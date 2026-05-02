@@ -603,7 +603,7 @@ InjectionContext.approved_concept_update / warnings:
 | `[concept_diff]` | `fallback_on_error` / `sandbox` / `tools` / retry 系 | 任意 | Concept diff proposal 生成設定 |
 | `[community_report]` | `fallback_on_error` / `sandbox` / `tools` / retry 系 | 任意 | community / chapter report 生成設定 |
 | `[query_planner]` | `fallback_on_error` / `sandbox` / `tools` / retry 系 | 任意 | retrieval query planning 設定 |
-| `[retrieval]` | `chunk_size` / `chunk_overlap` / `vector_top_k` / `bm25_top_k` / `graph_expansion_hops` / `rank_fusion` / `max_source_chunks` | 任意 | raw chunk / vector / BM25 / graph retrieval の取得幅 |
+| `[retrieval]` | `chunk_size` / `chunk_overlap` / `vector_top_k` / `bm25_top_k` / `graph_expansion_hops` / `graph_relation_allowlist` / `graph_min_relation_confidence` / `max_graph_entities` / `rank_fusion` / `max_source_chunks` | 任意 | raw chunk / vector / BM25 / graph retrieval の取得幅と graph traversal policy |
 | `[embedding]` | `provider` / `model` / `dimension` | production 必須 | embedding provider。標準は Ollama `bge-m3` / `1024` |
 | `[embedding]` | `timeout_sec` / `max_retries` / `retry_backoff_sec` | 任意 | embedding API の timeout / retry |
 | `[run]` | `save_artifacts` / `artifact_dir` / `include_request` / `redact_payload` | 任意 | run artifact 保存設定。`include_request` の既定は false |
@@ -614,6 +614,12 @@ InjectionContext.approved_concept_update / warnings:
 Source specs 本文、LLM prompt 本文、LLM 応答本文は stage timing metrics
 として保存しない。blocked / failed の場合も、完了済み stage timings は
 artifact に残す。
+
+`[retrieval]` の graph traversal 既定値は `graph_expansion_hops = 1`、
+`graph_relation_allowlist = ["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"]`、
+`graph_min_relation_confidence = "medium"`、`max_graph_entities = 12` とする。
+`CONTRASTS_WITH` は矛盾候補を retrieval で拾うために既定 allowlist に含める。
+`CONTAINS` と `MENTIONS` は候補増殖を避けるため、既定では traversal edge として辿らない。
 
 最小構成例:
 
