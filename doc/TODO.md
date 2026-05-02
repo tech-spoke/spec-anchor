@@ -6,8 +6,8 @@
 
 - 外部契約: `doc/EXTERNAL_DESIGN.ja.md`
 - 内部設計: `doc/DESIGN.ja.md`
-- 現フェーズ: Phase 14 classification priority / budget policy 完了
-- 次フェーズ: 残監査。classification medium incomplete policy、retrieval 品質、query planner / answer latency、contract / design drift を `doc/AUDIT_TODO.ja.md` で追跡する
+- 現フェーズ: Phase 15 architecture audit hardening 計画
+- 次フェーズ: 正当で現在も残る architecture audit 指摘を `doc/PHASE15_PLAN.ja.md` に沿って進める。retrieval 品質、cold answer latency、contract / design drift、failure / recovery、security / privacy は `doc/AUDIT_TODO.ja.md` で継続追跡する
 - 方針: 縮小版ではなく、外部契約を満たす実装を前提に、未実証の実装方式を検証する
 - 監査 TODO: Phase 9 後の契約監査 / production readiness / E2E / GRAG 品質 / 障害系は `doc/AUDIT_TODO.ja.md` に分離する
 

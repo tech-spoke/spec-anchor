@@ -1,13 +1,13 @@
 # spec-grag 実装引き継ぎ
 
-> 最終更新: 2026-05-02
+> 最終更新: 2026-05-03
 > 位置づけ: 実装・調査結果の現在地メモ。外部契約は `doc/EXTERNAL_DESIGN.ja.md`、内部設計は `doc/DESIGN.ja.md`、作業順は `doc/TODO.md`、Phase 9 後の監査作業は `doc/AUDIT_TODO.ja.md` を正とする。
 
 このファイルは、次の作業者が「どこまで実装・検証済みか」「何を前提に進めてよいか」を短時間で把握するための引き継ぎである。設計判断そのものを変更する場所ではない。
 
-各 Phase の詳細な結果・気づき・問題点・残リスクは `doc/PHASE<N>_REPORT.ja.md` を参照する。直近は `doc/PHASE14_REPORT.ja.md`。
+各 Phase の詳細な結果・気づき・問題点・残リスクは `doc/PHASE<N>_REPORT.ja.md` を参照する。直近 report は `doc/PHASE14_REPORT.ja.md`、次の実装計画は `doc/PHASE15_PLAN.ja.md`。
 
-## 最新引き継ぎ（2026-05-02 / Phase 14 後）
+## 最新引き継ぎ（2026-05-03 / Phase 15 計画）
 
 この監査再開前の先頭 commit は `c45c8d9 docs: hand off remaining audit scope`。Phase 14 実装 commit は `9bafb82 feat: add classification priority budgets`、Phase 14 着手前の退避 commit は `a305dd3 chore: checkpoint before phase 14 policy`。再開時の `git status --short` は clean。
 
@@ -43,6 +43,12 @@ classification は high priority skip なしまで改善したが、`classificat
 - answer: Answer prompt 用 InjectionContext compaction と Answer persistent cache を追加。cache key は freshness timestamp / classification cache-hit metadata を除外して安定化
 - classification: primary budget 後の deferred classification を追加。medium / low skipped を最大 6 件追加分類し、production の silent rule-based fallback 不可は維持
 - config: `[query_planner] cache_enabled/cache_path/bm25_term_limit/dense_query_max_chars`、`[answer] cache_enabled/cache_path/context_*`、`[classification] deferred_enabled/deferred_max_items` を repo / template / setup に追加
+
+2026-05-03 Phase 15 計画追補:
+
+- Claude architecture audit 指摘を current HEAD と外部設計へ突き合わせ、正当で現在も残るものだけを `doc/PHASE15_PLAN.ja.md` に整理した
+- Phase 15 の主対象は atomic write / LLM factory 共通化、logging diagnostics、`injection.py` / `core.py` の段階分割、safe_delete_by_sections、dense search 短期高速化、tests/conftest.py 整理、Context item 型付けの段階移行
+- 非対象: Concept reject を解決済みにする変更、apply 前 pending を gate から外す変更、protocol-breaking ContextItem model 化、Qdrant 移行
 
 2026-05-03 実測:
 
