@@ -76,7 +76,7 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - [x] dense cosine search の短期高速化を入れる
   - 方針: numpy が利用できる場合は vectorized dot product、利用できない場合は現行 pure Python fallback
   - 受け入れ条件: ranking の tie 以外の差分を抑え、dependency policy を明示する
-- [~] BM25 broad candidate 問題を追加監査する
+- [x] BM25 broad candidate 問題を追加監査する
   - 対象: candidate documents が 314-404/407 に広がる query、identifier 空時の挙動、field weighting、required term gate、`k1` / `b` config 化
   - 受け入れ条件: query set 5本で Source evidence を落とさず candidate 幅を縮める
 - [x] Concept index の incremental embedding reuse を検討する
@@ -117,6 +117,7 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - P15-C 追補: foreground `/spec-core` と dirty/stale 時の inject / realign core update は watcher と同じ `WatchLock` を取得する。lock が存在する場合は `watcher_processing` blocked にする。
 - P15-D: `safe_delete_by_sections()` と optional numpy dense similarity を実装。BM25 broad candidate、Concept index incremental embedding reuse、staging copytree 監査は継続。
 - P15-D 追補: Concept index は同一 `text_hash` の embedding reuse を実装。BM25 は broad char candidate が広がり、identifier / word term の candidate がある場合に strong-term candidate へ prune する一次対策を追加。
+- P15-D 再実測: retrieval query set 5本は全件 `status=ok`。BM25 candidate documents は q1 `387 -> 227`、q2 `339 -> 245`、q3 `314 -> 281`、q4 `404 -> 69`、q5 `360 -> 53`。
 - P15-D 追補: staging prepare stage に active / staging directory の file count、dir count、bytes を記録する diagnostics を追加。
 - focused regression: `uv run --with pytest python -m pytest tests/test_graph_ops.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py::test_template_resources_are_packaged_for_wheel_install tests/test_phase8_hybrid_retrieval.py -q` -> `32 passed in 15.23s`
 - focused regression: `uv run --with pytest python -m pytest tests/test_realign_answer.py tests/test_core_extraction.py tests/test_core_e2e.py tests/test_phase8_hybrid_retrieval.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py -q` -> `67 passed in 69.05s`

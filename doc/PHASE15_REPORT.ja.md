@@ -35,10 +35,16 @@
 - `uv run --with pytest python -m pytest tests/test_cli.py -q` -> `26 passed in 59.47s`
 - `uv run --with pytest python -m pytest tests/test_phase11_timings.py -q` -> `4 passed in 13.48s`
 - `uv run --with pytest python -m pytest -q` -> `246 passed in 201.30s`
+- production retrieval query set 5本: 全件 `status=ok`
+  - q1 `.spec-grag/runs/20260502T170546.926309Z-spec-inject-381534a0c3c9.json`: BM25 candidates `387 -> 227`
+  - q2 `.spec-grag/runs/20260502T170559.088059Z-spec-inject-005eb476cf79.json`: BM25 candidates `339 -> 245`
+  - q3 `.spec-grag/runs/20260502T170603.362162Z-spec-inject-b4086be74f39.json`: BM25 candidates `314 -> 281`
+  - q4 `.spec-grag/runs/20260502T170609.337073Z-spec-inject-4d291512f715.json`: BM25 candidates `404 -> 69`
+  - q5 `.spec-grag/runs/20260502T170620.770124Z-spec-inject-d46833fc2057.json`: BM25 candidates `360 -> 53`
 
 ## 残り
 
 - `injection.py` を classification / conflict / retrieval concern へ分割する。
 - `core.py` の `run_core_update` を stage 関数へ分ける。
-- BM25 broad candidate 問題を query set 5本で再実測する。
+- q1〜q3 の BM25 candidate はまだ 227〜281/407 と広めなので、field weighting / required term gate を追加検討する。
 - staging `copytree` コストと failure diagnostics を監査する。

@@ -68,6 +68,7 @@ classification は high priority skip なしまで改善したが、`classificat
 - CLI focused regression: `26 passed in 59.47s`
 - Timing focused regression: `4 passed in 13.48s`
 - full regression: `uv run --with pytest python -m pytest -q` -> `246 passed in 201.30s`
+- production retrieval query set 5本は全件 `status=ok`。BM25 candidate documents は q1 `387 -> 227`、q2 `339 -> 245`、q3 `314 -> 281`、q4 `404 -> 69`、q5 `360 -> 53`
 
 2026-05-03 実測:
 
