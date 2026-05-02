@@ -414,7 +414,16 @@ repair_on_schema_failure = true
 [classification]
 {classification_provider_line}sandbox = "read-only"
 tools = ""
-max_items = 8
+max_items = 20
+max_source_chunks = 12
+max_concepts = 4
+max_graph_entities = 4
+max_chapter_anchors = 2
+max_clusters = 2
+batch_size = 5
+cache_enabled = true
+cache_path = ".spec-grag/cache/classification_cache.json"
+fail_on_high_priority_incomplete = true
 fallback_on_error = {toml_bool(args.smoke)}
 timeout_sec = 120
 max_retries = 0

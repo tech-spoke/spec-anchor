@@ -10,8 +10,12 @@ from spec_grag.concept_index import ConceptDiffProposalError
 from spec_grag.core import ARTIFACT_REVISION_FILENAME, run_core_update
 from spec_grag.injection import (
     build_injection,
+    classification_candidate_for_item,
+    classify_candidates_by_priority,
     classify_context_item,
+    load_persistent_classification_cache,
     merge_graph_traversal_matches,
+    save_persistent_classification_cache,
 )
 from spec_grag.manifest import load_source_manifest
 from spec_grag.protocol import Command, ResultStatus, ResultType, SlashCommandRequest
@@ -251,6 +255,327 @@ def test_classification_cache_deduplicates_llm_calls() -> None:
     assert first["classification_source"] == "classification_llm"
     assert second["classification_cache_hit"] is True
     assert len(calls) == 1
+
+
+def test_classification_priority_selects_purpose_and_raw_source_before_graph_cluster() -> None:
+    calls: list[list[str]] = []
+
+    class RecordingLLM:
+        def complete(self, prompt: str, **_kwargs: Any) -> SimpleNamespace:
+            payload = json.loads(prompt.split("INPUT_JSON:\n", 1)[1])
+            keys = [item["classification_key"] for item in payload["context_items"]]
+            calls.append([item["item_type"] for item in payload["context_items"]])
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "decisions": [
+                            {
+                                "classification_key": key,
+                                "constraint_relevance": "medium",
+                                "target_relevance": "medium",
+                                "semantic_conflict_candidate": False,
+                                "review_required": False,
+                                "reason_for_current_task": f"{key} selected",
+                            }
+                            for key in keys
+                        ]
+                    }
+                )
+            )
+
+    query = "Auth Login を見直す"
+    items = [
+        (
+            "cluster",
+            {
+                "entity_id": "cluster:auth",
+                "cluster_id": "cluster:auth",
+                "entity_type": "CLUSTER",
+                "summary": "Auth related summary.",
+                "ranking_score": 0.9,
+            },
+        ),
+        (
+            "graph_entity",
+            {
+                "entity_id": "section:auth",
+                "entity_type": "SECTION",
+                "summary": "Auth graph section.",
+                "ranking_score": 0.95,
+            },
+        ),
+        (
+            "source_section",
+            {
+                "source_section_id": "docs/spec/auth.md#auth-login",
+                "stable_chunk_uid": "chunk:auth-login",
+                "source_hash": "hash-auth",
+                "source_span": "4-8",
+                "excerpt": "OAuth is required for Auth Login.",
+                "retrieval_unit": "raw_document_chunk",
+                "retrieval_methods": ["raw_chunk_hybrid"],
+                "constraint_relevance": "medium",
+                "target_relevance": "high",
+                "ranking_score": 0.7,
+            },
+        ),
+        (
+            "purpose",
+            {
+                "source_origin": "Purpose",
+                "summary": "Keep users secure.",
+                "constraint_relevance": "high",
+            },
+        ),
+    ]
+    candidates = [
+        classification_candidate_for_item(item, item_type=item_type, query=query)
+        for item_type, item in items
+    ]
+
+    run = classify_candidates_by_priority(
+        candidates,
+        query=query,
+        llm=RecordingLLM(),
+        classification_budget={"remaining": 2, "skipped": 0},
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={
+            "max_items": 2,
+            "max_source_chunks": 1,
+            "max_graph_entities": 1,
+            "max_clusters": 1,
+            "batch_size": 5,
+        },
+    )
+
+    assert calls == [["purpose", "source_section"]]
+    assert run.metrics["llm_calls"] == 1
+    assert run.metrics["candidate_count_by_type"] == {
+        "cluster": 1,
+        "graph_entity": 1,
+        "source_chunk": 1,
+        "purpose": 1,
+    }
+    assert run.metrics["skipped_count_by_type"] == {
+        "graph_entity": 1,
+        "cluster": 1,
+    }
+    assert run.metrics["high_priority_skipped_count"] == 0
+    assert all(
+        item["classification_source"] == "classification_incomplete"
+        and item["classification_llm_skipped"] == "max_items_exhausted"
+        and item["review_required"] is True
+        for item in run.items_by_key.values()
+        if item.get("classification_budget_skip_reason")
+    )
+
+
+def test_classification_candidate_dedup_runs_llm_once_per_classification_key() -> None:
+    calls: list[str] = []
+
+    class CountingLLM:
+        def complete(self, prompt: str, **_kwargs: Any) -> SimpleNamespace:
+            calls.append(prompt)
+            payload = json.loads(prompt.split("INPUT_JSON:\n", 1)[1])
+            key = payload["context_items"][0]["classification_key"]
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "decisions": [
+                            {
+                                "classification_key": key,
+                                "constraint_relevance": "medium",
+                                "target_relevance": "high",
+                                "semantic_conflict_candidate": False,
+                                "review_required": False,
+                                "reason_for_current_task": "deduped source",
+                            }
+                        ]
+                    }
+                )
+            )
+
+    query = "Auth Login を見直す"
+    source = {
+        "source_section_id": "docs/spec/auth.md#auth-login",
+        "source_hash": "hash-auth",
+        "source_span": "4-8",
+        "excerpt": "OAuth is required.",
+        "constraint_relevance": "medium",
+    }
+    candidates = [
+        classification_candidate_for_item(source, item_type="source_section", query=query),
+        classification_candidate_for_item(
+            {**source, "target_relevance": "high"},
+            item_type="source_section",
+            query=query,
+        ),
+    ]
+
+    run = classify_candidates_by_priority(
+        candidates,
+        query=query,
+        llm=CountingLLM(),
+        classification_budget={"remaining": 1, "skipped": 0},
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={"max_items": 1, "max_source_chunks": 1},
+    )
+
+    assert len(calls) == 1
+    assert run.metrics["candidate_count"] == 1
+    assert run.metrics["selected_count"] == 1
+    assert run.metrics["llm_calls"] == 1
+    assert run.skipped_count == 0
+
+
+def test_classification_batch_size_controls_llm_call_count() -> None:
+    batch_lengths: list[int] = []
+
+    class BatchLLM:
+        def complete(self, prompt: str, **_kwargs: Any) -> SimpleNamespace:
+            payload = json.loads(prompt.split("INPUT_JSON:\n", 1)[1])
+            keys = [item["classification_key"] for item in payload["context_items"]]
+            batch_lengths.append(len(keys))
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "decisions": [
+                            {
+                                "classification_key": key,
+                                "constraint_relevance": "medium",
+                                "target_relevance": "high",
+                                "semantic_conflict_candidate": False,
+                                "review_required": False,
+                                "reason_for_current_task": "batched",
+                            }
+                            for key in keys
+                        ]
+                    }
+                )
+            )
+
+    query = "Auth Login を見直す"
+    candidates = [
+        classification_candidate_for_item(
+            {
+                "source_section_id": f"docs/spec/auth.md#auth-login-{index}",
+                "source_hash": f"hash-{index}",
+                "source_span": f"{index + 1}-{index + 2}",
+                "excerpt": f"OAuth is required {index}.",
+                "constraint_relevance": "medium",
+                "target_relevance": "high",
+            },
+            item_type="source_section",
+            query=query,
+        )
+        for index in range(5)
+    ]
+
+    run = classify_candidates_by_priority(
+        candidates,
+        query=query,
+        llm=BatchLLM(),
+        classification_budget={"remaining": 5, "skipped": 0, "llm_calls": 0},
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={
+            "max_items": 5,
+            "max_source_chunks": 5,
+            "batch_size": 2,
+        },
+    )
+
+    assert batch_lengths == [2, 2, 1]
+    assert run.metrics["llm_calls"] == 3
+    assert run.metrics["selected_count"] == 5
+
+
+def test_persistent_classification_cache_hits_before_budget_consumption(
+    tmp_path: Path,
+) -> None:
+    calls: list[str] = []
+
+    class CountingLLM:
+        def complete(self, prompt: str, **_kwargs: Any) -> SimpleNamespace:
+            calls.append(prompt)
+            payload = json.loads(prompt.split("INPUT_JSON:\n", 1)[1])
+            key = payload["context_items"][0]["classification_key"]
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "decisions": [
+                            {
+                                "classification_key": key,
+                                "constraint_relevance": "medium",
+                                "target_relevance": "high",
+                                "semantic_conflict_candidate": False,
+                                "review_required": False,
+                                "reason_for_current_task": "cached source",
+                            }
+                        ]
+                    }
+                )
+            )
+
+    config = {
+        "classification": {
+            "provider": "codex",
+            "model": "gpt-test",
+            "cache_enabled": True,
+            "cache_path": ".spec-grag/cache/classification_cache.json",
+        }
+    }
+    query = "Auth Login を見直す"
+    candidate = classification_candidate_for_item(
+        {
+            "source_section_id": "docs/spec/auth.md#auth-login",
+            "source_hash": "hash-auth",
+            "source_span": "4-8",
+            "excerpt": "OAuth is required.",
+            "constraint_relevance": "medium",
+            "target_relevance": "high",
+        },
+        item_type="source_section",
+        query=query,
+    )
+    first_cache = load_persistent_classification_cache(tmp_path, config)
+
+    first = classify_candidates_by_priority(
+        [candidate],
+        query=query,
+        llm=CountingLLM(),
+        classification_budget={"remaining": 1, "skipped": 0, "llm_calls": 0},
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={**config["classification"], "max_source_chunks": 1},
+        persistent_cache=first_cache,
+    )
+    save_persistent_classification_cache(first_cache)
+
+    second_cache = load_persistent_classification_cache(tmp_path, config)
+    second_budget = {"remaining": 1, "skipped": 0, "llm_calls": 0}
+    second = classify_candidates_by_priority(
+        [candidate],
+        query=query,
+        llm=CountingLLM(),
+        classification_budget=second_budget,
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={**config["classification"], "max_source_chunks": 1},
+        persistent_cache=second_cache,
+    )
+
+    assert first.metrics["llm_calls"] == 1
+    assert first.metrics["cache_hit_count"] == 0
+    assert second.metrics["llm_calls"] == 0
+    assert second.metrics["cache_hit_count"] == 1
+    assert second_budget["remaining"] == 1
+    assert len(calls) == 1
+    cached_item = next(iter(second.items_by_key.values()))
+    assert cached_item["classification_cache_hit"] is True
+    assert cached_item["classification_cache_scope"] == "persistent"
 
 
 def test_core_update_failure_keeps_active_artifacts(tmp_path: Path, monkeypatch) -> None:

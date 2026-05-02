@@ -22,6 +22,7 @@ from spec_grag.core import run_core_update
 from spec_grag.embedding import EmbeddingProviderError
 from spec_grag.extraction import BatchExtractionResponse
 from spec_grag.injection import (
+    ClassificationBatchResponse,
     ClassificationDecision,
     ClassificationError,
     classify_context_item,
@@ -71,6 +72,7 @@ def assert_object_properties_are_required(schema: dict[str, Any]) -> None:
 def test_llm_output_schemas_are_codex_structured_output_compatible() -> None:
     for model in (
         QueryPlan,
+        ClassificationBatchResponse,
         ClassificationDecision,
         AnswerSections,
         ConceptDiffProposal,
@@ -137,6 +139,16 @@ def test_production_policy_accepts_real_provider_config() -> None:
     assert validated["extraction"]["mode"] == "schema_llm"
     assert validated["embedding"]["provider"] == "ollama"
     assert validated["classification"]["fallback_on_error"] is False
+    assert validated["classification"]["max_items"] == 20
+    assert validated["classification"]["max_source_chunks"] == 12
+    assert validated["classification"]["max_concepts"] == 4
+    assert validated["classification"]["max_graph_entities"] == 4
+    assert validated["classification"]["max_chapter_anchors"] == 2
+    assert validated["classification"]["max_clusters"] == 2
+    assert validated["classification"]["batch_size"] == 5
+    assert validated["classification"]["cache_enabled"] is True
+    assert validated["classification"]["cache_path"] == ".spec-grag/cache/classification_cache.json"
+    assert validated["classification"]["fail_on_high_priority_incomplete"] is True
 
 
 def test_llm_provider_switch_applies_to_all_production_stages() -> None:

@@ -253,10 +253,19 @@ class ClassificationConfig(RetryConfig):
     model: str | None = None
     sandbox: str = "read-only"
     tools: str = ""
-    max_items: int = Field(default=8, ge=1, le=200)
+    max_items: int = Field(default=20, ge=1, le=200)
+    max_source_chunks: int = Field(default=12, ge=0, le=200)
+    max_concepts: int = Field(default=4, ge=0, le=200)
+    max_graph_entities: int = Field(default=4, ge=0, le=200)
+    max_chapter_anchors: int = Field(default=2, ge=0, le=200)
+    max_clusters: int = Field(default=2, ge=0, le=200)
+    batch_size: int = Field(default=5, ge=1, le=50)
+    cache_enabled: bool = True
+    cache_path: str = ".spec-grag/cache/classification_cache.json"
+    fail_on_high_priority_incomplete: bool = True
     fallback_on_error: bool = True
 
-    @field_validator("command", "model", "sandbox")
+    @field_validator("command", "model", "sandbox", "cache_path")
     @classmethod
     def optional_text_must_not_be_empty(cls, value: str | None) -> str | None:
         if value is not None and not value.strip():
