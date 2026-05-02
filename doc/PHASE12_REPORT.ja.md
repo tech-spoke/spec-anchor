@@ -37,9 +37,11 @@
 
 ## 残タスク
 
-- external vector DB / ANN への実差し替え
-- stable ID を primary key にする全面移行
-- production self-run での latency / token / cost 実測
+Phase 12 の実装残としては扱わず、以下の管理単位に分ける。
+
+- external vector DB / ANN への実差し替え: 将来対応。現状想定の多数ケースは 5000 chunks 未満であり、JSON scan + sidecar index のまま運用できる。Qdrant / ANN 導入時は Phase 13 後の `stable_chunk_uid` を point ID / payload 主キーにする。
+- stable ID を primary key にする全面移行: Phase 13 で実施する。`section_id` / `chunk_id` は表示、citation、debug、互換 alias として残し、内部参照を stable ID 主体へ移す。
+- production self-run での latency / token / cost 実測: `doc/AUDIT_TODO.ja.md` の production readiness 監査で実施する。外部 API / LLM / Ollama 実行を伴うため、通常の unit / regression test とは分離する。
 
 ## 注意点
 

@@ -5,7 +5,7 @@
 
 本書は `doc/TODO.md` の肥大化を避けるための監査専用 TODO である。通常の実装作業順は `doc/TODO.md`、外部契約は `doc/EXTERNAL_DESIGN.ja.md`、内部設計は `doc/DESIGN.ja.md` を正とする。
 
-Phase 12 で production query path / artifact consistency / Graph RAG retrieval hardening の初回修正を実施した。監査で High とした「低レベル injection API の暗黙 core update」「failed core update による active artifact 部分更新」「graph expansion の未接続」「entity embedding 入力の貧弱さ」「classification budget の silent fallback」は regression test 付きで解消済み。残る監査対象は production self-run の実測、retrieval policy の config 化、stable ID の primary key 移行、external ANN / vector DB 差し替えである。
+Phase 12 で production query path / artifact consistency / Graph RAG retrieval hardening の初回修正を実施した。監査で High とした「低レベル injection API の暗黙 core update」「failed core update による active artifact 部分更新」「graph expansion の未接続」「entity embedding 入力の貧弱さ」「classification budget の silent fallback」は regression test 付きで解消済み。retrieval policy の config 化と artifact revision diagnostics も Phase 12 で完了した。残る監査対象は production self-run の latency / token / cost 実測であり、stable ID primary key 移行は Phase 13、external ANN / vector DB 差し替えは将来対応として管理する。
 
 ## 記録形式
 
