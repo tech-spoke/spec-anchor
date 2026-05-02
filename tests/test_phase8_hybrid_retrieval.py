@@ -20,6 +20,7 @@ from spec_grag.chunk_index import (
     analyze_text,
     bm25_query_text_for_plan,
     bm25_search,
+    build_bm25_index,
     dense_query_text_for_plan,
     document_chunks_path,
     load_bm25_index,
@@ -319,6 +320,42 @@ def test_bm25_search_caps_query_terms(tmp_path: Path) -> None:
     assert hits
     assert metrics["bm25_query_terms_before_cap"] > metrics["bm25_query_terms"]
     assert metrics["bm25_query_terms"] == 8
+
+
+def test_bm25_search_prunes_broad_char_candidates_when_identifier_matches() -> None:
+    chunks = DocumentChunksSidecar(
+        chunks=[
+            DocumentChunk(
+                chunk_id=f"chunk:{index}",
+                document_id="docs/spec/runtime.md",
+                chapter_id="docs/spec/runtime.md#runtime",
+                section_id=f"docs/spec/runtime.md#section-{index}",
+                heading_path=f"Runtime / {index}",
+                source_span="1-2",
+                source_hash=f"hash:{index}",
+                text="設計 詳細 共通 メモ"
+                if index
+                else "設計 詳細 共通 ActionContext handles signals",
+                chunk_hash=f"chunk-hash:{index}",
+                generated_at="t1",
+            )
+            for index in range(4)
+        ]
+    )
+    bm25 = build_bm25_index(chunks)
+    metrics: dict[str, object] = {}
+
+    hits = bm25_search(
+        bm25,
+        "設計 詳細 ActionContext",
+        limit=1,
+        metrics=metrics,
+    )
+
+    assert hits == [("chunk:0", hits[0][1])]
+    assert metrics["bm25_candidate_documents_before_strong_prune"] == 4
+    assert metrics["bm25_candidate_documents"] == 1
+    assert metrics["bm25_candidate_strong_term_pruned"] is True
 
 
 def test_query_plan_cache_reuses_llm_result(tmp_path: Path, monkeypatch) -> None:

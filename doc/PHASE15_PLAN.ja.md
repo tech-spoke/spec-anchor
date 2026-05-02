@@ -76,10 +76,10 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - [x] dense cosine search の短期高速化を入れる
   - 方針: numpy が利用できる場合は vectorized dot product、利用できない場合は現行 pure Python fallback
   - 受け入れ条件: ranking の tie 以外の差分を抑え、dependency policy を明示する
-- [ ] BM25 broad candidate 問題を追加監査する
+- [~] BM25 broad candidate 問題を追加監査する
   - 対象: candidate documents が 314-404/407 に広がる query、identifier 空時の挙動、field weighting、required term gate、`k1` / `b` config 化
   - 受け入れ条件: query set 5本で Source evidence を落とさず candidate 幅を縮める
-- [ ] Concept index の incremental embedding reuse を検討する
+- [x] Concept index の incremental embedding reuse を検討する
   - 受け入れ条件: concept chunk hash が同じ場合に embedding を再利用し、version mismatch 時は安全に rebuild する
 - [ ] staging directory の `copytree` コストを監査する
   - 受け入れ条件: artifact 増加時の wall time と失敗時 diagnostics を記録する
@@ -115,9 +115,11 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - P15-B: `cli.py` の inject / realign 共通 readiness + injection pipeline を抽出。`injection.py` / `core.py` の大型分割は未着手。
 - P15-C: `[logging]` config、entrypoint logging setup、主要 module logger、watcher file logging の最小導入を実装。詳細な stage diagnostics と lock 方針監査は継続。
 - P15-D: `safe_delete_by_sections()` と optional numpy dense similarity を実装。BM25 broad candidate、Concept index incremental embedding reuse、staging copytree 監査は継続。
+- P15-D 追補: Concept index は同一 `text_hash` の embedding reuse を実装。BM25 は broad char candidate が広がり、identifier / word term の candidate がある場合に strong-term candidate へ prune する一次対策を追加。
 - focused regression: `uv run --with pytest python -m pytest tests/test_graph_ops.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py::test_template_resources_are_packaged_for_wheel_install tests/test_phase8_hybrid_retrieval.py -q` -> `32 passed in 15.23s`
 - focused regression: `uv run --with pytest python -m pytest tests/test_realign_answer.py tests/test_core_extraction.py tests/test_core_e2e.py tests/test_phase8_hybrid_retrieval.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py -q` -> `67 passed in 69.05s`
-- full regression: `uv run --with pytest python -m pytest -q` -> `243 passed in 210.62s`
+- focused regression: `uv run --with pytest python -m pytest tests/test_concept_index.py tests/test_phase8_hybrid_retrieval.py -q` -> `19 passed in 12.27s`
+- full regression: `uv run --with pytest python -m pytest -q` -> `245 passed in 208.31s`
 
 ## 完了条件
 

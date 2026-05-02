@@ -162,6 +162,12 @@ def refresh_concept_index(
         embedding_metadata=embedding_metadata,
         embedding_config=_mapping(config.get("embedding")),
         generated_at=generated_at,
+        previous_index=existing
+        if existing is not None
+        and existing_has_current_version
+        and existing_has_embedding_metadata
+        and embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
+        else None,
     )
     write_concept_index_atomic(path, index)
     warnings = []
@@ -182,10 +188,12 @@ def build_concept_index(
     embedding_metadata: EmbeddingMetadata | None = None,
     embedding_config: Mapping[str, Any] | None = None,
     generated_at: str | None = None,
+    previous_index: ConceptIndex | None = None,
 ) -> ConceptIndex:
     text = concept_file.read_text(encoding="utf-8")
     rel_path = _relative_path(project_root, concept_file)
     metadata = embedding_metadata or default_embedding_metadata(generated_at=generated_at)
+    reusable_embeddings = reusable_concept_embeddings(previous_index, metadata)
     chunks = [
         ConceptIndexChunk(
             concept_chunk_id=concept_chunk_id_for(
@@ -198,10 +206,11 @@ def build_concept_index(
             paragraph_index=paragraph.paragraph_index,
             text_hash=_sha256_text(paragraph.text),
             text=paragraph.text,
-            embedding=embedding_for_text(
+            embedding=embedding_for_concept_text(
                 paragraph.text,
-                metadata,
-                config=embedding_config,
+                metadata=metadata,
+                reusable_embeddings=reusable_embeddings,
+                embedding_config=embedding_config,
             ),
         )
         for paragraph in split_concept_paragraphs(text)
@@ -213,6 +222,35 @@ def build_concept_index(
         generated_at=generated_at or datetime.now(UTC).isoformat(),
         chunks=chunks,
     )
+
+
+def reusable_concept_embeddings(
+    previous_index: ConceptIndex | None,
+    metadata: EmbeddingMetadata,
+) -> dict[str, list[float]]:
+    if previous_index is None:
+        return {}
+    if not embedding_identity_matches(previous_index.embedding_metadata, metadata):
+        return {}
+    reusable: dict[str, list[float]] = {}
+    for chunk in previous_index.chunks:
+        if chunk.text_hash and chunk.embedding:
+            reusable.setdefault(chunk.text_hash, chunk.embedding)
+    return reusable
+
+
+def embedding_for_concept_text(
+    text: str,
+    *,
+    metadata: EmbeddingMetadata,
+    reusable_embeddings: Mapping[str, list[float]],
+    embedding_config: Mapping[str, Any] | None,
+) -> list[float]:
+    text_hash = _sha256_text(text)
+    reusable = reusable_embeddings.get(text_hash)
+    if reusable is not None:
+        return list(reusable)
+    return embedding_for_text(text, metadata, config=embedding_config)
 
 
 def split_concept_paragraphs(text: str) -> list[_ConceptParagraph]:

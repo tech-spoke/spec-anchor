@@ -58,9 +58,12 @@ classification は high priority skip なしまで改善したが、`classificat
 - `[logging]` config と entrypoint logging setup を追加し、`.spec-grag/logs/` を ignored artifact にした
 - `graph_ops.safe_delete_by_sections()` を追加し、core incremental の stale carry-forward 削除を batch 化した
 - dense search は numpy が import できる場合のみ vectorized cosine を使い、なければ従来 pure Python fallback に戻す
+- Concept index refresh は同一 `text_hash` の chunk embedding を再利用する
+- BM25 search は broad char candidate が広がった時、identifier / word term の candidate があれば strong-term candidate へ prune する
 - `cli.py` の inject / realign 共通 readiness + injection pipeline を `run_injection_pipeline()` に抽出した
 - focused regression: `32 passed in 15.23s` と `67 passed in 69.05s`
-- full regression: `uv run --with pytest python -m pytest -q` -> `243 passed in 210.62s`
+- Concept / retrieval focused regression: `19 passed in 12.27s`
+- full regression: `uv run --with pytest python -m pytest -q` -> `245 passed in 208.31s`
 
 2026-05-03 実測:
 

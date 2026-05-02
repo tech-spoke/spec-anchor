@@ -174,6 +174,47 @@ def test_refresh_concept_index_is_idempotent_until_concept_hash_changes(
     assert third.concept_file_hash != first.concept_file_hash
 
 
+def test_refresh_concept_index_reuses_unchanged_chunk_embeddings(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    concept = write_concept(
+        tmp_path,
+        "# Concept\n\nAuth protects sessions.\n\nBilling exports receipts.\n",
+    )
+    graph_dir = tmp_path / ".spec-grag/graph"
+    calls: list[str] = []
+
+    def fake_embedding(text: str, *_args, **_kwargs) -> list[float]:
+        calls.append(text)
+        return [float(len(calls))]
+
+    monkeypatch.setattr("spec_grag.concept_index.embedding_for_text", fake_embedding)
+    first, _ = refresh_concept_index(
+        tmp_path,
+        config(),
+        graph_dir,
+        generated_at="t1",
+    )
+    concept.write_text(
+        "# Concept\n\nAuth protects sessions.\n\nBilling exports signed receipts.\n",
+        encoding="utf-8",
+    )
+    calls.clear()
+    second, _ = refresh_concept_index(
+        tmp_path,
+        config(),
+        graph_dir,
+        generated_at="t2",
+    )
+
+    assert first is not None
+    assert second is not None
+    assert calls == ["Billing exports signed receipts."]
+    assert second.chunks[0].embedding == first.chunks[0].embedding
+    assert second.chunks[1].embedding == [1.0]
+
+
 def test_refresh_concept_index_rebuilds_on_index_version_change(
     tmp_path: Path,
 ) -> None:

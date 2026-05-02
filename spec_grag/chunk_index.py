@@ -880,8 +880,21 @@ def bm25_search(
     b = 0.75
     documents_by_id = index.by_retrieval_key()
     candidate_ids: set[str] = set()
+    strong_candidate_ids: set[str] = set()
+    strong_terms = [
+        term for term in query_terms if term.startswith(("id:", "word:"))
+    ]
     for term in query_terms:
-        candidate_ids.update(index.postings.get(term, []))
+        posting_ids = index.postings.get(term, [])
+        candidate_ids.update(posting_ids)
+        if term in strong_terms:
+            strong_candidate_ids.update(posting_ids)
+    candidate_ids_before_strong_prune = len(candidate_ids)
+    if (
+        strong_candidate_ids
+        and len(candidate_ids) > max(limit, int(len(index.documents) * 0.5))
+    ):
+        candidate_ids = strong_candidate_ids
     if not candidate_ids and not index.postings:
         candidate_ids = set(documents_by_id)
     if not candidate_ids:
@@ -895,6 +908,12 @@ def bm25_search(
         metrics["bm25_query_terms_before_cap"] = raw_query_term_count
         metrics["bm25_query_terms"] = len(query_terms)
         metrics["bm25_candidate_documents"] = len(candidate_ids)
+        metrics["bm25_candidate_documents_before_strong_prune"] = (
+            candidate_ids_before_strong_prune
+        )
+        metrics["bm25_candidate_strong_term_pruned"] = (
+            len(candidate_ids) < candidate_ids_before_strong_prune
+        )
         metrics["bm25_total_documents"] = len(index.documents)
     for chunk_id in sorted(candidate_ids):
         document = documents_by_id.get(chunk_id)
