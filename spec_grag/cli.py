@@ -95,6 +95,7 @@ from spec_grag.timing import (
     llm_config_metrics,
 )
 from spec_grag.watch_state import clear_provisional_concept_cache
+from spec_grag.watch_state import WatchLock, WatchLockError
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -453,13 +454,16 @@ def run_spec_core(
             "pending_conflict_candidate_unresolved",
         )
 
-    update = run_core_update(
-        project_root,
-        config,
-        all_sources=request.options.all,
-        execution_role=runtime_policy.execution_role,
-        timer=timer,
-    )
+    try:
+        update = run_core_update_with_watch_lock(
+            project_root,
+            config,
+            all_sources=request.options.all,
+            execution_role=runtime_policy.execution_role,
+            timer=timer,
+        )
+    except WatchLockError:
+        return readiness_blocked_envelope(readiness, "watcher_processing")
     if update.status == ResultStatus.FAILED:
         return error_envelope(
             "spec_core_failed",
@@ -1120,6 +1124,34 @@ def concept_file_path(project_root: Path, config: dict[str, Any]) -> Path | None
     return path
 
 
+def run_core_update_with_watch_lock(
+    project_root: Path,
+    config: dict[str, Any],
+    *,
+    all_sources: bool,
+    execution_role: ExecutionRole | str,
+    timer: TimingRecorder,
+) -> Any:
+    watcher_config = config.get("watcher", {})
+    stale_lock_ms = (
+        int(watcher_config.get("stale_lock_ms", 300_000))
+        if isinstance(watcher_config, dict)
+        else 300_000
+    )
+    with WatchLock(
+        project_root,
+        config=config,
+        stale_after_sec=max(1, int(stale_lock_ms / 1000)),
+    ):
+        return run_core_update(
+            project_root,
+            config,
+            all_sources=all_sources,
+            execution_role=execution_role,
+            timer=timer,
+        )
+
+
 def run_injection_pipeline(
     request: SlashCommandRequest,
     project_root: Path,
@@ -1150,13 +1182,16 @@ def run_injection_pipeline(
             if gate is not None:
                 stage.set_status(_gate_stage_status(gate))
                 return gate
-        core_update = run_core_update(
-            project_root,
-            config,
-            all_sources=False,
-            execution_role=runtime_policy.execution_role,
-            timer=timer,
-        )
+        try:
+            core_update = run_core_update_with_watch_lock(
+                project_root,
+                config,
+                all_sources=False,
+                execution_role=runtime_policy.execution_role,
+                timer=timer,
+            )
+        except WatchLockError:
+            return readiness_blocked_envelope(readiness, "watcher_processing")
         if core_update.status == ResultStatus.FAILED:
             return error_envelope(
                 "spec_core_failed",

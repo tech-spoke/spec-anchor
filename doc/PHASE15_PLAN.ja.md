@@ -64,9 +64,9 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - [x] 主要 module に `logging.getLogger(__name__)` を導入する
   - 優先対象: `core.py`、`injection.py`、`chunk_index.py`、`concept_index.py`、`realign.py`、`watcher.py`
   - ログ対象: stage 開始/終了、cache hit/miss、provider call count、artifact path、diagnostic reason code
-- [~] watcher の長期運用ログを整備する
+- [x] watcher の長期運用ログを整備する
   - 受け入れ条件: stderr だけに依存せず、stale / failed / queued / pending の理由を追える
-- [ ] foreground command と watcher の lock 方針を監査する
+- [x] foreground command と watcher の lock 方針を監査する
   - 受け入れ条件: background core update と foreground `/spec-core` / query command の同時実行時に active artifact を壊さないことを test または設計メモで示す
 
 ### P15-D. Retrieval / artifact performance
@@ -114,12 +114,14 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - P15-A: atomic write 共通化、LLM factory 共通化、priority constants、`tests/conftest.py` を実装。
 - P15-B: `cli.py` の inject / realign 共通 readiness + injection pipeline を抽出。`injection.py` / `core.py` の大型分割は未着手。
 - P15-C: `[logging]` config、entrypoint logging setup、主要 module logger、watcher file logging の最小導入を実装。詳細な stage diagnostics と lock 方針監査は継続。
+- P15-C 追補: foreground `/spec-core` と dirty/stale 時の inject / realign core update は watcher と同じ `WatchLock` を取得する。lock が存在する場合は `watcher_processing` blocked にする。
 - P15-D: `safe_delete_by_sections()` と optional numpy dense similarity を実装。BM25 broad candidate、Concept index incremental embedding reuse、staging copytree 監査は継続。
 - P15-D 追補: Concept index は同一 `text_hash` の embedding reuse を実装。BM25 は broad char candidate が広がり、identifier / word term の candidate がある場合に strong-term candidate へ prune する一次対策を追加。
 - focused regression: `uv run --with pytest python -m pytest tests/test_graph_ops.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py::test_template_resources_are_packaged_for_wheel_install tests/test_phase8_hybrid_retrieval.py -q` -> `32 passed in 15.23s`
 - focused regression: `uv run --with pytest python -m pytest tests/test_realign_answer.py tests/test_core_extraction.py tests/test_core_e2e.py tests/test_phase8_hybrid_retrieval.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py -q` -> `67 passed in 69.05s`
 - focused regression: `uv run --with pytest python -m pytest tests/test_concept_index.py tests/test_phase8_hybrid_retrieval.py -q` -> `19 passed in 12.27s`
-- full regression: `uv run --with pytest python -m pytest -q` -> `245 passed in 208.31s`
+- focused regression: `uv run --with pytest python -m pytest tests/test_cli.py -q` -> `26 passed in 59.47s`
+- full regression: `uv run --with pytest python -m pytest -q` -> `246 passed in 201.81s`
 
 ## 完了条件
 

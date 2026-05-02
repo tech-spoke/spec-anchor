@@ -15,6 +15,7 @@
 - Concept index refresh は、embedding metadata が一致する既存 index から同一 `text_hash` の chunk embedding を再利用する。
 - BM25 search は、broad char term で candidate が大きく広がり、identifier / word term の candidate が存在する場合に strong-term candidate へ prune する。
 - `cli.py` の `/spec-inject` / `/spec-realign` 共通 readiness gate + injection build pipeline を `run_injection_pipeline()` に抽出した。
+- foreground `/spec-core` と dirty/stale 時の inject / realign core update は watcher と `WatchLock` を共有する。lock 取得不可の場合は `watcher_processing` blocked として active artifact を守る。
 
 ## 維持した設計
 
@@ -30,12 +31,12 @@
 - `uv run --with pytest python -m pytest tests/test_graph_ops.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py::test_template_resources_are_packaged_for_wheel_install tests/test_phase8_hybrid_retrieval.py -q` -> `32 passed in 15.23s`
 - `uv run --with pytest python -m pytest tests/test_realign_answer.py tests/test_core_extraction.py tests/test_core_e2e.py tests/test_phase8_hybrid_retrieval.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py -q` -> `67 passed in 69.05s`
 - `uv run --with pytest python -m pytest tests/test_concept_index.py tests/test_phase8_hybrid_retrieval.py -q` -> `19 passed in 12.27s`
-- `uv run --with pytest python -m pytest -q` -> `245 passed in 208.31s`
+- `uv run --with pytest python -m pytest tests/test_cli.py -q` -> `26 passed in 59.47s`
+- `uv run --with pytest python -m pytest -q` -> `246 passed in 201.81s`
 
 ## 残り
 
 - `injection.py` を classification / conflict / retrieval concern へ分割する。
 - `core.py` の `run_core_update` を stage 関数へ分ける。
-- watcher / foreground lock 方針を監査し、同時実行リスクを test または設計メモで閉じる。
 - BM25 broad candidate 問題を query set 5本で再実測する。
 - staging `copytree` コストと failure diagnostics を監査する。

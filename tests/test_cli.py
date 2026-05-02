@@ -29,6 +29,7 @@ from spec_grag.conflict_review import (
 )
 from spec_grag.protocol import Command
 from spec_grag.protocol import ResultEnvelope, ResultStatus, ResultType
+from spec_grag.watch_state import WatchLock
 
 
 def write_config(project_root: Path) -> None:
@@ -118,6 +119,20 @@ def test_cli_missing_config_returns_failed_error(tmp_path: Path) -> None:
     envelope = ResultEnvelope.from_json(result.stdout)
     assert envelope.status == ResultStatus.FAILED
     assert envelope.result_type == ResultType.ERROR_RESULT
+
+
+def test_cli_spec_core_blocks_when_watcher_lock_exists(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_source_specs(tmp_path)
+
+    with WatchLock(tmp_path):
+        result = run_cli(request_json(tmp_path, "spec-core"))
+
+    assert result.returncode == 0
+    envelope = ResultEnvelope.from_json(result.stdout)
+    assert envelope.status == ResultStatus.BLOCKED
+    assert envelope.result_type == ResultType.ERROR_RESULT
+    assert envelope.warnings == ["watcher_processing"]
 
 
 def test_cli_spec_core_all_uses_full_mode(tmp_path: Path) -> None:
