@@ -413,6 +413,12 @@ def build_injection(
         *purpose_warning,
         *concept_warning,
     ]
+    retrieval_degraded = bool(
+        graph_retrieval.warnings
+        or purpose_warning
+        or concept_warning
+        or invalid_agentic
+    )
     if classification_budget.get("skipped", 0):
         warnings.append("classification_incomplete")
         if classification_run.high_priority_skipped_count:
@@ -549,7 +555,11 @@ def build_injection(
         if warnings and core_status == ResultStatus.OK
         else core_status
     )
-    degraded_components = ["retrieval"] if warnings else []
+    degraded_components = []
+    if core_warnings or core_status == ResultStatus.DEGRADED:
+        degraded_components.append("core")
+    if retrieval_degraded:
+        degraded_components.append("retrieval")
     if "classification_incomplete" in warnings:
         degraded_components.append("classification")
     return InjectionBuild(
@@ -2704,13 +2714,19 @@ def select_classification_candidates(
             skipped[candidate.classification_key] = "global_budget_exhausted"
             continue
         type_limit = type_limits.get(candidate.candidate_type)
+        type_limit_applies = candidate.tier > 0
         current_type_count = type_counts.get(candidate.candidate_type, 0)
-        if type_limit is not None and current_type_count >= type_limit:
+        if (
+            type_limit_applies
+            and type_limit is not None
+            and current_type_count >= type_limit
+        ):
             skipped[candidate.classification_key] = "type_budget_exhausted"
             continue
         selected.append(candidate)
         llm_selected_count += 1
-        type_counts[candidate.candidate_type] = current_type_count + 1
+        if type_limit_applies:
+            type_counts[candidate.candidate_type] = current_type_count + 1
     return selected, skipped
 
 

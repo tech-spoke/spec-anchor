@@ -371,6 +371,97 @@ def test_classification_priority_selects_purpose_and_raw_source_before_graph_clu
     )
 
 
+def test_high_priority_classification_candidates_bypass_type_budget() -> None:
+    calls: list[list[str]] = []
+
+    class RecordingLLM:
+        def complete(self, prompt: str, **_kwargs: Any) -> SimpleNamespace:
+            payload = json.loads(prompt.split("INPUT_JSON:\n", 1)[1])
+            keys = [item["classification_key"] for item in payload["context_items"]]
+            calls.append(keys)
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "decisions": [
+                            {
+                                "classification_key": key,
+                                "constraint_relevance": "medium",
+                                "target_relevance": "high",
+                                "semantic_conflict_candidate": False,
+                                "review_required": False,
+                                "reason_for_current_task": "selected",
+                            }
+                            for key in keys
+                        ]
+                    }
+                )
+            )
+
+    query = "Concept にないが Source specs にある制約の扱い"
+    items = [
+        {
+            "entity_id": "anchor:doc21:doc20",
+            "entity_type": "ANCHOR",
+            "summary": "doc20 との conflict suspected",
+            "semantic_conflict_candidate": True,
+            "target_relevance": "high",
+            "ranking_score": 0.5,
+        },
+        {
+            "entity_id": "anchor:doc21:doc22",
+            "entity_type": "ANCHOR",
+            "summary": "doc22 との conflict suspected",
+            "semantic_conflict_candidate": True,
+            "target_relevance": "high",
+            "ranking_score": 0.5,
+        },
+        {
+            "entity_id": "anchor:doc21:customize",
+            "entity_type": "ANCHOR",
+            "summary": "customize scope",
+            "target_relevance": "high",
+            "ranking_score": 0.5,
+        },
+        {
+            "entity_id": "anchor:doc21:patch",
+            "entity_type": "ANCHOR",
+            "summary": "patch scope",
+            "target_relevance": "high",
+            "ranking_score": 0.5,
+        },
+    ]
+    candidates = [
+        classification_candidate_for_item(item, item_type="graph_entity", query=query)
+        for item in items
+    ]
+
+    run = classify_candidates_by_priority(
+        candidates,
+        query=query,
+        llm=RecordingLLM(),
+        classification_budget={"remaining": 10, "skipped": 0, "llm_calls": 0},
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={
+            "max_items": 10,
+            "max_graph_entities": 1,
+            "batch_size": 10,
+        },
+    )
+
+    selected_keys = {candidate.classification_key for candidate in run.selected}
+    high_priority_keys = {
+        candidate.classification_key
+        for candidate in candidates
+        if candidate.tier == 0
+    }
+    assert high_priority_keys <= selected_keys
+    assert run.metrics["high_priority_skipped_count"] == 0
+    assert run.metrics["medium_priority_skipped_count"] == 1
+    assert run.metrics["skipped_count_by_type"] == {"graph_entity": 1}
+    assert len(calls) == 1
+
+
 def test_classification_candidate_dedup_runs_llm_once_per_classification_key() -> None:
     calls: list[str] = []
 

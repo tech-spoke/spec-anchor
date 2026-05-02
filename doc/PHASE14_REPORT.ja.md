@@ -102,3 +102,21 @@ Phase 14 の priority / budget policy は効いた。batch classification と pe
 - query planner cache / deterministic fast path: no-change inject でも retrieval stage の query planner LLM が残る
 - answer generation latency: `spec-realign` では answer LLM が 40 秒台を占める
 - graph/chapter/cluster の deferred classification: medium/low priority は answer に使う必要がある時だけ分類する
+
+## 2026-05-02 監査追補
+
+残監査 query set で、`Concept にないが Source specs にある制約の扱い` が `classification_high_priority_incomplete` / failed になった。原因は type budget が tier 0 graph entity にも適用され、`fail_on_high_priority_incomplete=true` と衝突したため。
+
+修正:
+
+- `select_classification_candidates()` で type budget は tier > 0 にのみ適用する
+- high priority candidate は global `max_items` だけで制限し、type budget では落とさない
+- classification warning だけの場合、`degraded_components` が `retrieval` を含まないよう attribution を修正
+
+検証:
+
+- `uv run --with pytest python -m pytest tests/test_phase12_hardening.py::test_high_priority_classification_candidates_bypass_type_budget tests/test_phase12_hardening.py::test_classification_priority_selects_purpose_and_raw_source_before_graph_cluster tests/test_cli.py::test_cli_answer_failure_can_fallback_to_template -q` -> `3 passed in 2.83s`
+- `uv run --with pytest python -m pytest -q` -> `229 passed in 187.76s`
+- 再実行 artifact `.spec-grag/runs/20260502T084927.386804Z-spec-inject-2bf9dae9cfe6.json`: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=4`、`degraded_components=['classification']`
+
+production policy は、medium / low priority incomplete でも warning-only にはせず degraded 維持とする。silent rule-based fallback は引き続き不可。deferred classification は別タスクとして残す。

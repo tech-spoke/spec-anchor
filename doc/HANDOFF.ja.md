@@ -9,7 +9,7 @@
 
 ## 最新引き継ぎ（2026-05-02 / Phase 14 後）
 
-現在の先頭 commit は `9bafb82 feat: add classification priority budgets`。Phase 14 着手前の退避 commit は `a305dd3 chore: checkpoint before phase 14 policy`。この引き継ぎ作成前の `git status --short` は clean。
+この監査再開前の先頭 commit は `c45c8d9 docs: hand off remaining audit scope`。Phase 14 実装 commit は `9bafb82 feat: add classification priority budgets`、Phase 14 着手前の退避 commit は `a305dd3 chore: checkpoint before phase 14 policy`。再開時の `git status --short` は clean。
 
 Phase 14 は実装・検証済み。`ClassificationCandidate` 収集、`classification_key` dedup、priority sort、type budget、batch classification、persistent classification cache、priority-aware incomplete policy、stage metrics 拡張を入れた。詳細は `doc/PHASE14_REPORT.ja.md`。
 
@@ -25,14 +25,23 @@ Phase 14 後の production self E2E:
 - `spec-realign` batch/cache 後: total `89,423ms`、retrieval `17,615ms`、classification `28,672ms`、answer `42,844ms`、classification LLM calls 2、cache hit 19、`high_priority_skipped_count=0`
 - artifact: `.spec-grag/runs/20260502T081601.899646Z-spec-inject-7b71d453395a.json`、`.spec-grag/runs/20260502T081700.397111Z-spec-inject-925565b62f5d.json`、`.spec-grag/runs/20260502T082150.417804Z-spec-realign-fd72d9ad2316.json`
 
-classification は high priority skip なしまで改善したが、`classification_medium_priority_incomplete` は残る。これは Purpose / raw source / approved Concept を落としている状態ではなく、主に graph entity / chapter anchor / cluster 側の未分類で degraded になっている。次セッションでは、この degraded を仕様上許容するか、必要時 deferred classification へ寄せるかを決める。
+classification は high priority skip なしまで改善したが、`classification_medium_priority_incomplete` は残る。これは Purpose / raw source / approved Concept を落としている状態ではなく、主に graph entity / chapter anchor / cluster 側の未分類で degraded になっている。
+
+2026-05-02 監査追補:
+
+- `doc/AUDIT_TODO.ja.md` の古い `classification.max_items=8` 起因 RISK は stale として Phase 14 後の PARTIAL 判定へ更新した
+- medium / low priority incomplete の production policy は degraded 維持に決定。warning-only は採用しない。deferred classification は別タスクとして残す
+- retrieval query set 5本を実測。Source evidence は概ね妥当だが、Concept 巨大 chunk 混入、query planner 語過多、answer 40秒台が残る
+- `Concept にないが Source specs にある制約の扱い` で、type budget が tier 0 graph entity を落として `classification_high_priority_incomplete` / failed になる不具合を発見し修正した
+- 修正後 artifact `.spec-grag/runs/20260502T084927.386804Z-spec-inject-2bf9dae9cfe6.json`: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=4`、`degraded_components=['classification']`
+- 検証: `uv run --with pytest python -m pytest -q` -> `229 passed in 187.76s`
 
 次セッションの残監査キュー:
 
-1. `doc/AUDIT_TODO.ja.md` の古い E2E 行を Phase 14 後の結果へ更新する。特に `classification.max_items=8` 起因の `RISK` は stale。Phase 14 後は high priority skipped 0、medium incomplete 残りとして再判定する。
-2. Retrieval 品質監査を進める。`Core と Customize の境界`、`ImageUploadField / FileUploadField / ImageGalleryField`、`Action signal と emit / 購読`、`section_max_heading_level`、`Concept にない Source 制約` の query set を run artifact と source evidence で評価する。
-3. query planner latency を見る。no-change inject / realign でも retrieval stage の query planner LLM が残るため、cache または deterministic fast path を検討する。
-4. answer generation latency を見る。`spec-realign` では answer LLM が 40 秒台を占めるため、prompt / model / schema / cache / NeedMoreContext policy を分けて調査する。
+1. query planner latency を見る。no-change inject / realign でも retrieval stage の query planner LLM が残り、query set では retrieval 約10〜18秒、BM25 query terms 662〜989 が出ているため、QueryPlan cache または deterministic fast path を検討する。
+2. answer generation latency を見る。`spec-realign` では answer LLM が 40 秒台を占めるため、prompt / model / schema / cache / NeedMoreContext policy を分けて調査する。
+3. Concept retrieval 品質を調整する。`Concept / Source-derived concepts` の巨大 chunk と導入文 chunk が多くの query で混じるため、Concept index chunking / top-k / query-side filtering を見る。
+4. graph/chapter/cluster の deferred classification を検討する。現 policy は degraded 維持で確定したが、answer 使用直前に実際に使う medium / low 候補だけ追加分類する余地がある。
 5. Contract / design drift 監査を進める。`EXTERNAL_DESIGN` / `DESIGN` / implementation / test / artifact matrix を埋め、`PARTIAL` を `OK` / `DRIFT` へ確定する。
 6. Failure / recovery と artifact lifecycle を確認する。failed staging diagnostics、old smoke artifact から production artifact への再生成手順、stable ID 導入後の incremental alias 混入を重点に見る。
 7. Security / privacy / production reachability を再確認する。mock / fake provider 到達性、query path read-only 全 entrypoint、run artifact request/response opt-in、prompt untrusted boundary を静的 trace と artifact で見る。
