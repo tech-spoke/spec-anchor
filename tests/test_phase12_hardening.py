@@ -15,6 +15,7 @@ from spec_grag.injection import (
 )
 from spec_grag.manifest import load_source_manifest
 from spec_grag.protocol import Command, ResultStatus, ResultType, SlashCommandRequest
+from spec_grag.readiness import evaluate_grag_readiness
 
 
 def request(project_root: Path) -> SlashCommandRequest:
@@ -276,3 +277,16 @@ def test_core_update_failure_keeps_active_artifacts(tmp_path: Path, monkeypatch)
     assert failed.status == ResultStatus.FAILED
     assert failed.failed_sources == ["concept_diff"]
     assert after.by_section_id()["docs/spec/auth.md#auth-login"].source_hash == before_hash
+
+    readiness = evaluate_grag_readiness(tmp_path, config())
+    diagnostics = readiness.artifact_diagnostics
+
+    assert diagnostics["active_revision"]["graph_revision"] == (
+        first.freshness_report.graph_revision
+    )
+    assert diagnostics["staging_revisions"] == []
+    assert diagnostics["failed_revisions"][0]["failed_stage"] == "concept_diff"
+    assert diagnostics["failed_revisions"][0]["graph_revision"] != (
+        first.freshness_report.graph_revision
+    )
+    assert diagnostics["failed_revisions"][0]["staging_path_exists"] is False

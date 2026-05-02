@@ -191,6 +191,10 @@ readiness_report:
   pending_concept_diff_id?: string
   pending_conflict_candidate_ids[]: string
   stale_reason_codes[]: string
+  artifact_diagnostics:
+    active_revision?: object
+    staging_revisions[]: object
+    failed_revisions[]: object
   reasons[]:
     code: string
     message: string
@@ -1421,6 +1425,11 @@ Phase 12 以降の heavy core path は `.spec-grag/.staging/<graph>/<revision>/`
 後段 stage が失敗した場合は staging を破棄し、active artifact は旧 revision の
 一貫した状態を維持する。no-change / format-only fast path は従来通り
 個別 atomic file write を使う。
+`readiness_report.artifact_diagnostics` は active revision、残存 staging
+revision、直近の failed revision ledger を返す。provider failure などで
+staging を破棄した場合も failed revision には `failed_stage`、
+`graph_revision`、`extract_run_id`、`staging_path_exists` を残し、commit
+失敗のように staging が残るケースは診断から再現できるようにする。
 
 Conflict 段階 2 の「scanned_at より新しい修正との食い違い」は、source_manifest の `scanned_at` と実ファイルの `mtime` / 再計算 hash を比較して検出する。ただし `mtime` は Git checkout や touch で内容変更なしに更新されるため、再スキャンの補助トリガーにとどめる。真の変更判定は section 単位 SHA-256 の `source_hash` 比較を優先する。
 

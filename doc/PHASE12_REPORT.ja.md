@@ -33,13 +33,13 @@
 - extraction / query planner / classification / answer prompt が source 内 instruction を untrusted data として境界付ける
 - heading rename しても本文が同じ section は `stable_section_uid` が維持される
 - run artifact は既定で request を保存しない
+- readiness report から active / staging / failed revision diagnostics を確認できる
 
 ## 残タスク
 
 - external vector DB / ANN への実差し替え
 - stable ID を primary key にする全面移行
 - production self-run での latency / token / cost 実測
-- readiness report への active / staging / failed revision diagnostics の露出
 
 ## 注意点
 

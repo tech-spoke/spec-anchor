@@ -110,6 +110,9 @@ from spec_grag.timing import (
 EXTRACTOR_VERSION = "deterministic-core-v1"
 GRAPH_STORE_FILENAME = "property_graph_store.json"
 VECTOR_STORE_FILENAME = "vector_store.json"
+ARTIFACT_REVISION_FILENAME = "artifact_revision.json"
+FAILED_ARTIFACT_REVISIONS_FILENAME = "failed_revisions.json"
+MAX_FAILED_ARTIFACT_REVISIONS = 10
 
 
 @dataclass(frozen=True)
@@ -516,6 +519,10 @@ def run_core_update(
             warnings=warnings,
             reconciliation=reconciliation,
             timer=timer,
+            attempted_graph_revision=graph_revision,
+            extract_run_id=extract_run_id,
+            failed_stage="embedding_update",
+            staging_path=artifact_graph_storage,
         )
     with timer.stage(
         "chunk_index_update",
@@ -611,6 +618,10 @@ def run_core_update(
             warnings=warnings,
             reconciliation=reconciliation,
             timer=timer,
+            attempted_graph_revision=graph_revision,
+            extract_run_id=extract_run_id,
+            failed_stage="concept_index_update",
+            staging_path=artifact_graph_storage,
         )
     concept_index_cluster_entries = (
         [
@@ -703,6 +714,10 @@ def run_core_update(
             warnings=warnings,
             reconciliation=reconciliation,
             timer=timer,
+            attempted_graph_revision=graph_revision,
+            extract_run_id=extract_run_id,
+            failed_stage="community_report",
+            staging_path=artifact_graph_storage,
         )
     with timer.stage(
         "artifact_write",
@@ -767,6 +782,10 @@ def run_core_update(
             warnings=warnings,
             reconciliation=reconciliation,
             timer=timer,
+            attempted_graph_revision=graph_revision,
+            extract_run_id=extract_run_id,
+            failed_stage="concept_diff",
+            staging_path=artifact_graph_storage,
         )
 
     manifest_status = (
@@ -836,6 +855,10 @@ def run_core_update(
                 ],
                 reconciliation=reconciliation,
                 timer=timer,
+                attempted_graph_revision=graph_revision,
+                extract_run_id=extract_run_id,
+                failed_stage="artifact_commit",
+                staging_path=artifact_graph_storage,
             )
 
     warnings = [
@@ -888,13 +911,32 @@ def _failed_core_update(
     warnings: list[str],
     reconciliation: ManifestReconciliation | None = None,
     timer: TimingRecorder | None = None,
+    attempted_graph_revision: str | None = None,
+    extract_run_id: str | None = None,
+    failed_stage: str | None = None,
+    staging_path: Path | None = None,
 ) -> CoreUpdate:
+    failure_warnings = list(warnings)
+    if attempted_graph_revision and extract_run_id and failed_stage:
+        try:
+            _record_failed_artifact_revision(
+                graph_storage,
+                graph_revision=attempted_graph_revision,
+                extract_run_id=extract_run_id,
+                failed_at=scanned_at,
+                failed_stage=failed_stage,
+                warnings=warnings,
+                staging_path=staging_path,
+            )
+        except OSError as exc:
+            failure_warnings.append(f"failed_revision_record_failed:{exc}")
+
     freshness = FreshnessReport(
         last_core_run=scanned_at,
         graph_revision=None,
         graph_storage_path=str(graph_storage),
         source_manifest_path=str(graph_storage / "source_manifest.json"),
-        warnings=warnings,
+        warnings=failure_warnings,
     )
     update = CoreUpdate(
         status=ResultStatus.FAILED,
@@ -904,15 +946,25 @@ def _failed_core_update(
         failed_sources=failed_sources,
         graph_storage=str(graph_storage),
         freshness_report=freshness,
-        warnings=warnings,
+        warnings=failure_warnings,
         reconciliation=reconciliation,
     )
     return _with_core_timing(update, timer) if timer is not None else update
 
 
+def artifact_revision_diagnostics(graph_storage: Path) -> dict[str, Any]:
+    """Return lightweight artifact revision state for readiness diagnostics."""
+
+    return {
+        "active_revision": _active_artifact_revision(graph_storage),
+        "staging_revisions": _staging_artifact_revisions(graph_storage),
+        "failed_revisions": _failed_artifact_revisions(graph_storage),
+    }
+
+
 def _prepare_artifact_staging(graph_storage: Path, graph_revision: str) -> Path:
     safe_revision = _safe_path_component(graph_revision)
-    staging = graph_storage.parent / ".staging" / graph_storage.name / safe_revision
+    staging = artifact_staging_root(graph_storage) / safe_revision
     if staging.exists():
         shutil.rmtree(staging)
     staging.parent.mkdir(parents=True, exist_ok=True)
@@ -925,6 +977,10 @@ def _prepare_artifact_staging(graph_storage: Path, graph_revision: str) -> Path:
     else:
         staging.mkdir(parents=True, exist_ok=True)
     return staging
+
+
+def artifact_staging_root(graph_storage: Path) -> Path:
+    return graph_storage.parent / ".staging" / graph_storage.name
 
 
 def _commit_artifact_staging(graph_storage: Path, staging: Path) -> None:
@@ -968,7 +1024,7 @@ def _write_artifact_revision(
     generated_at: str,
 ) -> None:
     _write_json_atomic(
-        graph_storage / "artifact_revision.json",
+        graph_storage / ARTIFACT_REVISION_FILENAME,
         {
             "graph_revision": graph_revision,
             "extract_run_id": extract_run_id,
@@ -976,6 +1032,94 @@ def _write_artifact_revision(
             "commit_protocol": "staging-directory-v1",
         },
     )
+
+
+def _active_artifact_revision(graph_storage: Path) -> dict[str, Any] | None:
+    payload = _read_json_object(graph_storage / ARTIFACT_REVISION_FILENAME)
+    if payload is None:
+        return None
+    return {**payload, "path": str(graph_storage)}
+
+
+def _staging_artifact_revisions(graph_storage: Path) -> list[dict[str, Any]]:
+    root = artifact_staging_root(graph_storage)
+    if not root.exists():
+        return []
+
+    revisions: list[dict[str, Any]] = []
+    for child in sorted(root.iterdir(), key=lambda path: path.name):
+        if not child.is_dir():
+            continue
+        payload = _read_json_object(child / ARTIFACT_REVISION_FILENAME) or {}
+        revisions.append(
+            {
+                **payload,
+                "staging_name": child.name,
+                "path": str(child),
+            }
+        )
+    return revisions
+
+
+def _failed_artifact_revisions(graph_storage: Path) -> list[dict[str, Any]]:
+    payload = _read_json_object(_failed_artifact_revisions_path(graph_storage)) or {}
+    raw_revisions = payload.get("failed_revisions", [])
+    if not isinstance(raw_revisions, list):
+        return []
+
+    revisions: list[dict[str, Any]] = []
+    for raw_revision in raw_revisions:
+        if not isinstance(raw_revision, dict):
+            continue
+        revision = dict(raw_revision)
+        staging_path = revision.get("staging_path")
+        if isinstance(staging_path, str):
+            revision["staging_path_exists"] = Path(staging_path).exists()
+        revisions.append(revision)
+    return revisions
+
+
+def _record_failed_artifact_revision(
+    graph_storage: Path,
+    *,
+    graph_revision: str,
+    extract_run_id: str,
+    failed_at: str,
+    failed_stage: str,
+    warnings: list[str],
+    staging_path: Path | None,
+) -> None:
+    existing = _failed_artifact_revisions(graph_storage)
+    entry = {
+        "graph_revision": graph_revision,
+        "extract_run_id": extract_run_id,
+        "failed_at": failed_at,
+        "failed_stage": failed_stage,
+        "warnings": warnings[:10],
+        "staging_path": str(staging_path) if staging_path is not None else None,
+        "staging_path_exists": bool(staging_path and staging_path.exists()),
+        "commit_protocol": "staging-directory-v1",
+    }
+    _write_json_atomic(
+        _failed_artifact_revisions_path(graph_storage),
+        {
+            "version": 1,
+            "updated_at": failed_at,
+            "failed_revisions": [entry, *existing][:MAX_FAILED_ARTIFACT_REVISIONS],
+        },
+    )
+
+
+def _failed_artifact_revisions_path(graph_storage: Path) -> Path:
+    return artifact_staging_root(graph_storage) / FAILED_ARTIFACT_REVISIONS_FILENAME
+
+
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:

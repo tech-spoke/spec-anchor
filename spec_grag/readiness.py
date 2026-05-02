@@ -24,6 +24,7 @@ from spec_grag.core import (
     EXTRACTOR_VERSION,
     GRAPH_STORE_FILENAME,
     VECTOR_STORE_FILENAME,
+    artifact_revision_diagnostics,
     graph_revision_for_manifest,
     resolve_source_paths,
 )
@@ -80,6 +81,7 @@ class ReadinessReport(StrictModel):
     queued_section_ids: list[str] = Field(default_factory=list)
     stale_reason_codes: list[str] = Field(default_factory=list)
     reasons: list[ReadinessReason] = Field(default_factory=list)
+    artifact_diagnostics: dict[str, Any] = Field(default_factory=dict)
     foreground_incremental_allowed: bool = False
     watcher_required: bool = False
 
@@ -321,6 +323,7 @@ def evaluate_grag_readiness(
         queued_section_ids=queued_section_ids,
         stale_reason_codes=sorted(set(stale_codes)),
         reasons=reasons,
+        artifact_diagnostics=artifact_revision_diagnostics(graph_storage),
         foreground_incremental_allowed=policy.foreground_incremental,
         watcher_required=policy.watcher_required,
     )
