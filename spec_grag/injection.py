@@ -1528,11 +1528,24 @@ def retrieve_concept_chunks(
         index.embedding_metadata,
         config=embedding_config,
     )
+    tokens = query_tokens(query)
     scored: list[tuple[ConceptIndexChunk, float]] = []
     for chunk in index.chunks:
+        if concept_chunk_is_template_boilerplate(chunk):
+            continue
         score = embedding_similarity(query_embedding, chunk.embedding)
+        score += min(token_match_score(tokens, chunk.text.lower()), 1.0) * 0.15
         scored.append((chunk, score))
     return sorted(scored, key=lambda item: (-item[1], item[0].concept_chunk_id))[:limit]
+
+
+def concept_chunk_is_template_boilerplate(chunk: ConceptIndexChunk) -> bool:
+    text = " ".join(chunk.text.split()).lower()
+    return (
+        chunk.heading_path == "Concept"
+        and "capture stable architecture principles" in text
+        and "spec-grag may propose guarded updates" in text
+    )
 
 
 def chapter_anchor_item(anchor: ChapterAnchorArtifact, *, source_origin: str) -> dict[str, Any]:
@@ -2566,6 +2579,21 @@ def classify_candidates_by_priority(
         classification_cache=classification_cache,
         persistent_cache=persistent_cache,
     )
+    deferred = select_deferred_classification_candidates(
+        ordered,
+        skipped=skipped,
+        llm=llm,
+        classification_budget=classification_budget,
+        classification_config=classification_config,
+    )
+    if deferred:
+        deferred_keys = {candidate.classification_key for candidate in deferred}
+        selected = [*selected, *deferred]
+        skipped = {
+            key: reason
+            for key, reason in skipped.items()
+            if key not in deferred_keys
+        }
     items_by_key: dict[str, dict[str, Any]] = {}
     if llm is None:
         for candidate in selected:
@@ -2604,6 +2632,14 @@ def classify_candidates_by_priority(
                     classified,
                     candidate,
                 )
+        if deferred:
+            deferred_keys = {candidate.classification_key for candidate in deferred}
+            classification_budget["deferred_resolved"] = sum(
+                1
+                for key in deferred_keys
+                if items_by_key.get(key, {}).get("classification_source")
+                != "classification_incomplete"
+            )
     for candidate in ordered:
         reason = skipped.get(candidate.classification_key)
         if reason is None:
@@ -2628,6 +2664,7 @@ def classify_candidates_by_priority(
         skipped=skipped,
         classification_budget=classification_budget,
         classification_config=classification_config,
+        deferred=deferred,
     )
     return ClassificationRun(
         items_by_key=items_by_key,
@@ -2728,6 +2765,39 @@ def select_classification_candidates(
         if type_limit_applies:
             type_counts[candidate.candidate_type] = current_type_count + 1
     return selected, skipped
+
+
+def select_deferred_classification_candidates(
+    ordered: list[ClassificationCandidate],
+    *,
+    skipped: dict[str, str],
+    llm: Any | None,
+    classification_budget: dict[str, int],
+    classification_config: Any,
+) -> list[ClassificationCandidate]:
+    config = classification_config if isinstance(classification_config, dict) else {}
+    if llm is None or not config_bool(config, "deferred_enabled", True):
+        return []
+    limit = config_int(config, "deferred_max_items", 6)
+    if limit <= 0 or not skipped:
+        return []
+    deferred = [
+        candidate
+        for candidate in ordered
+        if candidate.classification_key in skipped and candidate.tier > 0
+    ][:limit]
+    if not deferred:
+        return []
+    classification_budget["remaining"] = (
+        classification_budget.get("remaining", 0) + len(deferred)
+    )
+    classification_budget["deferred_budget_added"] = (
+        classification_budget.get("deferred_budget_added", 0) + len(deferred)
+    )
+    classification_budget["deferred_selected"] = (
+        classification_budget.get("deferred_selected", 0) + len(deferred)
+    )
+    return deferred
 
 
 def classification_type_limits(classification_config: Any) -> dict[str, int | None]:
@@ -3041,6 +3111,19 @@ def config_int(config: dict[str, Any], key: str, default: int) -> int:
         return default
 
 
+def config_bool(config: dict[str, Any], key: str, default: bool) -> bool:
+    value = config.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return bool(value)
+
+
 def classification_incomplete_item(
     item: dict[str, Any],
     *,
@@ -3118,6 +3201,7 @@ def classification_priority_metrics(
     skipped: dict[str, str],
     classification_budget: dict[str, int],
     classification_config: Any,
+    deferred: list[ClassificationCandidate],
 ) -> dict[str, Any]:
     skipped_candidates = [
         candidate
@@ -3125,6 +3209,7 @@ def classification_priority_metrics(
         if candidate.classification_key in skipped
     ]
     selected_keys = {candidate.classification_key for candidate in selected}
+    deferred_keys = {candidate.classification_key for candidate in deferred}
     type_limits = classification_type_limits(classification_config)
     return {
         "candidate_count": len(candidates),
@@ -3138,6 +3223,9 @@ def classification_priority_metrics(
         ),
         "candidate_count_by_type": count_candidates_by_type(candidates),
         "classified_count_by_type": count_candidates_by_type(selected),
+        "deferred_selected_count": len(deferred),
+        "deferred_resolved_count": classification_budget.get("deferred_resolved", 0),
+        "deferred_count_by_type": count_candidates_by_type(deferred),
         "skipped_count_by_type": count_candidates_by_type(skipped_candidates),
         "deprioritized_count_by_type": count_candidates_by_type(
             [
@@ -3160,6 +3248,11 @@ def classification_priority_metrics(
             for candidate in candidates
             if candidate.classification_key in selected_keys
         ][:8],
+        "priority_deferred_summary": [
+            classification_candidate_summary(candidate, deferred=True)
+            for candidate in candidates
+            if candidate.classification_key in deferred_keys
+        ][:8],
         "priority_skipped_summary": [
             classification_candidate_summary(
                 candidate,
@@ -3172,6 +3265,10 @@ def classification_priority_metrics(
             for key, value in type_limits.items()
         },
         "classification_budget_remaining": classification_budget.get("remaining", 0),
+        "classification_deferred_budget_added": classification_budget.get(
+            "deferred_budget_added",
+            0,
+        ),
     }
 
 
@@ -3186,6 +3283,7 @@ def classification_candidate_summary(
     candidate: ClassificationCandidate,
     *,
     skip_reason: str | None = None,
+    deferred: bool = False,
 ) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "classification_key": candidate.classification_key,
@@ -3198,6 +3296,8 @@ def classification_candidate_summary(
     }
     if skip_reason:
         summary["skip_reason"] = skip_reason
+    if deferred:
+        summary["deferred_classification"] = True
     return summary
 
 

@@ -18,7 +18,12 @@ from spec_grag.chunk_index import (
 from spec_grag.retrieval_index import RETRIEVAL_INDEX_FILENAME
 from spec_grag.conflict_review import pending_conflict_candidate_ids
 from spec_grag.concept_diff import first_unresolved_pending_concept_diff
-from spec_grag.concept_index import concept_index_path, configured_concept_file, load_concept_index
+from spec_grag.concept_index import (
+    CONCEPT_INDEX_VERSION,
+    concept_index_path,
+    configured_concept_file,
+    load_concept_index,
+)
 from spec_grag.config import ExecutionRole, RuntimePolicy, resolve_runtime_policy
 from spec_grag.core import (
     ARTIFACT_REVISION_FILENAME,
@@ -445,6 +450,8 @@ def _concept_index_stale(
         return "concept_index_invalid"
     if index is None:
         return "concept_index_missing"
+    if index.version != CONCEPT_INDEX_VERSION:
+        return "concept_index_version_mismatch"
     current_hash = _file_sha256(concept_file)
     if index.concept_file_hash != current_hash:
         return "concept_index_hash_mismatch"

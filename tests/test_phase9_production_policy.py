@@ -138,6 +138,10 @@ def test_production_policy_accepts_real_provider_config() -> None:
     assert validated["_runtime_mode"] == "production"
     assert validated["extraction"]["mode"] == "schema_llm"
     assert validated["embedding"]["provider"] == "ollama"
+    assert validated["answer"]["cache_enabled"] is True
+    assert validated["answer"]["cache_path"] == ".spec-grag/cache/answer_cache.json"
+    assert validated["answer"]["context_max_source_constraints"] == 8
+    assert validated["answer"]["context_excerpt_chars"] == 700
     assert validated["classification"]["fallback_on_error"] is False
     assert validated["classification"]["max_items"] == 20
     assert validated["classification"]["max_source_chunks"] == 12
@@ -149,6 +153,12 @@ def test_production_policy_accepts_real_provider_config() -> None:
     assert validated["classification"]["cache_enabled"] is True
     assert validated["classification"]["cache_path"] == ".spec-grag/cache/classification_cache.json"
     assert validated["classification"]["fail_on_high_priority_incomplete"] is True
+    assert validated["classification"]["deferred_enabled"] is True
+    assert validated["classification"]["deferred_max_items"] == 6
+    assert validated["query_planner"]["cache_enabled"] is True
+    assert validated["query_planner"]["cache_path"] == ".spec-grag/cache/query_plan_cache.json"
+    assert validated["query_planner"]["bm25_term_limit"] == 80
+    assert validated["query_planner"]["dense_query_max_chars"] == 2000
 
 
 def test_llm_provider_switch_applies_to_all_production_stages() -> None:

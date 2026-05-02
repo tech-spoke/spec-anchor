@@ -120,3 +120,34 @@ Phase 14 の priority / budget policy は効いた。batch classification と pe
 - 再実行 artifact `.spec-grag/runs/20260502T084927.386804Z-spec-inject-2bf9dae9cfe6.json`: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=4`、`degraded_components=['classification']`
 
 production policy は、medium / low priority incomplete でも warning-only にはせず degraded 維持とする。silent rule-based fallback は引き続き不可。deferred classification は別タスクとして残す。
+
+## 2026-05-03 監査実装追補
+
+Phase 14 後の残監査で見つかった retrieval / latency 課題に対して、以下を追加した。
+
+- QueryPlan cache: `[query_planner] cache_enabled/cache_path` を追加し、graph revision / provider / model / prompt policy / query が一致する場合は planner LLM を省略する
+- BM25 query 分離: BM25 は raw query + identifiers/entities/expected areas のみにし、expanded QueryPlan は dense query に限定。BM25 query terms は `bm25_term_limit = 80`
+- Concept index v2: Markdown list item を 1 chunk にし、旧 version artifact は readiness で stale として検出。テンプレート導入文 chunk は query-side filter で除外
+- Answer context compaction/cache: Answer prompt に渡す InjectionContext を件数・excerpt 長で圧縮し、Answer cache を追加。cache key から freshness timestamp / classification cache-hit metadata を除外
+- Deferred classification: primary budget 後に medium / low priority skipped を最大 6 件追加分類する。production の silent rule-based fallback 不可は維持
+
+検証:
+
+- `uv run --with pytest python -m pytest tests/test_concept_index.py tests/test_phase8_hybrid_retrieval.py tests/test_phase10_readiness.py::test_readiness_marks_old_concept_index_version_stale tests/test_phase12_hardening.py tests/test_realign_answer.py tests/test_phase9_production_policy.py tests/test_cli.py::test_cli_answer_failure_can_fallback_to_template -q` -> `58 passed in 15.68s`
+- `uv run --with pytest python -m pytest tests/test_realign_answer.py::test_answer_cache_key_ignores_volatile_runtime_metadata tests/test_realign_answer.py::test_answer_cache_round_trips_by_task_and_context -q` -> `2 passed in 2.32s`
+- `uv run --with pytest python -m pytest tests/test_concept_index.py::test_retrieve_concept_chunks_filters_template_intro_and_prefers_term_match -q` -> `1 passed in 1.69s`
+- `uv run --with pytest python -m pytest -q` -> `240 passed in 211.84s`
+
+production self 実測:
+
+- `spec-core`: `.spec-grag/runs/20260502T153505.476508Z-spec-core-f9f636203d11.json`、Concept index v2 chunks 17、warning `concept_index_version_mismatch_rebuilt`
+- query set q1〜q4: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=0`、残りは `classification_low_priority_incomplete`
+- q5: `.spec-grag/runs/20260502T154122.527438Z-spec-inject-c4b65b04c98d.json` は `status=ok`
+- QueryPlan cache hit: `.spec-grag/runs/20260502T154138.492288Z-spec-inject-c57b13ce9e8a.json`、retrieval `4,722ms`、planner LLM calls 0
+- Answer cache hit: `.spec-grag/runs/20260502T154702.759380Z-spec-realign-5aaef0f12cff.json`、answer `2.886ms`、answer LLM calls 0
+
+残る課題:
+
+- BM25 candidate documents は 314〜404/407 とまだ広く、postings / term priority / field weighting の追加監査が必要
+- Answer cache miss はまだ 38秒台
+- low priority cluster incomplete による degraded は q1〜q4 で残る

@@ -236,8 +236,17 @@ class AnswerConfig(RetryConfig):
     sandbox: str = "read-only"
     tools: str = ""
     failure_fallback: Literal["failed", "template"] = "failed"
+    cache_enabled: bool = True
+    cache_path: str = ".spec-grag/cache/answer_cache.json"
+    context_max_source_constraints: int = Field(default=8, ge=1, le=100)
+    context_max_related_sources: int = Field(default=8, ge=1, le=100)
+    context_max_entities: int = Field(default=8, ge=1, le=100)
+    context_max_review_notes: int = Field(default=12, ge=1, le=200)
+    context_max_conflict_notes: int = Field(default=8, ge=1, le=100)
+    context_max_classification_notes: int = Field(default=6, ge=1, le=100)
+    context_excerpt_chars: int = Field(default=700, ge=80, le=5000)
 
-    @field_validator("command", "model", "sandbox")
+    @field_validator("command", "model", "sandbox", "cache_path")
     @classmethod
     def optional_text_must_not_be_empty(cls, value: str | None) -> str | None:
         if value is not None and not value.strip():
@@ -263,6 +272,8 @@ class ClassificationConfig(RetryConfig):
     cache_enabled: bool = True
     cache_path: str = ".spec-grag/cache/classification_cache.json"
     fail_on_high_priority_incomplete: bool = True
+    deferred_enabled: bool = True
+    deferred_max_items: int = Field(default=6, ge=0, le=100)
     fallback_on_error: bool = True
 
     @field_validator("command", "model", "sandbox", "cache_path")
@@ -349,9 +360,13 @@ class QueryPlannerConfig(RetryConfig):
     model: str | None = None
     sandbox: str = "read-only"
     tools: str = ""
+    cache_enabled: bool = True
+    cache_path: str = ".spec-grag/cache/query_plan_cache.json"
+    bm25_term_limit: int = Field(default=80, ge=1, le=1000)
+    dense_query_max_chars: int = Field(default=2000, ge=100, le=20000)
     fallback_on_error: bool = True
 
-    @field_validator("command", "model", "sandbox")
+    @field_validator("command", "model", "sandbox", "cache_path")
     @classmethod
     def optional_text_must_not_be_empty(cls, value: str | None) -> str | None:
         if value is not None and not value.strip():

@@ -346,6 +346,7 @@ def test_classification_priority_selects_purpose_and_raw_source_before_graph_clu
             "max_graph_entities": 1,
             "max_clusters": 1,
             "batch_size": 5,
+            "deferred_enabled": False,
         },
     )
 
@@ -457,9 +458,85 @@ def test_high_priority_classification_candidates_bypass_type_budget() -> None:
     }
     assert high_priority_keys <= selected_keys
     assert run.metrics["high_priority_skipped_count"] == 0
-    assert run.metrics["medium_priority_skipped_count"] == 1
-    assert run.metrics["skipped_count_by_type"] == {"graph_entity": 1}
+    assert run.metrics["medium_priority_skipped_count"] == 0
+    assert run.metrics["deferred_selected_count"] == 1
+    assert run.metrics["deferred_resolved_count"] == 1
+    assert run.metrics["skipped_count_by_type"] == {}
     assert len(calls) == 1
+
+
+def test_deferred_classification_resolves_medium_priority_budget_skips() -> None:
+    calls: list[list[str]] = []
+
+    class RecordingLLM:
+        def complete(self, prompt: str, **_kwargs: Any) -> SimpleNamespace:
+            payload = json.loads(prompt.split("INPUT_JSON:\n", 1)[1])
+            keys = [item["classification_key"] for item in payload["context_items"]]
+            calls.append(keys)
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "decisions": [
+                            {
+                                "classification_key": key,
+                                "constraint_relevance": "medium",
+                                "target_relevance": "medium",
+                                "semantic_conflict_candidate": False,
+                                "review_required": False,
+                                "reason_for_current_task": "deferred check",
+                            }
+                            for key in keys
+                        ]
+                    }
+                )
+            )
+
+    query = "Action signal と emit / 購読の関係"
+    candidates = [
+        classification_candidate_for_item(
+            {
+                "source_section_id": "docs/core/action.md#signals",
+                "source_hash": "hash-source",
+                "source_span": "10-20",
+                "excerpt": "Actions emit signals for subscribers.",
+            },
+            item_type="source_section",
+            query=query,
+        ),
+        classification_candidate_for_item(
+            {
+                "entity_id": "anchor:action:emit",
+                "entity_type": "ANCHOR",
+                "summary": "Action signal emit subscribe relation.",
+                "ranking_score": 0.6,
+            },
+            item_type="graph_entity",
+            query=query,
+        ),
+    ]
+
+    run = classify_candidates_by_priority(
+        candidates,
+        query=query,
+        llm=RecordingLLM(),
+        classification_budget={"remaining": 1, "skipped": 0, "llm_calls": 0},
+        fallback_on_error=False,
+        classification_cache={},
+        classification_config={
+            "max_items": 1,
+            "max_source_chunks": 1,
+            "max_graph_entities": 1,
+            "deferred_enabled": True,
+            "deferred_max_items": 1,
+            "batch_size": 5,
+        },
+    )
+
+    assert run.metrics["deferred_selected_count"] == 1
+    assert run.metrics["deferred_resolved_count"] == 1
+    assert run.metrics["medium_priority_skipped_count"] == 0
+    assert run.skipped_count == 0
+    assert sum(len(batch) for batch in calls) == 2
 
 
 def test_classification_candidate_dedup_runs_llm_once_per_classification_key() -> None:

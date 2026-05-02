@@ -2,19 +2,31 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import tempfile
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field, ValidationError, model_validator
 
 from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
-from spec_grag.protocol import InjectionContext, StrictModel
+from spec_grag.protocol import ConstraintContext, InjectionContext, StrictModel, TargetContext
 
 
 ANSWER_PROVIDER_TEMPLATE = "template"
 ANSWER_PROVIDER_CODEX = "codex"
 ANSWER_PROVIDER_CLAUDE = "claude"
+ANSWER_CACHE_VERSION = "1"
+ANSWER_PROMPT_VERSION = "answer-v1"
+ANSWER_CONTEXT_CACHE_IGNORED_KEYS = {
+    "classification_cache_hit",
+    "classification_cache_scope",
+    "generated_at",
+    "last_core_run",
+}
 
 
 class AnswerGenerationError(RuntimeError):
@@ -87,6 +99,178 @@ def answer_failure_fallback_from_config(config: Mapping[str, Any]) -> str:
     return str(answer_config.get("failure_fallback", "failed")).strip().lower()
 
 
+def compact_injection_context_for_answer(
+    injection_context: InjectionContext,
+    config: Mapping[str, Any],
+) -> InjectionContext:
+    answer_config = _mapping(config.get("answer"))
+    excerpt_chars = config_int(answer_config, "context_excerpt_chars", 700)
+    constraint_context = ConstraintContext(
+        purpose_constraints=compact_items(
+            injection_context.constraint_context.purpose_constraints,
+            limit=4,
+            label="purpose_constraints",
+            excerpt_chars=excerpt_chars,
+        ),
+        concept_constraints=compact_items(
+            injection_context.constraint_context.concept_constraints,
+            limit=6,
+            label="concept_constraints",
+            excerpt_chars=excerpt_chars,
+        ),
+        source_spec_constraints=compact_items(
+            injection_context.constraint_context.source_spec_constraints,
+            limit=config_int(answer_config, "context_max_source_constraints", 8),
+            label="source_spec_constraints",
+            excerpt_chars=excerpt_chars,
+        ),
+        chapter_anchor_constraints=compact_items(
+            injection_context.constraint_context.chapter_anchor_constraints,
+            limit=4,
+            label="chapter_anchor_constraints",
+            excerpt_chars=excerpt_chars,
+        ),
+        classification_notes=compact_items(
+            injection_context.constraint_context.classification_notes,
+            limit=config_int(answer_config, "context_max_classification_notes", 6),
+            label="constraint_classification_notes",
+            excerpt_chars=excerpt_chars,
+        ),
+    )
+    target_context = TargetContext(
+        candidate_targets=compact_items(
+            injection_context.target_context.candidate_targets,
+            limit=4,
+            label="candidate_targets",
+            excerpt_chars=excerpt_chars,
+        ),
+        related_concepts=compact_items(
+            injection_context.target_context.related_concepts,
+            limit=6,
+            label="related_concepts",
+            excerpt_chars=excerpt_chars,
+        ),
+        related_source_sections=compact_items(
+            injection_context.target_context.related_source_sections,
+            limit=config_int(answer_config, "context_max_related_sources", 8),
+            label="related_source_sections",
+            excerpt_chars=excerpt_chars,
+        ),
+        related_chapter_anchors=compact_items(
+            injection_context.target_context.related_chapter_anchors,
+            limit=4,
+            label="related_chapter_anchors",
+            excerpt_chars=excerpt_chars,
+        ),
+        related_entities=compact_items(
+            injection_context.target_context.related_entities,
+            limit=config_int(answer_config, "context_max_entities", 8),
+            label="related_entities",
+            excerpt_chars=excerpt_chars,
+        ),
+        classification_notes=compact_items(
+            injection_context.target_context.classification_notes,
+            limit=config_int(answer_config, "context_max_classification_notes", 6),
+            label="target_classification_notes",
+            excerpt_chars=excerpt_chars,
+        ),
+    )
+    return injection_context.model_copy(
+        update={
+            "constraint_context": constraint_context,
+            "target_context": target_context,
+            "excluded_as_irrelevant": compact_items(
+                injection_context.excluded_as_irrelevant,
+                limit=4,
+                label="excluded_as_irrelevant",
+                excerpt_chars=excerpt_chars,
+            ),
+            "conflict_notes": compact_items(
+                injection_context.conflict_notes,
+                limit=config_int(answer_config, "context_max_conflict_notes", 8),
+                label="conflict_notes",
+                excerpt_chars=excerpt_chars,
+            ),
+            "review_notes": compact_items(
+                injection_context.review_notes,
+                limit=config_int(answer_config, "context_max_review_notes", 12),
+                label="review_notes",
+                excerpt_chars=excerpt_chars,
+            ),
+        }
+    )
+
+
+def compact_items(
+    items: list[dict[str, Any]],
+    *,
+    limit: int,
+    label: str,
+    excerpt_chars: int,
+) -> list[dict[str, Any]]:
+    compacted = [
+        compact_item(item, excerpt_chars=excerpt_chars)
+        for item in items[: max(0, int(limit))]
+    ]
+    omitted = len(items) - len(compacted)
+    if omitted > 0:
+        compacted.append(
+            {
+                "source_origin": "answer_context_compaction",
+                "reason": f"{omitted} {label} item(s) omitted from Answer prompt",
+                "review_required": True,
+            }
+        )
+    return compacted
+
+
+def compact_item(item: dict[str, Any], *, excerpt_chars: int) -> dict[str, Any]:
+    keep_keys = (
+        "source_origin",
+        "summary",
+        "heading_path",
+        "document_id",
+        "chapter_id",
+        "section_id",
+        "source_section_id",
+        "source_span",
+        "source_hash",
+        "stable_section_uid",
+        "stable_chunk_uid",
+        "concept_chunk_id",
+        "chapter_anchor_id",
+        "entity_id",
+        "entity_type",
+        "cluster_id",
+        "file",
+        "constraint_relevance",
+        "target_relevance",
+        "semantic_conflict_candidate",
+        "review_required",
+        "classification_source",
+        "classification_llm_skipped",
+        "classification_budget_skip_reason",
+        "reason_for_current_task",
+        "reason",
+        "warnings",
+    )
+    compacted = {key: item[key] for key in keep_keys if key in item}
+    excerpt = item.get("excerpt") or item.get("evidence_excerpt")
+    if excerpt:
+        compacted["excerpt"] = truncate_text(str(excerpt), excerpt_chars)
+    key_terms = item.get("key_terms")
+    if isinstance(key_terms, list):
+        compacted["key_terms"] = key_terms[:12]
+    return compacted
+
+
+def truncate_text(text: str, max_chars: int) -> str:
+    max_chars = max(80, int(max_chars))
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1].rstrip() + "…"
+
+
 def generate_realign_answer(
     task_prompt: str,
     injection_context: InjectionContext,
@@ -105,6 +289,129 @@ def generate_realign_answer(
         sections = generate_answer_sections_with_llm(task_prompt, injection_context, llm)
     sections = ensure_conflict_and_review_visible(sections, injection_context)
     return render_answer_sections(sections)
+
+
+def answer_cache_path(project_root: Path, config: Mapping[str, Any]) -> Path:
+    answer_config = _mapping(config.get("answer"))
+    configured = answer_config.get("cache_path", ".spec-grag/cache/answer_cache.json")
+    path = Path(str(configured))
+    if not path.is_absolute():
+        path = project_root / path
+    return path
+
+
+def load_answer_cache(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {"version": ANSWER_CACHE_VERSION, "entries": {}}
+    if not isinstance(payload, dict):
+        return {"version": ANSWER_CACHE_VERSION, "entries": {}}
+    entries = payload.get("entries")
+    if not isinstance(entries, dict):
+        entries = {}
+    return {"version": ANSWER_CACHE_VERSION, "entries": entries}
+
+
+def answer_cache_enabled(config: Mapping[str, Any]) -> bool:
+    return bool(_mapping(config.get("answer")).get("cache_enabled", True))
+
+
+def answer_cache_key(
+    *,
+    task_prompt: str,
+    injection_context: InjectionContext,
+    config: Mapping[str, Any],
+) -> str:
+    payload = {
+        "task_prompt": task_prompt,
+        "context": stable_answer_context_payload(injection_context),
+        "policy": answer_cache_policy(config),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
+def answer_cache_policy(config: Mapping[str, Any]) -> dict[str, Any]:
+    answer_config = _mapping(config.get("answer"))
+    return {
+        "version": ANSWER_CACHE_VERSION,
+        "prompt": ANSWER_PROMPT_VERSION,
+        "provider": str(answer_config.get("provider", "")),
+        "model": str(answer_config.get("model", "")),
+    }
+
+
+def answer_cache_hit(
+    cache: Mapping[str, Any],
+    *,
+    cache_key: str,
+    config: Mapping[str, Any],
+) -> str | None:
+    entries = cache.get("entries")
+    if not isinstance(entries, Mapping):
+        return None
+    entry = entries.get(cache_key)
+    if not isinstance(entry, Mapping):
+        return None
+    if entry.get("policy") != answer_cache_policy(config):
+        return None
+    answer = entry.get("answer")
+    return answer if isinstance(answer, str) and answer.strip() else None
+
+
+def store_answer_cache(
+    path: Path,
+    cache: dict[str, Any],
+    *,
+    cache_key: str,
+    task_prompt: str,
+    injection_context: InjectionContext,
+    config: Mapping[str, Any],
+    answer: str,
+) -> None:
+    entries = cache.setdefault("entries", {})
+    if not isinstance(entries, dict):
+        entries = {}
+        cache["entries"] = entries
+    entries[cache_key] = {
+        "policy": answer_cache_policy(config),
+        "task_prompt_hash": sha256_text(task_prompt),
+        "context_hash": sha256_text(
+            json.dumps(
+                stable_answer_context_payload(injection_context),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        ),
+        "answer": answer,
+    }
+    write_json_atomic(
+        path,
+        {
+            "version": ANSWER_CACHE_VERSION,
+            "entries": dict(sorted(entries.items())),
+        },
+    )
+
+
+def stable_answer_context_payload(injection_context: InjectionContext) -> dict[str, Any]:
+    return strip_answer_context_volatile_keys(
+        injection_context.model_dump(mode="json")
+    )
+
+
+def strip_answer_context_volatile_keys(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: strip_answer_context_volatile_keys(item)
+            for key, item in value.items()
+            if key not in ANSWER_CONTEXT_CACHE_IGNORED_KEYS
+        }
+    if isinstance(value, list):
+        return [strip_answer_context_volatile_keys(item) for item in value]
+    return value
 
 
 def generate_answer_sections_with_llm(
@@ -259,6 +566,37 @@ def render_lines(lines: list[str], fallback: str) -> str:
 
 def warning_items(warnings: list[str]) -> list[dict[str, Any]]:
     return [{"reason": warning, "review_required": True} for warning in warnings]
+
+
+def config_int(config: Mapping[str, Any], key: str, default: int) -> int:
+    try:
+        return int(config.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

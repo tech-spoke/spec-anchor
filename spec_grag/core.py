@@ -19,6 +19,7 @@ from llama_index.core.graph_stores.types import EntityNode, Relation
 from llama_index.core.vector_stores.simple import SimpleVectorStore
 
 from spec_grag.concept_index import (
+    CONCEPT_INDEX_VERSION,
     ConceptDiffProposalError,
     concept_index_path,
     configured_concept_file,
@@ -1773,6 +1774,8 @@ def _concept_index_is_fresh(
     if existing is None:
         return False
     return (
+        existing.version == CONCEPT_INDEX_VERSION
+        and
         existing.concept_file_hash == concept_file_hash(concept_file)
         and embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
     )

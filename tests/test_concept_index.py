@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from spec_grag.concept_diff import (
@@ -10,12 +11,15 @@ from spec_grag.concept_diff import (
     create_pending_concept_diff,
 )
 from spec_grag.concept_index import (
+    ConceptIndex,
+    ConceptIndexChunk,
     build_concept_index,
     concept_index_path,
     refresh_concept_index,
     split_concept_paragraphs,
 )
 from spec_grag.embedding import EmbeddingMetadata
+from spec_grag.injection import retrieve_concept_chunks
 from spec_grag.protocol import Command
 
 
@@ -42,6 +46,76 @@ def test_split_concept_paragraphs_by_heading_and_paragraph() -> None:
         ("Concept", 0, "Auth protects sessions."),
         ("Concept", 1, "Keep tokens short."),
         ("Concept / Login", 0, "OAuth is required."),
+    ]
+
+
+def test_split_concept_paragraphs_splits_markdown_list_items() -> None:
+    paragraphs = split_concept_paragraphs(
+        "# Concept\n\n"
+        "Intro line one\n"
+        "continues here.\n\n"
+        "## Source-derived concepts\n\n"
+        "- Scoped Store: state owner.\n"
+        "- runtime: step-local values.\n"
+        "  continuation detail.\n"
+        "1. Action signal: emit/on.\n"
+    )
+
+    assert [(p.heading_path, p.paragraph_index, p.text) for p in paragraphs] == [
+        ("Concept", 0, "Intro line one\ncontinues here."),
+        ("Concept / Source-derived concepts", 0, "- Scoped Store: state owner."),
+        (
+            "Concept / Source-derived concepts",
+            1,
+            "- runtime: step-local values.\n  continuation detail.",
+        ),
+        ("Concept / Source-derived concepts", 2, "1. Action signal: emit/on."),
+    ]
+
+
+def test_retrieve_concept_chunks_filters_template_intro_and_prefers_term_match(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr("spec_grag.injection.embedding_for_text", lambda *_args, **_kwargs: [1.0])
+    index = ConceptIndex(
+        concept_file="docs/core/concept.md",
+        concept_file_hash="hash",
+        chunks=[
+            ConceptIndexChunk(
+                concept_chunk_id="concept:intro",
+                heading_path="Concept",
+                paragraph_index=0,
+                text_hash="intro",
+                text=(
+                    "Capture stable architecture principles and recurring terms here. "
+                    "SPEC-grag may propose guarded updates through pending Concept diffs."
+                ),
+                embedding=[1.0],
+            ),
+            ConceptIndexChunk(
+                concept_chunk_id="concept:action-signal",
+                heading_path="Concept / Source-derived concepts",
+                paragraph_index=1,
+                text_hash="action",
+                text="- Action signal: emit / on subscribers dispatch queued signals.",
+                embedding=[1.0],
+            ),
+            ConceptIndexChunk(
+                concept_chunk_id="concept:store",
+                heading_path="Concept / Source-derived concepts",
+                paragraph_index=2,
+                text_hash="store",
+                text="- Scoped Store: state ownership boundary.",
+                embedding=[1.0],
+            ),
+        ],
+    )
+
+    chunks = retrieve_concept_chunks(index, "Action signal emit 購読", limit=2)
+
+    assert [chunk.concept_chunk_id for chunk, _score in chunks] == [
+        "concept:action-signal",
+        "concept:store",
     ]
 
 
@@ -98,6 +172,37 @@ def test_refresh_concept_index_is_idempotent_until_concept_hash_changes(
     assert second.generated_at == "t1"
     assert third.generated_at == "t3"
     assert third.concept_file_hash != first.concept_file_hash
+
+
+def test_refresh_concept_index_rebuilds_on_index_version_change(
+    tmp_path: Path,
+) -> None:
+    write_concept(tmp_path, "# Concept\n\n- Auth protects sessions.\n")
+    graph_dir = tmp_path / ".spec-grag/graph"
+
+    first, first_warnings = refresh_concept_index(
+        tmp_path,
+        config(),
+        graph_dir,
+        generated_at="t1",
+    )
+    path = concept_index_path(graph_dir)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["version"] = "1"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    second, second_warnings = refresh_concept_index(
+        tmp_path,
+        config(),
+        graph_dir,
+        generated_at="t2",
+    )
+
+    assert first_warnings == []
+    assert second_warnings == ["concept_index_version_mismatch_rebuilt"]
+    assert first is not None
+    assert second is not None
+    assert first.generated_at == "t1"
+    assert second.generated_at == "t2"
 
 
 def test_refresh_concept_index_rebuilds_on_embedding_metadata_change(

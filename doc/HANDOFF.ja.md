@@ -36,15 +36,30 @@ classification は high priority skip なしまで改善したが、`classificat
 - 修正後 artifact `.spec-grag/runs/20260502T084927.386804Z-spec-inject-2bf9dae9cfe6.json`: `status=degraded`、`high_priority_skipped_count=0`、`medium_priority_skipped_count=4`、`degraded_components=['classification']`
 - 検証: `uv run --with pytest python -m pytest -q` -> `229 passed in 187.76s`
 
+2026-05-03 監査実装追補:
+
+- query planner: QueryPlan persistent cache を追加し、BM25 query を raw query + identifiers/entities/expected areas に分離。expanded QueryPlan は dense query 用に限定し、BM25 query terms は cap 80
+- Concept retrieval: Concept index を v2 に更新し、Markdown list item を 1 concept chunk とする。readiness は旧 concept index version を stale として検出する。テンプレート導入文 chunk は query-side filter で除外
+- answer: Answer prompt 用 InjectionContext compaction と Answer persistent cache を追加。cache key は freshness timestamp / classification cache-hit metadata を除外して安定化
+- classification: primary budget 後の deferred classification を追加。medium / low skipped を最大 6 件追加分類し、production の silent rule-based fallback 不可は維持
+- config: `[query_planner] cache_enabled/cache_path/bm25_term_limit/dense_query_max_chars`、`[answer] cache_enabled/cache_path/context_*`、`[classification] deferred_enabled/deferred_max_items` を repo / template / setup に追加
+
+2026-05-03 実測:
+
+- `spec-core` concept index v2 再生成: `.spec-grag/runs/20260502T153505.476508Z-spec-core-f9f636203d11.json`、`concept_index` input chunks 17、warning `concept_index_version_mismatch_rebuilt`
+- retrieval query set: q1〜q4 は `classification_low_priority_incomplete` で degraded、q5 は ok。全 query で `high_priority_skipped_count=0` / `medium_priority_skipped_count=0`
+- QueryPlan cache: q5 repeat `.spec-grag/runs/20260502T154138.492288Z-spec-inject-c57b13ce9e8a.json` は retrieval `4,722ms`、planner LLM calls 0、`query_plan_cache_hit=true`
+- Answer cache: miss `.spec-grag/runs/20260502T154645.565178Z-spec-realign-d0c0cfd9dbbf.json` は answer `38,386ms` / LLM 1 call。hit `.spec-grag/runs/20260502T154702.759380Z-spec-realign-5aaef0f12cff.json` は answer `2.886ms` / LLM 0 call / `answer_cache_hit=true`
+- 検証: focused regression `58 passed in 15.68s`、full regression `240 passed in 211.84s`
+
 次セッションの残監査キュー:
 
-1. query planner latency を見る。no-change inject / realign でも retrieval stage の query planner LLM が残り、query set では retrieval 約10〜18秒、BM25 query terms 662〜989 が出ているため、QueryPlan cache または deterministic fast path を検討する。
-2. answer generation latency を見る。`spec-realign` では answer LLM が 40 秒台を占めるため、prompt / model / schema / cache / NeedMoreContext policy を分けて調査する。
-3. Concept retrieval 品質を調整する。`Concept / Source-derived concepts` の巨大 chunk と導入文 chunk が多くの query で混じるため、Concept index chunking / top-k / query-side filtering を見る。
-4. graph/chapter/cluster の deferred classification を検討する。現 policy は degraded 維持で確定したが、answer 使用直前に実際に使う medium / low 候補だけ追加分類する余地がある。
-5. Contract / design drift 監査を進める。`EXTERNAL_DESIGN` / `DESIGN` / implementation / test / artifact matrix を埋め、`PARTIAL` を `OK` / `DRIFT` へ確定する。
-6. Failure / recovery と artifact lifecycle を確認する。failed staging diagnostics、old smoke artifact から production artifact への再生成手順、stable ID 導入後の incremental alias 混入を重点に見る。
-7. Security / privacy / production reachability を再確認する。mock / fake provider 到達性、query path read-only 全 entrypoint、run artifact request/response opt-in、prompt untrusted boundary を静的 trace と artifact で見る。
+1. Retrieval 品質の残りを見る。BM25 terms は 80 に抑えたが、candidate documents はまだ 314〜404/407 と広い。特に `section_max_heading_level` query は Source specs 側の直接語が薄く、dense の周辺 section 依存が残る。
+2. cold answer latency を見る。Answer cache hit は効くが、cache miss の answer LLM はまだ 38秒台。
+3. low priority incomplete の扱いを見る。medium は deferred で消えたが、q1〜q4 は low priority cluster incomplete で degraded が残る。
+4. Contract / design drift 監査を進める。`EXTERNAL_DESIGN` / `DESIGN` / implementation / test / artifact matrix を埋め、`PARTIAL` を `OK` / `DRIFT` へ確定する。
+5. Failure / recovery と artifact lifecycle を確認する。failed staging diagnostics、old smoke artifact から production artifact への再生成手順、stable ID 導入後の incremental alias 混入を重点に見る。
+6. Security / privacy / production reachability を再確認する。mock / fake provider 到達性、query path read-only 全 entrypoint、run artifact request/response opt-in、prompt untrusted boundary を静的 trace と artifact で見る。
 
 次セッション開始時の推奨:
 

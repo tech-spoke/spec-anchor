@@ -77,9 +77,16 @@ from spec_grag.readiness import (
 from spec_grag.realign import (
     AnswerGenerationError,
     AnswerNeedsMoreContext,
+    answer_cache_enabled,
+    answer_cache_hit,
+    answer_cache_key,
+    answer_cache_path,
     answer_failure_fallback_from_config,
+    compact_injection_context_for_answer,
     generate_realign_answer,
+    load_answer_cache,
     make_answer_llm_from_config,
+    store_answer_cache,
 )
 from spec_grag.run_artifacts import maybe_write_run_artifact
 from spec_grag.timing import (
@@ -1271,8 +1278,55 @@ def run_spec_realign(
         )
         with timer.stage("answer_generation", metrics=answer_metrics) as stage:
             answer_llm = make_answer_llm_from_config(config)
-            stage.metrics["llm_calls"] = 0 if answer_llm is None else 1
-            answer = generate_realign_answer(task_prompt, build.payload, llm=answer_llm)
+            answer_context = compact_injection_context_for_answer(build.payload, config)
+            stage.metrics["answer_context_compacted"] = (
+                answer_context.model_dump(mode="json")
+                != build.payload.model_dump(mode="json")
+            )
+            cache_path = answer_cache_path(project_root, config)
+            cache_payload: dict[str, Any] | None = None
+            cache_key = ""
+            if answer_llm is not None and answer_cache_enabled(config):
+                cache_payload = load_answer_cache(cache_path)
+                cache_key = answer_cache_key(
+                    task_prompt=task_prompt,
+                    injection_context=answer_context,
+                    config=config,
+                )
+                cached_answer = answer_cache_hit(
+                    cache_payload,
+                    cache_key=cache_key,
+                    config=config,
+                )
+                if cached_answer is not None:
+                    stage.metrics["llm_calls"] = 0
+                    stage.metrics["answer_cache_hit"] = True
+                    answer = cached_answer
+                else:
+                    stage.metrics["llm_calls"] = 1
+                    stage.metrics["answer_cache_hit"] = False
+                    answer = generate_realign_answer(
+                        task_prompt,
+                        answer_context,
+                        llm=answer_llm,
+                    )
+                    store_answer_cache(
+                        cache_path,
+                        cache_payload,
+                        cache_key=cache_key,
+                        task_prompt=task_prompt,
+                        injection_context=answer_context,
+                        config=config,
+                        answer=answer,
+                    )
+            else:
+                stage.metrics["llm_calls"] = 0 if answer_llm is None else 1
+                stage.metrics["answer_cache_hit"] = False
+                answer = generate_realign_answer(
+                    task_prompt,
+                    answer_context,
+                    llm=answer_llm,
+                )
     except ValueError as exc:
         return error_envelope(
             "answer_config_invalid",

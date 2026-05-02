@@ -30,6 +30,8 @@ CHUNK_INDEX_VERSION = "1"
 DOCUMENT_CHUNKS_FILENAME = "document_chunks.json"
 CHUNK_VECTOR_INDEX_FILENAME = "chunk_vector_index.json"
 BM25_INDEX_FILENAME = "bm25_index.json"
+QUERY_PLAN_CACHE_VERSION = "1"
+QUERY_PLAN_PROMPT_VERSION = "query-plan-v1"
 
 DEFAULT_CHUNK_SIZE = 1600
 DEFAULT_CHUNK_OVERLAP = 200
@@ -38,6 +40,8 @@ DEFAULT_BM25_TOP_K = 12
 DEFAULT_MAX_SOURCE_CHUNKS = 12
 DEFAULT_RRF_K = 60.0
 BM25_ANALYZER = "char2_3+identifier-v1"
+DEFAULT_BM25_QUERY_TERM_LIMIT = 80
+DEFAULT_DENSE_QUERY_MAX_CHARS = 2000
 
 _IDENTIFIER_RE = re.compile(
     r"[@#]?[A-Za-z_][A-Za-z0-9_./:@#-]*|[A-Za-z0-9_]+(?:[./:@#-][A-Za-z0-9_]+)+"
@@ -484,9 +488,27 @@ def retrieve_hybrid_chunks(
     if not chunks.chunks:
         return [], template_query_plan(query), ["document_chunks_missing_or_empty"]
 
-    query_plan, planner_warnings = query_plan_from_config(query=query, config=config)
+    query_plan, planner_warnings = query_plan_from_config(
+        query=query,
+        config=config,
+        project_root=project_root,
+        graph_revision=chunks.graph_revision,
+        metrics=metrics,
+    )
     warnings.extend(planner_warnings)
-    retrieval_query = query_text_for_plan(query, query_plan)
+    bm25_query = bm25_query_text_for_plan(query, query_plan)
+    dense_query = dense_query_text_for_plan(
+        query,
+        query_plan,
+        max_chars=query_planner_int(
+            config,
+            "dense_query_max_chars",
+            DEFAULT_DENSE_QUERY_MAX_CHARS,
+        ),
+    )
+    if metrics is not None:
+        metrics["bm25_query_mode"] = "raw_query_identifiers_entities"
+        metrics["dense_query_mode"] = "query_plan_expanded"
     max_chunks = retrieval_int(config, "max_source_chunks", DEFAULT_MAX_SOURCE_CHUNKS)
 
     bm25 = load_bm25_index(bm25_index_path(graph_storage))
@@ -496,8 +518,13 @@ def retrieve_hybrid_chunks(
     else:
         bm25_hits = bm25_search(
             bm25,
-            retrieval_query,
+            bm25_query,
             limit=retrieval_int(config, "bm25_top_k", DEFAULT_BM25_TOP_K),
+            term_limit=query_planner_int(
+                config,
+                "bm25_term_limit",
+                DEFAULT_BM25_QUERY_TERM_LIMIT,
+            ),
             metrics=metrics,
         )
 
@@ -510,7 +537,7 @@ def retrieve_hybrid_chunks(
             vector,
             embedding_config=_mapping(config.get("embedding")),
         ).search(
-            retrieval_query,
+            dense_query,
             limit=retrieval_int(config, "vector_top_k", DEFAULT_VECTOR_TOP_K),
             metrics=metrics,
         )
@@ -536,18 +563,166 @@ def query_plan_from_config(
     *,
     query: str,
     config: Mapping[str, Any],
+    project_root: Path | None = None,
+    graph_revision: str | None = None,
+    metrics: dict[str, Any] | None = None,
 ) -> tuple[QueryPlan, list[str]]:
     planner_config = _mapping(config.get("query_planner"))
     provider = str(planner_config.get("provider", "template")).strip().lower()
     if provider in {"template", "deterministic", "none", "disabled", ""}:
+        if metrics is not None:
+            metrics["llm_calls"] = 0
+            metrics["query_plan_cache_hit"] = False
         return template_query_plan(query), []
+    cache_key = ""
+    cache_payload: dict[str, Any] | None = None
+    if project_root is not None and bool(planner_config.get("cache_enabled", True)):
+        cache_payload = load_query_plan_cache(
+            query_plan_cache_path(project_root, planner_config)
+        )
+        cache_key = query_plan_cache_key(
+            query=query,
+            graph_revision=graph_revision,
+            planner_config=planner_config,
+        )
+        cached_plan = query_plan_cache_hit(
+            cache_payload,
+            cache_key=cache_key,
+            planner_config=planner_config,
+        )
+        if cached_plan is not None:
+            if metrics is not None:
+                metrics["llm_calls"] = 0
+                metrics["query_plan_cache_hit"] = True
+            return cached_plan, []
     try:
         llm = make_query_planner_llm_from_config(config)
-        return generate_query_plan_with_llm(query, llm=llm), []
+        plan = generate_query_plan_with_llm(query, llm=llm)
+        if metrics is not None:
+            metrics["llm_calls"] = 1
+            metrics["query_plan_cache_hit"] = False
+        if project_root is not None and cache_payload is not None and cache_key:
+            store_query_plan_cache(
+                query_plan_cache_path(project_root, planner_config),
+                cache_payload,
+                cache_key=cache_key,
+                query=query,
+                graph_revision=graph_revision,
+                planner_config=planner_config,
+                plan=plan,
+            )
+        return plan, []
     except (CLIAdapterError, ValidationError, ValueError, RuntimeError) as exc:
         if bool(planner_config.get("fallback_on_error", True)):
+            if metrics is not None:
+                metrics["llm_calls"] = 1
+                metrics["query_plan_cache_hit"] = False
             return template_query_plan(query), [f"query_planner_fallback_template:{exc}"]
         raise
+
+
+def query_plan_cache_path(
+    project_root: Path,
+    planner_config: Mapping[str, Any],
+) -> Path:
+    configured = planner_config.get(
+        "cache_path",
+        ".spec-grag/cache/query_plan_cache.json",
+    )
+    path = Path(str(configured))
+    if not path.is_absolute():
+        path = project_root / path
+    return path
+
+
+def load_query_plan_cache(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {"version": QUERY_PLAN_CACHE_VERSION, "entries": {}}
+    if not isinstance(payload, dict):
+        return {"version": QUERY_PLAN_CACHE_VERSION, "entries": {}}
+    entries = payload.get("entries")
+    if not isinstance(entries, dict):
+        entries = {}
+    return {"version": QUERY_PLAN_CACHE_VERSION, "entries": entries}
+
+
+def query_plan_cache_key(
+    *,
+    query: str,
+    graph_revision: str | None,
+    planner_config: Mapping[str, Any],
+) -> str:
+    payload = {
+        "query": query,
+        "graph_revision": graph_revision,
+        "policy": query_plan_cache_policy(planner_config),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
+def query_plan_cache_policy(planner_config: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "version": QUERY_PLAN_CACHE_VERSION,
+        "prompt": QUERY_PLAN_PROMPT_VERSION,
+        "provider": str(planner_config.get("provider", "")),
+        "model": str(planner_config.get("model", "")),
+    }
+
+
+def query_plan_cache_hit(
+    cache: Mapping[str, Any],
+    *,
+    cache_key: str,
+    planner_config: Mapping[str, Any],
+) -> QueryPlan | None:
+    entries = cache.get("entries")
+    if not isinstance(entries, Mapping):
+        return None
+    entry = entries.get(cache_key)
+    if not isinstance(entry, Mapping):
+        return None
+    if entry.get("policy") != query_plan_cache_policy(planner_config):
+        return None
+    plan = entry.get("plan")
+    if not isinstance(plan, Mapping):
+        return None
+    try:
+        return QueryPlan.model_validate(plan)
+    except ValidationError:
+        return None
+
+
+def store_query_plan_cache(
+    path: Path,
+    cache: dict[str, Any],
+    *,
+    cache_key: str,
+    query: str,
+    graph_revision: str | None,
+    planner_config: Mapping[str, Any],
+    plan: QueryPlan,
+) -> None:
+    entries = cache.setdefault("entries", {})
+    if not isinstance(entries, dict):
+        entries = {}
+        cache["entries"] = entries
+    entries[cache_key] = {
+        "policy": query_plan_cache_policy(planner_config),
+        "query_hash": sha256_text(query),
+        "graph_revision": graph_revision,
+        "plan": plan.model_dump(mode="json"),
+    }
+    write_json_atomic(
+        path,
+        {
+            "version": QUERY_PLAN_CACHE_VERSION,
+            "entries": dict(sorted(entries.items())),
+        },
+    )
 
 
 def make_query_planner_llm_from_config(config: Mapping[str, Any]) -> Any:
@@ -627,14 +802,53 @@ def query_text_for_plan(query: str, plan: QueryPlan) -> str:
     return " ".join(part for part in parts if part)
 
 
+def bm25_query_text_for_plan(query: str, plan: QueryPlan) -> str:
+    parts = [
+        query,
+        *plan.must_include_identifiers,
+        *plan.low_level_entities,
+        *plan.expected_source_areas,
+    ]
+    return " ".join(part for part in unique_nonempty(parts))
+
+
+def dense_query_text_for_plan(
+    query: str,
+    plan: QueryPlan,
+    *,
+    max_chars: int,
+) -> str:
+    text = query_text_for_plan(query, plan)
+    max_chars = max(100, int(max_chars))
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rsplit(" ", 1)[0] or text[:max_chars]
+
+
+def unique_nonempty(parts: Sequence[str]) -> list[str]:
+    seen: set[str] = set()
+    values: list[str] = []
+    for part in parts:
+        text = str(part).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        values.append(text)
+    return values
+
+
 def bm25_search(
     index: BM25Index,
     query: str,
     *,
     limit: int,
+    term_limit: int | None = None,
     metrics: dict[str, Any] | None = None,
 ) -> list[tuple[str, float]]:
     query_terms = Counter(analyze_text(query))
+    raw_query_term_count = len(query_terms)
+    if term_limit is not None:
+        query_terms = capped_query_terms(query_terms, limit=term_limit)
     if not query_terms or not index.documents or index.average_doc_length <= 0:
         return []
     scores: list[tuple[str, float]] = []
@@ -648,11 +862,13 @@ def bm25_search(
         candidate_ids = set(documents_by_id)
     if not candidate_ids:
         if metrics is not None:
+            metrics["bm25_query_terms_before_cap"] = raw_query_term_count
             metrics["bm25_query_terms"] = len(query_terms)
             metrics["bm25_candidate_documents"] = 0
             metrics["bm25_total_documents"] = len(index.documents)
         return []
     if metrics is not None:
+        metrics["bm25_query_terms_before_cap"] = raw_query_term_count
         metrics["bm25_query_terms"] = len(query_terms)
         metrics["bm25_candidate_documents"] = len(candidate_ids)
         metrics["bm25_total_documents"] = len(index.documents)
@@ -682,6 +898,33 @@ def bm25_search(
         if score > 0 and bm25_match_is_meaningful(matched_terms):
             scores.append((bm25_document_primary_key(document), round(score, 6)))
     return sorted(scores, key=lambda item: (-item[1], item[0]))[:limit]
+
+
+def capped_query_terms(query_terms: Counter[str], *, limit: int) -> Counter[str]:
+    limit = max(1, int(limit))
+    if len(query_terms) <= limit:
+        return query_terms
+    selected = sorted(
+        query_terms,
+        key=lambda term: (
+            query_term_priority(term),
+            -query_terms[term],
+            term,
+        ),
+    )[:limit]
+    return Counter({term: query_terms[term] for term in selected})
+
+
+def query_term_priority(term: str) -> int:
+    if term.startswith("id:"):
+        return 0
+    if term.startswith("word:"):
+        return 1
+    if term.startswith("char3:"):
+        return 2
+    if term.startswith("char2:"):
+        return 3
+    return 4
 
 
 def bm25_match_is_meaningful(matched_terms: Sequence[str]) -> bool:
@@ -903,8 +1146,18 @@ def write_bm25_index_atomic(path: Path, index: BM25Index) -> None:
 
 
 def write_model_atomic(path: Path, model: StrictModel) -> None:
+    write_text_atomic(path, model.model_dump_json(indent=2) + "\n")
+
+
+def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
+    write_text_atomic(
+        path,
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+    )
+
+
+def write_text_atomic(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = model.model_dump_json(indent=2) + "\n"
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
     )
@@ -951,6 +1204,11 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
 def retrieval_int(config: Mapping[str, Any], key: str, default: int) -> int:
     retrieval_config = _mapping(config.get("retrieval"))
     return int(retrieval_config.get(key, default))
+
+
+def query_planner_int(config: Mapping[str, Any], key: str, default: int) -> int:
+    planner_config = _mapping(config.get("query_planner"))
+    return int(planner_config.get(key, default))
 
 
 def normalize_line_endings(text: str) -> str:

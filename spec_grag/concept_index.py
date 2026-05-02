@@ -41,7 +41,7 @@ from spec_grag.watch_state import (
 )
 
 
-CONCEPT_INDEX_VERSION = "1"
+CONCEPT_INDEX_VERSION = "2"
 CONCEPT_INDEX_FILENAME = "concept_index.json"
 SOURCE_DERIVED_HEADING = "Source-derived concepts"
 
@@ -138,10 +138,16 @@ def refresh_concept_index(
     path = concept_index_path(graph_storage)
     current_hash = concept_file_hash(concept_file)
     embedding_metadata = embedding_metadata_from_config(config, generated_at=generated_at)
-    existing_has_embedding_metadata = _json_file_has_key(path, "embedding_metadata")
     existing = load_concept_index(path)
+    existing_has_embedding_metadata = _json_file_has_key(path, "embedding_metadata")
+    existing_has_current_version = (
+        _json_file_has_key(path, "version")
+        and existing is not None
+        and existing.version == CONCEPT_INDEX_VERSION
+    )
     if (
         existing is not None
+        and existing_has_current_version
         and existing_has_embedding_metadata
         and existing.concept_file_hash == current_hash
         and embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
@@ -157,6 +163,8 @@ def refresh_concept_index(
     )
     write_concept_index_atomic(path, index)
     warnings = []
+    if existing is not None and not existing_has_current_version:
+        warnings.append("concept_index_version_mismatch_rebuilt")
     if existing is not None and (
         not existing_has_embedding_metadata
         or not embedding_identity_matches(existing.embedding_metadata, embedding_metadata)
@@ -210,14 +218,17 @@ def split_concept_paragraphs(text: str) -> list[_ConceptParagraph]:
     heading_stack: list[tuple[int, str]] = []
     paragraphs: list[_ConceptParagraph] = []
     current: list[str] = []
+    current_kind: str | None = None
     paragraph_index_by_heading: dict[str, int] = {}
 
     def current_heading_path() -> str:
         return " / ".join(title for _, title in heading_stack) or "root"
 
     def flush() -> None:
+        nonlocal current_kind
         body = "\n".join(line for line in current).strip()
         current.clear()
+        current_kind = None
         if not body:
             return
         heading_path = current_heading_path()
@@ -237,9 +248,39 @@ def split_concept_paragraphs(text: str) -> list[_ConceptParagraph]:
         if not line.strip():
             flush()
             continue
+        if is_markdown_list_item(line):
+            flush()
+            current.append(line)
+            current_kind = "list_item"
+            continue
+        if current_kind == "list_item" and is_markdown_list_continuation(line):
+            current.append(line)
+            continue
+        if current_kind == "list_item":
+            flush()
         current.append(line)
+        current_kind = "paragraph"
     flush()
     return paragraphs
+
+
+def is_markdown_list_item(line: str) -> bool:
+    stripped = line.lstrip()
+    if stripped.startswith(("- ", "* ", "+ ")):
+        return True
+    marker_end = 0
+    while marker_end < len(stripped) and stripped[marker_end].isdigit():
+        marker_end += 1
+    return (
+        marker_end > 0
+        and marker_end + 1 < len(stripped)
+        and stripped[marker_end] in {".", ")"}
+        and stripped[marker_end + 1].isspace()
+    )
+
+
+def is_markdown_list_continuation(line: str) -> bool:
+    return line.startswith((" ", "\t"))
 
 
 def generate_concept_diff_candidate(

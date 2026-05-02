@@ -22,13 +22,14 @@ from spec_grag.concept_diff import (
     load_pending_concept_diff,
 )
 from spec_grag.concept_index import (
+    CONCEPT_INDEX_VERSION,
     build_concept_index,
     generate_concept_diff_candidate,
     generate_queued_concept_diff_candidate,
     write_concept_index_atomic,
 )
 from spec_grag.config import ExecutionRole
-from spec_grag.core import GRAPH_STORE_FILENAME
+from spec_grag.core import GRAPH_STORE_FILENAME, run_core_update
 from spec_grag.manifest import load_source_manifest
 from spec_grag.protocol import Command, ResultEnvelope, ResultStatus, ResultType
 from spec_grag.readiness import evaluate_grag_readiness
@@ -375,6 +376,24 @@ def test_pending_concept_diff_queues_changed_sections_without_second_diff(
         "docs/spec/auth.md#auth-login"
     ]
     assert any(candidate.label == "Session Boundary" for candidate in cache.candidates)
+
+
+def test_readiness_marks_old_concept_index_version_stale(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_docs(tmp_path)
+    config = load_smoke_config(tmp_path)
+    result = run_core_update(tmp_path, config, all_sources=True)
+    index_path = tmp_path / ".spec-grag/graph/concept_index.json"
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    assert payload["version"] == CONCEPT_INDEX_VERSION
+    payload["version"] = "1"
+    index_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    readiness = evaluate_grag_readiness(tmp_path, config)
+
+    assert result.status == ResultStatus.OK
+    assert readiness.status == "stale"
+    assert "concept_index_version_mismatch" in readiness.stale_reason_codes
 
 
 def test_queued_concept_change_is_reevaluated_after_pending_apply(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -10,9 +11,15 @@ from spec_grag.protocol import FreshnessReport, InjectionContext
 from spec_grag.realign import (
     AnswerNeedsMoreContext,
     AnswerSections,
+    answer_cache_hit,
+    answer_cache_key,
+    answer_cache_path,
     build_answer_prompt,
+    compact_injection_context_for_answer,
     generate_realign_answer,
+    load_answer_cache,
     make_answer_llm_from_config,
+    store_answer_cache,
 )
 from spec_grag.llm_adapters import ClaudeCLIAdapter, CodexCLIAdapter
 
@@ -164,3 +171,99 @@ def test_template_provider_keeps_answer_boundary_promptless() -> None:
     prompt = build_answer_prompt("task", context_with_review_and_conflict())
     assert "project_root" not in prompt
     assert "raw source" in prompt
+
+
+def test_answer_context_compaction_limits_large_lists_and_excerpts() -> None:
+    context = context_with_review_and_conflict()
+    context.constraint_context.source_spec_constraints.extend(
+        {
+            "heading_path": f"Spec / {index}",
+            "excerpt": "x" * 200,
+            "source_hash": f"hash-{index}",
+        }
+        for index in range(5)
+    )
+    context.review_notes.extend(
+        {"reason": f"review-{index}", "review_required": True}
+        for index in range(5)
+    )
+
+    compacted = compact_injection_context_for_answer(
+        context,
+        {
+            "answer": {
+                "context_max_source_constraints": 2,
+                "context_max_review_notes": 2,
+                "context_excerpt_chars": 80,
+            }
+        },
+    )
+
+    source_constraints = compacted.constraint_context.source_spec_constraints
+    review_notes = compacted.review_notes
+    assert len(source_constraints) == 3
+    assert source_constraints[-1]["source_origin"] == "answer_context_compaction"
+    assert len(source_constraints[0]["excerpt"]) <= 80
+    assert len(review_notes) == 3
+    assert review_notes[-1]["review_required"] is True
+
+
+def test_answer_cache_round_trips_by_task_and_context(tmp_path: Path) -> None:
+    config = {
+        "answer": {
+            "provider": "codex",
+            "model": "gpt-test",
+            "cache_path": ".spec-grag/cache/answer_cache.json",
+        }
+    }
+    context = compact_injection_context_for_answer(context_with_review_and_conflict(), config)
+    path = answer_cache_path(tmp_path, config)
+    cache = load_answer_cache(path)
+    cache_key = answer_cache_key(
+        task_prompt="Auth Login",
+        injection_context=context,
+        config=config,
+    )
+
+    store_answer_cache(
+        path,
+        cache,
+        cache_key=cache_key,
+        task_prompt="Auth Login",
+        injection_context=context,
+        config=config,
+        answer="cached answer",
+    )
+    loaded = load_answer_cache(path)
+
+    assert answer_cache_hit(loaded, cache_key=cache_key, config=config) == "cached answer"
+
+
+def test_answer_cache_key_ignores_volatile_runtime_metadata() -> None:
+    config = {"answer": {"provider": "codex", "model": "gpt-test"}}
+    first = compact_injection_context_for_answer(context_with_review_and_conflict(), config)
+    second = first.model_copy(deep=True)
+    first.freshness_report.last_core_run = "2026-05-02T00:00:00+00:00"
+    first.freshness_report.readiness_report = {
+        "generated_at": "2026-05-02T00:00:00+00:00",
+        "status": "fresh",
+    }
+    second.freshness_report.last_core_run = "2026-05-02T00:01:00+00:00"
+    second.freshness_report.readiness_report = {
+        "generated_at": "2026-05-02T00:01:00+00:00",
+        "status": "fresh",
+    }
+    second.target_context.related_source_sections[0]["classification_cache_hit"] = True
+    second.target_context.related_source_sections[0]["classification_cache_scope"] = (
+        "persistent"
+    )
+
+    assert answer_cache_key(
+        task_prompt="Auth Login",
+        injection_context=first,
+        config=config,
+    ) == answer_cache_key(
+        task_prompt="Auth Login",
+        injection_context=second,
+        config=config,
+    )

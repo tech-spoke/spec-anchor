@@ -10,10 +10,15 @@ from spec_grag.chunk_index import (
     BM25_INDEX_FILENAME,
     CHUNK_VECTOR_INDEX_FILENAME,
     DOCUMENT_CHUNKS_FILENAME,
+    QueryPlan,
     analyze_text,
+    bm25_query_text_for_plan,
+    bm25_search,
+    dense_query_text_for_plan,
     document_chunks_path,
     load_bm25_index,
     load_document_chunks,
+    query_plan_from_config,
     validate_chunk_source,
 )
 from spec_grag.protocol import ResultEnvelope, ResultStatus, ResultType
@@ -211,3 +216,119 @@ def test_bm25_analyzer_keeps_identifiers_and_char_ngrams() -> None:
     assert "id:flattenrefs" in tokens
     assert "id:@core/ui" in tokens
     assert "char2:設計" in tokens
+
+
+def test_bm25_query_uses_raw_query_and_identifier_plan_parts_only() -> None:
+    plan = QueryPlan(
+        intent="Expanded intent with many broad words",
+        high_level_concepts=["very broad concept"],
+        low_level_entities=["ActionContext", "flattenRefs"],
+        expected_source_areas=["Framework internals"],
+        disambiguation_hints=["ignore unrelated"],
+        must_include_identifiers=["defineStoreGroup"],
+        question_type="search",
+    )
+
+    bm25_query = bm25_query_text_for_plan("defineStoreGroup を確認", plan)
+    dense_query = dense_query_text_for_plan(
+        "defineStoreGroup を確認",
+        plan,
+        max_chars=500,
+    )
+
+    assert "defineStoreGroup" in bm25_query
+    assert "ActionContext" in bm25_query
+    assert "Expanded intent" not in bm25_query
+    assert "very broad concept" not in bm25_query
+    assert "Expanded intent" in dense_query
+
+
+def test_bm25_search_caps_query_terms(tmp_path: Path) -> None:
+    write_config(tmp_path)
+    write_core_docs(tmp_path)
+    source = tmp_path / "docs/spec/runtime.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text(
+        "# Runtime\n\n"
+        "## Notes\n\n"
+        "The orchestration layer must pass ActionContext and flattenRefs.\n",
+        encoding="utf-8",
+    )
+    run_cli(request_payload(tmp_path, "ActionContext flattenRefs"))
+    bm25 = load_bm25_index(tmp_path / ".spec-grag/graph" / BM25_INDEX_FILENAME)
+    metrics: dict[str, object] = {}
+
+    hits = bm25_search(
+        bm25,
+        " ".join([f"common{index}" for index in range(100)] + ["ActionContext"]),
+        limit=4,
+        term_limit=8,
+        metrics=metrics,
+    )
+
+    assert hits
+    assert metrics["bm25_query_terms_before_cap"] > metrics["bm25_query_terms"]
+    assert metrics["bm25_query_terms"] == 8
+
+
+def test_query_plan_cache_reuses_llm_result(tmp_path: Path, monkeypatch) -> None:
+    calls = 0
+
+    class CountingLLM:
+        def complete(self, prompt: str, **_kwargs: object) -> object:
+            nonlocal calls
+            calls += 1
+
+            class Response:
+                text = json.dumps(
+                    {
+                        "intent": "Find source constraints",
+                        "high_level_concepts": [],
+                        "low_level_entities": ["ActionContext"],
+                        "expected_source_areas": [],
+                        "disambiguation_hints": [],
+                        "must_include_identifiers": ["ActionContext"],
+                        "question_type": "search",
+                    }
+                )
+
+            return Response()
+
+    monkeypatch.setattr(
+        "spec_grag.chunk_index.make_query_planner_llm_from_config",
+        lambda _config: CountingLLM(),
+    )
+    config = {
+        "query_planner": {
+            "provider": "codex",
+            "model": "gpt-test",
+            "fallback_on_error": False,
+            "cache_enabled": True,
+            "cache_path": ".spec-grag/cache/query_plan_cache.json",
+        }
+    }
+
+    first_metrics: dict[str, object] = {}
+    second_metrics: dict[str, object] = {}
+    first, first_warnings = query_plan_from_config(
+        query="ActionContext",
+        config=config,
+        project_root=tmp_path,
+        graph_revision="graph:1",
+        metrics=first_metrics,
+    )
+    second, second_warnings = query_plan_from_config(
+        query="ActionContext",
+        config=config,
+        project_root=tmp_path,
+        graph_revision="graph:1",
+        metrics=second_metrics,
+    )
+
+    assert first == second
+    assert first_warnings == []
+    assert second_warnings == []
+    assert calls == 1
+    assert first_metrics["llm_calls"] == 1
+    assert second_metrics["llm_calls"] == 0
+    assert second_metrics["query_plan_cache_hit"] is True
