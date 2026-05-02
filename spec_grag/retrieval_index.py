@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
 from pydantic import Field
 
 from spec_grag.chunk_index import DocumentChunksSidecar, chunk_primary_key
+from spec_grag.io import write_model_atomic
 from spec_grag.protocol import StrictModel
 
 
@@ -57,21 +56,7 @@ def load_retrieval_index(path: Path) -> RetrievalIndex | None:
 
 
 def write_retrieval_index_atomic(path: Path, index: RetrievalIndex) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = index.model_dump_json(indent=2) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        tmp_path = Path(tmp_name)
-        if tmp_path.exists():
-            tmp_path.unlink()
+    write_model_atomic(path, index)
 
 
 def build_retrieval_index(

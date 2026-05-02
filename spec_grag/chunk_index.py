@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
-import os
 import re
-import tempfile
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -22,7 +21,9 @@ from spec_grag.embedding import (
     embedding_identity_matches,
     embedding_for_text,
 )
-from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
+from spec_grag.io import write_json_atomic, write_model_atomic
+from spec_grag.llm_adapters import CLIAdapterError
+from spec_grag.llm_factory import make_stage_llm_from_config
 from spec_grag.manifest import SourceManifest, SourceManifestEntry
 from spec_grag.protocol import ConversationContext, StrictModel
 
@@ -43,6 +44,9 @@ DEFAULT_RRF_K = 60.0
 BM25_ANALYZER = "char2_3+identifier-v1"
 DEFAULT_BM25_QUERY_TERM_LIMIT = 80
 DEFAULT_DENSE_QUERY_MAX_CHARS = 2000
+_NUMPY_MODULE: Any | None = None
+_NUMPY_IMPORT_ATTEMPTED = False
+LOGGER = logging.getLogger(__name__)
 
 _IDENTIFIER_RE = re.compile(
     r"[@#]?[A-Za-z_][A-Za-z0-9_./:@#-]*|[A-Za-z0-9_]+(?:[./:@#-][A-Za-z0-9_]+)+"
@@ -522,6 +526,7 @@ def retrieve_hybrid_chunks(
     chunks = load_document_chunks(document_chunks_path(graph_storage))
     if metrics is not None:
         metrics["chunk_count"] = len(chunks.chunks)
+    LOGGER.debug("hybrid chunk retrieval loaded chunk_count=%s", len(chunks.chunks))
     if not chunks.chunks:
         return [], template_query_plan(query), ["document_chunks_missing_or_empty"]
 
@@ -631,6 +636,7 @@ def query_plan_from_config(
             if metrics is not None:
                 metrics["llm_calls"] = 0
                 metrics["query_plan_cache_hit"] = True
+            LOGGER.debug("query planner cache hit graph_revision=%s", graph_revision)
             return cached_plan, []
     try:
         llm = make_query_planner_llm_from_config(config)
@@ -648,6 +654,7 @@ def query_plan_from_config(
                 planner_config=planner_config,
                 plan=plan,
             )
+            LOGGER.debug("query planner cache stored graph_revision=%s", graph_revision)
         return plan, []
     except (CLIAdapterError, ValidationError, ValueError, RuntimeError) as exc:
         if bool(planner_config.get("fallback_on_error", True)):
@@ -763,35 +770,15 @@ def store_query_plan_cache(
 
 
 def make_query_planner_llm_from_config(config: Mapping[str, Any]) -> Any:
-    planner_config = _mapping(config.get("query_planner"))
-    provider = str(planner_config.get("provider", "template")).strip().lower()
-    if provider == "codex":
-        return CodexCLIAdapter(
-            command=str(planner_config.get("command") or "codex"),
-            model=str(planner_config.get("model") or "gpt-5.4"),
-            effort=str(planner_config.get("effort") or "low"),
-            timeout_sec=int(planner_config.get("timeout_sec", 120)),
-            sandbox=str(planner_config.get("sandbox", "read-only")),
-            max_retries=int(planner_config.get("max_retries", 0)),
-            retry_backoff_sec=float(planner_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                planner_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    if provider == "claude":
-        return ClaudeCLIAdapter(
-            command=str(planner_config.get("command") or "claude"),
-            model=str(planner_config.get("model") or ""),
-            effort=str(planner_config.get("effort") or "low"),
-            timeout_sec=int(planner_config.get("timeout_sec", 120)),
-            tools=str(planner_config.get("tools", "")),
-            max_retries=int(planner_config.get("max_retries", 0)),
-            retry_backoff_sec=float(planner_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                planner_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    raise ValueError(f"unsupported query_planner.provider: {provider}")
+    llm = make_stage_llm_from_config(
+        config,
+        "query_planner",
+        default_provider="template",
+        disabled_providers={"template", "deterministic", "none", "disabled", ""},
+    )
+    if llm is None:
+        raise ValueError("unsupported query_planner.provider: disabled")
+    return llm
 
 
 def generate_query_plan_with_llm(query: str, *, llm: Any) -> QueryPlan:
@@ -986,17 +973,71 @@ def dense_search(
         index.embedding_metadata,
         config=embedding_config,
     )
-    scores = [
-        (
-            chunk_embedding_primary_key(item),
-            round(cosine_similarity(query_embedding, item.embedding), 6),
-        )
+    scored_embeddings = [
+        (chunk_embedding_primary_key(item), item.embedding)
         for item in index.embeddings
         if item.embedding
     ]
+    scores = dense_similarity_scores(query_embedding, scored_embeddings)
     if metrics is not None:
         metrics["dense_scanned_embeddings"] = len(scores)
     return sorted(scores, key=lambda item: (-item[1], item[0]))[:limit]
+
+
+def dense_similarity_scores(
+    query_embedding: list[float],
+    embeddings: Sequence[tuple[str, list[float]]],
+) -> list[tuple[str, float]]:
+    numpy_scores = dense_similarity_scores_numpy(query_embedding, embeddings)
+    if numpy_scores is not None:
+        return numpy_scores
+    return [
+        (key, round(cosine_similarity(query_embedding, embedding), 6))
+        for key, embedding in embeddings
+    ]
+
+
+def dense_similarity_scores_numpy(
+    query_embedding: list[float],
+    embeddings: Sequence[tuple[str, list[float]]],
+) -> list[tuple[str, float]] | None:
+    np = numpy_module()
+    if np is None or not query_embedding or not embeddings:
+        return None
+    vector_size = len(query_embedding)
+    if any(len(embedding) != vector_size for _, embedding in embeddings):
+        return None
+    matrix = np.asarray([embedding for _, embedding in embeddings], dtype=float)
+    query_vector = np.asarray(query_embedding, dtype=float)
+    query_norm = float(np.linalg.norm(query_vector))
+    if query_norm == 0.0:
+        return [(key, 0.0) for key, _ in embeddings]
+    norms = np.linalg.norm(matrix, axis=1)
+    dot_products = matrix @ query_vector
+    scores = np.divide(
+        dot_products,
+        norms * query_norm,
+        out=np.zeros_like(dot_products, dtype=float),
+        where=norms != 0.0,
+    )
+    return [
+        (key, round(float(score), 6))
+        for (key, _), score in zip(embeddings, scores, strict=False)
+    ]
+
+
+def numpy_module() -> Any | None:
+    global _NUMPY_IMPORT_ATTEMPTED, _NUMPY_MODULE
+    if _NUMPY_IMPORT_ATTEMPTED:
+        return _NUMPY_MODULE
+    _NUMPY_IMPORT_ATTEMPTED = True
+    try:
+        import numpy as np  # type: ignore[import-not-found]
+    except ImportError:
+        _NUMPY_MODULE = None
+    else:
+        _NUMPY_MODULE = np
+    return _NUMPY_MODULE
 
 
 def explicit_chunk_hits(
@@ -1180,48 +1221,6 @@ def write_chunk_vector_index_atomic(path: Path, index: ChunkVectorIndex) -> None
 
 def write_bm25_index_atomic(path: Path, index: BM25Index) -> None:
     write_model_atomic(path, index)
-
-
-def write_model_atomic(path: Path, model: StrictModel) -> None:
-    write_text_atomic(path, model.model_dump_json(indent=2) + "\n")
-
-
-def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
-    write_text_atomic(
-        path,
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-    )
-
-
-def write_text_atomic(path: Path, payload: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-        fsync_directory(path.parent)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
-
-
-def fsync_directory(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:

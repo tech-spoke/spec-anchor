@@ -3,7 +3,7 @@ from __future__ import annotations
 from llama_index.core.graph_stores import SimplePropertyGraphStore
 from llama_index.core.graph_stores.types import EntityNode, Relation
 
-from spec_grag.graph_ops import safe_delete_by_section
+from spec_grag.graph_ops import safe_delete_by_section, safe_delete_by_sections
 
 
 def test_safe_delete_by_section_removes_only_matching_provenance() -> None:
@@ -80,4 +80,47 @@ def test_safe_delete_by_section_prefers_stable_provenance() -> None:
 
     assert "auth" not in data["nodes"]
     assert "session" in data["nodes"]
+    assert not data["relations"]
+
+
+def test_safe_delete_by_sections_batches_multiple_provenance_values() -> None:
+    store = SimplePropertyGraphStore()
+    store.upsert_nodes(
+        [
+            EntityNode(label="ANCHOR", name="auth", properties={"source_section_id": "s1"}),
+            EntityNode(
+                label="ANCHOR",
+                name="profile",
+                properties={"stable_source_section_uid": "stable:s2"},
+            ),
+            EntityNode(label="ANCHOR", name="billing", properties={"source_section_id": "s3"}),
+        ]
+    )
+    store.upsert_relations(
+        [
+            Relation(
+                label="RELATED_TO",
+                source_id="auth",
+                target_id="profile",
+                properties={"source_section_id": "s1"},
+            ),
+            Relation(
+                label="RELATED_TO",
+                source_id="profile",
+                target_id="billing",
+                properties={"stable_source_section_uid": "stable:s2"},
+            ),
+        ]
+    )
+
+    updated = safe_delete_by_sections(
+        store,
+        section_ids=("s1",),
+        stable_section_uids=("stable:s2",),
+    )
+    data = updated.graph.model_dump()
+
+    assert "auth" not in data["nodes"]
+    assert "profile" not in data["nodes"]
+    assert "billing" in data["nodes"]
     assert not data["relations"]

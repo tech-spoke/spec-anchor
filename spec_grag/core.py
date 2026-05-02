@@ -5,9 +5,9 @@ from __future__ import annotations
 import hashlib
 import glob
 import json
+import logging
 import os
 import shutil
-import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -66,8 +66,9 @@ from spec_grag.embedding import (
     stable_embedding,
     write_embedding_metadata_atomic,
 )
-from spec_grag.graph_ops import safe_delete_by_section
-from spec_grag.llm_adapters import ClaudeCLIAdapter, CodexCLIAdapter
+from spec_grag.graph_ops import safe_delete_by_sections
+from spec_grag.io import write_json_atomic as _write_json_atomic
+from spec_grag.llm_factory import make_stage_llm_from_config
 from spec_grag.manifest import (
     ManifestReconciliation,
     ManifestUpdateStatus,
@@ -113,6 +114,7 @@ from spec_grag.timing import (
 EXTRACTOR_VERSION = "deterministic-core-v1"
 GRAPH_STORE_FILENAME = "property_graph_store.json"
 VECTOR_STORE_FILENAME = "vector_store.json"
+LOGGER = logging.getLogger(__name__)
 ARTIFACT_REVISION_FILENAME = "artifact_revision.json"
 FAILED_ARTIFACT_REVISIONS_FILENAME = "failed_revisions.json"
 MAX_FAILED_ARTIFACT_REVISIONS = 10
@@ -150,6 +152,7 @@ def run_core_update(
     timer: TimingRecorder | None = None,
 ) -> CoreUpdate:
     timer = timer or TimingRecorder()
+    LOGGER.info("core update started all_sources=%s execution_role=%s", all_sources, execution_role)
     graph_storage = _graph_storage_path(project_root, config)
     scanned_at = datetime.now(UTC).isoformat()
     extract_run_id = f"core-{hashlib.sha256(scanned_at.encode('utf-8')).hexdigest()[:12]}"
@@ -408,20 +411,27 @@ def run_core_update(
                     "renamed_sections": len(reconciliation.renamed_sections),
                 },
             ):
-                for section_id in [
+                cleanup_section_ids = [
                     *reconciliation.changed_section_ids,
                     *reconciliation.removed_section_ids,
                     *_renamed_previous_section_ids(reconciliation),
-                ]:
-                    previous_graph_store = safe_delete_by_section(
-                        previous_graph_store,
-                        section_id=section_id,
-                        stable_section_uid=_stable_section_uid_for_cleanup(
-                            section_id,
-                            previous_manifest=previous_manifest,
-                            current_manifest=current_manifest,
-                        ),
+                ]
+                previous_graph_store = safe_delete_by_sections(
+                    previous_graph_store,
+                    section_ids=tuple(cleanup_section_ids),
+                    stable_section_uids=tuple(
+                        uid
+                        for section_id in cleanup_section_ids
+                        for uid in [
+                            _stable_section_uid_for_cleanup(
+                                section_id,
+                                previous_manifest=previous_manifest,
+                                current_manifest=current_manifest,
+                            )
+                        ]
+                        if uid
                     )
+                )
                 graph_store = carry_forward_schema_llm_artifacts(
                     graph_store,
                     previous_graph_store,
@@ -1144,24 +1154,6 @@ def _read_json_object(path: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-            f.write("\n")
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-    finally:
-        tmp_path = Path(tmp_name)
-        if tmp_path.exists():
-            tmp_path.unlink()
-
-
 def _cleanup_empty_staging_parents(path: Path) -> None:
     current = path
     for _ in range(3):
@@ -1821,37 +1813,12 @@ def _dedupe_relations(relations: list[Relation]) -> list[Relation]:
 
 
 def make_community_report_llm_from_config(config: Mapping[str, Any]) -> Any | None:
-    report_config = _mapping(config.get("community_report"))
-    provider = str(report_config.get("provider", "deterministic")).strip().lower()
-    if provider in {"deterministic", "template", "none", "disabled", ""}:
-        return None
-    if provider == "codex":
-        return CodexCLIAdapter(
-            command=str(report_config.get("command") or "codex"),
-            model=str(report_config.get("model") or "gpt-5.4"),
-            effort=str(report_config.get("effort") or "low"),
-            timeout_sec=int(report_config.get("timeout_sec", 120)),
-            sandbox=str(report_config.get("sandbox", "read-only")),
-            max_retries=int(report_config.get("max_retries", 0)),
-            retry_backoff_sec=float(report_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                report_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    if provider == "claude":
-        return ClaudeCLIAdapter(
-            command=str(report_config.get("command") or "claude"),
-            model=str(report_config.get("model") or ""),
-            effort=str(report_config.get("effort") or "low"),
-            timeout_sec=int(report_config.get("timeout_sec", 120)),
-            tools=str(report_config.get("tools", "")),
-            max_retries=int(report_config.get("max_retries", 0)),
-            retry_backoff_sec=float(report_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                report_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    raise ValueError(f"unsupported community_report.provider: {provider}")
+    return make_stage_llm_from_config(
+        config,
+        "community_report",
+        default_provider="deterministic",
+        disabled_providers={"deterministic", "template", "none", "disabled", ""},
+    )
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

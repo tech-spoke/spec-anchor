@@ -5,11 +5,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
+import logging
 import sys
 import time
 import tomllib
-import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +24,8 @@ from spec_grag.config import (
     validate_project_config,
 )
 from spec_grag.core import resolve_source_paths, run_core_update
+from spec_grag.io import write_json_atomic as _write_json_atomic
+from spec_grag.logging_config import configure_logging_from_config
 from spec_grag.manifest import (
     SourceManifest,
     build_current_section_manifest,
@@ -48,6 +49,8 @@ from spec_grag.watch_state import (
     watch_state_path,
     write_watch_state_atomic,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -81,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         sys.stderr.write(f"spec-grag-watch config error: {exc}\n")
         return 1
+    configure_logging_from_config(config, project_root=project_root)
 
     settings = watcher_settings_from_config(config)
     if not settings.enabled:
@@ -134,6 +138,7 @@ def run_watch_once(
     settings = watcher_settings_from_config(config)
     if not settings.enabled:
         return 0
+    LOGGER.info("watcher run started")
     debounce = settings.debounce_sec if debounce_sec is None else debounce_sec
     stale_lock = settings.stale_lock_sec if stale_lock_sec is None else stale_lock_sec
     policy = resolve_runtime_policy(
@@ -552,24 +557,6 @@ def maybe_write_watch_run_artifact(
     return str(path)
 
 
-def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.write("\n")
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
 
 
 def _milliseconds_to_seconds(value: Any) -> float:

@@ -159,6 +159,9 @@ def test_production_policy_accepts_real_provider_config() -> None:
     assert validated["query_planner"]["cache_path"] == ".spec-grag/cache/query_plan_cache.json"
     assert validated["query_planner"]["bm25_term_limit"] == 80
     assert validated["query_planner"]["dense_query_max_chars"] == 2000
+    assert validated["logging"]["level"] == "WARNING"
+    assert validated["logging"]["max_bytes"] == 1_048_576
+    assert validated["logging"]["backup_count"] == 3
 
 
 def test_llm_provider_switch_applies_to_all_production_stages() -> None:

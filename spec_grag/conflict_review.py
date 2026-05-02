@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
-import tempfile
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -14,6 +12,7 @@ from typing import Any
 
 from pydantic import Field
 
+from spec_grag.io import write_model_atomic as _write_model_atomic
 from spec_grag.protocol import StrictModel
 from spec_grag.manifest import SourceManifest, SourceManifestEntry
 
@@ -826,35 +825,3 @@ def pending_conflict_review_notes(project_root: Path) -> list[dict[str, Any]]:
                 }
             )
     return notes
-
-
-def _write_model_atomic(path: Path, model: StrictModel) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = model.model_dump_json(indent=2) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-        _fsync_directory(path.parent)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
-
-
-def _fsync_directory(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)

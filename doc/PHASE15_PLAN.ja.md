@@ -29,15 +29,15 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 
 ### P15-A. 低リスク構造整理
 
-- [ ] `spec_grag/io.py` を追加し、atomic write / fsync helper を集約する
+- [x] `spec_grag/io.py` を追加し、atomic write / fsync helper を集約する
   - 対象候補: `core.py`、`chunk_index.py`、`concept_index.py`、`conflict_review.py`、`concept_diff.py`、`sidecars.py`、`watch_state.py`、`watcher.py`、`manifest.py`、`run_artifacts.py`、`realign.py`、`embedding.py`、`retrieval_index.py`
   - 受け入れ条件: 既存 artifact 書き込み挙動を変えず、focused tests と full regression が通る
-- [ ] `spec_grag/llm_factory.py` を追加し、用途別 LLM factory の重複を減らす
+- [x] `spec_grag/llm_factory.py` を追加し、用途別 LLM factory の重複を減らす
   - 対象候補: `core.py`、`injection.py`、`chunk_index.py`、`concept_index.py`、必要に応じて `realign.py`
   - 受け入れ条件: provider / model / retry / fallback policy の解決結果が既存と一致する
-- [ ] `injection.py` の classification priority magic numbers を named constants に移す
+- [x] `injection.py` の classification priority magic numbers を named constants に移す
   - 受け入れ条件: priority order と Phase 14 budget policy の挙動が変わらない
-- [ ] `tests/conftest.py` を導入し、共有 fixture / CLI helper / integration marker を段階的に集約する
+- [x] `tests/conftest.py` を導入し、共有 fixture / CLI helper / integration marker を段階的に集約する
   - 受け入れ条件: 既存 test 名と呼び出し方式を壊さず、以後の追加 test が共通 helper を使える
 
 ### P15-B. 中核モジュール分割
@@ -53,27 +53,27 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - [ ] `core.py` の `run_core_update` を stage 関数へ分ける
   - 候補 stage: manifest reconciliation、graph build、extraction、embedding、indexing、chapter anchors、concept index、cluster snapshot、concept diff、conflict review、staging commit
   - 受け入れ条件: no-change fast path と heavy staging path の artifact 結果が変わらない
-- [ ] `cli.py` の `run_spec_inject` / `run_spec_realign` の共通前処理を抽出する
+- [x] `cli.py` の `run_spec_inject` / `run_spec_realign` の共通前処理を抽出する
   - 受け入れ条件: readiness gate、dirty/stale 時の挙動、answer 生成前 gate が既存どおり
 
 ### P15-C. Logging / diagnostics
 
-- [ ] `[logging]` config を追加する
+- [x] `[logging]` config を追加する
   - 最小項目: `level`、必要なら watcher 用 `file_path` / `max_bytes` / `backup_count`
   - 既定: WARNING 相当。production で prompt / source body / LLM response body を不用意にログへ出さない
-- [ ] 主要 module に `logging.getLogger(__name__)` を導入する
+- [x] 主要 module に `logging.getLogger(__name__)` を導入する
   - 優先対象: `core.py`、`injection.py`、`chunk_index.py`、`concept_index.py`、`realign.py`、`watcher.py`
   - ログ対象: stage 開始/終了、cache hit/miss、provider call count、artifact path、diagnostic reason code
-- [ ] watcher の長期運用ログを整備する
+- [~] watcher の長期運用ログを整備する
   - 受け入れ条件: stderr だけに依存せず、stale / failed / queued / pending の理由を追える
 - [ ] foreground command と watcher の lock 方針を監査する
   - 受け入れ条件: background core update と foreground `/spec-core` / query command の同時実行時に active artifact を壊さないことを test または設計メモで示す
 
 ### P15-D. Retrieval / artifact performance
 
-- [ ] `graph_ops.safe_delete_by_sections()` を追加し、複数 section の stale 削除を 1 回の graph rebuild にまとめる
+- [x] `graph_ops.safe_delete_by_sections()` を追加し、複数 section の stale 削除を 1 回の graph rebuild にまとめる
   - 受け入れ条件: single section API 互換を保ち、incremental update の artifact 結果が一致する
-- [ ] dense cosine search の短期高速化を入れる
+- [x] dense cosine search の短期高速化を入れる
   - 方針: numpy が利用できる場合は vectorized dot product、利用できない場合は現行 pure Python fallback
   - 受け入れ条件: ranking の tie 以外の差分を抑え、dependency policy を明示する
 - [ ] BM25 broad candidate 問題を追加監査する
@@ -108,6 +108,16 @@ Phase 15 は監査指摘をそのまま採用するフェーズではない。`d
 - retrieval scoring / latency に触る変更は、既存 query set 5本を再実測し、run artifact ID と stage timings を `doc/AUDIT_TODO.ja.md` に残す。
 - logging / diagnostics は privacy check を含める。prompt 本文、source 本文、LLM response 本文を既定ログへ出さない。
 - watcher / lock 方針は foreground と background の同時実行リスクを test または設計メモで閉じる。
+
+## 2026-05-03 実施メモ
+
+- P15-A: atomic write 共通化、LLM factory 共通化、priority constants、`tests/conftest.py` を実装。
+- P15-B: `cli.py` の inject / realign 共通 readiness + injection pipeline を抽出。`injection.py` / `core.py` の大型分割は未着手。
+- P15-C: `[logging]` config、entrypoint logging setup、主要 module logger、watcher file logging の最小導入を実装。詳細な stage diagnostics と lock 方針監査は継続。
+- P15-D: `safe_delete_by_sections()` と optional numpy dense similarity を実装。BM25 broad candidate、Concept index incremental embedding reuse、staging copytree 監査は継続。
+- focused regression: `uv run --with pytest python -m pytest tests/test_graph_ops.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py::test_template_resources_are_packaged_for_wheel_install tests/test_phase8_hybrid_retrieval.py -q` -> `32 passed in 15.23s`
+- focused regression: `uv run --with pytest python -m pytest tests/test_realign_answer.py tests/test_core_extraction.py tests/test_core_e2e.py tests/test_phase8_hybrid_retrieval.py tests/test_phase9_production_policy.py tests/test_phase7_packaging.py -q` -> `67 passed in 69.05s`
+- full regression: `uv run --with pytest python -m pytest -q` -> `243 passed in 210.62s`
 
 ## 完了条件
 

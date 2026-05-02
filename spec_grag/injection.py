@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import re
 from dataclasses import dataclass, field
@@ -35,7 +36,8 @@ from spec_grag.conflict_review import (
     pending_conflict_review_notes,
 )
 from spec_grag.embedding import embedding_for_text
-from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
+from spec_grag.llm_adapters import CLIAdapterError
+from spec_grag.llm_factory import make_stage_llm_from_config
 from spec_grag.manifest import SourceManifest, SourceManifestEntry, load_source_manifest
 from spec_grag.protocol import (
     AgenticSearchCandidate,
@@ -69,6 +71,26 @@ from spec_grag.timing import TimingRecorder, llm_config_metrics
 
 
 CLASSIFICATION_CACHE_VERSION = "phase14-batch-v1"
+LOGGER = logging.getLogger(__name__)
+CLASSIFICATION_DEFAULT_BASE_SCORE = 500.0
+CLASSIFICATION_BASE_SCORES = {
+    "purpose": 1300.0,
+    "source_chunk": 900.0,
+    "concept": 850.0,
+    "agentic_candidate": 825.0,
+    "graph_entity": 560.0,
+    "graph_entity_anchor": 620.0,
+    "chapter_anchor": 540.0,
+    "cluster": 180.0,
+}
+CLASSIFICATION_PRIORITY_BONUSES = {
+    "target_adjacent": 90.0,
+    "conflict_suspected": 160.0,
+    "raw_source_signal": 60.0,
+    "query_text_match_max": 60.0,
+    "retrieval_score_max": 100.0,
+    "source_strength_max": 30.0,
+}
 
 
 @dataclass(frozen=True)
@@ -169,6 +191,7 @@ def build_injection(
     timer: TimingRecorder | None = None,
 ) -> InjectionBuild:
     timer = timer or TimingRecorder()
+    LOGGER.info("injection build started allow_core_update=%s", allow_core_update)
     if core_update is None and freshness_report is None and allow_core_update:
         from spec_grag.core import run_core_update
 
@@ -596,39 +619,12 @@ def runtime_mode(config: dict[str, Any]) -> str:
 
 
 def make_classification_llm_from_config(config: dict[str, Any]) -> Any | None:
-    classification_config = config.get("classification", {})
-    provider = str(
-        classification_config.get("provider", "orchestrator_rule_based")
-    ).strip().lower()
-    if provider in {"orchestrator_rule_based", "rule_based", "none", "disabled", ""}:
-        return None
-    if provider == "codex":
-        return CodexCLIAdapter(
-            command=str(classification_config.get("command") or "codex"),
-            model=str(classification_config.get("model") or "gpt-5.4"),
-            effort=str(classification_config.get("effort") or "low"),
-            timeout_sec=int(classification_config.get("timeout_sec", 120)),
-            sandbox=str(classification_config.get("sandbox", "read-only")),
-            max_retries=int(classification_config.get("max_retries", 0)),
-            retry_backoff_sec=float(classification_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                classification_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    if provider == "claude":
-        return ClaudeCLIAdapter(
-            command=str(classification_config.get("command") or "claude"),
-            model=str(classification_config.get("model") or ""),
-            effort=str(classification_config.get("effort") or "low"),
-            timeout_sec=int(classification_config.get("timeout_sec", 120)),
-            tools=str(classification_config.get("tools", "")),
-            max_retries=int(classification_config.get("max_retries", 0)),
-            retry_backoff_sec=float(classification_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                classification_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    raise ValueError(f"unsupported classification.provider: {provider}")
+    return make_stage_llm_from_config(
+        config,
+        "classification",
+        default_provider="orchestrator_rule_based",
+        disabled_providers={"orchestrator_rule_based", "rule_based", "none", "disabled", ""},
+    )
 
 
 def summarize_conversation(context: ConversationContext) -> str:
@@ -2451,59 +2447,65 @@ def classification_priority(
 ) -> tuple[int, float, tuple[str, ...]]:
     reasons: list[str] = []
     tier = 1
-    base = 500.0
+    base = CLASSIFICATION_DEFAULT_BASE_SCORE
     if candidate_type == "purpose":
         tier = 0
-        base = 1300.0
+        base = CLASSIFICATION_BASE_SCORES["purpose"]
         reasons.append("purpose_constraint")
     elif candidate_type == "source_chunk":
         tier = 0
-        base = 900.0
+        base = CLASSIFICATION_BASE_SCORES["source_chunk"]
         reasons.append("raw_source_chunk")
     elif candidate_type == "concept":
         tier = 0
-        base = 850.0
+        base = CLASSIFICATION_BASE_SCORES["concept"]
         reasons.append("approved_concept")
     elif candidate_type == "agentic_candidate":
         tier = 0
-        base = 825.0
+        base = CLASSIFICATION_BASE_SCORES["agentic_candidate"]
         reasons.append("target_adjacent_agentic_candidate")
     elif candidate_type == "graph_entity":
         tier = 1
         if str(item.get("entity_type") or "").upper() == "ANCHOR":
-            base = 620.0
+            base = CLASSIFICATION_BASE_SCORES["graph_entity_anchor"]
             reasons.append("key_anchor")
         else:
-            base = 560.0
+            base = CLASSIFICATION_BASE_SCORES["graph_entity"]
             reasons.append("graph_entity")
     elif candidate_type == "chapter_anchor":
         tier = 1
-        base = 540.0
+        base = CLASSIFICATION_BASE_SCORES["chapter_anchor"]
         reasons.append("chapter_anchor")
     elif candidate_type == "cluster":
         tier = 2
-        base = 180.0
+        base = CLASSIFICATION_BASE_SCORES["cluster"]
         reasons.append("cluster_summary")
 
     if is_target_adjacent(item):
-        base += 90.0
+        base += CLASSIFICATION_PRIORITY_BONUSES["target_adjacent"]
         reasons.append("target_adjacent")
         if candidate_type in {"source_chunk", "agentic_candidate"}:
             tier = min(tier, 0)
     if is_conflict_suspected(item):
-        base += 160.0
+        base += CLASSIFICATION_PRIORITY_BONUSES["conflict_suspected"]
         tier = 0
         reasons.append("conflict_suspected")
     if has_raw_source_signal(item):
-        base += 60.0
+        base += CLASSIFICATION_PRIORITY_BONUSES["raw_source_signal"]
         reasons.append("raw_source_signal")
     token_score = token_match_score(query_tokens(query), item_text(item).lower())
     if token_score:
-        base += min(token_score, 1.0) * 60.0
+        base += min(token_score, 1.0) * CLASSIFICATION_PRIORITY_BONUSES[
+            "query_text_match_max"
+        ]
         reasons.append("query_text_match")
 
     normalized_retrieval = min(max(retrieval_score, 0.0), 1.0)
-    priority_score = base + normalized_retrieval * 100.0 + source_strength * 30.0
+    priority_score = (
+        base
+        + normalized_retrieval * CLASSIFICATION_PRIORITY_BONUSES["retrieval_score_max"]
+        + source_strength * CLASSIFICATION_PRIORITY_BONUSES["source_strength_max"]
+    )
     return tier, round(priority_score, 6), tuple(dict.fromkeys(reasons))
 
 

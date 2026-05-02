@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
+import logging
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,7 +29,9 @@ from spec_grag.embedding import (
     embedding_metadata_from_config,
     stable_embedding as make_stable_embedding,
 )
-from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
+from spec_grag.io import write_model_atomic as _write_model_atomic
+from spec_grag.llm_adapters import CLIAdapterError
+from spec_grag.llm_factory import make_stage_llm_from_config
 from spec_grag.protocol import Command, StrictModel
 from spec_grag.watch_state import (
     enqueue_source_changes,
@@ -44,6 +45,7 @@ from spec_grag.watch_state import (
 CONCEPT_INDEX_VERSION = "2"
 CONCEPT_INDEX_FILENAME = "concept_index.json"
 SOURCE_DERIVED_HEADING = "Source-derived concepts"
+LOGGER = logging.getLogger(__name__)
 
 
 class ConceptIndexChunk(StrictModel):
@@ -545,35 +547,15 @@ def concept_diff_terms_from_config(
 
 
 def make_concept_diff_llm_from_config(config: Mapping[str, Any]) -> Any:
-    concept_diff_config = _mapping(config.get("concept_diff"))
-    provider = str(concept_diff_config.get("provider", "source_derived")).strip().lower()
-    if provider == "codex":
-        return CodexCLIAdapter(
-            command=str(concept_diff_config.get("command") or "codex"),
-            model=str(concept_diff_config.get("model") or "gpt-5.4"),
-            effort=str(concept_diff_config.get("effort") or "low"),
-            timeout_sec=int(concept_diff_config.get("timeout_sec", 120)),
-            sandbox=str(concept_diff_config.get("sandbox", "read-only")),
-            max_retries=int(concept_diff_config.get("max_retries", 0)),
-            retry_backoff_sec=float(concept_diff_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                concept_diff_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    if provider == "claude":
-        return ClaudeCLIAdapter(
-            command=str(concept_diff_config.get("command") or "claude"),
-            model=str(concept_diff_config.get("model") or ""),
-            effort=str(concept_diff_config.get("effort") or "low"),
-            timeout_sec=int(concept_diff_config.get("timeout_sec", 120)),
-            tools=str(concept_diff_config.get("tools", "")),
-            max_retries=int(concept_diff_config.get("max_retries", 0)),
-            retry_backoff_sec=float(concept_diff_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                concept_diff_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    raise ValueError(f"unsupported concept_diff.provider: {provider}")
+    llm = make_stage_llm_from_config(
+        config,
+        "concept_diff",
+        default_provider="source_derived",
+        disabled_providers={"source_derived", "template", "none", "disabled", ""},
+    )
+    if llm is None:
+        raise ValueError("unsupported concept_diff.provider: disabled")
+    return llm
 
 
 def generate_concept_diff_proposal_with_llm(
@@ -784,35 +766,3 @@ def _json_file_has_key(path: Path, key: str) -> bool:
 
 def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
-
-
-def _write_model_atomic(path: Path, model: StrictModel) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = model.model_dump_json(indent=2) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-        _fsync_directory(path.parent)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
-
-
-def _fsync_directory(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)

@@ -4,23 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
+import logging
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from pydantic import Field, ValidationError, model_validator
 
-from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
+from spec_grag.io import write_json_atomic
+from spec_grag.llm_adapters import CLIAdapterError
+from spec_grag.llm_factory import make_stage_llm_from_config
 from spec_grag.protocol import ConstraintContext, InjectionContext, StrictModel, TargetContext
 
 
 ANSWER_PROVIDER_TEMPLATE = "template"
-ANSWER_PROVIDER_CODEX = "codex"
-ANSWER_PROVIDER_CLAUDE = "claude"
 ANSWER_CACHE_VERSION = "1"
 ANSWER_PROMPT_VERSION = "answer-v1"
+LOGGER = logging.getLogger(__name__)
 ANSWER_CONTEXT_CACHE_IGNORED_KEYS = {
     "classification_cache_hit",
     "classification_cache_scope",
@@ -61,37 +61,12 @@ class AnswerSections(StrictModel):
 
 
 def make_answer_llm_from_config(config: Mapping[str, Any]) -> Any | None:
-    answer_config = _mapping(config.get("answer"))
-    provider = str(answer_config.get("provider", ANSWER_PROVIDER_TEMPLATE)).strip().lower()
-    if provider in {ANSWER_PROVIDER_TEMPLATE, "deterministic", "none", "disabled", ""}:
-        return None
-    if provider == ANSWER_PROVIDER_CODEX:
-        return CodexCLIAdapter(
-            command=str(answer_config.get("command") or "codex"),
-            model=str(answer_config.get("model") or "gpt-5.4"),
-            effort=str(answer_config.get("effort") or "low"),
-            timeout_sec=int(answer_config.get("timeout_sec", 120)),
-            sandbox=str(answer_config.get("sandbox", "read-only")),
-            max_retries=int(answer_config.get("max_retries", 0)),
-            retry_backoff_sec=float(answer_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                answer_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    if provider == ANSWER_PROVIDER_CLAUDE:
-        return ClaudeCLIAdapter(
-            command=str(answer_config.get("command") or "claude"),
-            model=str(answer_config.get("model") or ""),
-            effort=str(answer_config.get("effort") or "low"),
-            timeout_sec=int(answer_config.get("timeout_sec", 120)),
-            tools=str(answer_config.get("tools", "")),
-            max_retries=int(answer_config.get("max_retries", 0)),
-            retry_backoff_sec=float(answer_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                answer_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    raise ValueError(f"unsupported answer.provider: {provider}")
+    return make_stage_llm_from_config(
+        config,
+        "answer",
+        default_provider=ANSWER_PROVIDER_TEMPLATE,
+        disabled_providers={ANSWER_PROVIDER_TEMPLATE, "deterministic", "none", "disabled", ""},
+    )
 
 
 def answer_failure_fallback_from_config(config: Mapping[str, Any]) -> str:
@@ -284,8 +259,10 @@ def generate_realign_answer(
     """
 
     if llm is None:
+        LOGGER.debug("answer generation using deterministic fallback")
         sections = deterministic_answer_sections(task_prompt, injection_context)
     else:
+        LOGGER.debug("answer generation using configured llm")
         sections = generate_answer_sections_with_llm(task_prompt, injection_context, llm)
     sections = ensure_conflict_and_review_visible(sections, injection_context)
     return render_answer_sections(sections)
@@ -577,26 +554,6 @@ def config_int(config: Mapping[str, Any], key: str, default: int) -> int:
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

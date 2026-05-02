@@ -28,7 +28,7 @@ from spec_grag.extraction import (
 )
 from spec_grag.chunk_index import stable_chunk_uid_for
 from spec_grag.embedding import stable_embedding
-from spec_grag.llm_adapters import ClaudeCLIAdapter, CodexCLIAdapter
+from spec_grag.llm_factory import make_stage_llm_from_config
 from spec_grag.manifest import SourceManifest, SourceManifestEntry
 from spec_grag.sidecars import (
     UnresolvedRelationEntry,
@@ -421,33 +421,16 @@ def schema_llm_batch_enabled(config: Mapping[str, Any]) -> bool:
 
 
 def make_extraction_llm_from_config(config: Mapping[str, Any]) -> ExtractionLLM:
-    extraction_config = _mapping(config.get("extraction"))
-    provider = str(extraction_config.get("provider", "codex")).strip().lower()
-    if provider == "codex":
-        return CodexCLIAdapter(
-            command=str(extraction_config.get("command") or "codex"),
-            model=str(extraction_config.get("model") or "gpt-5.4"),
-            effort=str(extraction_config.get("effort") or "low"),
-            timeout_sec=int(extraction_config.get("timeout_sec", 120)),
-            max_retries=int(extraction_config.get("max_retries", 0)),
-            retry_backoff_sec=float(extraction_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                extraction_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    if provider == "claude":
-        return ClaudeCLIAdapter(
-            command=str(extraction_config.get("command") or "claude"),
-            model=str(extraction_config.get("model") or ""),
-            effort=str(extraction_config.get("effort") or "low"),
-            timeout_sec=int(extraction_config.get("timeout_sec", 120)),
-            max_retries=int(extraction_config.get("max_retries", 0)),
-            retry_backoff_sec=float(extraction_config.get("retry_backoff_sec", 0.0)),
-            repair_on_schema_failure=bool(
-                extraction_config.get("repair_on_schema_failure", True)
-            ),
-        )
-    raise ValueError(f"unsupported extraction.provider: {provider}")
+    llm = make_stage_llm_from_config(
+        config,
+        "extraction",
+        default_provider="codex",
+        codex_sandbox=False,
+        claude_tools=False,
+    )
+    if llm is None:
+        raise ValueError("unsupported extraction.provider: disabled")
+    return llm
 
 
 def make_schema_extractor_from_config(config: Mapping[str, Any]) -> SchemaExtractor:

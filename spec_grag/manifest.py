@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
-import tempfile
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
@@ -16,6 +14,7 @@ from pathlib import Path
 
 from pydantic import Field
 
+from spec_grag.io import write_model_atomic
 from spec_grag.protocol import StrictModel
 
 try:
@@ -134,7 +133,6 @@ def build_current_section_manifest(
         generated_at=generated_at or datetime.now(UTC).isoformat(),
         entries=entries,
     )
-
 
 def reconcile_manifests(
     previous: SourceManifest, current: SourceManifest
@@ -296,24 +294,7 @@ def load_source_manifest(path: Path) -> SourceManifest:
 
 
 def write_source_manifest_atomic(path: Path, manifest: SourceManifest) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = manifest.model_dump_json(indent=2) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-        _fsync_directory(path.parent)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
+    write_model_atomic(path, manifest)
 
 
 def next_source_manifest(
@@ -786,14 +767,3 @@ def _with_run_metadata(
             "extractor_versions": dict(extractor_versions),
         }
     )
-
-
-def _fsync_directory(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)

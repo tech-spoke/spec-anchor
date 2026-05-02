@@ -450,6 +450,28 @@ class RunConfig(StrictModel):
         return value
 
 
+class LoggingConfig(StrictModel):
+    level: str = "WARNING"
+    file_path: str | None = None
+    max_bytes: int = Field(default=1_048_576, ge=1024, le=1_073_741_824)
+    backup_count: int = Field(default=3, ge=0, le=100)
+
+    @field_validator("level")
+    @classmethod
+    def level_must_be_supported(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "OFF"}:
+            raise ValueError("logging.level must be DEBUG, INFO, WARNING, ERROR, CRITICAL, or OFF")
+        return normalized
+
+    @field_validator("file_path")
+    @classmethod
+    def optional_file_path_must_not_be_empty(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("logging.file_path must be a non-empty string")
+        return value
+
+
 class RuntimeConfig(StrictModel):
     mode: Literal["smoke", "local_daily", "ci", "production"] | None = None
     watcher_required: bool | None = None
@@ -489,6 +511,7 @@ class ProjectConfig(StrictModel):
     llm: ProjectLLMConfig | None = None
     embedding: EmbeddingConfig | None = None
     run: RunConfig = Field(default_factory=RunConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
     runtime: RuntimeConfig = Field(default_factory=RuntimeConfig)
     watcher: WatcherConfig = Field(default_factory=WatcherConfig)
 

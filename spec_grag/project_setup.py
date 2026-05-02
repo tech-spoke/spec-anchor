@@ -499,6 +499,12 @@ include_request = false
 include_response = false
 redact_payload = false
 
+[logging]
+level = "WARNING"
+file_path = ".spec-grag/logs/spec-grag.log"
+max_bytes = 1048576
+backup_count = 3
+
 [watcher]
 enabled = true
 interval_ms = 2000

@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from spec_grag.io import write_text_atomic as _write_text_atomic
 from spec_grag.protocol import ResultEnvelope, SlashCommandRequest
 
 
@@ -150,7 +149,6 @@ def provider_summary(config: dict[str, Any]) -> dict[str, Any]:
         }
     return summary
 
-
 def fallback_events(config: dict[str, Any], envelope: ResultEnvelope) -> list[dict[str, str]]:
     """Extract stable fallback/degrade event records from providers and warnings."""
 
@@ -246,34 +244,3 @@ def retrieval_summary(envelope: ResultEnvelope) -> dict[str, Any]:
             }
         )
     return summary
-
-
-def _write_text_atomic(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-        _fsync_directory(path.parent)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
-
-
-def _fsync_directory(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)

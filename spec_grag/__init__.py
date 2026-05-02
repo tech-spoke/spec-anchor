@@ -111,7 +111,7 @@ from spec_grag.extraction import (
     SPEC_GRAG_EXTRACT_PROMPT,
     make_schema_llm_path_extractor,
 )
-from spec_grag.graph_ops import safe_delete_by_section
+from spec_grag.graph_ops import safe_delete_by_section, safe_delete_by_sections
 from spec_grag.llm_adapters import CLIAdapterError, ClaudeCLIAdapter, CodexCLIAdapter
 from spec_grag.sidecars import (
     ChapterAnchorArtifact,
@@ -321,6 +321,7 @@ __all__ = [
     "revise_hunk",
     "run_core_update",
     "safe_delete_by_section",
+    "safe_delete_by_sections",
     "source_derived_terms",
     "split_concept_paragraphs",
     "smoke_mode_enabled",

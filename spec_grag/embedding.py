@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -13,6 +11,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from spec_grag.io import write_model_atomic as _write_model_atomic
 from spec_grag.protocol import StrictModel
 
 
@@ -189,35 +188,3 @@ def _ollama_embedding_once(
         return [float(value) for value in values]
     except (TypeError, ValueError) as exc:
         raise EmbeddingProviderError("Ollama embedding contained non-numeric values") from exc
-
-
-def _write_model_atomic(path: Path, model: StrictModel) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = model.model_dump_json(indent=2) + "\n"
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(payload)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_name, path)
-        _fsync_directory(path.parent)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
-        raise
-
-
-def _fsync_directory(path: Path) -> None:
-    try:
-        fd = os.open(path, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)

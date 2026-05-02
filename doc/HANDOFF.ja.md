@@ -50,6 +50,18 @@ classification は high priority skip なしまで改善したが、`classificat
 - Phase 15 の主対象は atomic write / LLM factory 共通化、logging diagnostics、`injection.py` / `core.py` の段階分割、safe_delete_by_sections、dense search 短期高速化、tests/conftest.py 整理、Context item 型付けの段階移行
 - 非対象: Concept reject を解決済みにする変更、apply 前 pending を gate から外す変更、protocol-breaking ContextItem model 化、Qdrant 移行
 
+2026-05-03 Phase 15 実装追補:
+
+- atomic write / fsync helper を `spec_grag/io.py` へ集約し、各 artifact writer を移行した
+- `spec_grag/llm_factory.py` を追加し、answer / classification / concept_diff / community_report / query_planner / extraction の CLI LLM factory 重複を削減した
+- classification priority score の magic numbers を named constants 化した
+- `[logging]` config と entrypoint logging setup を追加し、`.spec-grag/logs/` を ignored artifact にした
+- `graph_ops.safe_delete_by_sections()` を追加し、core incremental の stale carry-forward 削除を batch 化した
+- dense search は numpy が import できる場合のみ vectorized cosine を使い、なければ従来 pure Python fallback に戻す
+- `cli.py` の inject / realign 共通 readiness + injection pipeline を `run_injection_pipeline()` に抽出した
+- focused regression: `32 passed in 15.23s` と `67 passed in 69.05s`
+- full regression: `uv run --with pytest python -m pytest -q` -> `243 passed in 210.62s`
+
 2026-05-03 実測:
 
 - `spec-core` concept index v2 再生成: `.spec-grag/runs/20260502T153505.476508Z-spec-core-f9f636203d11.json`、`concept_index` input chunks 17、warning `concept_index_version_mismatch_rebuilt`

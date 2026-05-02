@@ -51,6 +51,7 @@ from spec_grag.conflict_review import (
 )
 from spec_grag.core import run_core_update
 from spec_grag.injection import ClassificationError, InjectionBuild, build_injection
+from spec_grag.logging_config import configure_logging_from_config
 from spec_grag.protocol import (
     ApprovalDecision,
     Command,
@@ -138,6 +139,7 @@ def run_request(request: SlashCommandRequest) -> ResultEnvelope:
         return with_timing_diagnostics(config_result, timer)
 
     config = config_result
+    configure_logging_from_config(config, project_root=project_root)
     graph_storage = graph_storage_path(project_root, config)
     freshness = freshness_report(graph_storage)
     runtime_policy = resolve_runtime_policy(
@@ -1118,16 +1120,16 @@ def concept_file_path(project_root: Path, config: dict[str, Any]) -> Path | None
     return path
 
 
-def run_spec_inject(
+def run_injection_pipeline(
     request: SlashCommandRequest,
     project_root: Path,
     config: dict[str, Any],
     freshness: FreshnessReport,
     runtime_policy: RuntimePolicy,
     *,
-    timer: TimingRecorder | None = None,
-) -> ResultEnvelope:
-    timer = timer or TimingRecorder()
+    core_failure_context: str,
+    timer: TimingRecorder,
+) -> InjectionBuild | ResultEnvelope:
     with timer.stage("readiness_gate") as stage:
         readiness = evaluate_grag_readiness(
             project_root,
@@ -1158,7 +1160,7 @@ def run_spec_inject(
         if core_update.status == ResultStatus.FAILED:
             return error_envelope(
                 "spec_core_failed",
-                "SPEC-grag core update failed before injection",
+                f"SPEC-grag core update failed before {core_failure_context}",
                 {
                     "failed_sources": core_update.failed_sources,
                     "warnings": core_update.warnings,
@@ -1178,7 +1180,7 @@ def run_spec_inject(
         )
 
     try:
-        build = build_injection(
+        return build_injection(
             project_root,
             config,
             request,
@@ -1188,6 +1190,29 @@ def run_spec_inject(
         )
     except (ClassificationError, ValidationError, ValueError, RuntimeError) as exc:
         return context_build_failed_envelope(exc)
+
+
+def run_spec_inject(
+    request: SlashCommandRequest,
+    project_root: Path,
+    config: dict[str, Any],
+    freshness: FreshnessReport,
+    runtime_policy: RuntimePolicy,
+    *,
+    timer: TimingRecorder | None = None,
+) -> ResultEnvelope:
+    timer = timer or TimingRecorder()
+    build = run_injection_pipeline(
+        request,
+        project_root,
+        config,
+        freshness,
+        runtime_policy,
+        core_failure_context="injection",
+        timer=timer,
+    )
+    if isinstance(build, ResultEnvelope):
+        return build
     return injection_build_envelope(build)
 
 
@@ -1201,66 +1226,17 @@ def run_spec_realign(
     timer: TimingRecorder | None = None,
 ) -> ResultEnvelope:
     timer = timer or TimingRecorder()
-    with timer.stage("readiness_gate") as stage:
-        readiness = evaluate_grag_readiness(
-            project_root,
-            config,
-            runtime_policy=runtime_policy,
-        )
-        record_readiness_metrics(stage.metrics, readiness)
-        freshness = freshness_with_readiness(freshness, readiness)
-        pending_gate = pending_readiness_envelope(project_root, freshness, readiness, runtime_policy)
-        if pending_gate is not None:
-            stage.set_status(_gate_stage_status(pending_gate))
-            return pending_gate
-
-    core_update = None
-    if readiness.status in {"dirty", "stale"}:
-        with timer.stage("readiness_gate", metrics={"recheck": "dirty_or_stale"}) as stage:
-            gate = dirty_or_stale_readiness_envelope(readiness, runtime_policy)
-            if gate is not None:
-                stage.set_status(_gate_stage_status(gate))
-                return gate
-        core_update = run_core_update(
-            project_root,
-            config,
-            all_sources=False,
-            execution_role=runtime_policy.execution_role,
-            timer=timer,
-        )
-        if core_update.status == ResultStatus.FAILED:
-            return error_envelope(
-                "spec_core_failed",
-                "SPEC-grag core update failed before realign",
-                {
-                    "failed_sources": core_update.failed_sources,
-                    "warnings": core_update.warnings,
-                },
-            )
-        post_readiness = evaluate_grag_readiness(
-            project_root,
-            config,
-            runtime_policy=runtime_policy,
-        )
-        core_update = replace(
-            core_update,
-            freshness_report=freshness_with_readiness(
-                core_update.freshness_report,
-                post_readiness,
-            ),
-        )
-
-    try:
-        build = build_injection(
-            project_root,
-            config,
-            request,
-            core_update=core_update,
-            freshness_report=None if core_update is not None else freshness,
-            timer=timer,
-        )
-    except (ClassificationError, ValidationError, ValueError, RuntimeError) as exc:
-        return context_build_failed_envelope(exc)
+    build = run_injection_pipeline(
+        request,
+        project_root,
+        config,
+        freshness,
+        runtime_policy,
+        core_failure_context="realign",
+        timer=timer,
+    )
+    if isinstance(build, ResultEnvelope):
+        return build
     if (
         build.status not in {ResultStatus.OK, ResultStatus.DEGRADED}
         or not build.context_ready
