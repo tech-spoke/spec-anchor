@@ -1,56 +1,47 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-
-# Distribution / packaging
-*.egg-info/
-*.egg
-dist/
-build/
-*.whl
-
-# Testing / linting caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-.coverage
-htmlcov/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Tool state
-.python-version
-.code-intel/
-.playwright-mcp/
-.codex/
-!templates/.codex/
-!templates/.codex/commands/
-!templates/.codex/commands/*.md
+# Local editor / shell state
+.DS_Store
+*.swp
 .envrc
 
-# Editor / IDE
-*.swp
-*~
-.vscode/
-.idea/
+# Python build / cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
 
-# OS
-.DS_Store
-Thumbs.db
+# Agent / tool local state
+.codex/
+.code-intel/
+.playwright-mcp/
 
-# spec-grag runtime artifacts (per-project graph storage created during testing)
+# SPEC-grag generated runtime state
+.spec-grag/context/
+.spec-grag/cache/
 .spec-grag/graph/
+.spec-grag/logs/
+.spec-grag/pending/
+.spec-grag/runs/
+.spec-grag/state/
+.spec-grag/tmp/
 
-# Phase 0.5 spike output artifacts
-spike_storage/
+# Archived local runtime state. Source/docs under archive stay visible to Git.
+archive/**/.envrc
+archive/**/.venv/
+archive/**/.codex/
+archive/**/.code-intel/
+archive/**/.pytest_cache/
+archive/**/.playwright-mcp/
+archive/**/*.egg-info/
+archive/**/__pycache__/
+archive/**/spike_storage/
+archive/**/.spec-grag/cache/
+archive/**/.spec-grag/graph/
+archive/**/.spec-grag/logs/
+archive/**/.spec-grag/pending/
+archive/**/.spec-grag/runs/
+archive/**/.spec-grag/state/
+archive/**/.spec-grag/tmp/

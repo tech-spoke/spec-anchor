@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Testing / linting caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Tool state
+.python-version
+.code-intel/
+.playwright-mcp/
+.codex/
+!templates/.codex/
+!templates/.codex/commands/
+!templates/.codex/commands/*.md
+.envrc
+
+# Editor / IDE
+*.swp
+*~
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# spec-grag runtime artifacts (per-project graph storage created during testing)
+.spec-grag/graph/
+
+# Phase 0.5 spike output artifacts
+spike_storage/

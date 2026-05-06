@@ -1,827 +1,659 @@
-"""Persistent Conflict candidate review protocol."""
+"""Lightweight Conflict Review Item helpers.
+
+This module keeps the G-09 conflict review contract intentionally plain:
+dict-shaped items in, dict-shaped items out, with small helpers for judging,
+human decisions, freshness, and evidence filtering.
+"""
 
 from __future__ import annotations
 
-import hashlib
-import json
-import re
-from datetime import UTC, datetime
-from enum import StrEnum
-from pathlib import Path
+from collections.abc import Mapping, Sequence
+from copy import deepcopy
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import Field
 
-from spec_grag.io import write_model_atomic as _write_model_atomic
-from spec_grag.protocol import StrictModel
-from spec_grag.manifest import SourceManifest, SourceManifestEntry
+DECISIONS = {
+    "prefer_a",
+    "prefer_b",
+    "conditional",
+    "dismiss",
+    "needs_source_update",
+    "defer",
+    "task_scope_resolution",
+}
+RESOLVED_DECISIONS = {"prefer_a", "prefer_b", "conditional", "task_scope_resolution"}
+PENDING_DECISIONS = {"needs_source_update", "defer"}
+STATUSES = {"pending", "resolved", "dismissed"}
+SCOPES = {"global", "source_pair", "section_pair", "task_scope"}
+REFLECTION_STATUSES = {"unreflected", "reflected", "not_required"}
 
+_DEFAULT_DECISION_OPTIONS = [
+    {"id": "prefer_a", "label": "Prefer source A"},
+    {"id": "prefer_b", "label": "Prefer source B"},
+    {"id": "conditional", "label": "Use a conditional rule"},
+    {"id": "dismiss", "label": "Dismiss as not a conflict"},
+    {"id": "needs_source_update", "label": "Update source specs"},
+    {"id": "defer", "label": "Defer decision"},
+    {"id": "task_scope_resolution", "label": "Resolve for this task only"},
+]
 
-APPROVED_CONFLICTS_VERSION = "1"
-
-
-class ConflictCandidateStatus(StrEnum):
-    PENDING = "pending"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-    DEFERRED = "deferred"
-    REVISED = "revised"
-
-
-class PendingConflictCandidate(StrictModel):
-    candidate_id: str
-    conflict_type: str
-    severity: str = "medium"
-    rule_id: str | None = None
-    summary: str
-    reason: str
-    evidence_spans: list[dict[str, Any]] = Field(default_factory=list)
-    status: ConflictCandidateStatus = ConflictCandidateStatus.PENDING
-    revision_instruction: str | None = None
-
-
-class PendingConflictReview(StrictModel):
-    review_id: str
-    base_graph_revision: str | None = None
-    base_source_manifest_hash: str | None = None
-    generated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
-    candidates: list[PendingConflictCandidate] = Field(default_factory=list)
-
-    def by_candidate_id(self) -> dict[str, PendingConflictCandidate]:
-        return {candidate.candidate_id: candidate for candidate in self.candidates}
-
-
-class ApprovedConflict(StrictModel):
-    conflict_id: str
-    source_candidate_id: str
-    conflict_type: str
-    severity: str
-    summary: str
-    reason: str
-    evidence_spans: list[dict[str, Any]] = Field(default_factory=list)
-    approved_at: str
-    approved_by: str = "human"
+_CONFLICT_WORDS = {
+    "must",
+    "must not",
+    "required",
+    "forbidden",
+    "prohibited",
+    "optional",
+    "cannot",
+    "should not",
+    "禁止",
+    "必須",
+    "任意",
+    "例外",
+}
 
 
-class RejectedConflictFingerprint(StrictModel):
-    fingerprint: str
-    source_candidate_id: str
-    rejected_at: str
+@dataclass
+class ConflictReviewResult:
+    conflict_review_items: list[dict[str, Any]]
+    diagnostics: list[dict[str, Any]]
+    freshness_report: dict[str, Any]
+    pending_conflict_count: int = 0
 
-
-class ApprovedConflictsSidecar(StrictModel):
-    version: str = APPROVED_CONFLICTS_VERSION
-    graph_revision: str | None = None
-    source_manifest_hash: str | None = None
-    generated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
-    conflicts: list[ApprovedConflict] = Field(default_factory=list)
-    rejected_fingerprints: list[RejectedConflictFingerprint] = Field(default_factory=list)
-
-
-class ConflictApplyStatus(StrEnum):
-    APPLIED = "applied"
-    BLOCKED = "blocked"
-
-
-class ConflictApplyResult(StrictModel):
-    status: ConflictApplyStatus
-    review_id: str
-    approved_candidate_ids: list[str] = Field(default_factory=list)
-    rejected_candidate_ids: list[str] = Field(default_factory=list)
-    pending_candidate_ids: list[str] = Field(default_factory=list)
-    blocked_reason: str | None = None
-
-
-class ConflictReviewGenerationResult(StrictModel):
-    pending_review: PendingConflictReview | None = None
-    created_path: str | None = None
-    warnings: list[str] = Field(default_factory=list)
-
-
-class ConflictReviewError(Exception):
-    """Base error for Conflict review protocol failures."""
-
-
-class ConflictReviewNotFoundError(ConflictReviewError):
-    pass
-
-
-class ConflictCandidateNotFoundError(ConflictReviewError):
-    pass
-
-
-def pending_conflict_review_path(pending_dir: Path, review_id: str) -> Path:
-    return pending_dir / f"conflict_review_{review_id}.json"
-
-
-def approved_conflicts_path(graph_storage: Path) -> Path:
-    return graph_storage / "approved_conflicts.json"
-
-
-def load_pending_conflict_review(path: Path) -> PendingConflictReview:
-    if not path.exists():
-        raise ConflictReviewNotFoundError(f"pending Conflict review not found: {path}")
-    return PendingConflictReview.model_validate_json(path.read_text(encoding="utf-8"))
-
-
-def write_pending_conflict_review_atomic(
-    path: Path,
-    review: PendingConflictReview,
-) -> None:
-    _write_model_atomic(path, review)
-
-
-def create_pending_conflict_review(
-    pending_dir: Path,
-    review: PendingConflictReview,
-) -> Path:
-    path = pending_conflict_review_path(pending_dir, review.review_id)
-    write_pending_conflict_review_atomic(path, review)
-    return path
-
-
-def generate_source_conflict_review(
-    *,
-    project_root: Path,
-    graph_storage: Path,
-    manifest: SourceManifest,
-    graph_revision: str | None,
-    generated_at: str,
-    document_texts: dict[str, str] | None = None,
-) -> ConflictReviewGenerationResult:
-    pending_dir = project_root / ".spec-grag" / "pending"
-    if first_unresolved_pending_conflict_review(pending_dir) is not None:
-        return ConflictReviewGenerationResult()
-
-    candidates = source_conflict_candidates(
-        project_root,
-        manifest,
-        document_texts=document_texts,
-    )
-    if not candidates:
-        return ConflictReviewGenerationResult()
-
-    sidecar = load_approved_conflicts(approved_conflicts_path(graph_storage))
-    rejected = {item.fingerprint for item in sidecar.rejected_fingerprints}
-    approved_ids = {item.conflict_id for item in sidecar.conflicts}
-    filtered = [
-        candidate
-        for candidate in candidates
-        if conflict_fingerprint(candidate) not in rejected
-        and conflict_id_for_candidate(candidate) not in approved_ids
-    ]
-    if not filtered:
-        return ConflictReviewGenerationResult()
-
-    review = PendingConflictReview(
-        review_id=review_id_for_candidates(filtered, manifest),
-        base_graph_revision=graph_revision,
-        base_source_manifest_hash=source_manifest_hash(manifest),
-        generated_at=generated_at,
-        candidates=filtered,
-    )
-    path = create_pending_conflict_review(pending_dir, review)
-    return ConflictReviewGenerationResult(
-        pending_review=review,
-        created_path=str(path),
-    )
-
-
-def source_conflict_candidates(
-    project_root: Path,
-    manifest: SourceManifest,
-    *,
-    document_texts: dict[str, str] | None = None,
-) -> list[PendingConflictCandidate]:
-    sections = _section_texts(project_root, manifest, document_texts=document_texts)
-    if not sections:
-        return []
-
-    candidates: list[PendingConflictCandidate] = []
-    candidates.extend(_paired_token_candidate(
-        sections,
-        rule_id="required_optional",
-        conflict_type="source_rule",
-        severity="medium",
-        left_tokens=("required",),
-        right_tokens=("optional",),
-        summary="Required and optional language both appear in Source specs.",
-        reason="A source-level rule appears to be both required and optional.",
-    ))
-    candidates.extend(_must_vs_must_not_candidates(sections))
-    candidates.extend(_paired_token_candidate(
-        sections,
-        rule_id="required_vs_prohibited_japanese",
-        conflict_type="source_rule",
-        severity="high",
-        left_tokens=("必須", "必ず", "必要"),
-        right_tokens=("禁止", "不可", "してはならない", "できない"),
-        summary="必須系と禁止系の表現が Source specs 内で並存している。",
-        reason="同じ source-level rule が必須と禁止の両方として書かれている可能性がある。",
-    ))
-    candidates.extend(_paired_token_candidate(
-        sections,
-        rule_id="japanese_quantifier",
-        conflict_type="source_rule",
-        severity="medium",
-        left_tokens=("必ず", "全て", "すべて"),
-        right_tokens=("任意", "一部"),
-        summary="日本語の量化表現が Source specs 内で衝突している。",
-        reason="全称または必須の表現と、任意または一部の表現が同時に現れている。",
-    ))
-    candidates.extend(_permission_scope_candidates(sections))
-    candidates.extend(_numeric_bound_candidates(sections))
-    candidates.extend(_state_transition_candidates(sections))
-
-    deduped: dict[str, PendingConflictCandidate] = {}
-    for candidate in candidates:
-        deduped.setdefault(conflict_fingerprint(candidate), candidate)
-    return sorted(deduped.values(), key=lambda item: item.candidate_id)
-
-
-def load_approved_conflicts(path: Path) -> ApprovedConflictsSidecar:
-    if not path.exists():
-        return ApprovedConflictsSidecar()
-    return ApprovedConflictsSidecar.model_validate_json(path.read_text(encoding="utf-8"))
-
-
-def write_approved_conflicts_atomic(
-    path: Path,
-    sidecar: ApprovedConflictsSidecar,
-) -> None:
-    _write_model_atomic(path, sidecar)
-
-
-def iter_pending_conflict_reviews(pending_dir: Path) -> list[PendingConflictReview]:
-    if not pending_dir.exists():
-        return []
-    reviews = []
-    for path in sorted(pending_dir.glob("conflict_review_*.json")):
-        try:
-            reviews.append(load_pending_conflict_review(path))
-        except (ConflictReviewError, ValueError):
-            continue
-    return reviews
-
-
-def first_unresolved_pending_conflict_review(
-    pending_dir: Path,
-) -> PendingConflictReview | None:
-    for review in iter_pending_conflict_reviews(pending_dir):
-        if pending_conflict_review_is_unresolved(review):
-            return review
-    return None
-
-
-def pending_conflict_review_is_unresolved(review: PendingConflictReview) -> bool:
-    return any(
-        candidate.status
-        in {
-            ConflictCandidateStatus.PENDING,
-            ConflictCandidateStatus.ACCEPTED,
-            ConflictCandidateStatus.REJECTED,
-            ConflictCandidateStatus.DEFERRED,
-            ConflictCandidateStatus.REVISED,
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "conflict_review_items": self.conflict_review_items,
+            "diagnostics": self.diagnostics,
+            "potential_conflicts": self.diagnostics,
+            "freshness_report": self.freshness_report,
+            "pending_conflict_count": self.pending_conflict_count,
         }
-        for candidate in review.candidates
-    )
 
 
-def pending_conflict_candidate_ids(project_root: Path) -> list[str]:
-    ids: list[str] = []
-    for review in iter_pending_conflict_reviews(project_root / ".spec-grag" / "pending"):
-        for candidate in review.candidates:
-            if candidate.status in {
-                ConflictCandidateStatus.PENDING,
-                ConflictCandidateStatus.ACCEPTED,
-                ConflictCandidateStatus.REJECTED,
-                ConflictCandidateStatus.DEFERRED,
-                ConflictCandidateStatus.REVISED,
-            }:
-                ids.append(candidate.candidate_id)
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _timestamp(value: str | None = None) -> str:
+    return value or _now_iso()
+
+
+def _copy_items(items: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None) -> list[dict[str, Any]]:
+    return [deepcopy(item) for item in (items or [])]
+
+
+def _coerce_candidate_items(candidates: Any) -> list[dict[str, Any]]:
+    if candidates is None:
+        return []
+    if hasattr(candidates, "to_dict"):
+        return _coerce_candidate_items(candidates.to_dict())
+    if hasattr(candidates, "related_section_candidates"):
+        value = getattr(candidates, "related_section_candidates")
+        if value is not candidates:
+            return _coerce_candidate_items(value)
+    if hasattr(candidates, "candidates"):
+        value = getattr(candidates, "candidates")
+        if value is not candidates:
+            return _coerce_candidate_items(value)
+    if isinstance(candidates, Mapping):
+        if "source_section_id" in candidates and "target_section_id" in candidates:
+            return [deepcopy(dict(candidates))]
+        items: list[dict[str, Any]] = []
+        for key in ("related_section_candidates", "candidates"):
+            items.extend(_coerce_candidate_items(candidates.get(key)))
+        return items
+    if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)):
+        items = []
+        for item in candidates:
+            items.extend(_coerce_candidate_items(item))
+        return items
+    return []
+
+
+def _metadata_value(metadata: Any, key: str) -> Any:
+    if metadata is None:
+        return None
+    if hasattr(metadata, "to_dict"):
+        return _metadata_value(metadata.to_dict(), key)
+    if isinstance(metadata, Mapping):
+        return metadata.get(key)
+    return getattr(metadata, key, None)
+
+
+def _candidate_items_from_metadata(metadata: Any) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for key in ("related_section_candidates", "candidates"):
+        items.extend(_coerce_candidate_items(_metadata_value(metadata, key)))
+    return items
+
+
+def _section_id(section: dict[str, Any]) -> str:
+    return str(section.get("source_section_id") or section.get("section_id") or section.get("id") or "")
+
+
+def _section_map(sections: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    return {_section_id(section): section for section in (sections or []) if _section_id(section)}
+
+
+def _hash_for_section(section: dict[str, Any]) -> str | None:
+    value = section.get("source_hash") or section.get("hash") or section.get("semantic_hash")
+    return str(value) if value is not None else None
+
+
+def _decision_option_ids(item: dict[str, Any]) -> set[str]:
+    ids: set[str] = set()
+    for option in item.get("decision_options", []):
+        if isinstance(option, str):
+            ids.add(option)
+        elif isinstance(option, dict):
+            option_id = option.get("id", option.get("decision", option.get("value")))
+            if option_id:
+                ids.add(str(option_id))
     return ids
 
 
-def update_conflict_candidate_status(
-    review: PendingConflictReview,
-    candidate_id: str,
-    status: ConflictCandidateStatus,
-    *,
-    revision_instruction: str | None = None,
-) -> PendingConflictReview:
-    updated_candidates: list[PendingConflictCandidate] = []
-    found = False
-    for candidate in review.candidates:
-        if candidate.candidate_id != candidate_id:
-            updated_candidates.append(candidate)
-            continue
-        found = True
-        updated_candidates.append(
-            candidate.model_copy(
-                update={
-                    "status": status,
-                    "revision_instruction": revision_instruction
-                    if status == ConflictCandidateStatus.REVISED
-                    else None,
-                }
-            )
-        )
-    if not found:
-        raise ConflictCandidateNotFoundError(f"candidate not found: {candidate_id}")
-    return review.model_copy(update={"candidates": updated_candidates})
+def _normalize_decision_options(options: Any = None) -> list[dict[str, str]]:
+    seen: set[str] = set()
+    normalized: list[dict[str, str]] = []
 
-
-def apply_pending_conflict_review(
-    review: PendingConflictReview,
-    graph_storage: Path,
-    *,
-    remove_pending_path: Path | None = None,
-) -> ConflictApplyResult:
-    unresolved = [
-        candidate
-        for candidate in review.candidates
-        if candidate.status
-        in {
-            ConflictCandidateStatus.PENDING,
-            ConflictCandidateStatus.DEFERRED,
-            ConflictCandidateStatus.REVISED,
-        }
-    ]
-    accepted = [
-        candidate
-        for candidate in review.candidates
-        if candidate.status == ConflictCandidateStatus.ACCEPTED
-    ]
-    rejected = [
-        candidate
-        for candidate in review.candidates
-        if candidate.status == ConflictCandidateStatus.REJECTED
-    ]
-
-    now = datetime.now(UTC).isoformat()
-    path = approved_conflicts_path(graph_storage)
-    sidecar = load_approved_conflicts(path)
-    existing_conflict_ids = {conflict.conflict_id for conflict in sidecar.conflicts}
-    existing_fingerprints = {
-        fingerprint.fingerprint for fingerprint in sidecar.rejected_fingerprints
-    }
-    conflicts = list(sidecar.conflicts)
-    rejected_fingerprints = list(sidecar.rejected_fingerprints)
-
-    for candidate in accepted:
-        conflict = approved_conflict_from_candidate(candidate, approved_at=now)
-        if conflict.conflict_id not in existing_conflict_ids:
-            conflicts.append(conflict)
-            existing_conflict_ids.add(conflict.conflict_id)
-
-    for candidate in rejected:
-        fingerprint = rejected_fingerprint_from_candidate(candidate, rejected_at=now)
-        if fingerprint.fingerprint not in existing_fingerprints:
-            rejected_fingerprints.append(fingerprint)
-            existing_fingerprints.add(fingerprint.fingerprint)
-
-    if accepted or rejected:
-        write_approved_conflicts_atomic(
-            path,
-            sidecar.model_copy(
-                update={
-                    "graph_revision": review.base_graph_revision,
-                    "source_manifest_hash": review.base_source_manifest_hash,
-                    "generated_at": now,
-                    "conflicts": conflicts,
-                    "rejected_fingerprints": rejected_fingerprints,
-                }
-            ),
-        )
-
-    if remove_pending_path is not None:
-        if unresolved:
-            write_pending_conflict_review_atomic(
-                remove_pending_path,
-                review.model_copy(update={"candidates": unresolved}),
-            )
+    raw_options = options if isinstance(options, list) else []
+    for option in raw_options:
+        if isinstance(option, str):
+            option_id = option
+            label = option.replace("_", " ")
+        elif isinstance(option, dict):
+            option_id = str(option.get("id", option.get("decision", option.get("value", ""))))
+            label = str(option.get("label") or option_id.replace("_", " "))
         else:
-            remove_pending_path.unlink(missing_ok=True)
-
-    return ConflictApplyResult(
-        status=ConflictApplyStatus.APPLIED,
-        review_id=review.review_id,
-        approved_candidate_ids=[candidate.candidate_id for candidate in accepted],
-        rejected_candidate_ids=[candidate.candidate_id for candidate in rejected],
-        pending_candidate_ids=[candidate.candidate_id for candidate in unresolved],
-    )
-
-
-def approved_conflict_from_candidate(
-    candidate: PendingConflictCandidate,
-    *,
-    approved_at: str,
-) -> ApprovedConflict:
-    return ApprovedConflict(
-        conflict_id=conflict_id_for_candidate(candidate),
-        source_candidate_id=candidate.candidate_id,
-        conflict_type=candidate.conflict_type,
-        severity=candidate.severity,
-        summary=candidate.summary,
-        reason=candidate.reason,
-        evidence_spans=candidate.evidence_spans,
-        approved_at=approved_at,
-    )
-
-
-def rejected_fingerprint_from_candidate(
-    candidate: PendingConflictCandidate,
-    *,
-    rejected_at: str,
-) -> RejectedConflictFingerprint:
-    return RejectedConflictFingerprint(
-        fingerprint=conflict_fingerprint(candidate),
-        source_candidate_id=candidate.candidate_id,
-        rejected_at=rejected_at,
-    )
-
-
-def conflict_id_for_candidate(candidate: PendingConflictCandidate) -> str:
-    return f"conflict-{conflict_fingerprint(candidate)[:16]}"
-
-
-def conflict_fingerprint(candidate: PendingConflictCandidate) -> str:
-    payload = {
-        "candidate_id": candidate.candidate_id,
-        "conflict_type": candidate.conflict_type,
-        "summary": candidate.summary,
-        "reason": candidate.reason,
-        "evidence_spans": candidate.evidence_spans,
-    }
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-
-
-def review_id_for_candidates(
-    candidates: list[PendingConflictCandidate],
-    manifest: SourceManifest,
-) -> str:
-    payload = {
-        "source_manifest_hash": source_manifest_hash(manifest),
-        "candidate_ids": [candidate.candidate_id for candidate in candidates],
-    }
-    return "review-" + hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()[:16]
-
-
-def source_manifest_hash(manifest: SourceManifest) -> str:
-    payload = [
-        {
-            "document_id": entry.document_id,
-            "section_id": entry.section_id,
-            "source_hash": entry.source_hash,
-            "semantic_hash": entry.semantic_hash,
-        }
-        for entry in sorted(manifest.entries, key=lambda item: item.section_id)
-    ]
-    return hashlib.sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    ).hexdigest()
-
-
-class _SectionText:
-    def __init__(
-        self,
-        entry: SourceManifestEntry,
-        text: str,
-        start_line: int,
-        end_line: int,
-    ) -> None:
-        self.entry = entry
-        self.text = text
-        self.lowered = text.lower()
-        self.start_line = start_line
-        self.end_line = end_line
-
-
-def _section_texts(
-    project_root: Path,
-    manifest: SourceManifest,
-    *,
-    document_texts: dict[str, str] | None = None,
-) -> list[_SectionText]:
-    by_document: dict[str, list[SourceManifestEntry]] = {}
-    for entry in manifest.entries:
-        by_document.setdefault(entry.document_id, []).append(entry)
-
-    sections: list[_SectionText] = []
-    for document_id, entries in by_document.items():
-        path = project_root / document_id
-        try:
-            text = (
-                document_texts.get(document_id)
-                if document_texts is not None
-                else None
-            )
-            if text is None:
-                text = path.read_text(encoding="utf-8")
-            lines = text.splitlines()
-        except OSError:
             continue
-        ordered = sorted(entries, key=lambda item: item.heading_start_line)
-        for index, entry in enumerate(ordered):
-            start = max(entry.heading_start_line, 1)
-            next_start = (
-                ordered[index + 1].heading_start_line
-                if index + 1 < len(ordered)
-                else len(lines) + 1
-            )
-            end = max(start, next_start - 1)
-            text = "\n".join(lines[start - 1 : end]).strip()
-            if text:
-                sections.append(_SectionText(entry, text, start, end))
-    return sections
+        if option_id in DECISIONS and option_id not in seen:
+            normalized.append({"id": option_id, "label": label})
+            seen.add(option_id)
+
+    for option in _DEFAULT_DECISION_OPTIONS:
+        if option["id"] not in seen:
+            normalized.append(dict(option))
+            seen.add(option["id"])
+    return normalized
 
 
-def _paired_token_candidate(
-    sections: list[_SectionText],
-    *,
-    rule_id: str,
-    conflict_type: str,
-    severity: str,
-    left_tokens: tuple[str, ...],
-    right_tokens: tuple[str, ...],
-    summary: str,
-    reason: str,
-) -> list[PendingConflictCandidate]:
-    left = _first_section_with_any(sections, left_tokens)
-    right = _first_section_with_any(sections, right_tokens)
-    if left is None or right is None:
-        return []
-    return [
-        _candidate(
-            rule_id=rule_id,
-            conflict_type=conflict_type,
-            severity=severity,
-            summary=summary,
-            reason=reason,
-            evidence_sections=[left, right] if left is not right else [left],
-        )
-    ]
-
-
-def _permission_scope_candidates(
-    sections: list[_SectionText],
-) -> list[PendingConflictCandidate]:
-    admin = _first_section_matching(
-        sections,
-        lambda section: (
-            "admin only" in section.lowered
-            or "administrator only" in section.lowered
-            or "管理者のみ" in section.text
-            or "管理者だけ" in section.text
-        ),
-    )
-    all_users = _first_section_matching(
-        sections,
-        lambda section: (
-            "all users" in section.lowered
-            or "any user" in section.lowered
-            or "全ユーザー" in section.text
-            or "全てのユーザー" in section.text
-            or "すべてのユーザー" in section.text
-        ),
-    )
-    if admin is None or all_users is None:
-        return []
-    return [
-        _candidate(
-            rule_id="permission_scope",
-            conflict_type="source_rule",
-            severity="high",
-            summary="Exclusive administrator scope and all-user scope both appear.",
-            reason="A source-level permission rule may allow both administrators only and all users.",
-            evidence_sections=[admin, all_users] if admin is not all_users else [admin],
-        )
-    ]
-
-
-def _must_vs_must_not_candidates(
-    sections: list[_SectionText],
-) -> list[PendingConflictCandidate]:
-    required = _first_section_matching(
-        sections,
-        lambda section: bool(
-            re.search(r"\bmust\b(?!\s+not)|\brequired\b|\bshall\b(?!\s+not)", section.lowered)
-        ),
-    )
-    prohibited = _first_section_matching(
-        sections,
-        lambda section: bool(
-            re.search(r"\bmust not\b|\bshall not\b|\bprohibited\b|\bforbidden\b", section.lowered)
-        ),
-    )
-    if required is None or prohibited is None:
-        return []
-    return [
-        _candidate(
-            rule_id="must_vs_must_not",
-            conflict_type="source_rule",
-            severity="high",
-            summary="Required and prohibited language both appear in Source specs.",
-            reason="A source-level rule appears to be both required and prohibited.",
-            evidence_sections=[required, prohibited]
-            if required is not prohibited
-            else [required],
-        )
-    ]
-
-
-def _numeric_bound_candidates(
-    sections: list[_SectionText],
-) -> list[PendingConflictCandidate]:
-    minimums: list[tuple[int, _SectionText]] = []
-    maximums: list[tuple[int, _SectionText]] = []
-    for section in sections:
-        for match in re.finditer(
-            r"(?:min(?:imum)?|at least|下限|最低)\D{0,8}(?P<value>\d+)",
-            section.lowered,
-        ):
-            minimums.append((int(match.group("value")), section))
-        for match in re.finditer(
-            r"(?:max(?:imum)?|at most|上限|最大)\D{0,8}(?P<value>\d+)",
-            section.lowered,
-        ):
-            maximums.append((int(match.group("value")), section))
-    if not minimums or not maximums:
-        return []
-    lower, lower_section = max(minimums, key=lambda item: item[0])
-    upper, upper_section = min(maximums, key=lambda item: item[0])
-    if lower <= upper:
-        return []
-    return [
-        _candidate(
-            rule_id="numeric_bounds",
-            conflict_type="source_rule",
-            severity="high",
-            summary=f"Lower bound {lower} exceeds upper bound {upper}.",
-            reason="Numeric lower and upper bounds in Source specs are inconsistent.",
-            evidence_sections=[lower_section, upper_section]
-            if lower_section is not upper_section
-            else [lower_section],
-        )
-    ]
-
-
-def _state_transition_candidates(
-    sections: list[_SectionText],
-) -> list[PendingConflictCandidate]:
-    state_word = r"(?:state|状態)"
-    transition = r"(?P<from>[^\s,.;。、]+)\s*->\s*(?P<to>[^\s,.;。、]+)"
-    required: dict[tuple[str, str], _SectionText] = {}
-    prohibited: dict[tuple[str, str], _SectionText] = {}
-    for section in sections:
-        for match in re.finditer(
-            rf"(?:must|required|必須|必要).{{0,24}}{state_word}\s+{transition}",
-            section.lowered,
-        ):
-            required.setdefault((match.group("from"), match.group("to")), section)
-        for match in re.finditer(
-            rf"(?:must not|shall not|prohibited|forbidden|禁止|不可).{{0,24}}{state_word}\s+{transition}",
-            section.lowered,
-        ):
-            prohibited.setdefault((match.group("from"), match.group("to")), section)
-    overlap = sorted(set(required) & set(prohibited))
-    if not overlap:
-        return []
-    source, target = overlap[0]
-    required_section = required[(source, target)]
-    prohibited_section = prohibited[(source, target)]
-    return [
-        _candidate(
-            rule_id="state_transition",
-            conflict_type="source_rule",
-            severity="high",
-            summary=f"State transition {source} -> {target} is both required and prohibited.",
-            reason="The same state transition appears as both required and prohibited.",
-            evidence_sections=[required_section, prohibited_section]
-            if required_section is not prohibited_section
-            else [required_section],
-        )
-    ]
-
-
-def _candidate(
-    *,
-    rule_id: str,
-    conflict_type: str,
-    severity: str,
-    summary: str,
-    reason: str,
-    evidence_sections: list[_SectionText],
-) -> PendingConflictCandidate:
-    evidence = [_evidence_span(section) for section in evidence_sections]
-    candidate_id = "candidate-" + hashlib.sha256(
-        json.dumps(
-            {
-                "rule_id": rule_id,
-                "evidence": [
-                    {
-                        "source_section_id": item["source_section_id"],
-                        "source_hash": item["source_hash"],
-                    }
-                    for item in evidence
-                ],
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-        ).encode("utf-8")
-    ).hexdigest()[:16]
-    return PendingConflictCandidate(
-        candidate_id=candidate_id,
-        conflict_type=conflict_type,
-        severity=severity,
-        rule_id=rule_id,
-        summary=summary,
-        reason=reason,
-        evidence_spans=evidence,
-    )
-
-
-def _evidence_span(section: _SectionText) -> dict[str, Any]:
-    excerpt = " ".join(section.text.split())
-    if len(excerpt) > 240:
-        excerpt = excerpt[:237].rstrip() + "..."
-    return {
-        "source_document_id": section.entry.document_id,
-        "source_section_id": section.entry.section_id,
-        "source_span": f"{section.start_line}-{section.end_line}",
-        "source_hash": section.entry.source_hash,
-        "excerpt": excerpt,
+def _source_ref(section: dict[str, Any], fallback_id: str) -> dict[str, Any]:
+    section_id = _section_id(section) or fallback_id
+    ref = {
+        "source_section_id": section_id,
+        "source_hash": _hash_for_section(section),
     }
+    if section.get("source_document_id"):
+        ref["source_document_id"] = section["source_document_id"]
+    if section.get("source_span"):
+        ref["source_span"] = deepcopy(section["source_span"])
+    return {key: value for key, value in ref.items() if value is not None}
 
 
-def _first_section_with_any(
-    sections: list[_SectionText],
-    tokens: tuple[str, ...],
-) -> _SectionText | None:
-    lowered_tokens = tuple(token.lower() for token in tokens)
-    return _first_section_matching(
-        sections,
-        lambda section: any(
-            token in section.lowered or token in section.text for token in lowered_tokens
-        ),
+def _base_source_hash(refs: list[dict[str, Any]]) -> list[dict[str, str]]:
+    hashes: list[dict[str, str]] = []
+    for ref in refs:
+        source_ref = ref.get("source_section_id") or ref.get("source_ref") or ref.get("ref")
+        source_hash = ref.get("source_hash") or ref.get("hash")
+        if source_ref and source_hash:
+            hashes.append({"source_ref": str(source_ref), "hash": str(source_hash)})
+    return hashes
+
+
+def _pair_key(source_id: str, target_id: str) -> tuple[str, str]:
+    return tuple(sorted((source_id, target_id)))
+
+
+def _get_limit(config: Any = None, limits: Any = None, default: int = 8) -> int:
+    limit_source = limits or getattr(config, "limits", None)
+    value = getattr(limit_source, "conflict_pair_max_per_section", default)
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _looks_high_risk(candidate: dict[str, Any]) -> bool:
+    channels = {str(channel) for channel in candidate.get("channels", [])}
+    terms = " ".join(str(term).lower() for term in candidate.get("evidence_terms", []))
+    text = " ".join(
+        str(candidate.get(key, "")).lower()
+        for key in ("reason", "relation_hint", "summary", "text")
+    )
+    score = candidate.get("candidate_score", candidate.get("score", 0))
+    try:
+        numeric_score = float(score)
+    except (TypeError, ValueError):
+        numeric_score = 0.0
+
+    has_conflict_terms = any(word in terms or word in text for word in _CONFLICT_WORDS)
+    return (
+        candidate.get("relation_hint") == "conflicts_with"
+        or ("shared_identifier" in channels and has_conflict_terms)
+        or (numeric_score >= 50 and has_conflict_terms)
     )
 
 
-def _first_section_matching(
-    sections: list[_SectionText],
-    predicate: Any,
-) -> _SectionText | None:
-    for section in sections:
-        if predicate(section):
-            return section
-    return None
+def select_conflict_judging_pairs(
+    sections: list[dict[str, Any]] | None = None,
+    related_sections: dict[str, list[dict[str, Any]]] | list[dict[str, Any]] | None = None,
+    candidates: Any = None,
+    *,
+    related_section_candidates: Any = None,
+    config: Any = None,
+    limits: Any = None,
+) -> list[dict[str, Any]]:
+    """Select explicit conflicts plus bounded high-risk candidate pairs."""
+
+    del sections  # Selection is id-based; section details are used by the judge stage.
+    max_per_section = _get_limit(config=config, limits=limits)
+    selected: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    counts: dict[str, int] = {}
+
+    def add_pair(pair: dict[str, Any], *, explicit: bool) -> None:
+        source_id = str(pair.get("source_section_id") or pair.get("section_a_id") or pair.get("a") or "")
+        target_id = str(pair.get("target_section_id") or pair.get("section_b_id") or pair.get("b") or "")
+        if not source_id or not target_id or source_id == target_id:
+            return
+        key = _pair_key(source_id, target_id)
+        if key in seen:
+            return
+        if not explicit and max_per_section <= 0:
+            return
+        if not explicit:
+            if counts.get(source_id, 0) >= max_per_section or counts.get(target_id, 0) >= max_per_section:
+                return
+
+        normalized = deepcopy(pair)
+        normalized["source_section_id"] = source_id
+        normalized["target_section_id"] = target_id
+        normalized.setdefault("relation_hint", "conflicts_with" if explicit else "potential_conflict")
+        normalized.setdefault("channels", [])
+        normalized.setdefault("evidence_terms", [])
+        selected.append(normalized)
+        seen.add(key)
+        if not explicit:
+            counts[source_id] = counts.get(source_id, 0) + 1
+            counts[target_id] = counts.get(target_id, 0) + 1
+
+    if isinstance(related_sections, dict):
+        related_iter = [
+            relation
+            for relations in related_sections.values()
+            for relation in (relations or [])
+            if isinstance(relation, dict)
+        ]
+    elif isinstance(related_sections, list):
+        related_iter = [relation for relation in related_sections if isinstance(relation, dict)]
+    else:
+        related_iter = []
+
+    for relation in related_iter:
+        if relation.get("relation_hint") == "conflicts_with":
+            add_pair(relation, explicit=True)
+
+    candidate_items = _coerce_candidate_items(candidates) + _coerce_candidate_items(related_section_candidates)
+    for candidate in candidate_items:
+        if isinstance(candidate, dict) and _looks_high_risk(candidate):
+            add_pair(candidate, explicit=False)
+
+    return selected
 
 
-def approved_conflict_notes(graph_storage: Path) -> list[dict[str, Any]]:
-    sidecar = load_approved_conflicts(approved_conflicts_path(graph_storage))
-    return [
-        {
-            "conflict": True,
-            "source_origin": "approved_conflicts",
-            "conflict_id": conflict.conflict_id,
-            "source_candidate_id": conflict.source_candidate_id,
-            "conflict_type": conflict.conflict_type,
-            "severity": conflict.severity,
-            "summary": conflict.summary,
-            "reason": conflict.reason,
-            "evidence_spans": conflict.evidence_spans,
-            "approved_by": conflict.approved_by,
-            "approved_at": conflict.approved_at,
+def _call_judge(conflict_judge: Any, request: dict[str, Any], timeout_sec: int = 5) -> dict[str, Any]:
+    if conflict_judge is None:
+        return {"outcome": "needs_human_review", "severity": "medium"}
+
+    for method_name in ("judge_conflict", "judge", "generate"):
+        method = getattr(conflict_judge, method_name, None)
+        if callable(method):
+            try:
+                return dict(method(request, timeout_sec=timeout_sec))
+            except TypeError:
+                return dict(method(request))
+    if callable(conflict_judge):
+        return dict(conflict_judge(request))
+    raise TypeError("conflict_judge must expose judge_conflict, judge, generate, or be callable")
+
+
+def _conflict_id_for_pair(pair: dict[str, Any]) -> str:
+    source_id = str(pair.get("source_section_id", "")).replace("/", "-").replace("#", "-")
+    target_id = str(pair.get("target_section_id", "")).replace("/", "-").replace("#", "-")
+    return f"conflict-{source_id}--{target_id}".strip("-")
+
+
+def _build_conflict_item(
+    pair: dict[str, Any],
+    sections_by_id: dict[str, dict[str, Any]],
+    judge_payload: dict[str, Any],
+    *,
+    generated_at: str | None = None,
+) -> ConflictReviewResult:
+    source_id = str(pair.get("source_section_id"))
+    target_id = str(pair.get("target_section_id"))
+    source = sections_by_id.get(source_id, {"source_section_id": source_id})
+    target = sections_by_id.get(target_id, {"source_section_id": target_id})
+    source_refs = [_source_ref(source, source_id), _source_ref(target, target_id)]
+    now = _timestamp(generated_at)
+
+    item = {
+        "conflict_id": str(judge_payload.get("conflict_id") or _conflict_id_for_pair(pair)),
+        "status": "pending",
+        "severity": str(judge_payload.get("severity") or "medium"),
+        "source_refs": source_refs,
+        "claims": deepcopy(judge_payload.get("claims") or []),
+        "why_conflicting": str(judge_payload.get("why_conflicting") or pair.get("reason") or "Potential source specifications conflict."),
+        "why_llm_cannot_decide": str(
+            judge_payload.get("why_llm_cannot_decide")
+            or judge_payload.get("why_unresolved")
+            or "Existing evidence does not establish a safe priority."
+        ),
+        "related_sections": [deepcopy(pair)],
+        "decision_options": _normalize_decision_options(judge_payload.get("decision_options")),
+        "recommended_next_action": str(
+            judge_payload.get("recommended_next_action") or "Ask a human to decide this conflict."
+        ),
+        "base_source_hashes": _base_source_hash(source_refs),
+        "valid_scope": "global",
+        "reflection_status": "unreflected",
+        "reflected_refs": [],
+        "stale_resolution": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    return validate_conflict_review_item(item=item, generated_at=generated_at)
+
+
+def evaluate_conflicts(
+    sections: list[dict[str, Any]] | None = None,
+    related_sections: dict[str, list[dict[str, Any]]] | list[dict[str, Any]] | None = None,
+    conflict_judge: Any = None,
+    *,
+    section_metadata: dict[str, Any] | None = None,
+    candidates: Any = None,
+    related_section_candidates: Any = None,
+    provider: Any = None,
+    judge: Any = None,
+    config: Any = None,
+    limits: Any = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Judge conflict candidates and return pending review items plus diagnostics."""
+
+    if related_sections is None and section_metadata:
+        related_sections = _metadata_value(section_metadata, "related_sections")
+    candidate_items = (
+        _coerce_candidate_items(candidates)
+        + _coerce_candidate_items(related_section_candidates)
+        + _candidate_items_from_metadata(section_metadata)
+    )
+    active_judge = conflict_judge or judge or provider
+    timeout_sec = int(getattr(getattr(config, "llm", None), "timeout_sec", 5) or 5)
+    sections_by_id = _section_map(sections)
+    pairs = select_conflict_judging_pairs(
+        sections=sections,
+        related_sections=related_sections,
+        candidates=candidate_items,
+        config=config,
+        limits=limits,
+    )
+
+    items: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, Any]] = []
+    for pair in pairs:
+        request = {
+            "pair": deepcopy(pair),
+            "section_a": deepcopy(sections_by_id.get(str(pair.get("source_section_id")), {})),
+            "section_b": deepcopy(sections_by_id.get(str(pair.get("target_section_id")), {})),
         }
-        for conflict in sidecar.conflicts
-    ]
-
-
-def pending_conflict_review_notes(project_root: Path) -> list[dict[str, Any]]:
-    notes: list[dict[str, Any]] = []
-    for review in iter_pending_conflict_reviews(project_root / ".spec-grag" / "pending"):
-        for candidate in review.candidates:
-            notes.append(
+        payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
+        outcome = str(payload.get("outcome", "")).lower()
+        if outcome in {"needs_human_review", "unresolved", "pending"}:
+            items.append(_build_conflict_item(pair, sections_by_id, payload, generated_at=generated_at))
+        else:
+            diagnostics.append(
                 {
-                    "source_origin": "pending_conflict_review",
-                    "review_id": review.review_id,
-                    "candidate_id": candidate.candidate_id,
-                    "status": candidate.status.value,
-                    "conflict_type": candidate.conflict_type,
-                    "severity": candidate.severity,
-                    "summary": candidate.summary,
-                    "reason": candidate.reason,
-                    "evidence_spans": candidate.evidence_spans,
-                    "review_required": candidate.status
-                    in {
-                        ConflictCandidateStatus.PENDING,
-                        ConflictCandidateStatus.DEFERRED,
-                        ConflictCandidateStatus.REVISED,
-                    },
+                    "kind": "potential_conflict",
+                    "level": "warning",
+                    "source_section_id": pair.get("source_section_id"),
+                    "target_section_id": pair.get("target_section_id"),
+                    "warning": payload.get("warning") or payload.get("why_not_pending") or "Potential conflict resolved by existing evidence.",
+                    "outcome": payload.get("outcome"),
                 }
             )
-    return notes
+
+    summary = summarize_conflict_review_state(items=items, existing_blocking_reasons=[])
+    return ConflictReviewResult(
+        conflict_review_items=items,
+        diagnostics=diagnostics,
+        freshness_report=summary["freshness_report"],
+        pending_conflict_count=summary["pending_conflict_count"],
+    )
+
+
+def validate_conflict_review_item(
+    item: dict[str, Any] | None = None,
+    *,
+    items: list[dict[str, Any]] | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any] | list[dict[str, Any]]:
+    """Return a normalized Conflict Review Item, or a list when items is given."""
+
+    if item is None and items is not None:
+        return [validate_conflict_review_item(item=entry, generated_at=generated_at) for entry in items]
+    if item is None:
+        raise ValueError("item is required")
+
+    normalized = deepcopy(item)
+    now = _timestamp(generated_at)
+    normalized.setdefault("conflict_id", f"conflict-{abs(hash(str(normalized))) :x}")
+    normalized.setdefault("status", "pending")
+    normalized.setdefault("severity", "medium")
+    normalized.setdefault("source_refs", [])
+    normalized.setdefault("claims", [])
+    normalized.setdefault("why_conflicting", "")
+    normalized.setdefault("why_llm_cannot_decide", "")
+    normalized.setdefault("related_sections", [])
+    normalized["decision_options"] = _normalize_decision_options(normalized.get("decision_options"))
+    normalized.setdefault("recommended_next_action", "Ask a human to decide this conflict.")
+    normalized.setdefault("base_source_hashes", _base_source_hash(normalized.get("source_refs", [])))
+    normalized.setdefault("valid_scope", "global")
+    normalized.setdefault("reflection_status", "unreflected")
+    normalized.setdefault("reflected_refs", [])
+    normalized.setdefault("stale_resolution", False)
+    normalized.setdefault("created_at", now)
+    normalized.setdefault("updated_at", now)
+
+    if normalized["status"] not in STATUSES:
+        raise ValueError(f"invalid conflict review status: {normalized['status']}")
+    if normalized["valid_scope"] not in SCOPES:
+        raise ValueError(f"invalid conflict review scope: {normalized['valid_scope']}")
+    if normalized["reflection_status"] not in REFLECTION_STATUSES:
+        raise ValueError(f"invalid reflection status: {normalized['reflection_status']}")
+    if _decision_option_ids(normalized) != DECISIONS:
+        raise ValueError("decision_options must contain the full conflict decision enum")
+    return normalized
+
+
+def apply_conflict_decision(
+    items: list[dict[str, Any]] | None = None,
+    decision_payload: dict[str, Any] | None = None,
+    *,
+    conflict_review_items: list[dict[str, Any]] | None = None,
+    payload: dict[str, Any] | None = None,
+    decision: dict[str, Any] | None = None,
+    generated_at: str | None = None,
+) -> list[dict[str, Any]]:
+    """Apply one human decision payload to a pending conflict item."""
+
+    current_items = _copy_items(items if items is not None else conflict_review_items)
+    decision_payload = decision_payload or payload or decision
+    if not decision_payload:
+        raise ValueError("decision payload is required")
+
+    conflict_id = str(decision_payload.get("conflict_id") or "")
+    selected_decision = str(decision_payload.get("decision") or "")
+    selected_option = str(decision_payload.get("selected_option") or selected_decision)
+    if selected_decision not in DECISIONS:
+        raise ValueError(f"invalid conflict decision: {selected_decision}")
+
+    for index, item in enumerate(current_items):
+        if item.get("conflict_id") != conflict_id:
+            continue
+        if item.get("status") in {"resolved", "dismissed"}:
+            raise ValueError("resolved or dismissed conflict decisions cannot be overwritten")
+        if selected_option not in _decision_option_ids(item):
+            raise ValueError(f"selected option is not available: {selected_option}")
+
+        updated = validate_conflict_review_item(item=item, generated_at=generated_at)
+        now = _timestamp(generated_at)
+        if selected_decision in PENDING_DECISIONS:
+            updated["status"] = "pending"
+            updated["updated_at"] = now
+            updated["last_decision"] = {
+                "decision": selected_decision,
+                "reason": str(decision_payload.get("reason") or ""),
+                "selected_option": selected_option,
+            }
+        elif selected_decision == "dismiss":
+            updated["status"] = "dismissed"
+            updated["valid_scope"] = str(decision_payload.get("valid_scope") or updated.get("valid_scope") or "global")
+            updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
+            updated["reflection_status"] = "not_required"
+            updated["updated_at"] = now
+        else:
+            updated["status"] = "resolved"
+            updated["valid_scope"] = "task_scope" if selected_decision == "task_scope_resolution" else str(
+                decision_payload.get("valid_scope") or updated.get("valid_scope") or "global"
+            )
+            if updated["valid_scope"] not in SCOPES:
+                raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
+            updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
+            updated["reflection_status"] = "unreflected"
+            updated["updated_at"] = now
+        updated.setdefault("reflected_refs", [])
+        current_items[index] = updated
+        return current_items
+
+    raise ValueError(f"conflict item not found: {conflict_id}")
+
+
+def _resolution_from_payload(decision_payload: dict[str, Any], *, selected_option: str) -> dict[str, Any]:
+    referenced_source_refs = decision_payload.get("referenced_source_refs") or []
+    if not referenced_source_refs:
+        raise ValueError("referenced_source_refs is required for resolved or dismissed conflicts")
+    return {
+        "decision": str(decision_payload.get("decision")),
+        "reason": str(decision_payload.get("reason") or ""),
+        "selected_option": selected_option,
+        "valid_scope": str(decision_payload.get("valid_scope") or "global"),
+        "referenced_source_refs": list(referenced_source_refs),
+    }
+
+
+def summarize_conflict_review_state(
+    items: list[dict[str, Any]] | None = None,
+    *,
+    conflict_review_items: list[dict[str, Any]] | None = None,
+    existing_blocking_reasons: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a freshness summary where pending conflicts are the only blocker here."""
+
+    current_items = items if items is not None else conflict_review_items or []
+    pending_count = sum(1 for item in current_items if item.get("status") == "pending")
+    stale_count = sum(1 for item in current_items if item.get("stale_resolution") is True)
+    unreflected_count = sum(
+        1
+        for item in current_items
+        if item.get("status") == "resolved" and item.get("reflection_status", "unreflected") == "unreflected"
+    )
+    blocking_reasons = list(existing_blocking_reasons or [])
+    if pending_count and "pending_conflict" not in blocking_reasons:
+        blocking_reasons.append("pending_conflict")
+
+    return {
+        "pending_conflict_count": pending_count,
+        "unreflected_conflict_resolution_count": unreflected_count,
+        "unreflected_conflict_resolutions": unreflected_count,
+        "stale_resolution_count": stale_count,
+        "freshness_report": {
+            "status": "blocked" if blocking_reasons else "fresh",
+            "blocking_reasons": blocking_reasons,
+            "pending_conflict_count": pending_count,
+            "unreflected_conflict_resolution_count": unreflected_count,
+            "stale_resolution_count": stale_count,
+        },
+    }
+
+
+def refresh_conflict_resolution_staleness(
+    items: list[dict[str, Any]] | None = None,
+    *,
+    conflict_review_items: list[dict[str, Any]] | None = None,
+    current_source_hashes: dict[str, str] | None = None,
+    source_hashes: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Refresh stale_resolution by comparing base_source_hashes to current hashes."""
+
+    current_items = _copy_items(items if items is not None else conflict_review_items)
+    hashes = current_source_hashes or source_hashes or {}
+    for item in current_items:
+        if item.get("status") not in {"resolved", "dismissed"}:
+            item["stale_resolution"] = False
+            continue
+        stale = False
+        for base in item.get("base_source_hashes", []):
+            source_ref = base.get("source_ref") or base.get("source_section_id") or base.get("ref")
+            expected_hash = base.get("hash") or base.get("source_hash")
+            if source_ref in hashes and expected_hash is not None and str(hashes[source_ref]) != str(expected_hash):
+                stale = True
+                break
+        item["stale_resolution"] = stale
+    return current_items
+
+
+def usable_conflict_resolution_evidence(
+    items: list[dict[str, Any]] | None = None,
+    *,
+    conflict_review_items: list[dict[str, Any]] | None = None,
+    requested_scope: str | None = None,
+    scope: str | None = None,
+    include_task_scope: bool = False,
+) -> list[dict[str, Any]]:
+    """Return resolved, non-stale conflict decisions usable for the requested scope."""
+
+    requested_scope = requested_scope or scope or "global"
+    current_items = items if items is not None else conflict_review_items or []
+    evidence: list[dict[str, Any]] = []
+    for item in current_items:
+        if item.get("status") != "resolved":
+            continue
+        if item.get("stale_resolution") is True:
+            continue
+        valid_scope = item.get("valid_scope", "global")
+        if valid_scope == "task_scope" and not include_task_scope:
+            continue
+        if requested_scope == "global" and valid_scope != "global":
+            continue
+        evidence.append(deepcopy(item))
+    return evidence
+
+
+evaluate_conflict_review_items = evaluate_conflicts
+run_conflict_review = evaluate_conflicts
+generate_conflict_review_items = evaluate_conflicts
+normalize_conflict_review_item = validate_conflict_review_item
+validate_conflict_review_items = validate_conflict_review_item
+record_conflict_decision = apply_conflict_decision
+resolve_conflict_review_item = apply_conflict_decision
+build_conflict_freshness_report = summarize_conflict_review_state
+conflict_review_freshness_report = summarize_conflict_review_state
+mark_stale_conflict_resolutions = refresh_conflict_resolution_staleness
+validate_conflict_resolution_freshness = refresh_conflict_resolution_staleness
+filter_usable_conflict_evidence = usable_conflict_resolution_evidence
+resolved_conflict_evidence = usable_conflict_resolution_evidence
+build_conflict_judging_pairs = select_conflict_judging_pairs
+candidate_conflict_pairs = select_conflict_judging_pairs

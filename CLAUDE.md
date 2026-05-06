@@ -1,169 +1,244 @@
-# spec-grag 開発ガイド（Claude Code 用）
+# spec-grag Agent Guide
 
-このファイルは spec-grag リポジトリで作業する Claude Code セッションが最初に読むべき**不変ルール**を記録する。memory（`~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/`）は揮発するため、リポジトリ管理下にも同じ内容を残す。
+このファイルは spec-grag リポジトリで作業する Agent 共通の不変ルールを記録する。Claude / Codex / その他 Agent は同じルールに従う。
 
-## 必読ドキュメント（新セッション開始時、この順序で）
+## 必読ドキュメント
 
-1. **`doc/EXTERNAL_DESIGN.ja.md`** — 外部契約（source of truth、不変）
-2. **`doc/DESIGN.ja.md`** — 現時点での方針、設計判断の境界、不確定項目
-3. **本ファイル `CLAUDE.md`** — 不変ルール（本書）
-4. memory `~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/MEMORY.md` 経由で `project_*.md` 2 件、`feedback_*.md` 9 件
-5. 必要に応じて `BAK/` 配下を参考（過去の議論・調査の参照のみ、戻らない）
+新しいセッションでは、まず次をこの順序で読む。
 
-## 不変ルール（pivot を超えて生きる、ユーザーから明示された原則）
+1. `doc/EXTERNAL_DESIGN.ja.md` - 軽量版 SPEC-grag の外部契約
+2. `doc/DESIGN.ja.md` - 軽量版 SPEC-grag の内部設計
+3. 本ファイル `CLAUDE.md` - Agent 共通の不変ルール
+4. 必要な場合のみ `archive/full-grag-2026-05-05/` - 旧 full GRAG 版の退避資料
+
+root の `BAK/` は削除済みであり、参照先にしない。
+
+## 現在の正本
+
+現在の正本は軽量版 SPEC-grag である。
+
+- property graph / entity relation graph / hierarchical cluster は標準経路にしない
+- Purpose と Core Concept は人間更新対象
+- `/spec-core` は Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor、Source Retrieval Index、Conflict Review Items を扱う
+- `/spec-inject` / `/spec-realign` では Agent / LLM が Agentic Search と制約生成の主体になる
+- CLI は保持物と検索 API を提供する。探索方針と今回必要な制約の最終生成は Agent / LLM が担う
+- Core Concept 自動更新と Core Concept 乖離通知は標準契約に入れない
+
+旧 full GRAG 版の資料と実装は `archive/full-grag-2026-05-05/` に退避されている。参照は比較・復旧・背景確認に限り、現在の設計判断の正本にしてはいけない。
+
+## 不変ルール
 
 ### ルール 1: 土台がない状態で設計を議論しない
 
-**採用方針として「Python + LlamaIndex 系のエコシステム」で行くことは決定済**（pivot 後、commit b45d95f, 2026-04-27）。ただし、**具体 API**（PropertyGraphIndex / SimplePropertyGraphStore / SchemaLLMPathExtractor 等）の API 詳細・組み合わせ動作・永続化粒度・incremental update 方式は **未確認**。
+実装方式、外部依存、LLM provider、embedding provider、Qdrant / FlagEmbedding の API など、設計に影響する事実は一次資料または最小実行スパイクで確認してから採用する。
 
-「どういう機能があり、どう利用できるのか」が不明なままでは、設計は土台不足のまま破綻する。これは graphrag-rs 時代の Phase 0 原則だが、**pivot を超えて生きている**。LlamaIndex でも同じく：
+未確認の内容は「未確認」と明示し、推測で仕様を埋めない。特に推論カット後に変わり得る API / package version / CLI 挙動は、現在の資料や実行結果で確認する。
 
-- 機能カタログを把握する（何ができるか、何ができないか、何がプレースホルダか）
-- 典型利用シーケンスをコード断片レベルで確認する
-- 限界・既知の罠を実装レベルで把握する
+### ルール 2: 資料には決定内容と TODO のみを書く
 
-これが揃うまで具体 API の **利用方法** を「最終方針」「採用」と確定しない。「LlamaIndex 系で行く」という採用方針自体は確定済（DESIGN.ja.md §1.4）。
+`doc/EXTERNAL_DESIGN.ja.md` と `doc/DESIGN.ja.md` は仕様書であり、作業メモではない。
 
-**役割分担も同じく、調査結果を踏まえて確定する**。GraphRAG / LlamaIndex の機能・限界が未確認の状態では、責務境界（DESIGN.ja.md §1.1〜§1.9）はすべて **仮分担**。調査前に「決定」と書かない。ルール 7 の「役割分担を実装より先に考える」は、**調査が完了した上での役割分担の確定** を意味する。役割分担「自体」を調査前に確定してはいけない。
+書くもの:
 
-**「調査完了」の判定基準**:
+- 決定された契約
+- 現時点での方針
+- 実装前に解くべき未決事項
 
-- WebFetch / 公式 docs / GitHub 確認だけでは不十分（雰囲気で判定しない）
-- **最小実行スパイク**で挙動を実証する（doc/TODO.md の Phase 0.5）
-- 調査成果物は **固定フォーマット**で記録する（doc/TODO.md「調査成果物フォーマット」）
-- 検証した **package version / commit を pin** して記録する（latest を根拠に設計確定しない）
-- 実証できなかった項目は `unknown` のまま残す（推測で埋めない、ルール 2, 3）
+書かないもの:
 
-設計手順とフェーズ管理、調査成果物フォーマット、最小実行スパイク、version pin 方針は [doc/TODO.md](doc/TODO.md) を参照。
+- 議論の時系列
+- 過去案の長い経緯
+- Agent の作業メモ
+- 最初のユースケース固有の事情
 
-関連 memory: `feedback_no_design_without_foundation.md`, `feedback_design_procedure.md`
+旧設計の履歴は archive に置く。新しい `doc/` へ戻さない。
 
-### ルール 2: 推論カットの都合で不明な事をもっともらしく提示しない
+### ルール 3: 実装より先に責務境界を考える
 
-私の学習データはカットオフがある（2026-01）。それ以降の LlamaIndex / 依存ライブラリの API 変更・破壊的変更・新機能・deprecated 化は知らない。
+設計判断・実装判断では、先に「誰が何を持つか」を整理する。
 
-過去の知識ベースで「LlamaIndex はこう使う」「PropertyGraphIndex の API はこう」と書くのは「もっともらしい」が誤り得る。代わりに：
+- Human: Purpose / Core Concept の更新、Conflict Review Item の判断、最終仕様判断
+- Agent / LLM: 会話区間の解釈、検索キー生成、Agentic Search、今回必要な制約生成、回答生成
+- CLI / SPEC-grag: 設定読込、section hash / freshness 管理、保持物生成、検索 API、参照 API、Conflict Review Item の保存
+- Retrieval / vector store: 候補検索の基盤。判断主体ではない
 
-- WebFetch で公式 docs を確認した内容のみを書く
-- 実コード（GitHub の最新版）を確認した内容のみを書く
-- 確認していないことは**「未確認」と最初から明示する**
+CLI は Agentic Search の探索方針を自律的に決めない。Agent / LLM は CLI が返す保持物と検索結果を使って探索する。
 
-### ルール 3: 推論カットの都合で不明なものを隠して整合性を取ろうとしない
+### ルール 4: Source Specs の生テキストを無制限に混ぜない
 
-文書に書いた他の部分との整合性を取るために、未確認の API や挙動を「こうなっているはず」で埋めない。整合しなくても「未確認」と明示する。**整合性のために推測で穴埋めする方が、後から手戻りリスクが大きい**。
+Agent / LLM は Agentic Search、検索キー生成、根拠確認のために必要な Source Specs snippet を読んでよい。
 
-### ルール 4: 必要な調査は不明な点を無くすまで行う
+ただし、読んだ本文を未整理のまま最終回答の前提へ混ぜてはいけない。最終的に使う制約は、今回の課題に必要なものとして生成し、Purpose / Core Concept / Source Specs / stale でない resolved Conflict Review Item の根拠を示す。
 
-「次セッションで調査」「MVP では省略」「最小コストで」「後で追加」を判断回避の逃げ口にしない。
+Search Keys、Section Summary、Related Sections、Chapter Key Anchor は参照補助であり、単独で制約根拠にしてはいけない。
 
-設計に影響する不確定項目は、その項目を確定するまで設計判断を「最終」「採用」と書かない。「現時点での方針」「採用候補」「暫定」と書き分ける。
+### ルール 5: pending conflict を無視して進まない
 
-関連 memory: `feedback_no_minimum_cost_escape.md`
+status が `pending` の Conflict Review Item が残っている場合、`/spec-inject` と `/spec-realign` は通常の制約生成や回答生成へ進まない。
 
-### ルール 5: 全項目列挙の原則
+dirty / stale と pending conflict が同時にある場合、先に `/spec-core` または watcher で保持物を更新し、更新後も残る pending conflict だけを人間判断対象にする。
 
-調査範囲は最初に網羅的に列挙し、各項目の現状把握度（確認済 / 中 / 浅い / 表面的 / 未確認）を一覧で明示する。未確認項目を見せないように範囲を縮小しない。
+resolved だが未反映の Conflict Review Item は、`base_source_hashes` と `valid_scope` に従う。`stale_resolution` になったものを制約根拠にしてはいけない。
 
-関連 memory: `feedback_full_scope_enumeration.md`
+### ルール 6: 新しい用語・仮称を出す時は範囲を先に明示する
 
-### ルール 6: 資料には決定内容と TODO のみを書く、作業メモとしない
+設計相談や監査中に、Agent が新しい用語・仮称・整理ラベルを突然導入してはいけない。新しい用語が必要な場合は、先に次を明示する。
 
-仕様書・設計書・契約書（`doc/EXTERNAL_DESIGN.ja.md`, `doc/DESIGN.ja.md` 等）には以下のみを書く：
+- 仮称か既存用語か
+- 意味
+- 含むもの
+- 含まないもの
+- 既存概念との差分
+- 未決事項
 
-- **決定された内容**（現時点での方針、確定スキーマ、確定アーキテクチャ）
-- **未確定の TODO**（不確定項目セクションで明示、解消されるまで実装に着手しない）
+範囲が曖昧なまま、その用語を前提に設計判断・実装判断へ進まない。
 
-書かないもの：
+例:
 
-- 議論プロセスの時系列（Phase 1, 2, 3, 4 のような作業段階）
-- 過去の選定経緯（採用しなかった候補の評価、検討した代替案の議論）
-- 作業メモ（途中経過、議論の振り返り、自分用の覚書）
-- 「最初のユースケース」固有の詳細（汎用設計を引きずる原因）
+```text
+仮称: Section Context JSON
+意味: section ごとの目的・要約・重要制約・関連先を JSON sidecar として持つ軽量案
+含む: purpose, summary, key_constraints, related_sections, source span
+含まない: property graph, 多段 traversal, cluster snapshot
+既存概念との差分: Core Concept は人間更新の原則本文、これは retrieval / injection 用 metadata
+未決: related_sections の生成上限と検証方法
+```
 
-私用の作業メモが必要なら、リポジトリ内別ファイル（例：[doc/CLAUDE_NOTES.md](doc/CLAUDE_NOTES.md)）または memory に書く。仕様書本体には混ぜない。
+### ルール 7: 実装完了ガードを守る
 
-**資料の構成**:
+Agent は、形だけの実装や smoke / fake provider の通過だけを根拠に「完了」と報告してはいけない。
 
-- 決定内容（本体）→ 資料の上部
-- 不確定項目 / TODO → **資料末尾にそれぞれまとめる**（各セクションに散らさない、本文に紛らせない）
+production 経路または通常実行経路に入るコードでは、次を未完了として扱う。
 
-関連 memory: `feedback_spec_not_worklog.md`
+- `TODO`、`NotImplementedError`、`pass`、`...`、空の戻り値だけで成立する関数・メソッド
+- 入力を実際に処理せず、固定値・mock data・fixture 相当の値だけを返す実装
+- 実 provider / 実 storage / 実 artifact を扱うべき箇所で fake provider 相当の処理に逃げる実装
+- `try/except pass`、広すぎる `except Exception`、失敗を diagnostics なしに握りつぶす実装
+- 期待される validation、異常系、境界条件を省略したまま正常系だけを通す実装
 
-### ルール 7: 実装より先に役割分担を考える
+ただし、明示的な test fixture、fake provider、smoke 専用経路、仕様書に未決事項として記録された TODO は禁止対象ではない。その場合も、報告では production / 通常実行経路の未完了範囲を明示する。
 
-設計判断・実装に入る前に、まず **「誰が何を持つか」（責務境界）** を整理する。フレームワーク選定（LlamaIndex 採用 / Neo4j 採用 等）や実装手段の議論はその後。
+完了報告前に、Agent は次を自己確認する。
 
-順序：
+- 実装した関数が入力・設定・状態・artifact を実際に読んで処理しているか
+- fake / smoke 専用処理が通常実行経路へ混入していないか
+- 異常系が silent failure になっていないか
+- 未実装・仮実装・未検証の範囲を報告に分けて書いているか
 
-1. プロジェクトの判断契約・実行契約を **役割別に分解**する
-2. 各役割を **誰が持つか**（Human / CLI / Orchestrator / LLM 用途別 / GRAG / Library）を決める
-3. その後で、各役割を実装する **手段**（フレームワーク・ライブラリ・API）を選ぶ
+### ルール 8: 失敗を計画へ反映してから修正する
 
-順序を逆にしない。「LlamaIndex を採用する → そこに何を任せるか考える」ではなく、「役割分担を決める → 各役割を実装する手段を選ぶ」。
+Agent は、実装・検証・監査で失敗、skip、未実行、過大申告、flaky、環境差分、設計との不整合を見つけた場合、単に口頭で説明して進めてはいけない。外部契約変更や人間判断が不要な範囲では、次の loop を止めずに回す。
 
-役割分担を最初に決めないと起きること：
+```text
+失敗検出 -> 計画 / テスト仕様の状態更新 -> 実装修正 -> 再テスト -> 報告
+```
 
-- GRAG / GraphRAG ライブラリに **判断契約**まで委譲してしまう（GRAG は候補生成・検索基盤、判断主体ではない）
-- LLM に「全部やらせよう」となる（用途別に分離すべき：**Extraction / Classification / Answer**）
-- 「最初のユースケース」のドメイン語彙が標準スキーマに紛れ込む（汎用性が損なわれる）
+必須事項:
 
-SPEC-grag の役割分担（決定済）：
+- 失敗や未検証が、既存の `doc/IMPLEMENTATION_PLAN.ja.md` / `doc/TEST_SPEC.ja.md` の項目で表現できるか確認する
+- 表現できる場合は、該当する Gate / T 項目 / 検証行を `[ ]`、`[~]`、`[!]`、残 TODO、または証跡更新として先に反映する
+- 表現できない場合は、新しい Gate / T 項目 / 検証行 / TODO を追加し、完了条件を明確にする
+- 失敗原因が実装 bug、test expectation のズレ、fixture 不足、環境設定不足、外部 provider の仕様差分のどれかを切り分ける
+- fake / smoke / default profile の passing で、失敗した real / production 経路を完了扱いしない
+- 修正後は、失敗を再現した test または同等の targeted test を再実行し、必要なら default profile と real / local-service profile を分けて再実行する
+- 再テストできない場合は、その理由を未完了 TODO として計画と報告の両方に残す
 
-- **Human**: Purpose 確定、Concept 承認、Custom schema 承認、最終仕様判断
-- **CLI / Orchestrator**: 変更検出、未承認 Concept 遮断、4 軸評価のオーケストレーション、InjectionContext 構築
-- **LLM (Extraction)**: ChapterAnchor の意味要素抽出、Concept 更新候補生成、Entity/Relation 候補抽出
-- **LLM (Classification)**: GRAG 検索結果に対する 4 軸評価の付与（Validator の deterministic 検査を経る）
-- **LLM (Answer)**: InjectionContext / RealignResult に拘束された回答生成（自由回答ではない）
-- **GRAG subsystem**: 候補生成・検索・探索（判断はしない）
-- **GraphRAG library**（LlamaIndex / Neo4j / Microsoft GraphRAG 等）: GRAG subsystem の内部実装候補に過ぎない、すべて candidate_only（DESIGN.ja.md §1.8）
+禁止事項:
 
-ChapterAnchor のような **共同責務** は、各役割を最初に分けてから組み立てる（CLI/Parser が文書構造、LLM (Extraction) が意味要素、GRAG Builder が保存）。
+- 「これは環境問題」「後で確認」「TODO に残す」だけで、計画やテスト仕様を更新せずに進む
+- 失敗した検証行を `[x]` のままにする
+- full suite や real provider の失敗を、関係ない default passing で相殺して報告する
+- flaky を 1 回の単独 passing だけで解消扱いにする
+- 人間判断不要な修正を、確認待ちにして止める
 
-詳細な責務マトリクスは [doc/DESIGN.ja.md §1.1〜§1.9](doc/DESIGN.ja.md) を参照。
+### ルール 9: 監査指摘は全件 disposition を残す
 
-関連 memory: `feedback_role_separation_first.md`
+Agent は、人間または別 Agent から監査結果、レビュー結果、懸念点、修正候補、過大申告の疑いを受け取った場合、指摘をまとめて消化した扱いにしてはいけない。各指摘に ID を付け、少なくとも次の disposition を残す。
 
-### ルール 8: Agent の raw source read を制限する
+- 指摘 ID
+- 指摘要約
+- 判定: `採用` / `部分採用` / `不採用` / `保留` / `既対応`
+- 理由: 設計根拠、実装根拠、または不採用理由
+- 対応: 修正したファイル、追加した test、更新した計画 / テスト仕様
+- 証跡: 実行した command、test 結果、または確認した file / line
+- 残 TODO: 未解決の場合の完了条件と次アクション
 
-Agent (Claude / Codex CLI) は spec-grag CLI の外側で動く実行制御層であり、Answer 生成時に **raw source spec を直接制約として使ってはいけない**。制約・修正対象・競合候補は **InjectionContext / RealignResult 経由のみ**使用する。
+必須事項:
 
-許可される Agent の Read：
+- 重大度が高い指摘、実動作検証、provider boundary、fake / smoke 混入、テスト過大申告、flaky は、口頭だけで処理せず `doc/IMPLEMENTATION_PLAN.ja.md` または `doc/TEST_SPEC.ja.md` に状態を反映する
+- 不採用または既対応と判断する場合も、根拠となる実装箇所または test を明示する
+- 複数指摘のうち一部だけ修正した場合は、修正済みと未修正を分けて報告する
+- 未検証の指摘は `不採用` にしない。`保留` または残 TODO として扱う
+- 最終報告では「何を直したか」「何を直していないか」「何が未検証か」を指摘 ID 単位で読める形にする
 
-- Agentic search の事前調査（GRAG 検索クエリ生成のためのキーワード抽出）
-- evidence inspection / debug / human review
+禁止事項:
 
-禁止される Agent の Read：
+- 「主なものは対応済み」「大きな問題は解消」など、指摘単位の対応が追えない報告をする
+- 採用しなかった指摘を理由なしに省略する
+- 未検証のまま「問題なし」と報告する
+- test passing の総数だけを示し、どの指摘の再テストになっているかを示さない
 
-- Answer 生成時に raw source の内容を直接 Answer に組み込む
-- InjectionContext を経由せず source spec を Answer の根拠として引用する
-- 未承認 Concept を含む章ファイルを Answer に混ぜる
-- ConstraintContext / TargetContext / ConflictNotes / ReviewNotes に存在しない情報を Answer 制約として持ち込む
+### ルール 10: 最終報告では完了範囲と残範囲を必ず分ける
 
-理由：Agent が raw source を読めると、Orchestrator の **未承認 Concept 遮断**を迂回してしまう。spec-grag の判断契約は CLI / Orchestrator が持つ（ルール 7）ので、Agent は CLI が出力した構造化情報のみを使って Answer を生成する。
+Agent は、作業終了時の最終報告で「何が終わったか」と「何が残っているか」を必ず分けて書く。作業が小さい場合でも、未実行・未検証・対象外・次 TODO があるなら省略してはいけない。
 
-詳細は [doc/DESIGN.ja.md §1.7](doc/DESIGN.ja.md) を参照。
+最終報告には、少なくとも次を含める。
 
-関連 memory: `feedback_agent_read_restriction.md`
+- 完了したこと: 変更した仕様、実装、test、docs
+- 残したこと: 未修正、未実装、未解決、次に必要な作業
+- 未検証のこと: 実行していない test、skip、環境未確認、real provider / local-service 未確認
+- 判定できないこと: 人間判断待ち、外部環境待ち、再現待ち
+- 証跡: 実行した command、test 結果、確認した file / line
 
-## 過去の手戻り（同じ轍を踏まない）
+報告では、次の区分を崩さない。
 
-過去セッションで犯した手戻りの教訓集は [doc/CLAUDE_NOTES.md](doc/CLAUDE_NOTES.md) に分離した。新セッション開始時に併せて参照する。
+- 実装済み
+- `none` / `fake` profile で passing
+- `local-service` / `real-smoke` で passing
+- skipped / 未実行
+- 残 TODO
 
-## 関連 memory（~/.claude/projects/-home-kazuki-public-html-spec-grag/memory/）
+禁止事項:
 
-| ファイル | 内容 |
-|---|---|
-| `feedback_no_design_without_foundation.md` | 土台がない状態で設計を議論しない |
-| `feedback_no_speculative_filling.md` | 推論カットの都合で推測で埋めない、整合性のため隠さない |
-| `feedback_full_scope_enumeration.md` | 全項目列挙、未確認は最初から明示 |
-| `feedback_verify_before_recommend.md` | 推奨を出す前に一次資料確認 |
-| `feedback_no_minimum_cost_escape.md` | 「最小コスト」「MVP」を判断回避の逃げ口にしない |
-| `feedback_structural_analysis.md` | 比較するなら最初に「軸」を立てる |
-| `feedback_capture_findings.md` | 実装中の気付きを即座にメモする |
-| `feedback_spec_not_worklog.md` | 資料には決定内容と TODO のみ、作業メモとしない |
-| `feedback_role_separation_first.md` | 実装より先に役割分担を考える、責務境界を最初に整理する |
-| `feedback_agent_read_restriction.md` | Agent の raw source read を制限する、Answer は InjectionContext 経由のみ |
-| `project_engine_pivot.md` | pivot 経緯と暫定採用スキーマ |
-| `project_first_use_case.md` | ec-spoke.local 事例 |
+- 「完了」「対応済み」「大丈夫」とだけ書き、残範囲を省略する
+- 未実行の test や skip を、関係ない passing の後ろに隠す
+- 実装済みと検証済みを同じ意味で扱う
+- 本運用 readiness 未完了のまま「本運用可能」と報告する
 
-memory はリポジトリ外（`~/.claude/` 配下）で揮発しうるため、本書（CLAUDE.md）と `doc/DESIGN.ja.md` を二重保険として運用する。
+### ルール 11: 合理的理由のない保留を禁止する
+
+Agent は、指摘や残 TODO を、合理的な理由なしに残してはいけない。既存契約の範囲内で、人間判断も外部ブロッカーも不要な修正・検証は、その場で実施する。
+
+残してよい理由は次に限る。
+
+- 人間判断が必要: Purpose / Core Concept、Conflict Review Item の決定、仕様方針の選択など
+- 外部ブロッカーがある: 認証、service 権限、network、provider 障害、hardware / model cache、長時間運用待ちなど
+- 契約変更が必要: `doc/EXTERNAL_DESIGN.ja.md` または `doc/DESIGN.ja.md` の方針変更を伴う
+- 既存差分を壊す危険がある: user 変更、archive 退避、generated 差分と衝突し、独断で編集すると巻き戻しになる
+- 再現性が不足している: flaky / sporadic failure で、追加の再現条件整理が必要
+- スコープ外である: ユーザーの今回依頼から外れる。ただし、本運用完了判定や安全性に関わる場合は残 TODO に記録する
+
+残す場合は、最終報告で次を明示する。
+
+- 残す項目
+- 残す理由の分類
+- なぜ今この場で進められないか
+- 完了条件
+- 次に実行すべき command または作業
+
+禁止事項:
+
+- 「後でやる」「時間切れ」「今回はここまで」だけを理由に、人間判断不要な作業を残す
+- 合理的な反対理由がないのに、監査指摘を `保留` や残 TODO にする
+- 実装できるが test を回していないだけの状態を、完了扱いまたは既対応扱いにする
+- 未検証を、単なる報告の省略で見えなくする
+
+## 退避資料
+
+旧 full GRAG 版は次に退避している。
+
+```text
+archive/full-grag-2026-05-05/
+```
+
+この退避資料は歴史的バックアップであり、現在の正本ではない。現在の仕様判断は `doc/EXTERNAL_DESIGN.ja.md` と `doc/DESIGN.ja.md` を優先する。

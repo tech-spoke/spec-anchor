@@ -1,157 +1,71 @@
 [sources]
 include = ["docs/spec/**/*.md"]
-exclude = []
+exclude = ["archive/**", "**/drafts/**"]
 
 [core]
 purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
-extraction_mode = "schema_llm"
 
-[graph]
-storage = ".spec-grag/graph/"
+[context]
+storage = ".spec-grag/context"
+
+[section]
+max_heading_level = 4
+
+[section_metadata]
+summary_enabled = true
+search_keys_enabled = true
+related_sections_enabled = true
+
+[chapter_anchor]
+enabled = true
 
 [llm]
 provider = "codex_cli"
-
-[llm.codex_cli]
 command = "codex"
-model = "gpt-5.4"
-effort = "low"
-
-[llm.claude_cli]
-command = "claude"
-model = "claude-sonnet-4-6"
-effort = "low"
-
-[extraction]
-mode = "schema_llm"
-max_triplets_per_chunk = 20
-num_workers = 1
-batch_size = 6
-batch_max_chars = 4000
-section_max_heading_level = 4
-grounding_score_threshold = 0.9
-grounding_score_margin = 0.15
-timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
-repair_on_schema_failure = true
-
-[extraction.codex]
 model = "gpt-5.4-mini"
 effort = "low"
-
-[extraction.claude]
-model = "claude-haiku-4-5"
-effort = "low"
-
-[answer]
-failure_fallback = "failed"
-sandbox = "read-only"
-tools = ""
-cache_enabled = true
-cache_path = ".spec-grag/cache/answer_cache.json"
-context_max_source_constraints = 8
-context_max_related_sources = 8
-context_max_entities = 8
-context_max_review_notes = 12
-context_max_conflict_notes = 8
-context_max_classification_notes = 6
-context_excerpt_chars = 700
 timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
-repair_on_schema_failure = true
-
-[classification]
-sandbox = "read-only"
-tools = ""
-max_items = 20
-max_source_chunks = 12
-max_concepts = 4
-max_graph_entities = 4
-max_chapter_anchors = 2
-max_clusters = 2
-batch_size = 5
-cache_enabled = true
-cache_path = ".spec-grag/cache/classification_cache.json"
-fail_on_high_priority_incomplete = true
-deferred_enabled = true
-deferred_max_items = 6
-fallback_on_error = false
-timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
-repair_on_schema_failure = true
-
-[concept_diff]
-sandbox = "read-only"
-tools = ""
-fallback_on_error = false
-timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
-repair_on_schema_failure = true
-
-[community_report]
-sandbox = "read-only"
-tools = ""
-fallback_on_error = false
-timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
-repair_on_schema_failure = true
+max_retries = 1
 
 [retrieval]
-chunk_size = 1600
-chunk_overlap = 200
-vector_top_k = 8
-bm25_top_k = 12
-graph_expansion_hops = 1
-graph_relation_allowlist = ["DEPENDS_ON", "REFINES", "RELATED_TO", "CONTRASTS_WITH"]
-graph_min_relation_confidence = "medium"
-max_graph_entities = 12
+chunk_size = 1200
+chunk_overlap = 160
+dense_top_k = 12
+sparse_top_k = 20
 rank_fusion = "rrf"
-max_source_chunks = 12
-
-[query_planner]
-fallback_on_error = false
-sandbox = "read-only"
-tools = ""
-cache_enabled = true
-cache_path = ".spec-grag/cache/query_plan_cache.json"
-bm25_term_limit = 80
-dense_query_max_chars = 2000
-timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
-repair_on_schema_failure = true
 
 [embedding]
-provider = "ollama"
-model = "bge-m3"
-dimension = 1024
-timeout_sec = 120
-max_retries = 0
-retry_backoff_sec = 0.0
+provider = "flagembedding"
+model = "BAAI/bge-m3"
+dense_enabled = true
+sparse_enabled = true
+
+[vector_store]
+provider = "qdrant"
+url = "http://localhost:6333"
+collection = "spec_grag_source"
+
+[limits]
+section_summary_max_chars = 480
+search_keys_max = 32
+related_candidate_max_per_section = 32
+related_selected_max_per_section = 8
+conflict_pair_max_per_section = 8
+llm_batch_max_sections = 8
+llm_batch_max_chars = 12000
+
+[watcher]
+enabled = true
+interval_ms = 2000
+debounce_ms = 1000
+stale_lock_ms = 300000
+state_file = ".spec-grag/state/watch_state.json"
+queue_file = ".spec-grag/state/watch_queue.json"
 
 [run]
 save_artifacts = false
 artifact_dir = ".spec-grag/runs"
 include_request = false
 include_response = false
-redact_payload = false
-
-[logging]
-level = "WARNING"
-file_path = ".spec-grag/logs/spec-grag.log"
-max_bytes = 1048576
-backup_count = 3
-
-[watcher]
-enabled = true
-interval_ms = 2000
-debounce_ms = 500
-stale_lock_ms = 300000
-state_file = ".spec-grag/state/watch_state.json"
-queue_file = ".spec-grag/state/watch_queue.json"
+redact_payload = true

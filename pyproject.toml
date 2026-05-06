@@ -1,35 +1,47 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "spec-grag"
 version = "0.1.0"
-description = "SPEC-grag CLI and protocol implementation"
-requires-python = ">=3.12"
-dependencies = [
-  "jsonschema>=4.25,<5",
-  "pydantic>=2.13,<3",
-  "llama-index-core>=0.14.21,<0.15",
-  "markdown-it-py>=3,<5",
+description = "Lightweight specification context tooling for Agent and LLM workflows"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+  { name = "SPEC-grag contributors" }
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+]
+retrieval = [
+  "FlagEmbedding>=1.3.0,<2",
+  "qdrant-client>=1.11.0,<2",
 ]
 
 [project.scripts]
 spec-grag = "spec_grag.cli:main"
-spec-grag-slash = "spec_grag.slash:main"
-spec-grag-setup-project = "spec_grag.project_setup:main"
-spec-grag-watch = "spec_grag.watcher:main"
+spec-grag-slash = "spec_grag.cli:slash_main"
+spec-grag-watch = "spec_grag.cli:watch_main"
+spec-grag-setup-project = "spec_grag.cli:setup_project_main"
+spec-grag-setup-system = "spec_grag.cli:setup_system_main"
 
-[tool.setuptools.packages.find]
-include = ["spec_grag*"]
+[tool.setuptools]
+packages = ["spec_grag"]
+include-package-data = true
 
 [tool.setuptools.package-data]
 spec_grag = [
+  "templates/.codex/commands/*.md",
+  "templates/.claude/commands/*.md",
+  "templates/.spec-grag/config.toml",
   "templates/.spec-grag/.gitignore",
-  "templates/.spec-grag/*",
-  "templates/.codex/commands/*",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+addopts = "-ra"

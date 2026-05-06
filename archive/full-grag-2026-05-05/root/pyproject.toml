@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spec-grag"
+version = "0.1.0"
+description = "SPEC-grag CLI and protocol implementation"
+requires-python = ">=3.12"
+dependencies = [
+  "jsonschema>=4.25,<5",
+  "pydantic>=2.13,<3",
+  "llama-index-core>=0.14.21,<0.15",
+  "markdown-it-py>=3,<5",
+]
+
+[project.scripts]
+spec-grag = "spec_grag.cli:main"
+spec-grag-slash = "spec_grag.slash:main"
+spec-grag-setup-project = "spec_grag.project_setup:main"
+spec-grag-watch = "spec_grag.watcher:main"
+
+[tool.setuptools.packages.find]
+include = ["spec_grag*"]
+
+[tool.setuptools.package-data]
+spec_grag = [
+  "templates/.spec-grag/.gitignore",
+  "templates/.spec-grag/*",
+  "templates/.codex/commands/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
