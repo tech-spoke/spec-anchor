@@ -1044,7 +1044,16 @@ def build_section_payloads(
     sections: Sequence[Mapping[str, Any]],
     metadata_by_section_id: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return one Qdrant payload per section for the section-level collection."""
+    """Return one Qdrant payload per section for the section-level collection.
+
+    Per Phase R-3 (`doc/STORAGE_REDESIGN.ja.md` §7.4) the payload now also
+    includes `related_sections`. When the related_sections stage has not
+    run yet (e.g. the initial section_metadata upsert), the metadata input
+    has no `related_sections` key and the payload defaults to an empty
+    list; the related_sections stage then refreshes the field via
+    `update_section_collection_related_sections` (`set_payload`) without a
+    re-embed.
+    """
 
     metadata_by_section_id = metadata_by_section_id or {}
     payloads: list[dict[str, Any]] = []
@@ -1067,10 +1076,87 @@ def build_section_payloads(
                 "summary": str(metadata.get("summary") or ""),
                 "search_keys": list(metadata.get("search_keys") or []),
                 "identifiers": list(metadata.get("identifiers") or []),
+                "related_sections": list(metadata.get("related_sections") or []),
                 "text": text,
             }
         )
     return payloads
+
+
+def update_section_collection_related_sections(
+    related_sections_by_id: Mapping[str, Sequence[Mapping[str, Any]]],
+    *,
+    url: str = "http://localhost:6333",
+    collection: str = DEFAULT_SECTION_COLLECTION,
+    client: Any | None = None,
+) -> dict[str, Any]:
+    """Patch the `related_sections` payload field in `spec_grag_section`.
+
+    Phase R-3 (`doc/STORAGE_REDESIGN.ja.md` §7.4) routes the related_sections
+    LLM typing output back to the Qdrant section collection via
+    `client.set_payload` so the `inject-search` API (Phase R-6) can return
+    related_sections in the same call as the section content.
+
+    `related_sections_by_id` maps `source_section_id` to the related-section
+    list (the same dicts found in section_metadata.json). The function
+    issues one `set_payload` call per section using a
+    `source_section_id` filter, so the existing point IDs (assigned by
+    `upsert_qdrant_section_collection`) do not need to be tracked by
+    callers.
+
+    Returns a small diagnostics dict that includes the number of sections
+    successfully patched and the list of section_ids that produced an
+    error (each error is logged into `errors` instead of raising).
+    """
+
+    from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
+
+    if not related_sections_by_id:
+        return {
+            "status": "success",
+            "section_count": 0,
+            "errors": [],
+            "collection": collection,
+        }
+
+    qdrant = client if client is not None else QdrantClient(url)
+    patched = 0
+    errors: list[dict[str, Any]] = []
+    for section_id, related in related_sections_by_id.items():
+        section_id_str = str(section_id)
+        if not section_id_str:
+            continue
+        payload_patch = {"related_sections": [dict(item) for item in related]}
+        selector = qdrant_models.Filter(
+            must=[
+                qdrant_models.FieldCondition(
+                    key="source_section_id",
+                    match=qdrant_models.MatchValue(value=section_id_str),
+                )
+            ]
+        )
+        try:
+            qdrant.set_payload(
+                collection_name=collection,
+                payload=payload_patch,
+                points=selector,
+            )
+            patched += 1
+        except Exception as exc:  # pragma: no cover - exercised via integration
+            errors.append(
+                {
+                    "section_id": section_id_str,
+                    "reason_code": "set_payload_failed",
+                    "message": str(exc),
+                }
+            )
+    return {
+        "status": "success" if not errors else "degraded",
+        "section_count": patched,
+        "errors": errors,
+        "collection": collection,
+    }
 
 
 def build_section_embeddings_artifact(

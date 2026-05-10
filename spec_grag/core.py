@@ -428,6 +428,11 @@ def _run_spec_core_unlocked(
         section_metadata,
         {"related_sections": selected_related_sections},
     )
+    _update_section_collection_related_sections_if_enabled(
+        config=config,
+        section_metadata=section_metadata,
+        emit=emit,
+    )
     if progress_tracker is not None:
         related_llm_results = getattr(
             getattr(related_generation, "selection", None), "llm_results", []
@@ -1103,6 +1108,65 @@ def _upsert_section_collection_if_enabled(
         # Section collection upsert failures must not block /spec-core.
         # The candidate generator will fall back to in-memory retrieval and
         # surface the failure via diagnostics in the next aggregation step.
+        return
+
+
+def _update_section_collection_related_sections_if_enabled(
+    *,
+    config: Mapping[str, Any],
+    section_metadata: Mapping[str, Any],
+    emit: Any,
+) -> None:
+    """Push the `related_sections` field into the Qdrant section payload.
+
+    Phase R-3 (`doc/STORAGE_REDESIGN.ja.md` §7.4) routes the
+    related_sections LLM typing output back to `spec_grag_section` so the
+    inject CLI (Phase R-6) can return Related Sections in the same call as
+    the section content. Skipped when the project is configured for fake /
+    offline retrieval (the same gate as
+    `_upsert_section_collection_if_enabled`).
+    """
+
+    embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
+    vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
+    if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+        return
+    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
+    section_collection = str(
+        _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
+    )
+    related_sections_by_id: dict[str, list[Mapping[str, Any]]] = {}
+    for entry in section_metadata.get("sections") or ():
+        if not isinstance(entry, Mapping):
+            continue
+        section_id = str(
+            entry.get("source_section_id") or entry.get("section_id") or ""
+        )
+        if not section_id:
+            continue
+        related = entry.get("related_sections") or []
+        if not isinstance(related, Sequence) or isinstance(related, (str, bytes)):
+            continue
+        related_sections_by_id[section_id] = [
+            dict(item) for item in related if isinstance(item, Mapping)
+        ]
+    if not related_sections_by_id:
+        return
+    try:
+        retrieval_index_api.update_section_collection_related_sections(
+            related_sections_by_id,
+            url=url,
+            collection=section_collection,
+        )
+    except Exception:
+        # set_payload failures must not block /spec-core. The JSON
+        # fallback (section_metadata.json) keeps the data available until
+        # Phase R-5 removes it, so the inject CLI can still resolve
+        # related_sections from the artifact.
+        try:
+            emit("core_related_sections_payload_patch_failed")
+        except Exception:
+            pass
         return
 
 

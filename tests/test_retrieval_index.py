@@ -462,6 +462,176 @@ def test_section_payloads_one_per_section() -> None:
     assert by_id["spec.md#beta"]["summary"] == ""
 
 
+def test_section_payloads_include_related_sections_when_metadata_has_it() -> None:
+    """Phase R-3: related_sections must round-trip through build_section_payloads."""
+
+    module = _retrieval_module()
+    sections = [
+        {
+            "source_section_id": "spec.md#alpha",
+            "source_document_id": "spec.md",
+            "stable_section_uid": "uid-alpha",
+            "heading_path": ["Spec", "Alpha"],
+            "source_hash": "ha",
+        },
+    ]
+    related = [
+        {
+            "target_section_id": "spec.md#beta",
+            "relation_hint": "depends_on",
+            "confidence": "high",
+            "reason": "alpha depends on beta",
+            "evidence_terms": ["auth"],
+            "channels": ["shared_identifier"],
+        }
+    ]
+    metadata = {
+        "spec.md#alpha": {
+            "summary": "Alpha summary.",
+            "search_keys": ["auth"],
+            "identifiers": ["AuthService"],
+            "related_sections": related,
+        },
+    }
+    payloads = module.build_section_payloads(sections, metadata)
+
+    assert payloads[0]["related_sections"] == related
+    # The list must be a copy, not the same reference (so later mutation
+    # of metadata does not leak into the payload).
+    assert payloads[0]["related_sections"] is not related
+
+
+def test_section_payloads_default_related_sections_to_empty_list() -> None:
+    """Phase R-3: when metadata has no related_sections, payload defaults to []."""
+
+    module = _retrieval_module()
+    sections = [
+        {
+            "source_section_id": "spec.md#alpha",
+            "source_document_id": "spec.md",
+            "stable_section_uid": "uid-alpha",
+            "heading_path": ["Spec", "Alpha"],
+            "source_hash": "ha",
+        }
+    ]
+    metadata = {"spec.md#alpha": {"summary": "Alpha summary."}}
+
+    payloads = module.build_section_payloads(sections, metadata)
+
+    assert payloads[0]["related_sections"] == []
+
+
+def test_update_section_collection_related_sections_issues_set_payload_per_section() -> None:
+    """Phase R-3: related_sections is patched via set_payload, not re-embedded."""
+
+    module = _retrieval_module()
+    captured: list[dict[str, Any]] = []
+
+    class _FakeQdrantClient:
+        def set_payload(
+            self,
+            *,
+            collection_name: str,
+            payload: dict[str, Any],
+            points: Any,
+        ) -> None:
+            captured.append(
+                {
+                    "collection_name": collection_name,
+                    "payload": payload,
+                    "points": points,
+                }
+            )
+
+    fake = _FakeQdrantClient()
+    related_by_id = {
+        "spec.md#alpha": [
+            {
+                "target_section_id": "spec.md#beta",
+                "relation_hint": "depends_on",
+                "confidence": "high",
+            }
+        ],
+        "spec.md#beta": [],
+    }
+
+    diagnostics = module.update_section_collection_related_sections(
+        related_by_id,
+        collection="spec_grag_section",
+        client=fake,
+    )
+
+    assert diagnostics["status"] == "success"
+    assert diagnostics["section_count"] == 2
+    assert diagnostics["errors"] == []
+    assert len(captured) == 2
+    seen_section_ids: list[str] = []
+    for call in captured:
+        assert call["collection_name"] == "spec_grag_section"
+        assert set(call["payload"].keys()) == {"related_sections"}
+        must = getattr(call["points"], "must", []) or []
+        section_id = ""
+        for cond in must:
+            if getattr(cond, "key", None) == "source_section_id":
+                section_id = getattr(getattr(cond, "match", None), "value", "")
+        seen_section_ids.append(str(section_id))
+    assert sorted(seen_section_ids) == ["spec.md#alpha", "spec.md#beta"]
+
+
+def test_update_section_collection_related_sections_empty_input_skips_client() -> None:
+    """Phase R-3: empty input must not contact Qdrant."""
+
+    module = _retrieval_module()
+
+    class _AssertNoCallClient:
+        def set_payload(self, **kwargs: Any) -> None:  # pragma: no cover
+            raise AssertionError("set_payload must not be called for empty input")
+
+    diagnostics = module.update_section_collection_related_sections(
+        {},
+        client=_AssertNoCallClient(),
+    )
+
+    assert diagnostics == {
+        "status": "success",
+        "section_count": 0,
+        "errors": [],
+        "collection": module.DEFAULT_SECTION_COLLECTION,
+    }
+
+
+def test_update_section_collection_related_sections_records_per_section_error() -> None:
+    """Phase R-3: a failing set_payload must be reported, not raised."""
+
+    module = _retrieval_module()
+
+    class _PartiallyFailingClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def set_payload(
+            self,
+            *,
+            collection_name: str,
+            payload: dict[str, Any],
+            points: Any,
+        ) -> None:
+            self.calls += 1
+            if self.calls == 2:
+                raise RuntimeError("simulated Qdrant outage")
+
+    fake = _PartiallyFailingClient()
+    diagnostics = module.update_section_collection_related_sections(
+        {"alpha": [], "beta": []},
+        client=fake,
+    )
+
+    assert diagnostics["status"] == "degraded"
+    assert diagnostics["section_count"] == 1
+    assert len(diagnostics["errors"]) == 1
+    assert diagnostics["errors"][0]["reason_code"] == "set_payload_failed"
+
+
 def test_section_embeddings_artifact_uses_section_collection() -> None:
     module = _retrieval_module()
     sections = [
