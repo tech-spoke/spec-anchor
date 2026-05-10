@@ -664,7 +664,15 @@ def _run_spec_core_unlocked(
         "concept_hash": concept_hash,
         "generated_at": generated_at,
     }
-    chapter_anchors = _chapter_anchors(sections, metadata_entries, generated_at)
+    chapter_anchors = _chapter_anchors(
+        sections,
+        metadata_entries,
+        generated_at,
+        config=config,
+        provider=active_provider,
+        cache_dir=context_dir / "cache",
+        concept_text=concept_text,
+    )
     if _chunk_level_enabled(config):
         # Phase R-5 legacy path: chunk-level retrieval. Kept under the
         # CHUNK_LEVEL_ENABLED guard so the body can be exercised in tests
@@ -2396,16 +2404,41 @@ def _conflict_pair_key_from_item(item: Mapping[str, Any]) -> tuple[str, str] | N
     return None
 
 
-def _chapter_anchors(sections: Sequence[Mapping[str, Any]], metadata: Sequence[Mapping[str, Any]], generated_at: str) -> dict[str, Any]:
-    by_id = {entry["section_id"]: entry for entry in metadata}
-    chapters = build_empty_chapter_anchors(list(sections))["chapters"]
-    for chapter in chapters:
-        section_ids = chapter["source_section_ids"]
-        chapter["summary"] = " / ".join(by_id.get(section_id, {}).get("summary", "") for section_id in section_ids).strip(" /")
-        chapter["key_topics"] = [key for section_id in section_ids for key in by_id.get(section_id, {}).get("search_keys", [])[:1]]
-        chapter["important_sections"] = section_ids[:3]
-        chapter["generated_at"] = generated_at
-    return {"status": "success", "chapters": chapters, "generated_at": generated_at}
+def _chapter_anchors(
+    sections: Sequence[Mapping[str, Any]],
+    metadata: Sequence[Mapping[str, Any]],
+    generated_at: str,
+    *,
+    config: Mapping[str, Any] | None = None,
+    provider: Any = None,
+    cache_dir: str | Path | None = None,
+    concept_text: str | None = None,
+) -> dict[str, Any]:
+    """Phase R-7: LLM-generated Chapter Key Anchor.
+
+    Delegates to `spec_grag.chapter_anchors.generate_chapter_anchors`
+    which issues one LLM call per chapter and falls back to a mechanical
+    anchor (concatenated summaries + first search_keys + first 3
+    section_ids) when the provider is missing or the response is
+    unparseable. Callers that don't pass `config` / `provider` (e.g.
+    legacy tests, watcher snapshot paths) still get a usable anchor via
+    the fallback path.
+    """
+
+    import spec_grag.chapter_anchors as chapter_anchors_api
+
+    llm_config = _config_get(config, ("llm",), {}) if config is not None else {}
+    generation = chapter_anchors_api.generate_chapter_anchors(
+        sections,
+        metadata,
+        config=config,
+        llm_config=llm_config,
+        provider=provider,
+        cache_dir=cache_dir,
+        concept_text=concept_text or "",
+        generated_at=generated_at,
+    )
+    return generation.artifact
 
 
 def _section_manifest_audit_by_id(

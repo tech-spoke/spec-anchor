@@ -30,17 +30,20 @@
 - [x] §9 Freshness: pending Conflict Review Item は `/spec-inject` / `/spec-realign` の通常進行を blocker にする
   - 実装: spec_grag/freshness.py、spec_grag/conflict_review.py
   - 検証: tests/test_spec_core.py::test_t_i04_conflicts_with_unresolved_blocks_freshness
-- [ ] §3 Section Metadata は Qdrant `[vector_store].section_collection` の payload に格納する (`section_metadata.json` は廃止、二重保管なし)
-  - 現状: Qdrant `spec_grag_section` payload にも summary / search_keys / identifiers / heading_path を upsert する経路は存在する (spec_grag/retrieval_index.py:1043 `build_section_payloads`、spec_grag/retrieval_index.py:1109 `upsert_qdrant_section_collection`)。ただし `section_metadata.json` がまだ正本で、Qdrant payload はそのコピー。`related_sections` 配列は Qdrant payload に含まれない。
-  - 残: Phase R-2 (読み取り経路を Qdrant payload に統一)、Phase R-3 (書き込み経路を Qdrant 直結、`related_sections` を `set_payload` で追加)、Phase R-4 (監査ログを `section_manifest.json` 拡張へ移植)、Phase R-5 (`section_metadata.json` 廃止)
-- [ ] §4 Source Retrieval Index は section-level Qdrant collection のみ (chunk-level collection は持たない)
-  - 現状: chunk-level `spec_grag_source` collection と `source_chunks.json` がまだ standard 経路から書かれる (spec_grag/core.py の `_qdrant_upsert_with_partial_dispatch` ほか、spec_grag/retrieval_index.py:493-563 `build_source_chunks` / `build_source_chunks_artifact`、spec_grag/retrieval_index.py:857 `compute_chunk_diff`、spec_grag/retrieval_index.py:907 `upsert_qdrant_bge_m3_index_incremental`)。
-  - 残: Phase R-5 で chunk-level コードをコメントアウトし `spec_grag_source` を `delete_collection` する migration tool を提供
-- [ ] §6 Chapter Key Anchor は LLM が章単位で生成する (input: 章 heading + 配下 summary / search_keys / identifiers / related_sections + 関連 Core Concept、output: chapter_id / summary / key_topics / important_sections / notes / source_section_ids / generated_at)
-  - 現状: spec_grag/core.py:2216 `_chapter_anchors` は LLM を経由しない機械集約 (config 由来の summary 抜粋 + search_keys 先頭抜粋を chapter 単位に集約するのみ)。Phase R-7 で LLM 生成 stage に置換予定。
-  - 残: 章単位 LLM call、prompt_version 管理、cache 化 (key = chapter_id + 配下 section_hash 集合 + prompt_version)
-- [ ] §8 `/spec-inject` CLI 拡張 (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` / `inject "<task>"`)
-  - 残: Phase R-6 (doc/STORAGE_REDESIGN.ja.md §5.3 / §7.4 R-6 の API 設計通りに実装)
+- [x] §3 Section Metadata は Qdrant `[vector_store].section_collection` の payload に格納する (二重保管は backward compat 期間のみ)
+  - 実装: Phase R-3 で `build_section_payloads` (spec_grag/retrieval_index.py:1057) に `related_sections` を含めて payload schema を case-C-1 最終形に更新。`update_section_collection_related_sections` が related_sections stage 後に `client.set_payload` で書き戻し (spec_grag/core.py `_update_section_collection_related_sections_if_enabled` が wire)。読み取り API は spec_grag/section_payload.py `fetch_section_payloads`
+  - 検証: tests/test_retrieval_index.py の 5 件 (R-3)、tests/test_section_payload.py の 10 件 (R-2)
+  - 注意: `.spec-grag/context/section_metadata.json` は backward compat 期間として並行更新を継続 (Phase R-5 完全廃止予定)
+- [x] §4 Source Retrieval Index は section-level Qdrant collection のみ (chunk-level collection は持たない)
+  - 実装: Phase R-5 で `CHUNK_LEVEL_ENABLED: bool = False` (spec_grag/core.py:51) と config override `[vector_store].chunk_level_enabled` を導入。disable 時は spec_grag/core.py `_chunk_level_disabled_artifact_source_chunks` / `_chunk_level_disabled_artifact_retrieval_index_revision` が status="disabled" stub を書き出し、chunk helper (`build_source_chunks` / `upsert_qdrant_bge_m3_index_incremental` 等) は呼ばれない
+  - 検証: tests/test_chunk_level_disabled.py の 6 件
+  - 注意: chunk-level dormant code は撤去せずコメントアウト相当で残置 (ユーザー指示「chunk-level はコメントアウトしておく」)。Qdrant `spec_grag_source` collection の物理削除は別 migration step
+- [x] §6 Chapter Key Anchor は LLM が章単位で生成する (input: 章 heading + 配下 summary / search_keys / identifiers / related_sections + 関連 Core Concept、output: chapter_id / summary / key_topics / important_sections / notes / source_section_ids / generated_at)
+  - 実装: Phase R-7 で spec_grag/chapter_anchors.py (`generate_chapter_anchors`、`ChapterAnchorsCache`、`CHAPTER_ANCHORS_PROMPT_VERSION = "chapter-anchors-v1"`)。spec_grag/core.py `_chapter_anchors` を新 module 委譲に置換 (cache_dir = context_dir / "cache"、provider は section_metadata と同 active_provider、concept_text は `[core].concept_file` から読み込み)。stage は LlmRequest contract に合わせ `chapter_key_anchor`
+  - 検証: tests/test_chapter_anchors.py の 9 件 (chapter ごとに LLM call、summary/key_topics/notes が LLM 出力に由来、important_sections が章内 section_ids に絞られる、unparseable response 時の mechanical fallback、cache reuse、section_hash 変更時の選択的 invalidation)
+- [x] §8 `/spec-inject` CLI 拡張 (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` / `inject "<task>"`)
+  - 実装: Phase R-6 で spec_grag/inject.py に `run_inject_search` / `run_inject_section` / `run_inject_chapters` / `run_inject_purpose` / `run_inject_conflicts` を追加、spec_grag/cli.py に対応する subparser + dispatcher を追加。Qdrant / FlagEmbedding 不可時は structured warning fallback
+  - 検証: tests/test_inject_cli_extension.py の 11 件
 
 ## 1. 設計方針
 

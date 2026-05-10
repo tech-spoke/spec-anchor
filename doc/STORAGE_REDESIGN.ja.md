@@ -371,22 +371,38 @@ evidence_origin: `Conflict Review Item`
   - 実装: §7.2 の各 evidence 行を参照 (LLM prompt instructions, `_is_identifier_like_search_key` filter, `SECTION_METADATA_PROMPT_VERSION = "section-metadata-v2"`)
   - 検証 (unit): tests/test_section_metadata_generation.py の 3 件 (`test_search_keys_and_identifiers_are_disjoint` / `test_section_metadata_prompt_includes_role_constraint_instructions` / `test_section_metadata_prompt_version_is_v2`)。unit suite 全体 342 passed, 9 skipped (calibration matrix のみ skip)
   - 検証 (実 LLM): 2026-05-11 03:00 UTC+9 に spec-grag リポジトリ (`.spec-grag/config.toml` の default_provider = codex, model = gpt-5.4-mini, effort = low) で `spec-grag core --all` を実行。50 sections の section_metadata.json を v1 → v2 で再生成し、search_keys ∩ identifiers の重複が **92.0% → 0.0%** (sections-with-overlap 46/50 → 0/50)、per-key overlap rate **45.2% → 0.0%** (218/482 → 0/486) に低下。AFTER の sample section `25_コンポーネント層（配置操作）.md#0003-スコープ` は search_keys に "扱う範囲と扱わない範囲" / "文書のスコープ" / "型を選ぶ理由" 等の自然言語句を持ち、identifiers に `replaceComponent` / `registerComponents` / `addComponent` 等の code symbol が分離されている (役割分離が機能していることを確認)
-- [ ] Phase R-1: 設計書改訂 (案 C-1 + §5 inject フローを `doc/DESIGN.ja.md` / `doc/EXTERNAL_DESIGN.ja.md` に明記、checkbox 化)
-- [ ] Phase R-2: 読み取り経路を `spec_grag_section` Qdrant payload に統一 (`section_metadata.json` / `source_chunks.json` を読む箇所を payload lookup に置換)
-- [ ] Phase R-3: 書き込み経路を Qdrant 直結
-  - LLM 出力 → `spec_grag_section` payload upsert
+- [x] Phase R-1: 設計書改訂 (案 C-1 + §5 inject フローを `doc/DESIGN.ja.md` / `doc/EXTERNAL_DESIGN.ja.md` に明記、checkbox 化)
+  - 実装: doc/EXTERNAL_DESIGN.ja.md §2.6 / §2.6.1 / §2.7 / §2.8 / §2.9 / §3.1 / §8.4 に「外部契約 assertion (CLAUDE.md ルール 13)」ブロックを追加 (file:line + 検証 test 関数名を併記)。doc/DESIGN.ja.md §0「実装状況」ダッシュボードに 10 行のチェックボックスを追加
+  - 検証: `git grep -c "^- \\[x\\]" doc/EXTERNAL_DESIGN.ja.md` で実装済み assertion 数を機械的に追跡できる
+- [x] Phase R-2: 読み取り経路を `spec_grag_section` Qdrant payload に統一 (`section_metadata.json` / `source_chunks.json` を読む箇所を payload lookup に置換)
+  - 実装: spec_grag/section_payload.py (`fetch_section_payloads`、`section_payload_to_metadata_entry`、`metadata_entries_from_payloads`)。`client.scroll` + `MatchAny(source_section_id)` filter で id-indexed lookup、256 件単位の batch
+  - 検証: tests/test_section_payload.py (10 件 passed): 戻り値の dict shape、batch サイズ、legacy-shape conversion、SectionPayloadLookupError 型
+  - 残: Phase R-6 (inject CLI) で実消費。spec_grag/core.py の `_read_artifact(store, "section_metadata")` 経路は依然存在 (Phase R-5 で廃止予定)
+- [x] Phase R-3: 書き込み経路を Qdrant 直結
+  - LLM 出力 → `spec_grag_section` payload upsert (`related_sections` を含む)
   - related_sections LLM typing 完了時 → `set_payload` で payload に追加
   - `section_metadata.json` / `source_chunks.json` への書き込みは backward compat 期間のみ
-- [ ] Phase R-4: 監査ログを `section_manifest.json` 拡張側に移植 (provider, status, generated_at, last_prompt_version)
-- [ ] Phase R-5: chunk-level 完全撤去
-  - Qdrant `spec_grag_source` collection を `delete_collection` する migration tool
-  - `_qdrant_upsert_with_partial_dispatch` / `compute_chunk_diff` / `upsert_qdrant_bge_m3_index_incremental` 等の chunk-level コードを削除
-  - `source_chunks.json` 廃止
-  - `section_metadata.json` 廃止
-- [ ] Phase R-6: F-06 (inject CLI 拡張) を §5.3 の API 設計通りに実装
+  - 実装: spec_grag/retrieval_index.py `build_section_payloads` に `related_sections` を含める変更、spec_grag/retrieval_index.py `update_section_collection_related_sections`、spec_grag/core.py `_update_section_collection_related_sections_if_enabled` を `apply_related_sections_to_metadata` 直後に wire
+  - 検証: tests/test_retrieval_index.py の 5 件追加 (`test_section_payloads_include_related_sections_when_metadata_has_it` / `test_section_payloads_default_related_sections_to_empty_list` / `test_update_section_collection_related_sections_issues_set_payload_per_section` / `test_update_section_collection_related_sections_empty_input_skips_client` / `test_update_section_collection_related_sections_records_per_section_error`)。adjacent suite 92 passed
+- [x] Phase R-4: 監査ログを `section_manifest.json` 拡張側に移植 (provider, status, generated_at, last_prompt_version)
+  - 実装: spec_grag/core.py `_section_manifest_audit_by_id` と `_section_manifest_entry(..., audit=...)` で、metadata_entries から `llm_provider` / `llm_generation_status` / `last_prompt_version` / `generated_at` を section_manifest entry に注入。section_metadata.json 側の同フィールドは backward compat で残置 (Phase R-5 で削除予定)
+  - 検証: tests/test_section_manifest_audit.py (6 件 passed): audit_by_id 収集、source_section_id fallback、部分 audit、no-audit 動作。adjacent suite (test_spec_core + test_freshness + test_context_artifacts + test_section_manifest_audit) 74 passed
+- [x] Phase R-5: chunk-level 完全撤去 (本コミットではコメントアウト + stub artifact 方式で disable。Qdrant `spec_grag_source` collection 自体の削除は別 migration tool として残置)
+  - 実装: spec_grag/core.py:51 に `CHUNK_LEVEL_ENABLED: bool = False` を導入。`_chunk_level_enabled(config)` で `[vector_store].chunk_level_enabled` config override 可。`_run_spec_core_unlocked` の chunk-level call sites を `if _chunk_level_enabled(config):` でガード。`_chunk_level_disabled_artifact_source_chunks` / `_chunk_level_disabled_artifact_retrieval_index_revision` で status="disabled" + phase_r5 diagnostics の stub artifact を書き出し
+  - chunk-level コード (`build_source_chunks` / `build_source_chunks_artifact` / `compute_chunk_diff` / `upsert_qdrant_bge_m3_index_incremental` / `_qdrant_upsert_with_partial_dispatch`) は撤去せず、コメントアウト相当の dormant code として残置 (ユーザー指示「chunk-level はコメントアウトしておく」に準拠)
+  - テスト互換: tests/conftest.py の `_enable_chunk_level_for_tests` hook で `CHUNK_LEVEL_ENABLED = True` を session 越しに set し、既存 chunk-level test を温存
+  - 検証: tests/test_chunk_level_disabled.py (6 件 passed) で production default / config override / stub shape / chunk helper 非呼出を assert。adjacent suite 88 passed
+  - 残: 運用環境 (.spec-grag/config.toml) で `[vector_store].chunk_level_enabled = false` を採用 (現状 template 未更新)。Qdrant `spec_grag_source` collection の `delete_collection` migration script 未実装 (運用者判断で `curl -X DELETE http://localhost:6333/collections/spec_grag_source` 推奨)
+- [x] Phase R-6: F-06 (inject CLI 拡張) を §5.3 の API 設計通りに実装
   - `inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` / `inject "<task>"` (gate probe + constraints 検証)
-- [ ] Phase R-7: chapter_anchors.json を本来の設計意図 (DESIGN.ja.md §6) 通りに LLM 生成で実装
+  - 実装: spec_grag/inject.py に `run_inject_search` / `run_inject_section` / `run_inject_chapters` / `run_inject_purpose` / `run_inject_conflicts` を追加。Qdrant 利用は `_build_qdrant_client` / `_build_hybrid_retriever` helper 経由で structured warning fallback 付き。spec_grag/cli.py に 5 つの subparser + dispatch (`_run_inject_search_from_args` 等) を追加
+  - 検証: tests/test_inject_cli_extension.py (11 件 passed) で各 CLI の正常系 / fallback / 空入力 / Qdrant 不可 / 埋め込み不可を assert。adjacent suite 66 passed。`spec-grag --help` に 5 つの新 subcommand が表示されることを確認
+- [x] Phase R-7: chapter_anchors.json を本来の設計意図 (DESIGN.ja.md §6) 通りに LLM 生成で実装
   - 章単位で LLM call、input は heading + 章配下の section summaries + 関連 Core Concept
+  - output: summary / key_topics / important_sections / notes / source_section_ids
+  - prompt_version 管理、cache 化 (key = chapter_id + 章配下 section_hash 集合 + prompt_version)
+  - 実装: spec_grag/chapter_anchors.py (`CHAPTER_ANCHORS_PROMPT_VERSION = "chapter-anchors-v1"`、`ChapterAnchorsCache`、`generate_chapter_anchors`)。stage は LlmRequest contract に合わせ `chapter_key_anchor`。spec_grag/core.py `_chapter_anchors` を新 module 委譲に置換 (旧機械集約は fallback path として残置)
+  - 検証: tests/test_chapter_anchors.py (9 件 passed) で LLM call 数、summary/key_topics/notes が LLM 出力に由来すること、important_sections が章内 section_ids に絞られること、unparseable response 時の mechanical fallback、cache reuse、section_hash 変更時の選択的 invalidation を assert
   - output: summary / key_topics / important_sections / notes / source_section_ids
   - prompt_version 管理、cache 化 (key = chapter_id + 章配下 section_hash 集合 + prompt_version)
   - 現在の機械集約 ([core.py:2216 `_chapter_anchors`](spec_grag/core.py#L2216)) を置換
