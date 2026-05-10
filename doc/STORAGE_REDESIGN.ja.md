@@ -356,6 +356,14 @@ evidence_origin: `Conflict Review Item`
   - 実装: spec_grag/section_metadata.py:93 (`_SEARCH_KEY_IDENTIFIER_REGEXES`)、spec_grag/section_metadata.py:120 (`_is_identifier_like_search_key`)、spec_grag/section_metadata.py:1147 (`_search_keys` で deduped 後に filter 適用、また `keys.extend(identifiers)` の重複混入を撤去)
   - 検証: tests/test_section_metadata_generation.py::test_search_keys_and_identifiers_are_disjoint (`bindContext` / `productStoreGroup.replace` / `--rebuild` / `/spec-core` / `BINDING_KEY` / `PascalName` / `config.toml` を drop し、`context registration` / `freshness gate` を保持することを assert)
 
+### 7.2.1 Phase R-5 実施で発見した問題と対処
+
+実 codex / claude subprocess を立ち上げる smoke test (`tests/test_agent_cli_smoke.py::test_t_a02_real_setup_core_inject_realign_watch_roundtrip_with_agent_entrypoints`) で、tests/conftest.py の `_enable_chunk_level_for_tests` autouse hook が **subprocess に届かない**ため、`spec-grag core --all` 実行後の `client.count(collection)` assertion が `Collection ... doesn't exist` で失敗した。
+
+対処: tests/test_agent_cli_smoke.py の `_patch_collection` で生成する config に `[vector_store].chunk_level_enabled = true` を inject する形で test 個別に opt-in。これにより同 test を含む全 unit suite が pass する (`389 passed, 9 skipped` のうち calibration matrix の 9 件 skip だけが残る、`SPEC_GRAG_LOCAL_SERVICE=1` 未設定が理由)。
+
+残: 運用 template `spec_grag/templates/.spec-grag/config.toml` には `chunk_level_enabled` を明示的に追加しない (case C-1 default で disable のまま)。chunk-level の dormant code をいずれ完全撤去する場合は、本 test 全体を section-level 計測に書き直すこと。
+
 ### 7.3 案 C-1 確定時の確認事項
 
 - [ ] `heading_level` の用途確認 (現状どこで使われているか調査)。利用箇所が無ければ `section_manifest.json` からも除外

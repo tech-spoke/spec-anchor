@@ -139,6 +139,15 @@ def _patch_collection(project_root: Path) -> str:
     text = config_path.read_text(encoding="utf-8")
     text = text.replace('url = "http://localhost:6333"', f'url = "{qdrant_url}"')
     text = text.replace('collection = "spec_grag_source"', f'collection = "{collection}"')
+    # Phase R-5: production default disables chunk-level retrieval. This
+    # smoke test runs in a subprocess, so the conftest constant override
+    # does not reach it. Opt back in via the config flag so the
+    # `client.count(collection)` assertion still has chunk-level data.
+    if "chunk_level_enabled" not in text:
+        text = text.replace(
+            f'collection = "{collection}"',
+            f'collection = "{collection}"\nchunk_level_enabled = true',
+        )
     config_path.write_text(text, encoding="utf-8")
     return collection
 
