@@ -109,6 +109,53 @@ def build_main_parser() -> argparse.ArgumentParser:
     inject.add_argument("--freshness-file", help="path to freshness report JSON override")
     inject.add_argument("task", nargs="*", help="optional task prompt")
 
+    inject_search = subparsers.add_parser(
+        "inject-search",
+        help="Phase R-6: section-level Qdrant hybrid retrieval (top-K section payload)",
+    )
+    inject_search.add_argument(
+        "--project-root", "--root", dest="project_root", default=".", help="target project root"
+    )
+    inject_search.add_argument(
+        "--top-k", dest="top_k", type=int, default=8, help="top-K hits to return (default 8)"
+    )
+    inject_search.add_argument("query", nargs="+", help="natural-language search query")
+
+    inject_section = subparsers.add_parser(
+        "inject-section",
+        help="Phase R-6: id-indexed section payload lookup against Qdrant",
+    )
+    inject_section.add_argument(
+        "--project-root", "--root", dest="project_root", default=".", help="target project root"
+    )
+    inject_section.add_argument(
+        "section_ids", nargs="+", help="one or more source_section_id values"
+    )
+
+    inject_chapters = subparsers.add_parser(
+        "inject-chapters",
+        help="Phase R-6: return chapter_anchors.json for the project",
+    )
+    inject_chapters.add_argument(
+        "--project-root", "--root", dest="project_root", default=".", help="target project root"
+    )
+
+    inject_purpose = subparsers.add_parser(
+        "inject-purpose",
+        help="Phase R-6: return Purpose + Core Concept file contents",
+    )
+    inject_purpose.add_argument(
+        "--project-root", "--root", dest="project_root", default=".", help="target project root"
+    )
+
+    inject_conflicts = subparsers.add_parser(
+        "inject-conflicts",
+        help="Phase R-6: return resolved (non-stale) Conflict Review Items",
+    )
+    inject_conflicts.add_argument(
+        "--project-root", "--root", dest="project_root", default=".", help="target project root"
+    )
+
     realign = subparsers.add_parser(
         "realign",
         help="prepare constraints and let the Agent produce an answer",
@@ -245,6 +292,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_core_from_args(args)
     if args.command == "inject":
         return _run_inject_from_args(args)
+    if args.command == "inject-search":
+        return _run_inject_search_from_args(args)
+    if args.command == "inject-section":
+        return _run_inject_section_from_args(args)
+    if args.command == "inject-chapters":
+        return _run_inject_chapters_from_args(args)
+    if args.command == "inject-purpose":
+        return _run_inject_purpose_from_args(args)
+    if args.command == "inject-conflicts":
+        return _run_inject_conflicts_from_args(args)
     if args.command == "realign":
         return _run_realign_from_args(args)
     if args.command == "watch":
@@ -347,6 +404,94 @@ def _run_inject_from_args(args: argparse.Namespace) -> int:
         result = _exception_result("/spec-inject", project_root=project_root, exc=exc)
     print(_dumps_json(result))
     return _command_exit_code(result)
+
+
+def _run_inject_search_from_args(args: argparse.Namespace) -> int:
+    """Phase R-6: dispatch `spec-grag inject-search`."""
+
+    from spec_grag.inject import run_inject_search
+
+    project_root = _resolved_project_root(args.project_root)
+    query = " ".join(getattr(args, "query", []) or ()).strip()
+    try:
+        result = run_inject_search(
+            project_root=project_root,
+            query=query,
+            top_k=int(args.top_k),
+        )
+    except Exception as exc:
+        result = _exception_result(
+            "/spec-inject inject-search", project_root=project_root, exc=exc
+        )
+    print(_dumps_json(result))
+    return 0
+
+
+def _run_inject_section_from_args(args: argparse.Namespace) -> int:
+    """Phase R-6: dispatch `spec-grag inject-section`."""
+
+    from spec_grag.inject import run_inject_section
+
+    project_root = _resolved_project_root(args.project_root)
+    try:
+        result = run_inject_section(
+            project_root=project_root,
+            section_ids=list(getattr(args, "section_ids", []) or ()),
+        )
+    except Exception as exc:
+        result = _exception_result(
+            "/spec-inject inject-section", project_root=project_root, exc=exc
+        )
+    print(_dumps_json(result))
+    return 0
+
+
+def _run_inject_chapters_from_args(args: argparse.Namespace) -> int:
+    """Phase R-6: dispatch `spec-grag inject-chapters`."""
+
+    from spec_grag.inject import run_inject_chapters
+
+    project_root = _resolved_project_root(args.project_root)
+    try:
+        result = run_inject_chapters(project_root=project_root)
+    except Exception as exc:
+        result = _exception_result(
+            "/spec-inject inject-chapters", project_root=project_root, exc=exc
+        )
+    print(_dumps_json(result))
+    return 0
+
+
+def _run_inject_purpose_from_args(args: argparse.Namespace) -> int:
+    """Phase R-6: dispatch `spec-grag inject-purpose`."""
+
+    from spec_grag.inject import run_inject_purpose
+
+    project_root = _resolved_project_root(args.project_root)
+    try:
+        result = run_inject_purpose(project_root=project_root)
+    except Exception as exc:
+        result = _exception_result(
+            "/spec-inject inject-purpose", project_root=project_root, exc=exc
+        )
+    print(_dumps_json(result))
+    return 0
+
+
+def _run_inject_conflicts_from_args(args: argparse.Namespace) -> int:
+    """Phase R-6: dispatch `spec-grag inject-conflicts`."""
+
+    from spec_grag.inject import run_inject_conflicts
+
+    project_root = _resolved_project_root(args.project_root)
+    try:
+        result = run_inject_conflicts(project_root=project_root)
+    except Exception as exc:
+        result = _exception_result(
+            "/spec-inject inject-conflicts", project_root=project_root, exc=exc
+        )
+    print(_dumps_json(result))
+    return 0
 
 
 def _run_realign_from_args(args: argparse.Namespace) -> int:

@@ -682,6 +682,343 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def run_inject_section(
+    project_root: str | Path = ".",
+    *,
+    section_ids: Sequence[str],
+    root: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Phase R-6: id-indexed section payload lookup against Qdrant.
+
+    Returns `{section_id: payload}` for sections that exist in the
+    `spec_grag_section` Qdrant collection. Missing ids are simply absent
+    from the result (consistent with `fetch_section_payloads` in
+    `spec_grag/section_payload.py`).
+
+    `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-section): used by the Agent
+    to follow Related Sections without issuing a new vector search.
+    """
+
+    from spec_grag.section_payload import (
+        SectionPayloadLookupError,
+        fetch_section_payloads,
+    )
+
+    project = _project_root(project_root, root=root, cwd=cwd)
+    requested_ids = [str(value) for value in section_ids if value]
+    qdrant_config = _qdrant_section_config(project)
+    base_result = {
+        "command": "/spec-inject inject-section",
+        "project_root": project.as_posix(),
+        "requested_section_ids": list(requested_ids),
+        "collection": qdrant_config["section_collection"],
+        "sections": {},
+        "found_section_ids": [],
+        "missing_section_ids": requested_ids,
+        "warnings": [],
+    }
+    if not requested_ids:
+        return base_result
+    try:
+        client = _build_qdrant_client(qdrant_config["url"])
+    except SpecInjectError as exc:
+        base_result["warnings"].append({"reason_code": "qdrant_unavailable", "message": str(exc)})
+        return base_result
+    try:
+        payloads = fetch_section_payloads(
+            client,
+            requested_ids,
+            collection=qdrant_config["section_collection"],
+        )
+    except SectionPayloadLookupError as exc:
+        base_result["warnings"].append(
+            {"reason_code": "qdrant_lookup_failed", "message": str(exc)}
+        )
+        return base_result
+    base_result["sections"] = {
+        section_id: _jsonable(dict(payload)) for section_id, payload in payloads.items()
+    }
+    base_result["found_section_ids"] = list(payloads.keys())
+    base_result["missing_section_ids"] = [
+        section_id for section_id in requested_ids if section_id not in payloads
+    ]
+    return base_result
+
+
+def run_inject_chapters(
+    project_root: str | Path = ".",
+    *,
+    root: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Phase R-6: return `chapter_anchors.json` for the project.
+
+    `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-chapters). Bodies as written
+    by `/spec-core` (Phase R-7 will replace the mechanical builder with
+    an LLM-generated artifact). The CLI returns the raw artifact so the
+    Agent can pick chapters / key_topics / important_sections to follow.
+    """
+
+    project = _project_root(project_root, root=root, cwd=cwd)
+    artifact = _read_json_file(_context_dir(project) / "chapter_anchors.json")
+    return {
+        "command": "/spec-inject inject-chapters",
+        "project_root": project.as_posix(),
+        "status": artifact.get("status", "missing" if not artifact else "success"),
+        "chapter_anchors": artifact or {"chapters": [], "status": "missing"},
+        "warnings": [] if artifact else [
+            {"reason_code": "chapter_anchors_missing", "message": "chapter_anchors.json not found"}
+        ],
+    }
+
+
+def run_inject_purpose(
+    project_root: str | Path = ".",
+    *,
+    root: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Phase R-6: return Purpose + Core Concept file contents.
+
+    `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-purpose). Both files are
+    short by design, so the full text is returned (per §8.3 path ③ the
+    Agent reads the full file rather than grepping a substring).
+    """
+
+    project = _project_root(project_root, root=root, cwd=cwd)
+    config = _read_project_config(project)
+    core_section = config.get("core") if isinstance(config.get("core"), Mapping) else {}
+    purpose_path = _resolve_optional_path(
+        project,
+        str(core_section.get("purpose_file") or "") if isinstance(core_section, Mapping) else "",
+    )
+    concept_path = _resolve_optional_path(
+        project,
+        str(core_section.get("concept_file") or "") if isinstance(core_section, Mapping) else "",
+    )
+    purpose_text, purpose_warning = _read_text_or_warning(purpose_path, "purpose_file")
+    concept_text, concept_warning = _read_text_or_warning(concept_path, "concept_file")
+    warnings: list[dict[str, Any]] = []
+    if purpose_warning is not None:
+        warnings.append(purpose_warning)
+    if concept_warning is not None:
+        warnings.append(concept_warning)
+    return {
+        "command": "/spec-inject inject-purpose",
+        "project_root": project.as_posix(),
+        "purpose_file": purpose_path.as_posix() if purpose_path is not None else None,
+        "concept_file": concept_path.as_posix() if concept_path is not None else None,
+        "purpose_text": purpose_text,
+        "concept_text": concept_text,
+        "warnings": warnings,
+    }
+
+
+def run_inject_conflicts(
+    project_root: str | Path = ".",
+    *,
+    root: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Phase R-6: return resolved + non-stale Conflict Review Items.
+
+    `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-conflicts). The Agent uses
+    these as `evidence_origin = Conflict Review Item` candidates for
+    constraints. Pending / dismissed / stale items are filtered out so
+    callers see only safe-to-cite resolutions.
+    """
+
+    project = _project_root(project_root, root=root, cwd=cwd)
+    raw_items = _read_conflict_review_items(project)
+    resolved_items: list[dict[str, Any]] = []
+    excluded_items: list[dict[str, Any]] = []
+    for item in raw_items:
+        status = str(item.get("status") or "").strip().lower()
+        if status == "resolved" and status not in CONFLICT_REVIEW_STALE_STATUSES:
+            # Apply the same stale check `/spec-inject` uses for its
+            # primary constraint validation path.
+            stale_marker = item.get("stale_resolution") or item.get("stale")
+            if stale_marker:
+                excluded_items.append(
+                    {
+                        "conflict_id": item.get("conflict_id"),
+                        "reason_code": "stale_resolution",
+                    }
+                )
+                continue
+            resolved_items.append(deepcopy(item))
+        else:
+            excluded_items.append(
+                {
+                    "conflict_id": item.get("conflict_id"),
+                    "reason_code": f"status_{status or 'missing'}",
+                }
+            )
+    return {
+        "command": "/spec-inject inject-conflicts",
+        "project_root": project.as_posix(),
+        "resolved_conflict_review_items": resolved_items,
+        "excluded_conflict_review_items": excluded_items,
+        "count": len(resolved_items),
+    }
+
+
+def run_inject_search(
+    project_root: str | Path = ".",
+    *,
+    query: str,
+    top_k: int = 8,
+    root: str | Path | None = None,
+    cwd: str | Path | None = None,
+) -> dict[str, Any]:
+    """Phase R-6: section-level hybrid retrieval against the Qdrant section collection.
+
+    `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-search). Returns the top-K
+    section payloads (heading / summary / search_keys / identifiers /
+    related_sections / source_section_id / score) ranked by RRF over
+    BGE-M3 dense + sparse vectors. When Qdrant or FlagEmbedding is
+    unavailable, the call returns a structured warning instead of
+    raising so the Agent can fall back to other paths (§8.3 path ②/③/④).
+    """
+
+    project = _project_root(project_root, root=root, cwd=cwd)
+    qdrant_config = _qdrant_section_config(project)
+    base_result: dict[str, Any] = {
+        "command": "/spec-inject inject-search",
+        "project_root": project.as_posix(),
+        "query": query,
+        "top_k": int(top_k),
+        "collection": qdrant_config["section_collection"],
+        "hits": [],
+        "warnings": [],
+    }
+    if not query or not str(query).strip():
+        base_result["warnings"].append(
+            {"reason_code": "empty_query", "message": "query must be a non-empty string"}
+        )
+        return base_result
+    try:
+        from spec_grag.retrieval_index import (
+            QdrantHybridRetriever,  # type: ignore[attr-defined]
+        )
+    except ImportError:
+        try:
+            from spec_grag.retrieval_index import (  # type: ignore[attr-defined]
+                _hit_from_qdrant_point as _hit,  # noqa: F401
+            )
+            from spec_grag.retrieval_index import (
+                HybridRetrievalIndex,
+            )
+            QdrantHybridRetriever = None  # type: ignore[assignment]
+        except ImportError:
+            base_result["warnings"].append(
+                {"reason_code": "retriever_unavailable", "message": "QdrantHybridRetriever import failed"}
+            )
+            return base_result
+    try:
+        from spec_grag.retrieval_index import FlagEmbeddingBgeM3Provider
+    except ImportError as exc:
+        base_result["warnings"].append(
+            {"reason_code": "embedding_unavailable", "message": str(exc)}
+        )
+        return base_result
+    try:
+        provider = FlagEmbeddingBgeM3Provider(
+            allow_real_provider=True,
+            use_fp16=False,
+        )
+        retriever = _build_hybrid_retriever(
+            qdrant_config["url"],
+            qdrant_config["section_collection"],
+            provider,
+        )
+    except Exception as exc:  # pragma: no cover - integration boundary
+        base_result["warnings"].append(
+            {"reason_code": "retriever_init_failed", "message": str(exc)}
+        )
+        return base_result
+    try:
+        result = retriever.search(query, top_k=int(top_k))
+    except Exception as exc:  # pragma: no cover - integration boundary
+        base_result["warnings"].append(
+            {"reason_code": "retrieval_failed", "message": str(exc)}
+        )
+        return base_result
+    hits_payload: list[dict[str, Any]] = []
+    for hit in getattr(result, "hits", []) or []:
+        payload = dict(getattr(hit, "payload", None) or {})
+        hits_payload.append(
+            {
+                "source_section_id": payload.get("source_section_id"),
+                "heading_path": payload.get("heading_path") or [],
+                "summary": payload.get("summary") or "",
+                "search_keys": payload.get("search_keys") or [],
+                "identifiers": payload.get("identifiers") or [],
+                "related_sections": payload.get("related_sections") or [],
+                "score": float(getattr(hit, "score", 0.0) or 0.0),
+            }
+        )
+    base_result["hits"] = hits_payload
+    return base_result
+
+
+def _qdrant_section_config(project: Path) -> dict[str, str]:
+    config = _read_project_config(project)
+    vector_store = config.get("vector_store") if isinstance(config.get("vector_store"), Mapping) else {}
+    return {
+        "url": str(vector_store.get("url") or "http://localhost:6333"),
+        "section_collection": str(
+            vector_store.get("section_collection") or "spec_grag_section"
+        ),
+    }
+
+
+def _build_qdrant_client(url: str) -> Any:
+    try:
+        from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise SpecInjectError(f"qdrant_client is unavailable: {exc}") from exc
+    return QdrantClient(url)
+
+
+def _build_hybrid_retriever(url: str, collection: str, provider: Any) -> Any:
+    from spec_grag.retrieval_index import HybridRetrievalIndex
+
+    return HybridRetrievalIndex(
+        url=url,
+        collection=collection,
+        provider=provider,
+    )
+
+
+def _resolve_optional_path(project_root: Path, relative: str) -> Path | None:
+    relative = (relative or "").strip()
+    if not relative:
+        return None
+    path = Path(relative)
+    if path.is_absolute():
+        return path
+    return (project_root / path).resolve()
+
+
+def _read_text_or_warning(
+    path: Path | None,
+    label: str,
+) -> tuple[str | None, dict[str, Any] | None]:
+    if path is None:
+        return None, {"reason_code": f"{label}_unset", "message": f"{label} is not set in config"}
+    if not path.is_file():
+        return None, {
+            "reason_code": f"{label}_missing",
+            "message": f"{label} file not found at {path.as_posix()}",
+        }
+    try:
+        return path.read_text(encoding="utf-8"), None
+    except OSError as exc:
+        return None, {"reason_code": f"{label}_read_error", "message": str(exc)}
+
+
 spec_inject = run_spec_inject
 run_inject = run_spec_inject
 inject = run_spec_inject
@@ -691,6 +1028,11 @@ execute_spec_inject = run_spec_inject
 __all__ = [
     "SpecInjectError",
     "run_spec_inject",
+    "run_inject_chapters",
+    "run_inject_conflicts",
+    "run_inject_purpose",
+    "run_inject_search",
+    "run_inject_section",
     "spec_inject",
     "run_inject",
     "inject",
