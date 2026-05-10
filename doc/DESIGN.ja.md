@@ -5,6 +5,43 @@
 
 本書は、軽量な仕様コンテキスト方式の内部設計を定義する。外部設計が「ユーザーから見える契約」を扱うのに対し、本書は保持物の形式、生成フロー、検索基盤、Related Sections 生成、freshness 判定を扱う。
 
+## 0. 実装状況 (CLAUDE.md ルール 13 ダッシュボード)
+
+内部設計の主要契約のうち、実装と検証の完了状況を記録する。`[x]` には evidence (file:line + test) を直下に併記する。詳細な refactor 計画は `doc/STORAGE_REDESIGN.ja.md` §7.4 (Phase R-0 〜 R-7) を参照。
+
+- [x] §3.2 Section Search Keys は **自然言語のみ**、§3.3 Identifiers と非重複 (役割分離)
+  - 実装: spec_grag/section_metadata.py:105 (`_SEARCH_KEYS_INSTRUCTIONS`)、spec_grag/section_metadata.py:120 (`_is_identifier_like_search_key`)、spec_grag/section_metadata.py:1147 (`_search_keys`)
+  - 検証: tests/test_section_metadata_generation.py::test_search_keys_and_identifiers_are_disjoint (per-key overlap 0% を assert、実 codex で 45.2% → 0.0% を計測済み)
+- [x] §3.3 Identifiers は section 本文 + heading からの正規表現抽出 (LLM を経由しない決定論性)
+  - 実装: spec_grag/section_metadata.py:486-514 (`extract_identifiers`)
+  - 検証: tests/test_section_metadata_generation.py::test_t_u21_generated_section_metadata_entries_have_required_fields
+- [x] §3.4 LLM Generation Policy: section_metadata と related_sections は batch 化、`[limits].llm_batch_concurrency` で並列化可能
+  - 実装: spec_grag/section_metadata.py:329-334 (section_metadata 並列)、spec_grag/related_sections.py の同様経路 (related_sections 並列)
+  - 検証: tests/test_related_sections.py::test_llm_batch_concurrency_runs_batches_in_parallel、tests/test_related_sections.py::test_llm_batch_concurrency_default_is_sequential
+- [x] §5 Related Sections: `relation_hint` enum = {depends_on, impacts, prerequisite, same_policy, see_also}、`conflicts_with` は除外し `possible_conflict` フラグだけ立てる
+  - 実装: spec_grag/related_sections.py:59-65 (`ALLOWED_RELATION_HINTS`)、spec_grag/related_sections.py:858-863 (invalid 値を drop)、spec_grag/related_sections.py:959 (`possible_conflict` flag 読み取り)
+  - 検証: tests/test_related_sections.py::test_t_u10_related_sections_validation_filters_invalid_items_and_applies_limit、tests/test_conflict_review.py::test_t_u20_conflict_pair_selection_uses_conflicts_with_and_bounded_high_risk_pairs
+- [x] §5.7 Related Sections の incremental re-evaluation は **pair-level cache** 方式
+  - 実装: spec_grag/related_typing_cache.py (pair key = `(source_id, target_id, source_hash, target_hash, prompt_version, model, effort)`)、spec_grag/related_sections.py 経由で参照
+  - 検証: tests/test_related_sections.py::test_pair_level_typing_cache_skips_unchanged_pairs
+- [x] §5.8 Conflict 判定 stage は `possible_conflict=true` pair と高リスク pair を対象とし、`conflict_pair_max_per_section` 上限内に絞る (全 section pair の総当たり判定はしない)
+  - 実装: spec_grag/conflict_review.py の対象選定経路
+  - 検証: tests/test_conflict_review.py::test_t_u20_conflict_pair_selection_uses_conflicts_with_and_bounded_high_risk_pairs
+- [x] §9 Freshness: pending Conflict Review Item は `/spec-inject` / `/spec-realign` の通常進行を blocker にする
+  - 実装: spec_grag/freshness.py、spec_grag/conflict_review.py
+  - 検証: tests/test_spec_core.py::test_t_i04_conflicts_with_unresolved_blocks_freshness
+- [ ] §3 Section Metadata は Qdrant `[vector_store].section_collection` の payload に格納する (`section_metadata.json` は廃止、二重保管なし)
+  - 現状: Qdrant `spec_grag_section` payload にも summary / search_keys / identifiers / heading_path を upsert する経路は存在する (spec_grag/retrieval_index.py:1043 `build_section_payloads`、spec_grag/retrieval_index.py:1109 `upsert_qdrant_section_collection`)。ただし `section_metadata.json` がまだ正本で、Qdrant payload はそのコピー。`related_sections` 配列は Qdrant payload に含まれない。
+  - 残: Phase R-2 (読み取り経路を Qdrant payload に統一)、Phase R-3 (書き込み経路を Qdrant 直結、`related_sections` を `set_payload` で追加)、Phase R-4 (監査ログを `section_manifest.json` 拡張へ移植)、Phase R-5 (`section_metadata.json` 廃止)
+- [ ] §4 Source Retrieval Index は section-level Qdrant collection のみ (chunk-level collection は持たない)
+  - 現状: chunk-level `spec_grag_source` collection と `source_chunks.json` がまだ standard 経路から書かれる (spec_grag/core.py の `_qdrant_upsert_with_partial_dispatch` ほか、spec_grag/retrieval_index.py:493-563 `build_source_chunks` / `build_source_chunks_artifact`、spec_grag/retrieval_index.py:857 `compute_chunk_diff`、spec_grag/retrieval_index.py:907 `upsert_qdrant_bge_m3_index_incremental`)。
+  - 残: Phase R-5 で chunk-level コードをコメントアウトし `spec_grag_source` を `delete_collection` する migration tool を提供
+- [ ] §6 Chapter Key Anchor は LLM が章単位で生成する (input: 章 heading + 配下 summary / search_keys / identifiers / related_sections + 関連 Core Concept、output: chapter_id / summary / key_topics / important_sections / notes / source_section_ids / generated_at)
+  - 現状: spec_grag/core.py:2216 `_chapter_anchors` は LLM を経由しない機械集約 (config 由来の summary 抜粋 + search_keys 先頭抜粋を chapter 単位に集約するのみ)。Phase R-7 で LLM 生成 stage に置換予定。
+  - 残: 章単位 LLM call、prompt_version 管理、cache 化 (key = chapter_id + 配下 section_hash 集合 + prompt_version)
+- [ ] §8 `/spec-inject` CLI 拡張 (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` / `inject "<task>"`)
+  - 残: Phase R-6 (doc/STORAGE_REDESIGN.ja.md §5.3 / §7.4 R-6 の API 設計通りに実装)
+
 ## 1. 設計方針
 
 この方式では、property graph、entity relation graph、hierarchical cluster を標準経路にしない。LLM のドリフト防止に必要な文脈を、次の保持物と検索で支える。
