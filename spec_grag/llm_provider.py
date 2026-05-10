@@ -17,6 +17,7 @@ from typing import Any, Protocol
 
 REAL_PROVIDER_ENV = "SPEC_GRAG_REAL_PROVIDER"
 REAL_SMOKE_ENV = "SPEC_GRAG_REAL_SMOKE"
+LLM_PROVIDER_ENV = "SPEC_GRAG_LLM_PROVIDER"
 SPEC_CORE_SCOPE = "/spec-core"
 TRUE_VALUES = {"1", "true", "yes", "on"}
 DEFAULT_METADATA_VERSION = 1
@@ -50,7 +51,7 @@ class LlmTimeoutError(LlmProviderError):
 
 
 class RealLlmProviderDisabledError(LlmProviderError):
-    """Raised when a real provider is requested without explicit opt-in."""
+    """Raised when a test explicitly disables a subprocess-backed provider."""
 
 
 class LlmStageError(LlmProviderError, ValueError):
@@ -182,6 +183,11 @@ class LlmGenerationResult:
     diagnostic_items: list[dict[str, Any]] | None = None
     cache_hit: bool = False
     duration_ms: int | None = None
+    # Per-call token usage / cost captured from the underlying CLI's JSON
+    # output (codex `turn.completed.usage`, claude `usage` + `total_cost_usd`).
+    # Empty dict for FakeLlmProvider or when stdout doesn't expose usage info.
+    # Aggregated by core.py:_record_llm_call_stats into core_progress.json.
+    usage: dict[str, Any] | None = None
 
 
 class LlmProvider(Protocol):
@@ -194,7 +200,12 @@ class LlmProvider(Protocol):
 
 
 class FakeLlmProvider:
-    """Deterministic provider for unit tests and default non-real-smoke runs."""
+    """Deterministic provider for tests and explicit fake/offline configs.
+
+    Normal `/spec-core` operation does not select this provider because a smoke
+    environment variable is missing. It is selected only when the caller injects
+    it directly or the project config explicitly sets `[llm].provider = "fake"`.
+    """
 
     provider_id = "fake"
 
@@ -220,7 +231,7 @@ class FakeLlmProvider:
 
 
 class SubprocessLlmProvider:
-    """Subprocess-backed real provider, guarded by explicit real-provider opt-in.
+    """Subprocess-backed real provider for `/spec-core`.
 
     Interface:
     - stdin: JSON object matching `LlmRequest.to_provider_payload()`
@@ -236,17 +247,14 @@ class SubprocessLlmProvider:
         provider_id: str = "subprocess",
     ) -> None:
         self.command = list(command)
-        self.real_provider_enabled = (
-            real_provider_enabled() if real_smoke_enabled is None else real_smoke_enabled
-        )
+        self.real_provider_enabled = True if real_smoke_enabled is None else real_smoke_enabled
         self.real_smoke_enabled = self.real_provider_enabled
         self.provider_id = provider_id
 
     def generate(self, request: LlmRequest, *, timeout_sec: int) -> dict[str, Any]:
         if not self.real_provider_enabled:
             raise RealLlmProviderDisabledError(
-                "real LLM provider requires SPEC_GRAG_REAL_PROVIDER=1 for normal "
-                "operation, or SPEC_GRAG_REAL_SMOKE=1 for explicit smoke tests"
+                "real LLM provider was explicitly disabled by the caller"
             )
         cleanup_paths: list[Path] = []
         try:
@@ -276,13 +284,27 @@ class SubprocessLlmProvider:
 def build_spec_core_llm_provider(
     llm_config: Any,
     *,
+    provider_id: str | None = None,
+    stage: str | None = None,
+    env: Mapping[str, str] | None = None,
     real_smoke_enabled: bool | None = None,
     usage_scope: str = SPEC_CORE_SCOPE,
 ) -> LlmProvider:
-    """Build the provider described by `[llm]` for `/spec-core` only."""
+    """Build the provider described by `[llm]` for `/spec-core` only.
+
+    When `stage` is supplied (e.g. ``"section_metadata"``), the per-stage
+    routing in `[llm.stage_routing]` overrides `[llm.default_provider]` so each
+    pipeline stage can target a model / effort tuned for its task (Phase H-3).
+    """
 
     validate_llm_usage_scope(usage_scope)
-    provider_name = _config_value(llm_config, "provider")
+    selected_config = select_llm_provider_config(
+        llm_config,
+        provider_id=provider_id,
+        stage=stage,
+        env=env,
+    )
+    provider_name = _config_value(selected_config, "provider")
     if not isinstance(provider_name, str) or not provider_name:
         raise LlmProviderError("[llm].provider must be a non-empty string")
     normalized = provider_name.lower()
@@ -290,9 +312,9 @@ def build_spec_core_llm_provider(
     if normalized == "fake":
         return FakeLlmProvider()
 
-    enabled = real_provider_enabled() if real_smoke_enabled is None else real_smoke_enabled
+    enabled = True if real_smoke_enabled is None else real_smoke_enabled
     if normalized in {"subprocess", "codex_cli", "claude_cli"}:
-        command = _config_value(llm_config, "command")
+        command = _config_value(selected_config, "command")
         if command is None:
             if normalized == "codex_cli":
                 command = "codex"
@@ -308,6 +330,65 @@ def build_spec_core_llm_provider(
         )
 
     raise LlmProviderError(f"unsupported /spec-core LLM provider: {provider_name}")
+
+
+def select_llm_provider_config(
+    llm_config: Any,
+    *,
+    provider_id: str | None = None,
+    stage: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> Any:
+    """Select one configured `/spec-core` LLM provider.
+
+    New configs may define multiple providers under `[llm.providers.<id>]`.
+    Resolution priority: explicit `provider_id` > `SPEC_GRAG_LLM_PROVIDER` env >
+    `[llm.stage_routing].<stage>` > `[llm].default_provider` > first
+    `[llm].fallback_order` entry. Legacy single-provider configs remain valid.
+    """
+
+    source = os.environ if env is None else env
+    requested = _first_non_empty(provider_id, source.get(LLM_PROVIDER_ENV))
+    providers = _config_value(llm_config, "providers")
+    if isinstance(providers, Mapping) and providers:
+        stage_routing = _config_value(llm_config, "stage_routing")
+        stage_provider = None
+        if (
+            stage
+            and isinstance(stage_routing, Mapping)
+            and isinstance(stage_routing.get(stage), str)
+        ):
+            stage_provider = stage_routing.get(stage)
+        selected_name = (
+            requested
+            or stage_provider
+            or _config_value(llm_config, "default_provider")
+        )
+        if not selected_name:
+            fallback_order = _config_value(llm_config, "fallback_order")
+            if isinstance(fallback_order, Sequence) and not isinstance(fallback_order, str):
+                selected_name = next((str(item) for item in fallback_order if item), None)
+        if not selected_name:
+            selected_name = next(iter(providers))
+        if selected_name == "default":
+            selected_name = _config_value(llm_config, "default_provider") or next(iter(providers))
+        selected = providers.get(str(selected_name))
+        if selected is None:
+            known = ", ".join(sorted(str(name) for name in providers))
+            raise LlmProviderError(
+                f"unknown [llm] provider id {selected_name!r}; configured providers: {known}"
+            )
+        return selected
+
+    if requested and requested != "default":
+        provider_name = _config_value(llm_config, "provider")
+        aliases = _legacy_provider_aliases(provider_name)
+        if str(requested).lower() not in aliases:
+            allowed = ", ".join(sorted(aliases)) or "<none>"
+            raise LlmProviderError(
+                f"unknown [llm] provider id {requested!r}; legacy provider allows: {allowed}"
+            )
+    return llm_config
 
 
 def validate_llm_usage_scope(scope: str) -> str:
@@ -467,6 +548,15 @@ def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
 
 
 def _related_section_selection_output_schema() -> dict[str, Any]:
+    """JSON schema for the related_section_selection batch output (Phase D).
+
+    The output is a dict keyed by ``source_section_id``, where each value is
+    a list of related-section items. ``relation_hint`` no longer accepts
+    ``conflicts_with``: matches that look like conflicts must set
+    ``possible_conflict: true`` so the Conflict Review pipeline (Phase E) can
+    re-judge them with full grounding.
+    """
+
     related_item_schema = {
         "type": "object",
         "properties": {
@@ -475,10 +565,9 @@ def _related_section_selection_output_schema() -> dict[str, Any]:
                 "type": "string",
                 "enum": [
                     "depends_on",
-                    "refines",
-                    "overlaps",
-                    "conflicts_with",
-                    "same_concept",
+                    "impacts",
+                    "prerequisite",
+                    "same_policy",
                     "see_also",
                 ],
             },
@@ -486,6 +575,7 @@ def _related_section_selection_output_schema() -> dict[str, Any]:
             "reason": {"type": "string"},
             "evidence_terms": {"type": "array", "items": {"type": "string"}},
             "channels": {"type": "array", "items": {"type": "string"}},
+            "possible_conflict": {"type": "boolean"},
         },
         "required": [
             "target_section_id",
@@ -494,17 +584,36 @@ def _related_section_selection_output_schema() -> dict[str, Any]:
             "reason",
             "evidence_terms",
             "channels",
+            "possible_conflict",
         ],
+        "additionalProperties": False,
+    }
+    section_envelope_schema = {
+        "type": "object",
+        "properties": {
+            "source_section_id": {"type": "string"},
+            "related_sections": {
+                "type": "array",
+                "items": related_item_schema,
+            },
+        },
+        "required": ["source_section_id", "related_sections"],
         "additionalProperties": False,
     }
     return {
         "type": "object",
         "properties": {
-            "related_sections": {"type": "array", "items": related_item_schema},
+            "sections": {
+                "type": "array",
+                "items": section_envelope_schema,
+            },
         },
-        "required": ["related_sections"],
+        "required": ["sections"],
         "additionalProperties": False,
     }
+
+
+USAGE_META_KEY = "__spec_grag_usage"
 
 
 def _extract_provider_output(stdout: str) -> dict[str, Any]:
@@ -517,7 +626,71 @@ def _extract_provider_output(stdout: str) -> dict[str, Any]:
         raise LlmValidationError("LLM command did not return JSON") from exc
     if not isinstance(output, Mapping):
         raise LlmValidationError("LLM command output must be an object")
-    return dict(output)
+    output_dict = dict(output)
+    usage = _extract_cli_usage(stdout)
+    if usage:
+        # Carry usage through generate's return so generate_with_retries can
+        # pop it into LlmGenerationResult.usage. The agent message is unchanged
+        # for downstream consumers; the meta key is stripped before validation.
+        output_dict[USAGE_META_KEY] = usage
+    return output_dict
+
+
+def _extract_cli_usage(stdout: str) -> dict[str, Any]:
+    """Pull token / cost usage from codex `turn.completed` events or claude JSON.
+
+    Returns an empty dict if the CLI didn't surface usage info.
+    """
+
+    text = stdout.strip()
+    if not text:
+        return {}
+
+    # Claude `--output-format json` emits a single object containing usage and
+    # total_cost_usd at the top level.
+    parsed = _try_json_loads(text)
+    if isinstance(parsed, Mapping):
+        usage = _normalize_claude_usage(parsed)
+        if usage:
+            return usage
+
+    # Codex `--json` streams events, each on its own line. Look for the
+    # final turn.completed event which carries the aggregated usage.
+    last_codex_usage: dict[str, Any] = {}
+    for line in text.splitlines():
+        line_parsed = _try_json_loads(line.strip())
+        if not isinstance(line_parsed, Mapping):
+            continue
+        if line_parsed.get("type") == "turn.completed":
+            usage_payload = line_parsed.get("usage")
+            if isinstance(usage_payload, Mapping):
+                last_codex_usage = _normalize_codex_usage(usage_payload)
+    return last_codex_usage
+
+
+def _normalize_codex_usage(usage: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "provider": "codex",
+        "input_tokens": int(usage.get("input_tokens") or 0),
+        "cached_input_tokens": int(usage.get("cached_input_tokens") or 0),
+        "output_tokens": int(usage.get("output_tokens") or 0),
+        "reasoning_output_tokens": int(usage.get("reasoning_output_tokens") or 0),
+    }
+
+
+def _normalize_claude_usage(payload: Mapping[str, Any]) -> dict[str, Any]:
+    usage = payload.get("usage")
+    if not isinstance(usage, Mapping):
+        return {}
+    cost = payload.get("total_cost_usd")
+    return {
+        "provider": "claude",
+        "input_tokens": int(usage.get("input_tokens") or 0),
+        "output_tokens": int(usage.get("output_tokens") or 0),
+        "cache_creation_input_tokens": int(usage.get("cache_creation_input_tokens") or 0),
+        "cache_read_input_tokens": int(usage.get("cache_read_input_tokens") or 0),
+        "total_cost_usd": float(cost) if cost is not None else 0.0,
+    }
 
 
 def _extract_cli_text(stdout: str) -> str:
@@ -622,6 +795,11 @@ def generate_with_retries(
     for attempt in range(1, attempts + 1):
         try:
             output = provider.generate(request, timeout_sec=timeout_sec)
+            usage: dict[str, Any] = {}
+            if isinstance(output, dict):
+                # Strip usage meta before validation so the agent message
+                # written to artifact.output (and cache) stays clean.
+                usage = output.pop(USAGE_META_KEY, {}) or {}
             validated = validate_structured_output(
                 output,
                 required_fields=required_fields,
@@ -648,6 +826,7 @@ def generate_with_retries(
                 attempts=attempt,
                 diagnostic_items=diagnostic_items,
                 duration_ms=duration_ms,
+                usage=usage if usage else None,
             )
         except subprocess.TimeoutExpired as exc:
             _append_diagnostic(
@@ -686,7 +865,7 @@ def generate_with_retries(
             _append_diagnostic(
                 diagnostics,
                 diagnostic_items,
-                code="real_provider_required",
+                code="real_provider_disabled",
                 message=str(exc),
                 attempt=attempt,
                 timeout_sec=timeout_sec,
@@ -914,6 +1093,9 @@ def _validate_field_types(
         elif expected == "object":
             if not isinstance(value, Mapping):
                 errors.append(f"{field_name} must be an object")
+        elif expected == "list|object":
+            if not isinstance(value, (list, Mapping)):
+                errors.append(f"{field_name} must be a list or object")
         elif isinstance(expected, type):
             if not isinstance(value, expected):
                 errors.append(f"{field_name} must be {expected.__name__}")
@@ -969,6 +1151,25 @@ def _config_value(config: Any, key: str) -> Any:
     if isinstance(config, Mapping):
         return config.get(key)
     return getattr(config, key, None)
+
+
+def _first_non_empty(*values: Any) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _legacy_provider_aliases(provider_name: Any) -> set[str]:
+    if not isinstance(provider_name, str) or not provider_name:
+        return set()
+    normalized = provider_name.lower()
+    aliases = {normalized}
+    if normalized == "codex_cli":
+        aliases.add("codex")
+    elif normalized == "claude_cli":
+        aliases.add("claude")
+    return aliases
 
 
 def _command_args(command: Any) -> list[str]:

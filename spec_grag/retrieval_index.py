@@ -13,6 +13,7 @@ import importlib.metadata
 import math
 import os
 import re
+import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
@@ -29,10 +30,16 @@ DENSE_DISTANCE = "cosine"
 SPARSE_VECTOR_KIND = "bge-m3 lexical weights"
 FUSION_METHOD = "rrf"
 DEFAULT_RRF_K = 60
-QDRANT_COLLECTION_SCHEMA_VERSION = "qdrant-bge-m3-hybrid-v1"
+QDRANT_COLLECTION_SCHEMA_VERSION = "qdrant-bge-m3-hybrid-v2-stable-ids"
+# Bumped from v1 in 2026-05-10: point ids are now derived from stable_chunk_uid
+# (UUID5) instead of sequential ints, enabling incremental upsert. Existing
+# collections with int ids will be recreated on next run (schema mismatch).
+QDRANT_POINT_ID_NAMESPACE = uuid.UUID("00000000-0000-0000-0000-5e1c61a9da41")
 PAYLOAD_SCHEMA_VERSION = 1
 SOURCE_CHUNKS_ARTIFACT_VERSION = 1
 RETRIEVAL_INDEX_REVISION_ARTIFACT_VERSION = 1
+SECTION_EMBEDDINGS_ARTIFACT_VERSION = 1
+DEFAULT_SECTION_COLLECTION = "spec_grag_section"
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 _TOKEN_RE = re.compile(
@@ -172,12 +179,14 @@ class HybridRetrievalResult:
 
 
 class FlagEmbeddingBgeM3Provider:
-    """Opt-in real BGE-M3 provider backed by FlagEmbedding.
+    """Real BGE-M3 provider backed by FlagEmbedding.
 
     Real provider initialization can be expensive and may download model
-    weights. For that reason construction is blocked unless either
-    ``allow_real_provider=True`` is passed, ``SPEC_GRAG_REAL_RETRIEVAL`` is set,
-    or an explicit real-smoke test is enabled.
+    weights. Direct construction is guarded unless ``allow_real_provider=True``
+    is passed, ``SPEC_GRAG_REAL_RETRIEVAL`` is set for a test probe, or an
+    explicit real-smoke test is enabled. The standard `/spec-core` Qdrant /
+    BGE-M3 path passes ``allow_real_provider=True`` when project config selects
+    the production retrieval stack.
     """
 
     provider_id = STANDARD_EMBEDDING_PROVIDER
@@ -193,10 +202,10 @@ class FlagEmbeddingBgeM3Provider:
     ) -> None:
         if not allow_real_provider and not _real_retrieval_provider_enabled():
             raise RuntimeError(
-                "FlagEmbedding BGE-M3 provider is real retrieval opt-in. "
-                "Pass allow_real_provider=True, set SPEC_GRAG_REAL_RETRIEVAL=1 "
-                "for normal operation, or set SPEC_GRAG_REAL_SMOKE=1 for "
-                "explicit smoke tests."
+                "FlagEmbedding BGE-M3 direct construction is guarded. "
+                "Pass allow_real_provider=True for the standard /spec-core path, "
+                "or set SPEC_GRAG_REAL_RETRIEVAL=1 / SPEC_GRAG_REAL_SMOKE=1 "
+                "for explicit tests."
             )
         from FlagEmbedding import BGEM3FlagModel  # type: ignore[import-not-found]
 
@@ -778,11 +787,11 @@ def upsert_qdrant_bge_m3_index(
         )
 
     points = []
-    for index, (payload, embedding) in enumerate(zip(payloads, batch.embeddings, strict=True)):
+    for payload, embedding in zip(payloads, batch.embeddings, strict=True):
         sparse = embedding.sparse or SparseVector()
         points.append(
             qdrant_models.PointStruct(
-                id=index,
+                id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
                 vector={
                     DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
                     SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
@@ -828,8 +837,391 @@ def upsert_qdrant_bge_m3_index(
         "fusion_method": FUSION_METHOD,
         "rrf_k": DEFAULT_RRF_K,
         "chunk_count": len(payloads),
+        "upsert_mode": "full_recreate" if recreate else "full_overwrite",
     }
     return artifact
+
+
+def stable_chunk_uid_to_point_id(stable_chunk_uid: str) -> str:
+    """Map a chunk's stable UID to a deterministic Qdrant point id.
+
+    Using UUIDv5 keyed by ``stable_chunk_uid`` means re-running spec-grag
+    produces identical point ids for unchanged chunks → enables incremental
+    upsert (overwrite-by-id without recreate_collection). Schema version
+    `qdrant-bge-m3-hybrid-v2-stable-ids` reflects this id format.
+    """
+
+    return str(uuid.uuid5(QDRANT_POINT_ID_NAMESPACE, str(stable_chunk_uid)))
+
+
+def compute_chunk_diff(
+    previous_chunks: Sequence[Mapping[str, Any]] | None,
+    current_chunks: Sequence[Mapping[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Diff two chunk lists by stable_chunk_uid + chunk_hash.
+
+    Returns:
+        {
+            "added":   chunks present in current but not in previous,
+            "changed": chunks whose stable_chunk_uid is in previous but
+                       chunk_hash differs,
+            "unchanged": chunks identical in both,
+            "removed_uids": stable_chunk_uids only in previous,
+        }
+    """
+
+    prev_by_uid: dict[str, dict[str, Any]] = {}
+    if previous_chunks:
+        for chunk in previous_chunks:
+            prev_payload = _coerce_chunk_payload(chunk)
+            uid = prev_payload.get("stable_chunk_uid", "")
+            if uid:
+                prev_by_uid[uid] = prev_payload
+    added: list[dict[str, Any]] = []
+    changed: list[dict[str, Any]] = []
+    unchanged: list[dict[str, Any]] = []
+    seen_uids: set[str] = set()
+    for chunk in current_chunks:
+        payload = _coerce_chunk_payload(chunk)
+        uid = payload.get("stable_chunk_uid", "")
+        if not uid:
+            continue
+        seen_uids.add(uid)
+        prev = prev_by_uid.get(uid)
+        if prev is None:
+            added.append(payload)
+            continue
+        if prev.get("chunk_hash") != payload.get("chunk_hash"):
+            changed.append(payload)
+        else:
+            unchanged.append(payload)
+    removed_uids = [uid for uid in prev_by_uid if uid not in seen_uids]
+    return {
+        "added": added,
+        "changed": changed,
+        "unchanged": unchanged,
+        "removed_uids": removed_uids,
+    }
+
+
+def upsert_qdrant_bge_m3_index_incremental(
+    *,
+    url: str,
+    collection: str,
+    chunks_to_embed: Sequence[Mapping[str, Any]],
+    point_ids_to_delete: Sequence[str],
+    all_chunks: Sequence[Mapping[str, Any]],
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Embed only changed/added chunks, delete removed chunks. No recreate.
+
+    `all_chunks` is the full current chunk set (used for artifact_revision /
+    chunk_count metadata). `chunks_to_embed` and `point_ids_to_delete` are the
+    diff produced by ``compute_chunk_diff``.
+    """
+
+    from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
+
+    client = QdrantClient(url)
+    server_version = _qdrant_server_version(client)
+
+    # Delete removed points first (before upsert so id reuse is unambiguous).
+    if point_ids_to_delete:
+        client.delete(
+            collection_name=collection,
+            points_selector=qdrant_models.PointIdsList(
+                points=[
+                    stable_chunk_uid_to_point_id(uid) for uid in point_ids_to_delete
+                ],
+            ),
+        )
+
+    # Embed and upsert only the chunks that actually changed.
+    embed_payloads = [_coerce_chunk_payload(chunk) for chunk in chunks_to_embed]
+    if embed_payloads:
+        provider = embedding_provider or FlagEmbeddingBgeM3Provider(
+            allow_real_provider=True,
+            use_fp16=False,
+        )
+        batch = provider.embed_documents([payload["text"] for payload in embed_payloads])
+        points = []
+        for payload, embedding in zip(embed_payloads, batch.embeddings, strict=True):
+            sparse = embedding.sparse or SparseVector()
+            points.append(
+                qdrant_models.PointStruct(
+                    id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
+                    vector={
+                        DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
+                        SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
+                            indices=list(sparse.indices),
+                            values=[float(value) for value in sparse.values],
+                        ),
+                    },
+                    payload=payload,
+                )
+            )
+        if points:
+            client.upsert(collection_name=collection, points=points)
+    else:
+        provider = embedding_provider  # not used for diagnostics if no embed
+
+    full_payloads = [_coerce_chunk_payload(chunk) for chunk in all_chunks]
+    revision = _artifact_revision_from_chunks(
+        full_payloads,
+        schema=qdrant_named_vector_schema_metadata(
+            collection=collection,
+            qdrant_server_version=server_version,
+        ),
+    )
+    artifact = build_retrieval_index_revision_artifact(
+        chunks=full_payloads,
+        artifact_revision=revision,
+        collection=collection,
+        qdrant_server_version=server_version,
+        qdrant_collection_revision=revision,
+        generated_at=generated_at,
+    )
+    artifact["status"] = "success"
+    artifact["diagnostics"] = {
+        "real_retrieval_index": True,
+        "qdrant_url": url,
+        "collection": collection,
+        "qdrant_server_version": server_version,
+        "embedding_model": STANDARD_EMBEDDING_MODEL,
+        "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
+        "flagembedding_package_version": _package_version("FlagEmbedding"),
+        "embedding_device": (
+            _provider_device(provider) if provider is not None else "skipped"
+        ),
+        "embedding_model_revision": "unknown",
+        "dense_vector": DENSE_VECTOR_NAME,
+        "sparse_vector": SPARSE_VECTOR_NAME,
+        "fusion_method": FUSION_METHOD,
+        "rrf_k": DEFAULT_RRF_K,
+        "chunk_count": len(full_payloads),
+        "upsert_mode": "incremental",
+        "embedded_chunk_count": len(embed_payloads),
+        "deleted_chunk_count": len(point_ids_to_delete),
+    }
+    return artifact
+
+
+def build_section_embedding_text(
+    section: Mapping[str, Any],
+    metadata: Mapping[str, Any] | None = None,
+    *,
+    max_search_keys: int = 8,
+    max_identifiers: int = 8,
+) -> str:
+    """Build the embedding text for one section (summary + heading + key terms).
+
+    Used by Phase B (section-level Qdrant collection). The text is intentionally
+    short and semantically dense so 1 section = 1 BGE-M3 vector fits the model
+    input length.
+    """
+
+    metadata = metadata or {}
+    heading_path = section.get("heading_path") or []
+    heading = " / ".join(str(part) for part in heading_path if part)
+    summary = str(metadata.get("summary") or "")
+    search_keys = list(metadata.get("search_keys") or [])[:max_search_keys]
+    identifiers = list(metadata.get("identifiers") or [])[:max_identifiers]
+    parts: list[str] = []
+    if heading:
+        parts.append(heading)
+    if summary:
+        parts.append(summary)
+    if search_keys:
+        parts.append(" ".join(str(key) for key in search_keys))
+    if identifiers:
+        parts.append(" ".join(str(item) for item in identifiers))
+    return " | ".join(parts)
+
+
+def build_section_payloads(
+    sections: Sequence[Mapping[str, Any]],
+    metadata_by_section_id: Mapping[str, Mapping[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Return one Qdrant payload per section for the section-level collection."""
+
+    metadata_by_section_id = metadata_by_section_id or {}
+    payloads: list[dict[str, Any]] = []
+    for section in sections:
+        section_id = str(section.get("source_section_id") or section.get("section_id") or "")
+        if not section_id:
+            continue
+        metadata = metadata_by_section_id.get(section_id, {})
+        text = build_section_embedding_text(section, metadata)
+        stable_section_uid = str(section.get("stable_section_uid", section_id))
+        payloads.append(
+            {
+                "source_document_id": str(section.get("source_document_id", "")),
+                "source_section_id": section_id,
+                "stable_section_uid": stable_section_uid,
+                "stable_chunk_uid": stable_section_uid,
+                "heading_path": _heading_path_list(section.get("heading_path", [])),
+                "source_hash": str(section.get("source_hash", "")),
+                "semantic_hash": str(section.get("semantic_hash", section.get("source_hash", ""))),
+                "summary": str(metadata.get("summary") or ""),
+                "search_keys": list(metadata.get("search_keys") or []),
+                "identifiers": list(metadata.get("identifiers") or []),
+                "text": text,
+            }
+        )
+    return payloads
+
+
+def build_section_embeddings_artifact(
+    sections: Sequence[Mapping[str, Any]],
+    metadata_by_section_id: Mapping[str, Mapping[str, Any]] | None = None,
+    *,
+    collection: str = DEFAULT_SECTION_COLLECTION,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Build the section_embeddings artifact (provider-free metadata)."""
+
+    payloads = build_section_payloads(sections, metadata_by_section_id)
+    revision = _hash_text(
+        "\n".join(
+            f"{payload['source_section_id']}:{payload['source_hash']}:{payload.get('semantic_hash', '')}"
+            for payload in payloads
+        )
+    )[:16]
+    return {
+        "artifact_version": SECTION_EMBEDDINGS_ARTIFACT_VERSION,
+        "artifact_revision": revision,
+        "collection": collection,
+        "embedding": {
+            "provider": STANDARD_EMBEDDING_PROVIDER,
+            "model": STANDARD_EMBEDDING_MODEL,
+            "dense_vector_size": BGE_M3_DENSE_SIZE,
+            "dense_distance": DENSE_DISTANCE,
+            "sparse_vector_kind": SPARSE_VECTOR_KIND,
+        },
+        "section_count": len(payloads),
+        "sections": payloads,
+        "generated_at": generated_at,
+    }
+
+
+def upsert_qdrant_section_collection(
+    sections: Sequence[Mapping[str, Any]],
+    metadata_by_section_id: Mapping[str, Mapping[str, Any]] | None = None,
+    *,
+    url: str = "http://localhost:6333",
+    collection: str = DEFAULT_SECTION_COLLECTION,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
+    recreate: bool = True,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Upsert one BGE-M3 dense+sparse vector per section into a Qdrant collection."""
+
+    from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
+
+    payloads = build_section_payloads(sections, metadata_by_section_id)
+    client = QdrantClient(url)
+    server_version = _qdrant_server_version(client)
+    provider = embedding_provider or FlagEmbeddingBgeM3Provider(
+        allow_real_provider=True,
+        use_fp16=False,
+    )
+    batch = provider.embed_documents([payload["text"] for payload in payloads])
+
+    if recreate:
+        client.recreate_collection(
+            collection_name=collection,
+            vectors_config={
+                DENSE_VECTOR_NAME: qdrant_models.VectorParams(
+                    size=BGE_M3_DENSE_SIZE,
+                    distance=qdrant_models.Distance.COSINE,
+                )
+            },
+            sparse_vectors_config={SPARSE_VECTOR_NAME: qdrant_models.SparseVectorParams()},
+        )
+
+    points = []
+    for index, (payload, embedding) in enumerate(zip(payloads, batch.embeddings, strict=True)):
+        sparse = embedding.sparse or SparseVector()
+        points.append(
+            qdrant_models.PointStruct(
+                id=index,
+                vector={
+                    DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
+                    SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
+                        indices=list(sparse.indices),
+                        values=[float(value) for value in sparse.values],
+                    ),
+                },
+                payload=payload,
+            )
+        )
+    if points:
+        client.upsert(collection_name=collection, points=points)
+
+    artifact = build_section_embeddings_artifact(
+        sections,
+        metadata_by_section_id,
+        collection=collection,
+        generated_at=generated_at,
+    )
+    artifact["status"] = "success"
+    artifact["diagnostics"] = {
+        "real_section_index": True,
+        "qdrant_url": url,
+        "collection": collection,
+        "qdrant_server_version": server_version,
+        "section_count": len(payloads),
+        "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
+        "embedding_model": STANDARD_EMBEDDING_MODEL,
+        "embedding_device": _provider_device(provider),
+    }
+    return artifact
+
+
+def section_hybrid_candidates(
+    source_section_id: str,
+    payloads: Sequence[Mapping[str, Any]],
+    *,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
+    dense_top_k: int = 12,
+    sparse_top_k: int = 20,
+    limit: int = 16,
+    rrf_k: int = DEFAULT_RRF_K,
+) -> list[FusedRetrievalHit]:
+    """Return top-N section candidates for one source section via in-process RRF.
+
+    Used by Phase C candidate generation when running without a live Qdrant.
+    The same provider-free path is exercised by unit tests; the real Qdrant
+    backed query lives in :class:`QdrantHybridRetriever` against the section
+    collection.
+    """
+
+    chunks = list(payloads)
+    if not chunks:
+        return []
+    source_text = ""
+    for payload in chunks:
+        if str(payload.get("source_section_id", "")) == source_section_id:
+            source_text = str(payload.get("text", ""))
+            break
+    if not source_text.strip():
+        return []
+    retriever = InMemoryHybridRetriever(
+        chunks,
+        embedding_provider=embedding_provider,
+        rrf_k=rrf_k,
+    )
+    result = retriever.search(
+        source_text,
+        dense_top_k=dense_top_k,
+        sparse_top_k=sparse_top_k,
+        limit=limit + 1,
+        fusion_owner="related_sections_section_hybrid",
+    )
+    return [hit for hit in result.hits if hit.source_section_id != source_section_id][:limit]
 
 
 def rrf_fusion(

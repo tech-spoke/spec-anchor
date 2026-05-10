@@ -188,6 +188,48 @@ second
     assert len(set(_section_ids(sections))) == 2
 
 
+def test_t_u01_fenced_code_heading_text_is_not_a_section_boundary() -> None:
+    sections = _parse_sections(
+        """\
+# API
+before
+```markdown
+# Not a heading
+```
+## Details
+after
+"""
+    )
+
+    assert [_heading_path(section) for section in sections] == [
+        ["API"],
+        ["API", "Details"],
+    ]
+    assert "# Not a heading" in _body(sections[0])
+
+
+def test_t_u01_setext_headings_are_section_boundaries() -> None:
+    sections = _parse_sections(
+        """\
+認証設計
+====
+overview
+
+セッション管理
+----
+details
+"""
+    )
+
+    assert _heading_levels(sections) == [1, 2]
+    assert [_heading_path(section) for section in sections] == [
+        ["認証設計"],
+        ["認証設計", "セッション管理"],
+    ]
+    assert _body(sections[0]) == "overview\n\n"
+    assert _body(sections[1]) == "details\n"
+
+
 def test_t_u02_section_manifest_contains_required_fields_and_id_alias() -> None:
     section = _parse_sections(
         """\
@@ -250,6 +292,30 @@ same body
         after[1],
         "stable_section_uid",
     )
+
+
+def test_t_u02_japanese_and_mixed_headings_keep_unique_non_empty_ids() -> None:
+    sections = _parse_sections(
+        """\
+# 認証設計
+本文
+## セッション管理 2
+詳細
+## 認証設計
+重複
+""",
+        source_document_id="docs/spec/日本語.md",
+    )
+
+    ids = _section_ids(sections)
+
+    assert ids == [
+        "docs/spec/日本語.md#0001-認証設計",
+        "docs/spec/日本語.md#0002-セッション管理-2",
+        "docs/spec/日本語.md#0003-認証設計",
+    ]
+    assert len(set(ids)) == len(ids)
+    assert all(_get(section, "source_hash") for section in sections)
 
 
 def test_t_u02_hashes_distinguish_format_only_and_semantic_changes() -> None:

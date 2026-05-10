@@ -18,7 +18,16 @@ dist/
 .code-intel/
 .playwright-mcp/
 
+# Packaged Agent templates are source files, not local Agent state.
+!spec_grag/templates/.codex/
+!spec_grag/templates/.codex/skills/
+!spec_grag/templates/.codex/skills/spec-grag/
+!spec_grag/templates/.codex/skills/spec-grag/SKILL.md
+
 # SPEC-grag generated runtime state
+.spec-grag.backup-before-full-suite-*/
+.spec-grag.full-corpus-backup-*/
+.spec-grag.pytest-stash-*/
 .spec-grag/context/
 .spec-grag/cache/
 .spec-grag/graph/
@@ -27,6 +36,9 @@ dist/
 .spec-grag/runs/
 .spec-grag/state/
 .spec-grag/tmp/
+
+# Claude Code runtime locks
+.claude/scheduled_tasks.lock
 
 # Archived local runtime state. Source/docs under archive stay visible to Git.
 archive/**/.envrc

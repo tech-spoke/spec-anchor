@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import time
 import uuid
 from collections.abc import Mapping
@@ -268,6 +269,11 @@ def lock_age_ms(lock_payload: Mapping[str, Any], *, now_ms: int) -> int:
 
 
 def lock_is_stale(lock_payload: Mapping[str, Any], *, stale_lock_ms: int, now_ms: int) -> bool:
+    # PID liveness fast-path: if the holder process on this host is gone,
+    # consider the lock stale regardless of the TTL window. Avoids a
+    # multi-minute wait after a SIGKILL or crash.
+    if _holder_process_dead(lock_payload):
+        return True
     return _lock_epoch_ms(lock_payload) > 0 and lock_age_ms(lock_payload, now_ms=now_ms) > int(stale_lock_ms)
 
 
@@ -291,10 +297,50 @@ def _lock_payload(
         "updated_at": _timestamp_ms(now_ms),
         "updated_at_epoch_ms": now_ms,
         "stale_lock_ms": int(stale_lock_ms),
+        # PID + hostname for liveness check (next run can detect a dead
+        # holder on the same host even before stale_lock_ms expires).
+        "holder_pid": os.getpid(),
+        "holder_hostname": _hostname(),
     }
     if metadata:
         payload["metadata"] = _jsonable(dict(metadata))
     return payload
+
+
+def _hostname() -> str:
+    try:
+        return socket.gethostname()
+    except OSError:
+        return ""
+
+
+def _holder_process_dead(lock_payload: Mapping[str, Any]) -> bool:
+    """Return True if the lock holder's PID is no longer alive on this host.
+
+    Used as an early stale-lock signal that doesn't wait for ``stale_lock_ms``
+    to expire. Only acts when the lock was acquired on the same machine
+    (``holder_hostname`` matches) so cross-host locks (rare for spec-grag) are
+    not falsely cleared.
+    """
+
+    pid = lock_payload.get("holder_pid")
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    holder_host = lock_payload.get("holder_hostname")
+    if not isinstance(holder_host, str) or not holder_host:
+        return False
+    if holder_host != _hostname():
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        # Process exists but we can't signal it; treat as alive to be safe.
+        return False
+    except OSError:
+        return False
+    return False
 
 
 def _stale_lock_summary(lock_payload: Mapping[str, Any], *, now_ms: int) -> dict[str, Any]:

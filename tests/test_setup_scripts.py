@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
+import os
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,14 @@ import pytest
 
 
 COMMAND_NAMES = ("spec-core.md", "spec-inject.md", "spec-realign.md")
+
+
+@pytest.fixture(autouse=True)
+def isolated_codex_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "CODEX_HOME",
+        str(tmp_path.parent / f"{tmp_path.name}-codex-home"),
+    )
 
 
 def _call_flexible(func: Any, **kwargs: Any) -> Any:
@@ -61,6 +70,7 @@ def _run_project_setup(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
+    codex_install: str = "user",
 ) -> Any:
     for module_name in ("spec_grag.setup", "spec_grag.cli"):
         try:
@@ -77,7 +87,14 @@ def _run_project_setup(
             if not callable(func):
                 continue
             if name.endswith("_main"):
-                argv = ["--target", str(target), "--agent", agent]
+                argv = [
+                    "--target",
+                    str(target),
+                    "--agent",
+                    agent,
+                    "--codex-install",
+                    codex_install,
+                ]
                 if dry_run:
                     argv.append("--dry-run")
                 if force:
@@ -96,6 +113,7 @@ def _run_project_setup(
                 force=force,
                 no_init_core_files=no_init_core_files,
                 init_core_files=not no_init_core_files,
+                codex_install=codex_install,
             )
     pytest.fail("Project setup public API is required")
 
@@ -105,6 +123,7 @@ def _run_system_setup(
     check_only: bool = False,
     run_smoke: bool = False,
     mode: str = "editable",
+    qdrant_url: str | None = None,
 ) -> Any:
     for module_name in ("spec_grag.setup", "spec_grag.cli"):
         try:
@@ -126,12 +145,15 @@ def _run_system_setup(
                     argv.append("--check-only")
                 if run_smoke:
                     argv.append("--run-smoke")
+                if qdrant_url:
+                    argv.extend(["--qdrant-url", qdrant_url])
                 return func(argv)
             return _call_flexible(
                 func,
                 check_only=check_only,
                 run_smoke=run_smoke,
                 mode=mode,
+                qdrant_url=qdrant_url,
             )
     pytest.fail("System setup public API is required")
 
@@ -156,32 +178,43 @@ def _config_core_paths(root: Path) -> tuple[Path, Path]:
     return root / core["purpose_file"], root / core["concept_file"]
 
 
+def _codex_user_skill_path() -> Path:
+    return Path(os.environ["CODEX_HOME"]) / "skills" / "spec-grag" / "SKILL.md"
+
+
+def _codex_project_skill_path(root: Path) -> Path:
+    return root / ".codex" / "skills" / "spec-grag" / "SKILL.md"
+
+
 @pytest.mark.parametrize(
-    ("agent", "expected_dirs", "unexpected_dirs"),
+    ("agent", "codex_install", "expect_claude", "expect_user_skill", "expect_project_skill"),
     (
-        ("codex", (".codex",), (".claude",)),
-        ("claude", (".claude",), (".codex",)),
-        ("both", (".codex", ".claude"), ()),
+        ("codex", "user", False, True, False),
+        ("codex", "project", False, False, True),
+        ("claude", "user", True, False, False),
+        ("both", "user", True, True, False),
+        ("both", "project", True, False, True),
     ),
 )
 def test_t_s01_project_setup_creates_agent_specific_files(
     tmp_path: Path,
     agent: str,
-    expected_dirs: tuple[str, ...],
-    unexpected_dirs: tuple[str, ...],
+    codex_install: str,
+    expect_claude: bool,
+    expect_user_skill: bool,
+    expect_project_skill: bool,
 ) -> None:
-    result = _run_project_setup(tmp_path, agent=agent)
+    result = _run_project_setup(tmp_path, agent=agent, codex_install=codex_install)
 
     _assert_success(result)
     assert (tmp_path / ".spec-grag" / "config.toml").is_file()
     assert (tmp_path / ".spec-grag" / ".gitignore").is_file()
+    for command_name in COMMAND_NAMES:
+        assert (tmp_path / ".claude" / "commands" / command_name).is_file() is expect_claude
 
-    for directory in expected_dirs:
-        for command_name in COMMAND_NAMES:
-            assert (tmp_path / directory / "commands" / command_name).is_file()
-
-    for directory in unexpected_dirs:
-        assert not (tmp_path / directory).exists()
+    assert _codex_user_skill_path().is_file() is expect_user_skill
+    assert _codex_project_skill_path(tmp_path).is_file() is expect_project_skill
+    assert not (tmp_path / ".codex" / "commands").exists()
 
 
 def test_t_s01_project_setup_initializes_purpose_and_core_concept_placeholders(
@@ -241,6 +274,19 @@ def test_t_s01_dry_run_does_not_modify_target(tmp_path: Path) -> None:
 
     _assert_success(result)
     assert _project_files(tmp_path) == before
+    assert "$CODEX_HOME/skills/spec-grag/SKILL.md" in set(result.get("created", ()))
+    assert result.get("codex_install_path") == "$CODEX_HOME"
+
+
+def test_t_s01_project_setup_rejects_missing_target(tmp_path: Path) -> None:
+    missing = tmp_path / "missing-project"
+
+    result = _run_project_setup(missing)
+
+    assert _result_code(result) != 0
+    assert result["status"] == "error"
+    assert not missing.exists()
+    assert "target_not_found" in json.dumps(result)
 
 
 def test_t_s01_existing_files_are_not_silently_overwritten_without_force(
@@ -340,23 +386,217 @@ def test_t_s01_project_gitignore_contains_runtime_state_paths(tmp_path: Path) ->
 
 
 def test_t_c01_spec_inject_template_matches_agent_cli_boundary(tmp_path: Path) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both"))
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
 
-    for agent_dir in (".codex", ".claude"):
-        text = (tmp_path / agent_dir / "commands" / "spec-inject.md").read_text()
+    for text in (
+        (tmp_path / ".claude" / "commands" / "spec-inject.md").read_text(),
+        _codex_project_skill_path(tmp_path).read_text(),
+    ):
         lower = text.lower()
         assert "agentic search" in lower
         assert "agent / llm" in lower
-        assert "pending conflict" in lower or "pending conflict review" in lower
-        assert "do not run `/spec-core` automatically" in lower
+        assert "pending conflict" in lower or "pending_conflict" in lower
+        assert "`/spec-core` は自動実行しない" in lower
+        assert "会話区間" in lower
         assert "search keys" in lower
         assert "section summary" in lower
         assert "related sections" in lower
-        assert "sole" in lower and "evidence" in lower
+        assert "sole evidence" in lower
         assert "purpose" in lower and "core concept" in lower
         assert "update purpose" not in lower
         assert "update core concept" not in lower
         assert "automatically update" not in lower
+
+
+def _assert_agentic_constraint_workflow_text(text: str) -> None:
+    lower = text.lower()
+    for expected in (
+        "gate probe",
+        "needs_agent_constraints",
+        "会話区間",
+        "search keys",
+        "source specs snippet",
+        "section metadata",
+        "related sections",
+        "chapter key anchor",
+        "agentic search",
+        "statement",
+        "evidence_origin",
+        "evidence_ref",
+        "support_refs",
+        "applicability",
+        "uncertainty",
+        "spec-grag inject",
+        "--constraints",
+        "constraints json の作り方",
+        "最小 schema",
+        "良い例",
+        "禁止例",
+    ):
+        assert expected in lower
+    assert "cli" in lower and "検証" in lower
+    assert "fallback constraints" in lower and "生成しない" in lower
+    assert "section summary" in lower
+    assert "sole evidence" in lower
+    for expected in (
+        '"statement"',
+        '"evidence_origin"',
+        '"evidence_ref"',
+        '"support_refs"',
+        '"applicability"',
+        '"uncertainty"',
+        "path + section id",
+        "cli validation failed",
+        "再生成",
+    ):
+        assert expected in lower
+
+
+def _assert_realign_answer_workflow_text(text: str) -> None:
+    lower = text.lower()
+    for expected in (
+        "spec-grag realign",
+        "--answer-json",
+        "今回守る制約",
+        "今回扱う修正候補または検討対象",
+        "競合 / 不確実性 / 人間レビューが必要な点",
+        "課題プロンプトへの回答または修正案",
+        "answer candidate",
+        "constraint-checked",
+    ):
+        assert expected in lower
+
+
+def _assert_japanese_agent_template_text(text: str) -> None:
+    lower = text.lower()
+    for expected in (
+        "正本",
+        "会話区間",
+        "自動実行しない",
+        "人間",
+        "検証",
+        "生成しない",
+    ):
+        assert expected in lower
+
+
+def _constraints_json_block(text: str) -> str:
+    marker = "### constraints JSON の作り方"
+    start = text.index(marker)
+    next_heading = text.find("\n## ", start + len(marker))
+    if next_heading == -1:
+        return text[start:].strip()
+    return text[start:next_heading].strip()
+
+
+def test_t_c01_inject_templates_define_agent_generated_constraints_workflow(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+
+    for text in (
+        (tmp_path / ".claude" / "commands" / "spec-inject.md").read_text(),
+        _codex_project_skill_path(tmp_path).read_text(),
+    ):
+        _assert_agentic_constraint_workflow_text(text)
+        _assert_japanese_agent_template_text(text)
+
+
+def test_t_c01_realign_templates_define_answer_generation_and_validation_workflow(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+
+    for text in (
+        (tmp_path / ".claude" / "commands" / "spec-realign.md").read_text(),
+        _codex_project_skill_path(tmp_path).read_text(),
+    ):
+        _assert_agentic_constraint_workflow_text(text)
+        _assert_realign_answer_workflow_text(text)
+        _assert_japanese_agent_template_text(text)
+
+
+def test_t_c01_command_and_skill_templates_are_japanese_prose(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+
+    paths = [
+        tmp_path / ".claude" / "commands" / "spec-core.md",
+        tmp_path / ".claude" / "commands" / "spec-inject.md",
+        tmp_path / ".claude" / "commands" / "spec-realign.md",
+        _codex_project_skill_path(tmp_path),
+    ]
+    for path in paths:
+        text = path.read_text()
+        lower = text.lower()
+        assert "spec-grag" in lower
+        assert "人間" in lower
+        assert "自動" in lower or "検証" in lower
+        assert "purpose" in lower
+        assert "core concept" in lower
+
+
+def test_t_c01_agent_core_entrypoints_select_their_own_llm_provider(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+
+    claude_core = (tmp_path / ".claude" / "commands" / "spec-core.md").read_text()
+    codex_skill = _codex_project_skill_path(tmp_path).read_text()
+
+    assert "spec-grag core" in claude_core
+    assert "stage_routing" in claude_core
+    assert "spec-grag core" in codex_skill
+    assert "stage_routing" in codex_skill
+
+
+def test_t_c01_constraints_json_block_is_shared_across_agent_templates(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+
+    skill_block = _constraints_json_block(_codex_project_skill_path(tmp_path).read_text())
+    inject_block = _constraints_json_block(
+        (tmp_path / ".claude" / "commands" / "spec-inject.md").read_text()
+    )
+    realign_block = _constraints_json_block(
+        (tmp_path / ".claude" / "commands" / "spec-realign.md").read_text()
+    )
+
+    assert inject_block == skill_block
+    assert realign_block == skill_block
+
+
+def test_t_c01_claude_command_templates_have_command_frontmatter(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="claude"))
+
+    for command_name in COMMAND_NAMES:
+        text = (tmp_path / ".claude" / "commands" / command_name).read_text()
+        metadata = _front_matter(text)
+        assert "description:" in metadata
+        assert "allowed-tools:" in metadata
+        assert "spec-grag" in metadata
+
+
+@pytest.mark.parametrize("command_name", ("spec-inject.md", "spec-realign.md"))
+def test_t_c01_inject_and_realign_templates_allow_agentic_search_tools_without_core(
+    tmp_path: Path,
+    command_name: str,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="claude"))
+
+    text = (tmp_path / ".claude" / "commands" / command_name).read_text()
+    metadata = _front_matter(text)
+    lower = metadata.lower()
+    for tool in ("read", "grep", "glob"):
+        assert tool in lower
+    assert "bash(spec-grag inject" in lower
+    if command_name == "spec-realign.md":
+        assert "bash(spec-grag realign" in lower
+    assert "bash(spec-grag core" not in lower
 
 
 @pytest.mark.parametrize("command_name", ("spec-inject.md", "spec-realign.md"))
@@ -364,17 +604,81 @@ def test_t_c01_inject_and_realign_metadata_do_not_allow_spec_core(
     tmp_path: Path,
     command_name: str,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both"))
+    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
 
-    for agent_dir in (".codex", ".claude"):
-        text = (tmp_path / agent_dir / "commands" / command_name).read_text()
-        metadata = _front_matter(text)
-        lower_metadata = metadata.lower()
-        assert "spec-grag core" not in lower_metadata
-        assert "bash(spec-grag core" not in lower_metadata
+    text = (tmp_path / ".claude" / "commands" / command_name).read_text()
+    metadata = _front_matter(text)
+    lower_metadata = metadata.lower()
+    assert "spec-grag core" not in lower_metadata
+    assert "bash(spec-grag core" not in lower_metadata
 
-        lower_text = text.lower()
-        assert "do not run `/spec-core` automatically" in lower_text
+    lower_text = text.lower()
+    assert "`/spec-core` は自動実行しない" in lower_text
+
+
+def test_t_c01_codex_skill_has_required_frontmatter_and_no_command_dir(
+    tmp_path: Path,
+) -> None:
+    _assert_success(_run_project_setup(tmp_path, agent="codex", codex_install="project"))
+
+    skill_path = _codex_project_skill_path(tmp_path)
+    text = skill_path.read_text()
+    metadata = _front_matter(text)
+    lower = text.lower()
+
+    assert "name: spec-grag" in metadata
+    assert "description:" in metadata
+    assert "short-description:" in metadata
+    assert "仕様に基づくコンテキスト" in text
+    assert "spec-grag core" in lower
+    assert "spec-grag inject" in lower
+    assert "spec-grag realign" in lower
+    assert "pending conflict" in lower or "pending_conflict" in lower
+    assert "section summary" in lower
+    assert "related sections" in lower
+    assert "sole evidence" in lower
+    assert not (tmp_path / ".codex" / "commands").exists()
+
+
+def test_t_s01_codex_user_install_requires_force_for_existing_skill(
+    tmp_path: Path,
+) -> None:
+    skill_path = _codex_user_skill_path()
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("human-owned skill\n")
+
+    result = _run_project_setup(
+        tmp_path,
+        agent="codex",
+        codex_install="user",
+        force=False,
+    )
+
+    assert _result_code(result) != 0
+    assert result["status"] == "conflict"
+    assert skill_path.read_text() == "human-owned skill\n"
+    assert "would_overwrite_existing_codex_user_skill" in json.dumps(result)
+
+
+def test_t_s01_codex_user_install_force_updates_existing_skill(
+    tmp_path: Path,
+) -> None:
+    skill_path = _codex_user_skill_path()
+    skill_path.parent.mkdir(parents=True)
+    skill_path.write_text("human-owned skill\n")
+
+    result = _run_project_setup(
+        tmp_path,
+        agent="codex",
+        codex_install="user",
+        force=True,
+    )
+
+    _assert_success(result)
+    assert "name: spec-grag" in skill_path.read_text()
+    diagnostics = json.dumps(result.get("diagnostics", []))
+    assert "codex_user_skill_overwrite" in diagnostics
+    assert "$CODEX_HOME/skills/spec-grag/SKILL.md" in diagnostics
 
 
 def test_t_s01_no_init_core_files_with_existing_core_files_has_no_misleading_warning(
@@ -521,6 +825,13 @@ def test_t_s02_non_check_only_returns_preparation_actions_and_availability(
     assert isinstance(payload.get("templates"), list)
     assert payload["templates"]
     assert all("available" in item for item in payload["templates"])
+    template_paths = {item["path"] for item in payload["templates"]}
+    assert "templates/.codex/skills/spec-grag/SKILL.md" in template_paths
+    assert not any("templates/.codex/commands/" in path for path in template_paths)
+    assert isinstance(payload.get("agent_cli_entries"), dict)
+    diagnostic_codes = {item["code"] for item in payload.get("diagnostics", [])}
+    assert "codex_skill_entrypoint" in diagnostic_codes
+    assert "claude_command_entrypoint" in diagnostic_codes
 
 
 def test_t_s02_smoke_runs_only_when_explicit(
@@ -550,7 +861,7 @@ def test_t_s02_smoke_runs_only_when_explicit(
     assert no_smoke_payload != with_smoke_payload or "smoke" in with_smoke_output
 
 
-def test_t_r11_setup_system_reports_production_readiness_gates(
+def test_t_r11_setup_system_reports_production_readiness_dependencies_without_env_gates(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -576,28 +887,44 @@ def test_t_r11_setup_system_reports_production_readiness_gates(
         "flagembedding_package",
         "qdrant_client_package",
         "agent_cli",
-        "real_provider_gate",
-        "real_retrieval_gate",
     ):
         assert required in checks
-    assert checks["real_provider_gate"]["status"] == "failed"
-    assert checks["real_provider_gate"]["reason_code"] == "real_provider_gate_disabled"
-    assert checks["real_provider_gate"]["details"]["env"] == "SPEC_GRAG_REAL_PROVIDER"
-    assert checks["real_retrieval_gate"]["status"] == "failed"
-    assert checks["real_retrieval_gate"]["reason_code"] == "real_retrieval_gate_disabled"
-    assert checks["real_retrieval_gate"]["details"]["env"] == "SPEC_GRAG_REAL_RETRIEVAL"
-    assert "real_provider_gate_disabled" in readiness["blocking_reasons"]
-    assert "real_retrieval_gate_disabled" in readiness["blocking_reasons"]
+    assert "real_provider_gate" not in checks
+    assert "real_retrieval_gate" not in checks
+    assert "real_provider_gate_disabled" not in readiness["blocking_reasons"]
+    assert "real_retrieval_gate_disabled" not in readiness["blocking_reasons"]
     assert "model_cache_dir" in readiness
 
 
-def test_t_r11_setup_system_can_report_ready_production_gates(
+def test_t_r11_setup_system_qdrant_url_is_explicit_probe_input_not_project_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("SPEC_GRAG_REAL_PROVIDER", "1")
-    monkeypatch.setenv("SPEC_GRAG_REAL_RETRIEVAL", "1")
+    monkeypatch.setenv("SPEC_GRAG_QDRANT_URL", "http://env-qdrant.example:6333")
+
+    payload = _run_system_setup(
+        check_only=True,
+        run_smoke=False,
+        qdrant_url="http://cli-qdrant.example:6333",
+    )
+
+    _assert_success(payload)
+    providers = {
+        item["name"]: item
+        for item in payload.get("providers", [])
+        if isinstance(item, dict)
+    }
+    assert providers["qdrant"]["url"] == "http://cli-qdrant.example:6333"
+
+
+def test_t_r11_setup_system_does_not_require_real_operation_gate_env(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
 
     payload = _run_system_setup(check_only=True, run_smoke=False)
@@ -609,8 +936,10 @@ def test_t_r11_setup_system_can_report_ready_production_gates(
         for item in readiness.get("checks", [])
         if isinstance(item, dict)
     }
-    assert checks["real_provider_gate"]["status"] == "passed"
-    assert checks["real_retrieval_gate"]["status"] == "passed"
+    assert "real_provider_gate" not in checks
+    assert "real_retrieval_gate" not in checks
+    assert "real_provider_gate_disabled" not in readiness["blocking_reasons"]
+    assert "real_retrieval_gate_disabled" not in readiness["blocking_reasons"]
 
 
 def test_t_r12_setup_project_config_is_production_stack_ready(
@@ -620,7 +949,31 @@ def test_t_r12_setup_project_config_is_production_stack_ready(
     config_path = tmp_path / ".spec-grag" / "config.toml"
     parsed = tomllib.loads(config_path.read_text())
 
-    assert parsed["llm"]["provider"] == "codex_cli"
+    assert parsed["llm"]["default_provider"] == "codex"
+    assert parsed["llm"]["fallback_order"] == ["codex", "claude"]
+    # Base provider entries
+    assert parsed["llm"]["providers"]["codex"]["provider"] == "codex_cli"
+    assert parsed["llm"]["providers"]["codex"]["model"] == "gpt-5.4-mini"
+    assert parsed["llm"]["providers"]["codex"]["effort"] == "low"
+    assert parsed["llm"]["providers"]["claude"]["provider"] == "claude_cli"
+    assert parsed["llm"]["providers"]["claude"]["model"] == "claude-haiku-4-5"
+    assert parsed["llm"]["providers"]["claude"]["effort"] == "low"
+    # H-4 calibration (doc/CALIBRATION_MODEL_EFFORT.ja.md) で確定した stage 別 provider
+    # related_sections と conflict_review は claude-sonnet-4-6 × low (recall 重視)
+    assert parsed["llm"]["providers"]["claude_typing"]["provider"] == "claude_cli"
+    assert parsed["llm"]["providers"]["claude_typing"]["model"] == "claude-sonnet-4-6"
+    assert parsed["llm"]["providers"]["claude_typing"]["effort"] == "low"
+    assert parsed["llm"]["providers"]["claude_judge"]["provider"] == "claude_cli"
+    assert parsed["llm"]["providers"]["claude_judge"]["model"] == "claude-sonnet-4-6"
+    assert parsed["llm"]["providers"]["claude_judge"]["effort"] == "low"
+    # stage_routing は H-4 確定値で template に組み込み済み
+    assert parsed["llm"]["stage_routing"] == {
+        "section_metadata": "codex",
+        "related_sections": "claude_typing",
+        "conflict_review": "claude_judge",
+    }
+    # Phase H follow-up: llm_batch_concurrency must be present and >= 1
+    assert parsed["limits"]["llm_batch_concurrency"] >= 1
     assert parsed["embedding"]["provider"] == "flagembedding"
     assert parsed["embedding"]["model"] == "BAAI/bge-m3"
     assert parsed["vector_store"]["provider"] == "qdrant"

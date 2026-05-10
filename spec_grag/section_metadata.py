@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,10 +30,11 @@ from spec_grag.llm_provider import (
     LlmRequest,
     build_spec_core_llm_provider,
     generate_with_retries,
+    select_llm_provider_config,
 )
 
 
-SECTION_METADATA_PROMPT_VERSION = "section-metadata-v1"
+SECTION_METADATA_PROMPT_VERSION = "section-metadata-v2"
 SECTION_METADATA_ROLE = "retrieval_aid_not_evidence"
 IDENTIFIER_EXTRACTOR_VERSION = "identifier-extractor-v1"
 
@@ -87,6 +89,52 @@ _WARNING_MARKERS = (
     "timeout",
     "warning",
 )
+_CAMEL_CASE_RE = re.compile(r"[a-z][a-z0-9]*[A-Z][A-Za-z0-9]*")
+_SEARCH_KEY_IDENTIFIER_REGEXES = (
+    _DOTTED_NAME_RE,
+    _CALLABLE_RE,
+    _SLASH_COMMAND_RE,
+    _CLI_COMMAND_RE,
+    _OPTION_RE,
+    _UPPER_CODE_RE,
+    _PASCAL_RE,
+    _CAMEL_CASE_RE,
+    _SNAKE_RE,
+    _FILE_RE,
+)
+_SEARCH_KEYS_INSTRUCTIONS = (
+    "search_keys must be NATURAL LANGUAGE keywords for retrieval recall."
+    " Output domain concept phrases, chapter themes, synonyms, and the"
+    " natural-language side of feature/state/warning names."
+    " Do NOT output code symbols, API names, function names, class names,"
+    " CLI commands, CLI options (e.g. --rebuild), file paths, ALL_CAPS"
+    " constants, PascalCase type names, or dotted technical names."
+    " Code symbols are tracked separately under `identifiers` and must not"
+    " appear in `search_keys` (the two lists are disjoint by contract)."
+    " If a phrase contains an identifier-shaped token, prefer the"
+    " natural-language paraphrase (e.g. use 'config replace' instead of"
+    " 'productStoreGroup.replace')."
+)
+
+
+def _is_identifier_like_search_key(value: str, identifiers: set[str]) -> bool:
+    """Return True when the search_key candidate is a code-shaped token.
+
+    Used to enforce the search_keys (natural language) vs identifiers
+    (code symbols) role separation declared in `doc/EXTERNAL_DESIGN.ja.md`
+    §2.6 / §2.6.1.
+    """
+
+    text = value.strip()
+    if not text:
+        return True
+    if text in identifiers:
+        return True
+    for regex in _SEARCH_KEY_IDENTIFIER_REGEXES:
+        match = regex.fullmatch(text)
+        if match is not None:
+            return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -233,7 +281,9 @@ def generate_section_metadata_result(
         force_all=force_all,
         run_all=run_all,
     )
-    llm_config = llm_config if llm_config is not None else _config_value(config, "llm", None)
+    llm_config = _selected_llm_config(
+        llm_config if llm_config is not None else _config_value(config, "llm", None)
+    )
     limits = limits if limits is not None else _config_value(config, "limits", None)
     section_metadata_config = (
         section_metadata_config
@@ -298,8 +348,11 @@ def generate_section_metadata_result(
     should_call_llm = metadata_config.summary_enabled or metadata_config.search_keys_enabled
 
     if should_call_llm:
-        for batch in _batch_work_items(pending, limits_config):
+        batches = list(_batch_work_items(pending, limits_config))
+        for batch in batches:
             batch_sizes.append(len(batch))
+
+        def _run_metadata_batch(batch: Sequence[Any]) -> Any:
             request = _build_batch_request(
                 batch,
                 prompt_version=prompt_version,
@@ -317,6 +370,16 @@ def generate_section_metadata_result(
                 timeout_sec=timeout_sec,
                 max_retries=max_retries,
             )
+            return batch, request, result
+
+        concurrency = max(1, int(getattr(limits_config, "llm_batch_concurrency", 1) or 1))
+        if concurrency > 1 and len(batches) > 1:
+            with ThreadPoolExecutor(max_workers=concurrency) as ex:
+                batch_outputs = list(ex.map(_run_metadata_batch, batches))
+        else:
+            batch_outputs = [_run_metadata_batch(batch) for batch in batches]
+
+        for batch, request, result in batch_outputs:
             llm_results.append(result)
             output = result.artifact.output if result.artifact is not None else {}
             output_by_section = _output_by_section(output, batch)
@@ -594,6 +657,10 @@ def _limits(value: Any | None) -> LimitsConfig:
             int(_config_value(value, "llm_batch_max_sections", 8)),
         ),
         llm_batch_max_chars=max(1, int(_config_value(value, "llm_batch_max_chars", 12000))),
+        llm_batch_concurrency=max(
+            1,
+            int(_config_value(value, "llm_batch_concurrency", 1)),
+        ),
     )
 
 
@@ -625,9 +692,15 @@ def _resolve_metadata_provider(
 ) -> LlmProvider:
     if provider is not None:
         return provider
-    if _config_value(llm_config, "provider", None):
+    if _config_value(llm_config, "provider", None) or _config_value(llm_config, "providers", None):
         return build_spec_core_llm_provider(llm_config)
     return FakeLlmProvider()
+
+
+def _selected_llm_config(llm_config: Any | None) -> Any | None:
+    if _config_value(llm_config, "providers", None):
+        return select_llm_provider_config(llm_config)
+    return llm_config
 
 
 def _first_not_none(*values: Any) -> Any:
@@ -923,6 +996,7 @@ def _batch_prompt_payload(
         "task": "section_metadata",
         "artifact_role": SECTION_METADATA_ROLE,
         "summary_search_keys_are_evidence": False,
+        "instructions": _SEARCH_KEYS_INSTRUCTIONS,
         "return_shape": {
             "sections": [
                 {
@@ -1085,8 +1159,16 @@ def _search_keys(
     if isinstance(raw_keys, Sequence) and not isinstance(raw_keys, (str, bytes)):
         keys.extend(str(key) for key in raw_keys)
     keys.extend(section.heading_path)
-    keys.extend(identifiers)
-    return _dedupe_nonempty(keys)[: limits.search_keys_max]
+    deduped = _dedupe_nonempty(keys)
+    identifier_set = {
+        " ".join(str(value).strip().split()) for value in identifiers
+    }
+    identifier_set.discard("")
+    filtered = [
+        key for key in deduped
+        if not _is_identifier_like_search_key(key, identifier_set)
+    ]
+    return filtered[: limits.search_keys_max]
 
 
 def _fallback_summary(section: _NormalizedSection) -> str:

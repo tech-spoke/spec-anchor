@@ -292,7 +292,14 @@ def select_conflict_judging_pairs(
         related_iter = []
 
     for relation in related_iter:
-        if relation.get("relation_hint") == "conflicts_with":
+        # Phase E: Related Sections no longer finalizes conflicts_with. The
+        # LLM typing stage now emits possible_conflict=True as a referral
+        # signal, and the Conflict Review pipeline below re-judges with full
+        # Purpose / Core Concept / Source Specs grounding. The legacy
+        # relation_hint=conflicts_with path is kept for backward compat.
+        if relation.get("relation_hint") == "conflicts_with" or bool(
+            relation.get("possible_conflict", False)
+        ):
             add_pair(relation, explicit=True)
 
     candidate_items = _coerce_candidate_items(candidates) + _coerce_candidate_items(related_section_candidates)
@@ -499,6 +506,19 @@ def apply_conflict_decision(
     selected_option = str(decision_payload.get("selected_option") or selected_decision)
     if selected_decision not in DECISIONS:
         raise ValueError(f"invalid conflict decision: {selected_decision}")
+    # CLAUDE.md ルール 5 / EXTERNAL_DESIGN §2.8: pending Conflict Review Items
+    # are decided by humans, not by LLM/agent. Resolve / dismiss transitions
+    # therefore require the caller to attest a human authorization. Tests and
+    # CLI tools that proxy a human decision must include the field.
+    final_decisions = set(DECISIONS) - set(PENDING_DECISIONS)
+    if selected_decision in final_decisions:
+        ack = decision_payload.get("human_acknowledgement")
+        if not bool(ack):
+            raise ValueError(
+                "human_acknowledgement=true is required for resolve/dismiss "
+                "decisions; agent-only callers must surface this to a human "
+                "operator before invoking apply_conflict_decision"
+            )
 
     for index, item in enumerate(current_items):
         if item.get("conflict_id") != conflict_id:

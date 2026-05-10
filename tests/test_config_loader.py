@@ -44,9 +44,20 @@ related_sections_enabled = true
 enabled = true
 
 [llm]
+default_provider = "codex"
+fallback_order = ["codex", "claude"]
+
+[llm.providers.codex]
 provider = "codex_cli"
 command = "codex"
 model = "gpt-5.4-mini"
+effort = "low"
+timeout_sec = 120
+max_retries = 1
+
+[llm.providers.claude]
+provider = "claude_cli"
+command = "claude"
 effort = "low"
 timeout_sec = 120
 max_retries = 1
@@ -195,6 +206,10 @@ def test_t_u05_standard_config_parses_and_resolves_project_relative_paths(
     assert _get(config, "embedding", "model") == "BAAI/bge-m3"
     assert _get(config, "vector_store", "provider") == "qdrant"
     assert _get(config, "llm", "provider") == "codex_cli"
+    assert _get(config, "llm", "default_provider") == "codex"
+    assert _get(config, "llm", "fallback_order") == ["codex", "claude"]
+    assert _get(config, "llm", "providers", "codex", "provider") == "codex_cli"
+    assert _get(config, "llm", "providers", "claude", "provider") == "claude_cli"
 
     assert _path(_get(config, "core", "purpose_file")) == project_root / "docs/core/purpose.md"
     assert _path(_get(config, "core", "concept_file")) == project_root / "docs/core/concept.md"
@@ -239,6 +254,38 @@ def test_t_u05_defaults_are_applied_when_optional_tables_are_omitted(
     assert _get(config, "limits", "conflict_pair_max_per_section") == 8
     assert _get(config, "limits", "llm_batch_max_sections") == 8
     assert _get(config, "limits", "llm_batch_max_chars") == 12000
+
+
+def test_t_u05_legacy_single_llm_provider_config_still_parses(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_project(project_root, MINIMAL_CONFIG)
+
+    config = _load_config(project_root)
+
+    assert _get(config, "llm", "provider") == "codex_cli"
+    assert _get(config, "llm", "providers") == {}
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "expected"),
+    (
+        ('default_provider = "codex"', 'default_provider = "missing"', "llm.default_provider"),
+        ('fallback_order = ["codex", "claude"]', 'fallback_order = ["missing"]', "llm.fallback_order"),
+        ('provider = "codex_cli"\ncommand = "codex"\n', 'command = "codex"\n', "llm.providers.codex.provider"),
+    ),
+)
+def test_t_u05_multi_llm_provider_config_rejects_invalid_provider_references(
+    tmp_path: Path,
+    old: str,
+    new: str,
+    expected: str,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_project(project_root, STANDARD_CONFIG.replace(old, new))
+
+    _assert_config_error(project_root, expected)
 
 
 def test_t_u06_missing_config_file_fails_without_parent_directory_search(

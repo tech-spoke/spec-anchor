@@ -4,11 +4,35 @@ from __future__ import annotations
 
 import argparse
 import json
+import signal
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from spec_grag import __version__
+
+
+def _install_termination_handler() -> None:
+    """Convert SIGTERM into SystemExit so ``try/finally`` blocks always run.
+
+    Python's default SIGTERM handler terminates the process immediately
+    without unwinding the stack. That left ``.spec-grag/state/core_update.lock.json``
+    behind whenever a `/spec-core` run was killed (e.g. via ``kill PID``),
+    blocking the next run for the full ``stale_lock_ms`` (5 minutes).
+    Translating SIGTERM into ``SystemExit`` lets ``release_core_update_lock``
+    (and other resource cleanups) execute cleanly.
+    """
+
+    def _terminate(signum: int, frame: object | None) -> None:
+        sys.exit(128 + signum)
+
+    try:
+        signal.signal(signal.SIGTERM, _terminate)
+    except (ValueError, OSError):
+        # Not running in main thread (e.g. embedded usage) — caller can
+        # install their own signal handling.
+        pass
 
 
 def _add_version(parser: argparse.ArgumentParser) -> None:
@@ -31,8 +55,28 @@ def build_main_parser() -> argparse.ArgumentParser:
         "core",
         help="update section metadata, retrieval index, and conflict review items",
     )
-    core.add_argument("--all", "-a", action="store_true", help="rebuild all artifacts")
+    core.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="clear LLM-derived caches (section metadata + pair typing) and re-evaluate",
+    )
+    core.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="recreate the Qdrant chunk-level vector store (implies --all). Use when embeddings are suspected corrupt.",
+    )
+    core.add_argument(
+        "--use-cache",
+        action="store_true",
+        help="(deprecated) keep reusable section metadata cache even with --all",
+    )
     core.add_argument("--project-root", "--root", dest="project_root", default=".", help="target project root")
+    core.add_argument(
+        "--llm-provider",
+        dest="llm_provider_id",
+        help="configured [llm.providers.<id>] to use for this /spec-core run",
+    )
     core.add_argument(
         "--decision-json",
         help="JSON conflict decision payload to pass to /spec-core",
@@ -151,7 +195,13 @@ def build_setup_project_parser() -> argparse.ArgumentParser:
         "--agent",
         choices=("codex", "claude", "both"),
         default="both",
-        help="command template target",
+        help="Agent entrypoint target",
+    )
+    parser.add_argument(
+        "--codex-install",
+        choices=("user", "project"),
+        default="user",
+        help="Codex skill install location: user uses CODEX_HOME or ~/.codex, project uses <target>/.codex",
     )
     parser.add_argument("--dry-run", action="store_true", help="show changes only")
     parser.add_argument("--force", action="store_true", help="overwrite managed files")
@@ -177,10 +227,15 @@ def build_setup_system_parser() -> argparse.ArgumentParser:
         help="installation mode to check or prepare",
     )
     parser.add_argument("--run-smoke", action="store_true", help="run opt-in smoke checks")
+    parser.add_argument(
+        "--qdrant-url",
+        help="Qdrant URL to probe for system readiness; project runs use [vector_store].url",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _install_termination_handler()
     parser = build_main_parser()
     args = parser.parse_args(argv)
     if getattr(args, "command", None) is None:
@@ -210,6 +265,7 @@ def slash_main(argv: Sequence[str] | None = None) -> int:
 
 
 def watch_main(argv: Sequence[str] | None = None) -> int:
+    _install_termination_handler()
     args = build_watch_parser().parse_args(argv)
     return _run_watch_from_args(args)
 
@@ -239,12 +295,17 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
             file_path=args.decision_file,
             label="decision payload",
         )
+        rebuild_embeddings = bool(args.rebuild)
+        run_full_flag = bool(args.all or rebuild_embeddings)
         result = run_spec_core(
             project_root=project_root,
-            all=args.all,
-            all_mode=args.all,
-            mode="full" if args.all else None,
+            all=run_full_flag,
+            all_mode=run_full_flag,
+            mode="full" if run_full_flag else None,
+            use_cache=args.use_cache,
+            rebuild_embeddings=rebuild_embeddings,
             decision_payload=decision_payload,
+            llm_provider_id=args.llm_provider_id,
         )
     except Exception as exc:
         result = _exception_result("/spec-core", project_root=project_root, exc=exc)
@@ -453,6 +514,7 @@ def setup_project_main(argv: Sequence[str] | None = None) -> int:
         dry_run=args.dry_run,
         force=args.force,
         no_init_core_files=args.no_init_core_files,
+        codex_install=args.codex_install,
     )
     print(dumps_result(result))
     return result_exit_code(result)
@@ -466,6 +528,7 @@ def setup_system_main(argv: Sequence[str] | None = None) -> int:
         check_only=args.check_only,
         mode=args.mode,
         run_smoke=args.run_smoke,
+        qdrant_url=args.qdrant_url,
     )
     print(dumps_result(result))
     return result_exit_code(result, system_setup=True)

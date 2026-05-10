@@ -253,12 +253,19 @@ def test_t_u21_generated_section_metadata_entries_have_required_fields() -> None
         assert isinstance(entry["related_sections"], list)
 
 
-def test_section_metadata_configured_provider_requires_real_provider_gate(
+def test_section_metadata_configured_provider_runs_without_env_gate_and_reports_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = importlib.import_module("spec_grag.section_metadata")
     monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:
+        calls.append(command)
+        return SimpleNamespace(returncode=1, stderr="codex denied", stdout="")
+
+    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
 
     result = module.generate_section_metadata_result(
         _sections()[:1],
@@ -278,9 +285,10 @@ def test_section_metadata_configured_provider_requires_real_provider_gate(
     )
 
     entry = result.entries[0]
+    assert calls, "configured real provider must be called without env opt-in"
     assert entry["summary"] == ""
     assert result.llm_results[0].status == "failed"
-    assert "real_provider_required" in str(result.diagnostics).lower()
+    assert "codex denied" in str(result.diagnostics).lower()
 
 
 def test_t_i01_incremental_regenerates_only_changed_source_hash_section() -> None:
@@ -340,6 +348,122 @@ Delta requirement body.
         else:
             assert entry["summary"] == before[section.section_id]["summary"]
             assert entry["search_keys"] == before[section.section_id]["search_keys"]
+
+
+@dataclass
+class IdentifierLikeSearchKeyProvider:
+    """LLM stub that emits a mix of identifier-shaped and natural-language keys.
+
+    Used to verify that the search_keys post-process filter (role separation
+    declared in `doc/EXTERNAL_DESIGN.ja.md` §2.6 / §2.6.1) drops code-shaped
+    tokens before the entry is materialized.
+    """
+
+    def __post_init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.last_prompt: str = ""
+
+    @property
+    def provider_id(self) -> str:
+        return "identifier-like-search-key-fake"
+
+    def generate(self, request: LlmRequest, *, timeout_sec: int) -> dict[str, Any]:
+        self.last_prompt = request.prompt
+        section_ids = list(request.section_hashes)
+        if not section_ids and request.section_id is not None:
+            section_ids = [request.section_id]
+        self.calls.append({"section_ids": section_ids})
+        return {
+            "sections": [
+                {
+                    "section_id": section_id,
+                    "summary": f"summary for {section_id}",
+                    "search_keys": [
+                        "context registration",
+                        "再登録の挙動",
+                        "bindContext",
+                        "productStoreGroup.replace",
+                        "--rebuild",
+                        "/spec-core",
+                        "BINDING_KEY",
+                        "PascalName",
+                        "config.toml",
+                        "freshness gate",
+                    ],
+                }
+                for section_id in section_ids
+            ],
+        }
+
+
+def test_search_keys_and_identifiers_are_disjoint() -> None:
+    sections = _sections()
+    provider = IdentifierLikeSearchKeyProvider()
+
+    payload = _generate(
+        sections,
+        provider=provider,
+        config=_config(search_keys_max=32, batch_max_sections=4, batch_max_chars=8000),
+        rebuild_all=True,
+    )
+
+    for entry in _metadata_sections(payload):
+        search_keys = list(entry["search_keys"])
+        identifiers = list(entry["identifiers"])
+        # Role separation: search_keys (natural language) and identifiers
+        # (code symbols) must not overlap.
+        assert set(search_keys).isdisjoint(set(identifiers)), (
+            f"search_keys and identifiers must be disjoint, "
+            f"got overlap {set(search_keys) & set(identifiers)} "
+            f"for section {entry['section_id']}"
+        )
+        # Identifier-shaped tokens emitted by the LLM stub must be dropped.
+        for forbidden in (
+            "bindContext",
+            "productStoreGroup.replace",
+            "--rebuild",
+            "/spec-core",
+            "BINDING_KEY",
+            "PascalName",
+            "config.toml",
+        ):
+            assert forbidden not in search_keys, (
+                f"identifier-like token {forbidden!r} leaked into search_keys "
+                f"for section {entry['section_id']}: {search_keys}"
+            )
+        # Natural-language phrases must survive the filter.
+        assert "context registration" in search_keys
+        assert "freshness gate" in search_keys
+
+
+def test_section_metadata_prompt_includes_role_constraint_instructions() -> None:
+    module = importlib.import_module("spec_grag.section_metadata")
+    sections = _sections()
+    provider = IdentifierLikeSearchKeyProvider()
+
+    _generate(
+        sections,
+        provider=provider,
+        config=_config(batch_max_sections=4, batch_max_chars=8000),
+        rebuild_all=True,
+    )
+
+    assert provider.last_prompt, "prompt must be sent to the LLM provider"
+    prompt = provider.last_prompt
+    assert "search_keys" in prompt
+    assert "identifiers" in prompt
+    assert "natural language" in prompt.lower()
+    assert "code symbols" in prompt.lower()
+    # Confirm the canonical instructions module constant is the source.
+    assert module._SEARCH_KEYS_INSTRUCTIONS in prompt
+
+
+def test_section_metadata_prompt_version_is_v2() -> None:
+    module = importlib.import_module("spec_grag.section_metadata")
+    assert module.SECTION_METADATA_PROMPT_VERSION == "section-metadata-v2", (
+        "Phase R-0 requires the section_metadata prompt_version to be bumped to "
+        "section-metadata-v2 so existing caches are invalidated."
+    )
 
 
 def test_t_i02_full_generation_regenerates_all_metadata_with_batching() -> None:

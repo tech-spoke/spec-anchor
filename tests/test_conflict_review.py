@@ -326,6 +326,7 @@ def _decision_payload(
         "selected_option": selected_option or decision,
         "valid_scope": valid_scope,
         "referenced_source_refs": ["docs/spec/conflict.md#alpha"],
+        "human_acknowledgement": True,
     }
 
 
@@ -914,3 +915,36 @@ def test_t_u20_conflict_pair_limit_counts_only_high_risk_candidate_additions() -
     assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"}) in pair_ids
     assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#gamma"}) in pair_ids
     assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#delta"}) not in pair_ids
+
+
+def test_phase_e_possible_conflict_flag_routes_to_conflict_review() -> None:
+    """Phase E: related_sections with possible_conflict=True must be picked up
+    as an explicit pair by select_conflict_judging_pairs, even though
+    relation_hint != "conflicts_with".
+    """
+    import importlib
+
+    module = importlib.import_module("spec_grag.conflict_review")
+    select = module.select_conflict_judging_pairs
+    related_sections = {
+        "spec.md#alpha": [
+            {
+                "source_section_id": "spec.md#alpha",
+                "target_section_id": "spec.md#beta",
+                "relation_hint": "depends_on",
+                "confidence": "high",
+                "reason": "Alpha depends on beta auth policy.",
+                "evidence_terms": ["AUTH_TOKEN"],
+                "channels": ["shared_identifier"],
+                "possible_conflict": True,
+            }
+        ]
+    }
+
+    pairs = select(related_sections=related_sections)
+    assert len(pairs) == 1
+    assert pairs[0]["source_section_id"] == "spec.md#alpha"
+    assert pairs[0]["target_section_id"] == "spec.md#beta"
+    # Either the original relation_hint preserved or normalized to conflicts_with
+    # — the key thing is the pair routed to the judge.
+    assert pairs[0].get("relation_hint") in {"depends_on", "conflicts_with"}

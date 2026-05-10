@@ -1,10 +1,18 @@
 [sources]
-include = ["docs/spec/**/*.md"]
+# H-4 calibration corpus + conflict_review 試験用矛盾 fixture (30)
+# - 30 は 29 の API と shared_identifier (bindContext / extend / replace) で繋がりつつ
+#   require ↔ forbid の対立を含む。conflict_review pipeline の発火試験用
+include = [
+  "テスト用ドキュメント/25_コンポーネント層（配置操作）.md",
+  "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md",
+  "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md",
+  "テスト用ドキュメント/30_テスト用矛盾例.md",
+]
 exclude = ["archive/**", "**/drafts/**"]
 
 [core]
-purpose_file = "docs/core/purpose.md"
-concept_file = "docs/core/concept.md"
+purpose_file = "テスト用ドキュメント/01_システム目標.md"
+concept_file = ".spec-grag/concept.md"
 
 [context]
 storage = ".spec-grag/context"
@@ -40,12 +48,10 @@ effort = "low"
 timeout_sec = 120
 max_retries = 1
 
-# H-4 calibration (2026-05-09、6 cell 実走) で確定した stage 別 provider 構成。
-# 詳細: doc/CALIBRATION_MODEL_EFFORT.ja.md
-# - section_metadata は抽出系 → codex × low が最速 + サブスク内
-# - related_sections は分類系 (recall 重視) → sonnet × low が 0% empty で最良
-# - conflict_review は判定系 (Purpose / Core Concept grounding) → sonnet × low 暫定
-#   (実 fixture で要確認)
+# H-4 calibration 確定値 (doc/CALIBRATION_MODEL_EFFORT.ja.md 参照)
+# - section_metadata: codex × gpt-5.4-mini × low (抽出最速)
+# - related_sections: claude × sonnet-4-6 × low (recall 0% empty で最良)
+# - conflict_review:  claude × sonnet-4-6 × low (暫定、conflict fixture で要確認)
 [llm.providers.claude_typing]
 provider = "claude_cli"
 command = "claude"
@@ -97,10 +103,8 @@ related_selected_max_per_section = 8
 conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
-# 並列度: section_metadata / related_sections の batch を同時実行する数。
-# 1 = 逐次 (互換性デフォルト)。Codex Pro 5x / Claude Max 5x なら 4-8 を推奨。
-# 上げ過ぎるとサブスクの 5h window quota を早く消費する点に注意。
-llm_batch_concurrency = 1
+# Codex Pro 5x + Claude Max 5x 環境で 4 並列。8 でも余裕あり、user 判断で増減可
+llm_batch_concurrency = 4
 
 [watcher]
 enabled = true

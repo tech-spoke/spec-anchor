@@ -59,21 +59,11 @@ state_file = ".spec-grag/state/watch_state.json"
 queue_file = ".spec-grag/state/watch_queue.json"
 """
 
-TRUE_VALUES = {"1", "true", "yes", "on"}
-
-
 def _has_section_id(ids: list[str] | set[str], expected: str) -> bool:
     return any(
         value == expected
         or re.sub(r"#\d{4}-", "#", str(value)) == expected
         for value in ids
-    )
-
-
-def _real_smoke_enabled() -> bool:
-    return (
-        os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() in TRUE_VALUES
-        and os.environ.get("SPEC_GRAG_LOCAL_SERVICE", "").lower() in TRUE_VALUES
     )
 
 
@@ -1063,13 +1053,7 @@ def test_t_r13_failed_core_result_keeps_last_success_and_failure_reason(
     assert json.loads(fake_project["queue"].read_text())["queue_count"] == 1
 
 
-@pytest.mark.skipif(
-    not _real_smoke_enabled(),
-    reason=(
-        "T-R09 real watcher operation requires SPEC_GRAG_REAL_SMOKE=1 "
-        "and SPEC_GRAG_LOCAL_SERVICE=1"
-    ),
-)
+@pytest.mark.external
 def test_t_r09_real_watcher_reports_running_queue_lock_heartbeat_and_stale_recovery(
     tmp_path: Path,
 ) -> None:

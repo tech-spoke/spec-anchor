@@ -56,20 +56,6 @@ model = "fake-embedding"
     provider = "memory"
     """
 
-TRUE_VALUES = {"1", "true", "yes", "on"}
-
-
-def _real_smoke_enabled() -> bool:
-    return (
-        os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() in TRUE_VALUES
-        and os.environ.get("SPEC_GRAG_LOCAL_SERVICE", "").lower() in TRUE_VALUES
-    )
-
-
-def _production_readiness_enabled() -> bool:
-    return os.environ.get("SPEC_GRAG_PRODUCTION_READINESS", "").lower() in TRUE_VALUES
-
-
 @dataclass
 class FakeSpecCoreProvider:
     conflict_outcome: str = "resolved"
@@ -258,7 +244,7 @@ def _write_real_provider_project(
 ) -> None:
     command = os.environ.get(
         "SPEC_GRAG_REAL_PROVIDER_COMMAND",
-        os.environ.get("SPEC_GRAG_REAL_SMOKE_COMMAND", "codex"),
+        os.environ.get("SPEC_GRAG_REAL_PROVIDER_COMMAND", "codex"),
     )
     executable = Path(command.split()[0]).name
     provider = "claude_cli" if executable == "claude" else "codex_cli"
@@ -507,19 +493,39 @@ def _fingerprint(text: str) -> str:
 class RelatedSectionsProvider(FakeSpecCoreProvider):
     def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
         payload = super().generate(request, timeout_sec=timeout_sec)
-        section_id = _request_section_id(request)
         text = _request_text(request)
-        if section_id.endswith("#gamma") or "CACHE_MODE" in text:
-            payload["related_sections"] = [
-                {
-                    "target_section_id": "docs/spec/other.md#0002-delta",
-                    "relation_hint": "depends_on",
-                    "confidence": "high",
-                    "reason": "Both sections define CACHE_MODE behavior.",
-                    "evidence_terms": ["CACHE_MODE"],
-                    "channels": ["shared_identifier"],
-                }
-            ]
+        section_ids = _request_section_ids(request)
+        if "CACHE_MODE" not in text:
+            return payload
+        related_item = {
+            "target_section_id": "docs/spec/other.md#0002-delta",
+            "relation_hint": "depends_on",
+            "confidence": "high",
+            "reason": "Both sections define CACHE_MODE behavior.",
+            "evidence_terms": ["CACHE_MODE"],
+            "channels": ["shared_identifier"],
+        }
+        # Batch related-sections selection requests have section_ids drawn from
+        # section_hashes; produce a dict keyed by source_section_id when the
+        # request is a related-section batch. Fall back to a list for legacy
+        # single-source callers.
+        is_batch_related = (
+            getattr(request, "stage", "") == "related_section_selection"
+            and len(section_ids) > 1
+        )
+        gamma_id = next(
+            (section_id for section_id in section_ids if section_id.endswith("gamma")),
+            None,
+        )
+        if is_batch_related:
+            related_map: dict[str, list[dict[str, Any]]] = {
+                section_id: [] for section_id in section_ids
+            }
+            if gamma_id is not None:
+                related_map[gamma_id] = [related_item]
+            payload["related_sections"] = related_map
+        elif gamma_id is not None or _request_section_id(request).endswith("gamma"):
+            payload["related_sections"] = [related_item]
         return payload
 
 
@@ -659,6 +665,34 @@ def test_g11_runtime_core_assigns_unique_ids_for_duplicate_headings(
     assert "docs/spec/main.md#0003-api" in ids
 
 
+def test_g11_runtime_core_ignores_fenced_code_headings_in_section_manifest(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    paths["other"].unlink()
+    paths["main"].write_text(
+        "# API\n"
+        "before\n"
+        "```markdown\n"
+        "# Not a heading\n"
+        "```\n"
+        "## Details\n"
+        "after\n"
+    )
+
+    result = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
+    )
+    manifest_sections = _artifact(project_root, "section_manifest")["sections"]
+    heading_paths = [section["heading_path"] for section in manifest_sections]
+
+    assert result["status"] == "updated"
+    assert _freshness(result)["status"] == "fresh"
+    assert heading_paths == [["API"], ["API", "Details"]]
+    assert all("Not a heading" not in section["heading_path"] for section in manifest_sections)
+
+
 def test_g11_runtime_core_respects_sources_exclude_in_artifacts(
     tmp_path: Path,
 ) -> None:
@@ -755,18 +789,33 @@ def test_t_e07_spec_core_batches_metadata_and_reuses_unchanged_sections(
     assert max(generation["batch_sizes"]) <= 8
     assert all(1 <= len(_request_section_ids(call)) <= 8 for call in metadata_calls)
 
-    second_provider = FakeSpecCoreProvider()
-    second = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=second_provider)
+    full_provider = FakeSpecCoreProvider()
+    full = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=full_provider)
     )
-    second_generation = second["diagnostics"]["section_metadata_generation"]
-    second_revision = _artifact(project_root, "retrieval_index_revision")
+    full_generation = full["diagnostics"]["section_metadata_generation"]
 
-    assert _metadata_calls(second_provider) == []
-    assert second_generation["llm_calls"] == 0
-    assert second_generation["cache_hits"] >= len(sections)
-    assert second_revision["diagnostics"]["embedding_generation_skipped"] is True
-    assert second_revision["diagnostics"]["skip_reason"] == "source_hash_unchanged"
+    assert _metadata_calls(full_provider)
+    assert full_generation["llm_calls"] == len(_metadata_calls(full_provider))
+    assert full_generation["cache_hits"] == 0
+
+    cached_provider = FakeSpecCoreProvider()
+    cached = _result_dict(
+        _run_spec_core(
+            project_root,
+            all_mode=True,
+            provider=cached_provider,
+            use_cache=True,
+        )
+    )
+    cached_generation = cached["diagnostics"]["section_metadata_generation"]
+    cached_revision = _artifact(project_root, "retrieval_index_revision")
+
+    assert _metadata_calls(cached_provider) == []
+    assert cached_generation["llm_calls"] == 0
+    assert cached_generation["cache_hits"] >= len(sections)
+    assert cached_revision["diagnostics"]["embedding_generation_skipped"] is True
+    assert cached_revision["diagnostics"]["skip_reason"] == "source_hash_unchanged"
 
 
 def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
@@ -869,6 +918,7 @@ def test_t_i14_decision_payload_resolves_pending_item_through_spec_core_api(
                 "selected_option": "prefer_a",
                 "reason": "Human chose Alpha for this fixture.",
                 "referenced_source_refs": ["docs/spec/main.md#alpha"],
+                "human_acknowledgement": True,
             },
         )
     )
@@ -1071,7 +1121,70 @@ def test_g11_core_builds_configured_llm_provider_when_not_injected(
     assert any(section["summary"].startswith("summary:") for section in sections)
 
 
-def test_g11_real_cli_provider_requires_real_provider_gate_without_fallback(
+def test_g11_core_can_select_codex_or_claude_from_shared_llm_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+    config_path = project_root / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text().replace(
+            '[llm]\nprovider = "fake"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
+            """\
+[llm]
+default_provider = "codex"
+fallback_order = ["codex", "claude"]
+
+[llm.providers.codex]
+provider = "codex_cli"
+command = "codex"
+model = "codex-test"
+effort = "low"
+timeout_sec = 5
+max_retries = 0
+
+[llm.providers.claude]
+provider = "claude_cli"
+command = "claude"
+model = "claude-test"
+effort = "low"
+timeout_sec = 5
+max_retries = 0
+""",
+        )
+    )
+    provider = FakeSpecCoreProvider()
+    build_calls: list[tuple[Any, dict[str, Any]]] = []
+    core_module = _core_module()
+
+    def fake_build(llm_config: Any, **kwargs: Any) -> Any:
+        build_calls.append((llm_config, kwargs))
+        return provider
+
+    monkeypatch.setattr(
+        core_module.llm_provider_api,
+        "build_spec_core_llm_provider",
+        fake_build,
+    )
+
+    result = _result_dict(
+        core_module.run_spec_core(
+            project_root,
+            all_mode=True,
+            llm_provider_id="claude",
+        )
+    )
+
+    assert result["status"] == "updated"
+    selected_config, kwargs = build_calls[0]
+    assert selected_config["provider"] == "claude_cli"
+    assert selected_config["command"] == "claude"
+    assert selected_config["model"] == "claude-test"
+    assert kwargs["provider_id"] == "claude"
+
+
+def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fallback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1087,6 +1200,13 @@ def test_g11_real_cli_provider_requires_real_provider_gate_without_fallback(
     core_module = _core_module()
     monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    calls: list[Any] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append({"args": args, "kwargs": kwargs})
+        return subprocess.CompletedProcess(args[0], 1, stdout="", stderr="provider failed")
+
+    monkeypatch.setattr(core_module.llm_provider_api.subprocess, "run", fake_run)
 
     result = _result_dict(core_module.run_spec_core(project_root, all_mode=True))
     freshness = _freshness(result)
@@ -1099,16 +1219,17 @@ def test_g11_real_cli_provider_requires_real_provider_gate_without_fallback(
     assert all(section["llm_provider"] == "codex_cli" for section in sections)
     assert all(section["llm_generation_status"] == "failed" for section in sections)
     text = _json_text(result).lower()
-    assert "real_provider_required" in text
+    assert calls, "configured real provider must be called without env opt-in"
+    assert "provider failed" in text
     assert "summary:" not in text
 
 
-def test_t_r12_real_provider_gate_uses_normal_operation_env_without_smoke(
+def test_t_r12_configured_real_provider_is_default_without_smoke_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from spec_grag.llm_provider import build_spec_core_llm_provider
 
-    monkeypatch.setenv("SPEC_GRAG_REAL_PROVIDER", "1")
+    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
 
     provider = build_spec_core_llm_provider(
@@ -1143,7 +1264,7 @@ def test_g11_provider_failure_does_not_use_fixed_metadata_fallback(
     assert all(section["search_keys"] == [] for section in sections)
 
 
-def test_g11_standard_retrieval_without_local_service_is_failed_not_fresh(
+def test_g11_standard_retrieval_service_failure_is_failed_not_fake_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1161,9 +1282,16 @@ def test_g11_standard_retrieval_without_local_service_is_failed_not_fresh(
             '[vector_store]\nprovider = "qdrant"\nurl = "http://localhost:6333"\ncollection = "spec_grag_source"\n',
         )
     )
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
+    core_module = _core_module()
+
+    def fake_upsert(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("qdrant unavailable")
+
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "upsert_qdrant_bge_m3_index",
+        fake_upsert,
+    )
 
     result = _result_dict(
         _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
@@ -1172,14 +1300,15 @@ def test_g11_standard_retrieval_without_local_service_is_failed_not_fresh(
     revision = _artifact(project_root, "retrieval_index_revision")
 
     assert result["status"] == "failed"
-    assert result["retrieval_index_status"] == "skipped"
+    assert result["retrieval_index_status"] == "failed"
     assert freshness["status"] == "failed"
     assert "failed_required_artifact" in freshness["blocking_reasons"]
-    assert revision["status"] == "skipped"
+    assert revision["status"] == "failed"
     assert revision["diagnostics"]["real_retrieval_index"] is False
+    assert "qdrant unavailable" in _json_text(revision)
 
 
-def test_t_r12_real_retrieval_gate_uses_normal_operation_env_without_smoke(
+def test_t_r12_standard_qdrant_retrieval_is_default_without_smoke_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1213,7 +1342,7 @@ def test_t_r12_real_retrieval_gate_uses_normal_operation_env_without_smoke(
             },
         }
 
-    monkeypatch.setenv("SPEC_GRAG_REAL_RETRIEVAL", "1")
+    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
     monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
     core_module = _core_module()
@@ -1229,7 +1358,7 @@ def test_t_r12_real_retrieval_gate_uses_normal_operation_env_without_smoke(
 
     assert result["status"] != "failed"
     assert result["retrieval_index_status"] == "success"
-    assert calls, "SPEC_GRAG_REAL_RETRIEVAL must enable real retrieval without smoke env"
+    assert calls, "standard Qdrant/BGE-M3 config must run real retrieval without env opt-in"
 
 
 @pytest.mark.parametrize(
@@ -1262,7 +1391,7 @@ def test_t_r15_retrieval_failure_diagnostics_distinguish_required_categories(
             '[vector_store]\nprovider = "qdrant"\nurl = "http://127.0.0.1:65535"\ncollection = "spec_grag_failure"\n',
         )
     )
-    monkeypatch.setenv("SPEC_GRAG_REAL_RETRIEVAL", "1")
+    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
 
     core_module = _core_module()
 
@@ -1287,13 +1416,7 @@ def test_t_r15_retrieval_failure_diagnostics_distinguish_required_categories(
     assert "failed_required_artifact" in result["freshness_report"]["blocking_reasons"]
 
 
-@pytest.mark.skipif(
-    not _real_smoke_enabled(),
-    reason=(
-        "real /spec-core configured-provider operation requires "
-        "SPEC_GRAG_REAL_SMOKE=1 and SPEC_GRAG_LOCAL_SERVICE=1"
-    ),
-)
+@pytest.mark.external
 def test_t_r07_real_core_uses_configured_llm_provider_and_real_index(
     tmp_path: Path,
 ) -> None:
@@ -1336,10 +1459,7 @@ def test_t_r07_real_core_uses_configured_llm_provider_and_real_index(
             pass
 
 
-@pytest.mark.skipif(
-    not _production_readiness_enabled(),
-    reason="production CLI readiness requires SPEC_GRAG_PRODUCTION_READINESS=1",
-)
+@pytest.mark.external
 def test_t_r12_production_core_uses_real_provider_and_retrieval_without_smoke_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1352,8 +1472,8 @@ def test_t_r12_production_core_uses_real_provider_and_retrieval_without_smoke_en
     from spec_grag.realign import run_spec_realign
     from spec_grag.retrieval_index import qdrant_hybrid_retrieve
 
-    monkeypatch.setenv("SPEC_GRAG_REAL_PROVIDER", "1")
-    monkeypatch.setenv("SPEC_GRAG_REAL_RETRIEVAL", "1")
+    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
     monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
 
@@ -1598,6 +1718,7 @@ def test_g11_resolved_conflict_becomes_stale_when_purpose_or_concept_changes(
                 "docs/core/concept.md",
                 "docs/spec/main.md#alpha",
             ],
+            "human_acknowledgement": True,
         },
     )
 

@@ -15,12 +15,16 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 README = REPO_ROOT / "README.md"
+RUNBOOK = REPO_ROOT / "doc" / "RUNBOOK.ja.md"
 DEFAULT_CONFIG = REPO_ROOT / "spec_grag" / "templates" / ".spec-grag" / "config.toml"
-REAL_SMOKE_ENV = {"1", "true", "yes"}
 
 
 def _readme() -> str:
     return README.read_text(encoding="utf-8")
+
+
+def _runbook() -> str:
+    return RUNBOOK.read_text(encoding="utf-8")
 
 
 def _project_env() -> dict[str, str]:
@@ -29,9 +33,11 @@ def _project_env() -> dict[str, str]:
     env["PYTHONPATH"] = (
         str(REPO_ROOT) if not pythonpath else f"{REPO_ROOT}{os.pathsep}{pythonpath}"
     )
-    env.setdefault("SPEC_GRAG_REAL_SMOKE", "")
-    env.setdefault("SPEC_GRAG_LOCAL_SERVICE", "")
     return env
+
+
+def _has_any(text: str, *terms: str) -> bool:
+    return any(term in text for term in terms)
 
 
 def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -72,6 +78,7 @@ def _base_constraint() -> list[dict[str, object]]:
 def test_t_d01_readme_explains_lightweight_setup_smoke_usage_dev_and_privacy() -> None:
     text = _readme()
     lowered = text.lower()
+    runbook = _runbook().lower()
 
     assert "lightweight" in lowered
     assert "spec-grag" in lowered
@@ -84,20 +91,36 @@ def test_t_d01_readme_explains_lightweight_setup_smoke_usage_dev_and_privacy() -
         "spec-grag-setup-project",
     ):
         assert command in text
-    assert "pytest" in lowered
-    assert "local" in lowered
-    assert "diagnostics" in lowered
-    assert "privacy" in lowered
+    assert "doc/runbook.ja.md" in lowered
+    assert "pytest" in runbook
+    assert "local" in runbook
+    assert "diagnostics" in runbook
+    assert _has_any(runbook, "privacy", "プライバシー")
     for phrase in (
         "request",
         "response",
         "source",
     ):
-        assert phrase in lowered
-    assert "full text" in lowered or "full source specs text" in lowered
+        assert phrase in runbook
+    assert _has_any(runbook, "full text", "full source specs text", "全文")
     assert "core concept" in lowered
     assert "never updates" in lowered or "does not update" in lowered
     assert "automatically" in lowered
+
+
+def test_t_d01_readme_is_not_a_runbook() -> None:
+    text = _readme()
+    lowered = text.lower()
+
+    assert "doc/runbook.ja.md" in lowered
+    for forbidden in (
+        "Production Readiness Report Template",
+        "本運用 Readiness 報告テンプレート",
+        "Do not report",
+        "qdrant_schema_mismatch",
+        "agent_cli_unauthenticated",
+    ):
+        assert forbidden not in text
 
 
 def test_t_d01_readme_does_not_present_full_grag_terms_as_standard_path() -> None:
@@ -161,7 +184,7 @@ def test_t_r01_root_source_tests_and_docs_do_not_depend_on_archive_or_doc_new() 
 def test_t_r02_setup_generated_config_excludes_archive(tmp_path: Path) -> None:
     from spec_grag.project_setup import setup_project
 
-    result = setup_project(tmp_path, agent="codex")
+    result = setup_project(tmp_path, agent="codex", codex_install="project")
 
     assert result["status"] == "ok"
     generated_config = tomllib.loads((tmp_path / ".spec-grag" / "config.toml").read_text(encoding="utf-8"))
@@ -169,24 +192,27 @@ def test_t_r02_setup_generated_config_excludes_archive(tmp_path: Path) -> None:
     assert "archive/**" in excludes
 
 
-def test_t_r03_default_ci_skips_local_service_and_real_smoke_without_opt_in() -> None:
-    real_enabled = os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() in REAL_SMOKE_ENV
-    local_enabled = os.environ.get("SPEC_GRAG_LOCAL_SERVICE", "").lower() in REAL_SMOKE_ENV
+def test_t_r03_external_dependency_tests_are_skipped_only_by_pytest_option() -> None:
+    conftest = (REPO_ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "--skip-external" in conftest
+    assert "pytest_runtest_setup" in conftest
+    assert "external dependency test not run" in conftest
+    assert "external:" in pyproject
 
-    if real_enabled or local_enabled:
-        pytest.skip("real/local-service smoke profile is explicitly enabled")
-
-    project_skeleton = (REPO_ROOT / "tests" / "test_project_skeleton.py").read_text(encoding="utf-8")
-    llm_provider = (REPO_ROOT / "tests" / "test_llm_provider.py").read_text(encoding="utf-8")
-    retrieval_index = (REPO_ROOT / "tests" / "test_retrieval_index.py").read_text(encoding="utf-8")
-
-    assert "pytest.mark.skipif" in project_skeleton
-    assert "SPEC_GRAG_REAL_SMOKE" in project_skeleton
-    assert "real provider smoke tests require SPEC_GRAG_REAL_SMOKE=1" in project_skeleton
-    assert "pytest.mark.skipif" in llm_provider
-    assert "real provider smoke requires SPEC_GRAG_REAL_SMOKE=1" in llm_provider
-    assert "pytest.mark.skipif" in retrieval_index
-    assert "SPEC_GRAG_LOCAL_SERVICE=1" in retrieval_index
+    external_test_files = (
+        "test_agent_cli_smoke.py",
+        "test_llm_provider.py",
+        "test_production_readiness.py",
+        "test_project_skeleton.py",
+        "test_retrieval_index.py",
+        "test_spec_core.py",
+        "test_watcher.py",
+    )
+    for filename in external_test_files:
+        text = (REPO_ROOT / "tests" / filename).read_text(encoding="utf-8")
+        assert "@pytest.mark.external" in text, filename
+        assert "pytest.mark.skipif" not in text, filename
 
 
 def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -> None:
@@ -199,14 +225,37 @@ def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -
     assert help_result.returncode == 0, help_result.stderr or help_result.stdout
     assert "usage" in help_result.stdout.lower()
 
-    setup_result = setup_project(tmp_path, agent="codex")
+    setup_result = setup_project(tmp_path, agent="codex", codex_install="project")
     assert setup_result["status"] == "ok"
     config_path = tmp_path / ".spec-grag" / "config.toml"
+    real_llm_block = """\
+default_provider = "codex"
+fallback_order = ["codex", "claude"]
+
+[llm.providers.codex]
+provider = "codex_cli"
+command = "codex"
+model = "gpt-5.4-mini"
+effort = "low"
+timeout_sec = 120
+max_retries = 1
+
+[llm.providers.claude]
+provider = "claude_cli"
+command = "claude"
+effort = "low"
+timeout_sec = 120
+max_retries = 1"""
+    fake_llm_block = """\
+provider = "fake"
+model = "fake-release-smoke"
+timeout_sec = 5
+max_retries = 0"""
     config_path.write_text(
         config_path.read_text(encoding="utf-8")
         .replace(
-            'provider = "codex_cli"\ncommand = "codex"\nmodel = "gpt-5.4-mini"\neffort = "low"\ntimeout_sec = 120\nmax_retries = 1',
-            'provider = "fake"\nmodel = "fake-release-smoke"\ntimeout_sec = 5\nmax_retries = 0',
+            real_llm_block,
+            fake_llm_block,
         )
         .replace(
             'provider = "flagembedding"\nmodel = "BAAI/bge-m3"\ndense_enabled = true\nsparse_enabled = true',
@@ -281,11 +330,11 @@ def test_t_r05_default_run_artifact_privacy_is_documented_and_configured() -> No
     assert run_config["include_response"] is False
     assert run_config["redact_payload"] is True
 
-    readme = _readme().lower()
-    assert "diagnostics" in readme
-    assert "privacy" in readme
-    assert "request" in readme
-    assert "response" in readme
-    assert "source" in readme
-    assert "full text" in readme or "full source specs text" in readme
-    assert "default" in readme
+    runbook = _runbook().lower()
+    assert "diagnostics" in runbook
+    assert _has_any(runbook, "privacy", "プライバシー")
+    assert "request" in runbook
+    assert "response" in runbook
+    assert "source" in runbook
+    assert _has_any(runbook, "full text", "full source specs text", "全文")
+    assert "default" in runbook

@@ -180,24 +180,46 @@ def test_t_p02_main_cli_dispatches_primary_commands_as_json(
     assert payload["status"] == "ok"
 
 
+def test_t_p02_core_cli_passes_explicit_llm_provider_id(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = importlib.import_module("spec_grag.core")
+    calls: list[dict[str, object]] = []
+
+    def fake_runner(*args: object, **kwargs: object) -> dict[str, object]:
+        calls.append({"args": args, "kwargs": kwargs})
+        return {"command": "/spec-core", "status": "ok", "returncode": 0}
+
+    monkeypatch.setattr(module, "run_spec_core", fake_runner)
+    from spec_grag import cli
+
+    exit_code = cli.main(("core", "--llm-provider", "claude", "--all"))
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert calls[0]["kwargs"]["llm_provider_id"] == "claude"
+    payload = _json_stdout(captured.out)
+    assert payload["command"] == "/spec-core"
+
+
 def test_t_p03_pytest_runner_smoke() -> None:
     assert "pytest" in sys.modules
 
 
-@pytest.mark.skipif(
-    os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() not in {"1", "true", "yes"},
-    reason="real provider smoke tests require SPEC_GRAG_REAL_SMOKE=1",
-)
-def test_t_p03_real_smoke_tests_are_explicit_opt_in() -> None:
-    assert os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() in {"1", "true", "yes"}
+@pytest.mark.external
+def test_t_p03_external_dependency_tests_can_be_marked_for_optional_skip() -> None:
+    assert True
 
 
 def test_t_p04_packaging_metadata_defines_scripts_and_package_data() -> None:
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
     project = pyproject["project"]
     scripts = project["scripts"]
+    dependencies = project.get("dependencies", [])
 
     assert project["name"] == "spec-grag"
+    assert any(str(item).startswith("markdown-it-py") for item in dependencies)
     for script_name in (
         "spec-grag",
         "spec-grag-slash",
@@ -209,9 +231,7 @@ def test_t_p04_packaging_metadata_defines_scripts_and_package_data() -> None:
 
     package_root = importlib.resources.files("spec_grag")
     for resource in (
-        "templates/.codex/commands/spec-core.md",
-        "templates/.codex/commands/spec-inject.md",
-        "templates/.codex/commands/spec-realign.md",
+        "templates/.codex/skills/spec-grag/SKILL.md",
         "templates/.claude/commands/spec-core.md",
         "templates/.claude/commands/spec-inject.md",
         "templates/.claude/commands/spec-realign.md",

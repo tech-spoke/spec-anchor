@@ -1,311 +1,225 @@
 # SPEC-grag
 
-SPEC-grag is a lightweight specification context tool for Agent / LLM workflows.
-It helps an Agent keep the project purpose, Core Concept, relevant Source Specs,
-section summaries, related sections, chapter anchors, and conflict review state
-in view while working. SPEC-grag does not update Core Concept automatically; it
-is maintained by humans.
+LLM は、目の前のファイルや直近の会話に強く注意を向ける。背景知識や上位目的の収集が足りないまま進むと、局所的な内容に引っ張られ、設計意図からずれた回答や修正を出しやすい。
 
-The current source of truth is:
+SPEC-grag is a lightweight specification context tool. SPEC-grag は、LLM が作業中に次を見失わないよう支援する軽量な仕様コンテキストツールである。
 
-- `doc/EXTERNAL_DESIGN.ja.md`
-- `doc/DESIGN.ja.md`
-- `doc/IMPLEMENTATION_PLAN.ja.md`
-- `doc/TEST_SPEC.ja.md`
+- 本来の目的（Purpose）
+- 承認済みの設計原則（Core Concept）
+- 現在の課題に関係する仕様本文（Source Specs）
+- section ごとの要約・検索入口・関連先
+- 仕様間の矛盾（Conflict Review Item）
 
-The standard path is the lightweight SPEC-grag design. It does not use property
-graph, entity relation graph, hierarchical cluster, unrestricted graph traversal,
-Core Concept auto-update, or CLI-driven Agentic Search as the standard path.
+Purpose と Core Concept は人間が維持する。SPEC-grag does not update them automatically.
 
-## Responsibility Boundary
+標準経路は軽量版の設計であり、property graph、entity relation graph、hierarchical cluster、無制限 graph traversal は使わない。These are not part of the standard path; the lightweight path does not use them as the standard retrieval stack.
 
-- Human: maintains Purpose and Core Concept, decides pending Conflict Review
-  Items, and makes final specification judgments.
-- Agent / LLM: interprets the task and conversation, creates search keys, runs
-  Agentic Search using CLI results, generates task-specific constraints, and
-  produces answers when `/spec-realign` is used.
-- CLI / SPEC-grag: reads config, tracks section hashes and freshness, generates
-  context artifacts, stores Conflict Review Items, and exposes search/reference
-  APIs. It does not decide the exploration strategy or final answer.
+## 前提となる技術スタック
 
-## Retrieval Stack
+| 要素 | 標準構成 |
+|---|---|
+| Vector Store | Qdrant |
+| Embedding | FlagEmbedding BGE-M3 (`BAAI/bge-m3`) — dense + sparse |
+| Fusion | dense search + sparse search + RRF |
+| LLM (Agent 側) | Codex CLI / Claude Code CLI（外部の Agent 環境が担当） |
+| LLM (`/spec-core` 用) | `.spec-grag/config.toml` の `[llm]` で設定。Agent 側 LLM とは別 |
 
-The standard retrieval stack is:
+Ollama は標準の sparse-vector 経路ではない。
 
-- Qdrant vector store
-- FlagEmbedding BGE-M3 (`BAAI/bge-m3`) dense and sparse vectors
-- Dense search + sparse search + RRF fusion
+## 環境構築
 
-Ollama is not the standard sparse-vector path. Real Qdrant, FlagEmbedding, and
-Agent CLI calls are guarded explicitly: smoke tests use smoke/local-service
-opt-ins, while normal production operation uses the production readiness gates
-described below.
-
-## Install
-
-From this repository:
+### 1. SPEC-grag 本体と retrieval 依存のインストール
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -e .
+python3 -m venv .venv && source .venv/bin/activate
+python3 -m pip install -e '.[retrieval]'
 ```
 
-If you use `uv`, `uv run ...` can be used instead of activating the venv.
+`.[retrieval]` で FlagEmbedding (BGE-M3) と qdrant-client が導入される。テスト用依存も入れる場合は `.[retrieval,test]`。
 
-Check the installed entrypoints:
+### 2. Qdrant のインストールと起動
+
+Qdrant は Python パッケージではなく、別途 native binary が必要。
 
 ```bash
-spec-grag --help
-spec-grag core --help
-spec-grag inject --help
-spec-grag realign --help
-spec-grag-watch --help
-spec-grag-setup-project --help
-spec-grag-setup-system --help
+# Linux: GitHub releases から取得して $PATH に配置
+curl -L https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-gnu.tar.gz | tar xz
+mv qdrant ~/.local/bin/
 ```
 
-## Setup
+macOS の場合は `brew install qdrant/tap/qdrant` または GitHub releases から対応 binary を取得する。
 
-Check the local tool installation without changing a target project:
+#### 2.1 systemd ユーザーサービスとして常駐させる (Linux 推奨)
+
+`spec-grag core` / `/spec-inject` / `/spec-realign` が Qdrant に依存するため、log-in セッションで自動起動・自動再起動するように systemd ユーザーサービス化するのが扱いやすい。手動 `qdrant --disable-telemetry` を毎回起動するより事故が少ない。
 
 ```bash
-spec-grag-setup-system --check-only
+# 永続化される storage / runtime ディレクトリを先に作る
+mkdir -p ~/.local/share/spec-grag/qdrant/storage ~/.local/share/spec-grag/qdrant/runtime
+
+# ユーザーサービス unit を作成
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/qdrant.service <<'UNIT'
+[Unit]
+Description=Qdrant Vector Database (for spec-grag)
+Documentation=https://qdrant.tech/documentation/
+After=default.target
+
+[Service]
+Type=simple
+Environment=QDRANT__SERVICE__HTTP_PORT=6333
+Environment=QDRANT__SERVICE__GRPC_PORT=6334
+Environment=QDRANT__STORAGE__STORAGE_PATH=%h/.local/share/spec-grag/qdrant/storage
+ExecStartPre=/bin/mkdir -p %h/.local/share/spec-grag/qdrant/storage %h/.local/share/spec-grag/qdrant/runtime
+WorkingDirectory=%h/.local/share/spec-grag/qdrant/runtime
+ExecStart=%h/.local/bin/qdrant --disable-telemetry
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+UNIT
+
+# 反映 + 自動起動有効化 + 起動
+systemctl --user daemon-reload
+systemctl --user enable --now qdrant.service
+
+# ログイン無しでも起動するようにする (任意、サーバー / 常時起動の WSL 等)
+loginctl enable-linger "$USER"
 ```
 
-Create SPEC-grag files in a project:
+確認:
 
 ```bash
-spec-grag-setup-project --target /path/to/project --agent both
+systemctl --user status qdrant       # active (running)
+curl -s http://localhost:6333/readyz  # all shards are ready
+curl -s http://localhost:6333/collections  # {"result":{"collections":[...]}, "status":"ok", ...}
 ```
 
-This creates `.spec-grag/config.toml`, `.spec-grag/.gitignore`, CODEX and/or
-CLAUDE command templates, and Purpose / Core Concept placeholders unless
-`--no-init-core-files` is used. Existing managed files are not silently
-overwritten; use `--dry-run` to preview or `--force` to replace managed files.
+注意: `WorkingDirectory` は systemd が ExecStartPre より前にチェックするため、初回だけ手動 `mkdir -p` が必須 (上記 1 行目)。スクリプト化する際は `loginctl enable-linger` を必須ステップに含めると、再起動後の auto start が確実になる (lingering 無効だと WSL の cold-start などで service が立ち上がらない)。
 
-The generated config excludes `archive/**` from Source Specs by default.
+WSL の場合: `/etc/wsl.conf` に `[boot]\nsystemd=true` が無いとユーザーサービスが使えない。先に `wsl --shutdown` してから設定を反映する。
 
-## Usage
+#### 2.2 手動起動でとりあえず動かす場合
 
-Run commands from the target project root, or pass `--project-root` where
-available. The config path is fixed at `.spec-grag/config.toml`.
-
-Generate or update context artifacts:
+systemd を使えない環境では、ターミナルで直接起動する。
 
 ```bash
-spec-grag core
-spec-grag core --all
-```
-
-Record a human decision for a Conflict Review Item:
-
-```bash
-spec-grag core --decision-file decision.json
-```
-
-Prepare constraints for Agent-driven work:
-
-```bash
-spec-grag inject "task prompt" --constraints-file constraints.json
-```
-
-Prepare constraints and return an Agent-supplied answer candidate:
-
-```bash
-spec-grag realign "task prompt" \
-  --constraints-file constraints.json \
-  --answer-file answer.json
-```
-
-Watch Source Specs and run incremental updates in the background:
-
-```bash
-spec-grag-watch /path/to/project --once
-spec-grag-watch /path/to/project --interval-sec 2 --debounce-sec 1
-```
-
-`spec-grag inject` and `spec-grag realign` expect the Agent / LLM to provide the
-task-specific constraints (and, for realign, the answer candidate). In normal use
-the installed CODEX / CLAUDE command templates guide the Agent through that
-workflow.
-
-## Freshness And Conflicts
-
-`/spec-inject` and `/spec-realign` must pass the freshness gate before normal
-constraint or answer generation. If Source Specs are dirty/stale, watcher work is
-running or queued, config/schema is stale, required artifacts failed, or pending
-conflicts exist, the command stops instead of silently continuing.
-
-If dirty/stale state and pending conflicts exist together, update first with
-`/spec-core` or the watcher. Only pending conflicts that remain after the update
-need human judgment. Resolved but unreflected Conflict Review Items can be used
-as temporary human decisions only while their recorded source hashes and valid
-scope still apply.
-
-## Command Templates
-
-Project setup installs Agent-specific templates under:
-
-- `.codex/commands/spec-core.md`
-- `.codex/commands/spec-inject.md`
-- `.codex/commands/spec-realign.md`
-- `.claude/commands/spec-core.md`
-- `.claude/commands/spec-inject.md`
-- `.claude/commands/spec-realign.md`
-
-These templates adapt the same SPEC-grag CLI contract to each Agent environment.
-They are not the sole source of truth; the external design and CLI I/O contract
-are authoritative.
-
-## Tests And Smoke
-
-Run local development tests:
-
-```bash
-python3 -m pytest
-```
-
-Run the built-in local smoke checks explicitly:
-
-```bash
-spec-grag-setup-system --check-only --run-smoke
-```
-
-Real-provider smoke is opt-in:
-
-```bash
-SPEC_GRAG_REAL_SMOKE=1 python3 -m pytest
-```
-
-Local-service smoke that needs Qdrant is also opt-in:
-
-```bash
-SPEC_GRAG_REAL_SMOKE=1 \
-SPEC_GRAG_LOCAL_SERVICE=1 \
-SPEC_GRAG_QDRANT_URL=http://localhost:6333 \
-python3 -m pytest
-```
-
-Without those environment variables, real Agent CLI, FlagEmbedding BGE-M3, and
-Qdrant service tests are skipped.
-
-## Production Readiness
-
-Production readiness is separate from smoke testing. Smoke tests prove selected
-real paths can run; production readiness proves a normal user can start and keep
-SPEC-grag running with a persistent Qdrant service, BGE-M3, and an authenticated
-Agent CLI.
-
-Install the tool and retrieval dependencies:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -e '.[retrieval,test]'
-```
-
-Start Qdrant as a native service or managed process, not Docker. One local
-example:
-
-```bash
-export QDRANT__SERVICE__HTTP_PORT=6333
-export QDRANT__SERVICE__GRPC_PORT=6334
-export QDRANT__STORAGE__STORAGE_PATH=/var/lib/spec-grag/qdrant
+mkdir -p ~/.local/share/spec-grag/qdrant/storage
+QDRANT__SERVICE__HTTP_PORT=6333 \
+QDRANT__STORAGE__STORAGE_PATH=~/.local/share/spec-grag/qdrant/storage \
 qdrant --disable-telemetry
 ```
 
-Enable normal real-provider and real-retrieval execution. These are the normal
-operation gates; `SPEC_GRAG_REAL_SMOKE` remains only for explicit smoke tests.
+シェルを閉じると停止するので、開発作業の最初に立ち上げて維持する運用になる。systemd を使える環境では §2.1 の常駐化を推奨する。
+
+### 3. 導入状態の確認
 
 ```bash
-export SPEC_GRAG_REAL_PROVIDER=1
-export SPEC_GRAG_REAL_RETRIEVAL=1
-export SPEC_GRAG_QDRANT_URL=http://localhost:6333
-```
-
-Verify the local installation and production-readiness diagnostics:
-
-```bash
+spec-grag --help
 spec-grag-setup-system --check-only
 ```
 
-The JSON result includes `production_readiness`. A ready environment has Qdrant,
-FlagEmbedding, qdrant-client, at least one Agent CLI, console scripts, and both
-normal operation gates enabled. Missing pieces appear as blocking reason codes
-such as `qdrant_service_unavailable`, `flagembedding_missing`,
-`agent_cli_unavailable`, `real_provider_gate_disabled`, or
-`real_retrieval_gate_disabled`.
+`spec-grag-setup-system --check-only` の出力で、Qdrant / FlagEmbedding / Agent CLI の導入状態と不足要素を確認できる。
 
-Create or update a project, then run the normal CLI path:
+## プロジェクトへの導入
 
 ```bash
+# 対象プロジェクトにセットアップ（Claude Code + Codex 両対応）
 spec-grag-setup-project --target /path/to/project --agent both
+
+# コンテキスト artifact を初回生成
 cd /path/to/project
+# 必要に応じて .spec-grag/config.toml の [vector_store].url を実 Qdrant URL にする
 spec-grag core --all
-spec-grag inject "task prompt" --constraints-file constraints.json
-spec-grag realign "task prompt" --constraints-file constraints.json --answer-file answer.json
-spec-grag-watch . --interval-sec 2 --debounce-sec 1
 ```
 
-Restart Qdrant by stopping the native service or process and starting it again
-with the same `QDRANT__STORAGE__STORAGE_PATH`. Verify persistence by rerunning
-`spec-grag core` and checking `.spec-grag/context/retrieval_index_revision.json`
-for the same Qdrant URL, collection, schema version, server version, BGE-M3
-model, dense/sparse named vectors, and RRF diagnostics.
+`--agent both` は次の入口を配置する:
 
-Troubleshoot by checking the diagnostics first:
+- Claude Code 用: `<project>/.claude/commands/spec-{core,inject,realign}.md`
+- Codex 用: `~/.codex/skills/spec-grag/SKILL.md`（user install、既定）
 
-- `real_provider_required`: set `SPEC_GRAG_REAL_PROVIDER=1` and confirm `codex`
-  or `claude` is available and authenticated.
-- `agent_cli_unauthenticated`: authenticate the subscription CLI outside the
-  project-local environment and rerun the command.
-- `real_retrieval_index=false` or `real_retrieval_gate_disabled`: set
-  `SPEC_GRAG_REAL_RETRIEVAL=1` and confirm Qdrant is reachable.
-- `qdrant_service_unavailable`: start or restart the native Qdrant service and
-  confirm `SPEC_GRAG_QDRANT_URL`.
-- `qdrant_schema_mismatch`: recreate or migrate the Qdrant collection so it has
-  the `dense` and `sparse` named vectors expected by SPEC-grag.
-- `flagembedding_missing` or `embedding_model_load_failure`: install the
-  retrieval extra and confirm the BGE-M3 model cache under `HF_HOME`,
-  `HF_HUB_CACHE`, or `~/.cache/huggingface`.
-- `provider_timeout` or `timeout`: increase the configured timeout or fix the
-  blocked Agent CLI / model process before retrying.
-- `failed_required_artifact`: inspect `.spec-grag/context/freshness.json` and
-  rerun `spec-grag core --all` after the missing provider or service is fixed.
+Codex skill を project に閉じたい場合は `--codex-install project` を追加する（Codex CLI の version によって project local skill を認識しない場合がある）。Claude Code のみ / Codex のみ使う場合は `--agent claude` / `--agent codex` で絞れる。
 
-### Production Readiness Report Template
+セットアップ後、Agent 環境に配置された入口（Claude Code の `/spec-core`、Codex の spec-grag skill）から利用できる。
 
-When reporting production-readiness work, use these exact sections and keep
-smoke/default passing separate from real-service passing:
+`--no-init-core-files` を指定すると Purpose / Core Concept 雛形を作らない（後で人間が作成するまで `/spec-core` は失敗する）。`--dry-run` で作成予定の確認、`--force` で既存管理ファイルの上書きができる。Codex user install の既存 skill を更新する場合も `--force` が必要である。
 
-- 実装済み
-- `none` / `fake` profile で passing
-- `local-service` / `real-smoke` で passing
-- skipped / 未実行
-- 残 TODO
-- 証跡
+### LLM 並列度のチューニング
 
-Do not report "本運用可能" while G-18 or any required T-R11 through T-R15 row
-is still unchecked.
-
-## Diagnostics Privacy
-
-By default, run artifacts do not save LLM request prompt text, LLM response text,
-or Source Specs full text. Diagnostics may store provider identity, timing, counts,
-reason codes, retrieval ranking summaries, fusion method, embedding model, and
-Qdrant collection metadata. The default template keeps:
+`/spec-core --all` の section_metadata / related_sections 生成は batch ごとに LLM を呼ぶ。`.spec-grag/config.toml` の `[limits].llm_batch_concurrency` で同時実行数を指定できる:
 
 ```toml
-[run]
-save_artifacts = false
-include_request = false
-include_response = false
-redact_payload = true
+[limits]
+llm_batch_concurrency = 1   # default、逐次
+# llm_batch_concurrency = 4   # Codex Pro 5x / Claude Max 5x 推奨
+# llm_batch_concurrency = 8   # 上記サブスクで wall time をさらに短縮
 ```
+
+サブスクごとの目安:
+
+| サブスク | 5h window あたり message budget | 推奨 `llm_batch_concurrency` | 備考 |
+|---|---|---|---|
+| Codex Plus ($20) | 15-80 | 1 | quota 超過で実質回せない、Pro 以上を推奨 |
+| Codex Pro 5x ($100) | 80-400 | 4 | 418 section 規模 (~106 messages/run) で 1 日 3-4 回程度 |
+| Codex Pro 20x ($200) | 320-1600 | 8 | 上限近くまで余裕 |
+| Claude Pro ($20) | 非公開 (TPM/RPM 単位制限) | 1-2 | TPM が支配的 |
+| Claude Max 5x ($100) | 非公開 (5x スケール) | 4 | Pro 5x と同等扱い |
+| Claude Max 20x ($200) | 非公開 (20x スケール) | 8 | 上限近くまで余裕 |
+
+実測上、claude / codex の両 CLI は 16 並列まで API 側で reject されないが、5h window quota を考慮すると上記が安全側の運用値になる。並列度を上げるとサブスク budget の消費速度が直線的に増える点に注意。
+
+## コマンド一覧
+
+| コマンド | 目的 |
+|---|---|
+| `spec-grag core [--all] [--use-cache]` | Section Summary、Search Keys、Related Sections、Chapter Key Anchor、Retrieval Index、Conflict Review Item を生成・更新する。`--all` は完全再生成で、section metadata cache を読まない。`--all --use-cache` を指定した場合だけ同一 cache key の section metadata cache を再利用してよい。Conflict Review Item の人間判断は Agent が構造化して `/spec-core` に渡す（人間が JSON を直接編集する運用ではない） |
+| `spec-grag inject "<課題>"` | Agent が生成した制約を検証し、注入用のコンテキストを返す。回答は生成しない |
+| `spec-grag realign "<課題>"` | 制約を検証した上で、Agent が生成した回答候補を構造化して返す |
+| `spec-grag-watch [project_root] [--once]` | Source Specs の変更を監視し、background で incremental update を行う |
+| `spec-grag-setup-project --target <path>` | 対象プロジェクトに `.spec-grag/config.toml`、Agent 入口、Purpose / Core Concept 雛形を配置する |
+| `spec-grag-setup-system --check-only` | SPEC-grag 本体の導入状態と外部依存を確認する |
+
+各コマンドの詳細は `--help` で確認できる。
+
+## 開発・運用詳細
+
+テスト手順、smoke profile、本運用 Readiness、restart、troubleshoot、Diagnostics プライバシー、報告テンプレートは [`doc/RUNBOOK.ja.md`](doc/RUNBOOK.ja.md) を参照。
+
+## 責務境界
+
+| 役割 | 担当 |
+|---|---|
+| Human | Purpose と Core Concept の維持、Conflict Review Item の判断、最終仕様判断 |
+| Agent / LLM | 課題と会話の解釈、検索キー生成、Agentic Search、制約生成、回答生成 |
+| CLI / SPEC-grag | 設定読込、section hash / freshness 管理、保持物生成、検索 API、参照 API。探索方針や最終回答は決めない |
+
+CLI は探索や回答の主体にならない。Agent / LLM が CLI の提供する検索結果と保持物を使って判断する。
+
+## Agent 入口
+
+`spec-grag-setup-project` は Agent 環境ごとに対応する形式の入口を配置する。
+
+| Agent 環境 | 形式 | 配置先 |
+|---|---|---|
+| Claude Code | command | `<project>/.claude/commands/spec-{core,inject,realign}.md` |
+| Codex CLI（user install、既定） | skill | `~/.codex/skills/spec-grag/SKILL.md` |
+| Codex CLI（project local） | skill | `<project>/.codex/skills/spec-grag/SKILL.md`（`--codex-install project` で選択） |
+
+Codex CLI は `.codex/commands/` を認識しないため、command 形式は Claude Code 専用である。
+
+## 設計文書
+
+| 文書 | 内容 |
+|---|---|
+| `doc/EXTERNAL_DESIGN.ja.md` | 外部契約の正本。コマンド体系、freshness、section 化、承認境界 |
+| `doc/DESIGN.ja.md` | 内部設計の正本。保持物形式、生成フロー、検索基盤、Related Sections |
+| `doc/TEST_SPEC.ja.md` | テスト仕様。Gate / T 項目 / pytest 実行範囲 / カバレッジマトリクス |
+| `doc/IMPLEMENTATION_PLAN.ja.md` | 実装計画と進行管理 |
+| `doc/RUNBOOK.ja.md` | 運用ガイド。テスト手順、smoke profile、本運用 Readiness、トラブルシュート、Diagnostics プライバシー |
+
+テスト手順、本運用 Readiness、トラブルシュートなどの運用詳細は [`doc/RUNBOOK.ja.md`](doc/RUNBOOK.ja.md) を参照。
 
 ## Archive
 
-`archive/full-grag-2026-05-05/` is historical reference material for the old full
-GRAG version. It is not the current source of truth and should not be read as the
-standard implementation path.
+`archive/full-grag-2026-05-05/` は旧 full GRAG 版の歴史的参照資料である。現在の正本ではない。

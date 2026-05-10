@@ -19,6 +19,7 @@ def setup_project(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
+    codex_install: str = "user",
 ) -> dict[str, Any]:
     return _setup_project(
         target,
@@ -26,6 +27,7 @@ def setup_project(
         dry_run=dry_run,
         force=force,
         no_init_core_files=no_init_core_files,
+        codex_install=codex_install,
     )
 
 
@@ -36,6 +38,7 @@ def run_setup_project(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
+    codex_install: str = "user",
 ) -> dict[str, Any]:
     return setup_project(
         target,
@@ -43,6 +46,7 @@ def run_setup_project(
         dry_run=dry_run,
         force=force,
         no_init_core_files=no_init_core_files,
+        codex_install=codex_install,
     )
 
 
@@ -51,8 +55,14 @@ def setup_system(
     check_only: bool = False,
     mode: str = "editable",
     run_smoke: bool = False,
+    qdrant_url: str | None = None,
 ) -> dict[str, Any]:
-    return _setup_system(check_only=check_only, mode=mode, run_smoke=run_smoke)
+    return _setup_system(
+        check_only=check_only,
+        mode=mode,
+        run_smoke=run_smoke,
+        qdrant_url=qdrant_url,
+    )
 
 
 def run_setup_system(
@@ -60,8 +70,14 @@ def run_setup_system(
     check_only: bool = False,
     mode: str = "editable",
     run_smoke: bool = False,
+    qdrant_url: str | None = None,
 ) -> dict[str, Any]:
-    return setup_system(check_only=check_only, mode=mode, run_smoke=run_smoke)
+    return setup_system(
+        check_only=check_only,
+        mode=mode,
+        run_smoke=run_smoke,
+        qdrant_url=qdrant_url,
+    )
 
 
 __all__ = [

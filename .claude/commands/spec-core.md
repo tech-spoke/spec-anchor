@@ -8,7 +8,7 @@ allowed-tools: Bash(spec-grag core:*)
 
 正本は SPEC-grag の外部 command contract と SPEC-grag CLI の入出力である。この Claude command template は、Agent がその契約をどう呼び出すかだけを示す。
 
-project root で `spec-grag core` を実行する。`--all` または `-a` は、ユーザーが full rebuild を明示した場合だけ追加する。`.spec-grag/config.toml` の `[llm.stage_routing]` が H-4 calibration で確定した stage 別最適 model / effort (`section_metadata` / `related_sections` / `conflict_review`) を適用する。`--llm-provider` を明示すると stage_routing が上書きされるので、特別な事情がない限り指定しない。
+project root で `spec-grag core --llm-provider claude` を実行する。`--all` または `-a` は、ユーザーが full rebuild を明示した場合だけ追加する。
 
 `/spec-core` は SPEC-grag の保持 artifact を生成または更新する: Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor、Source Retrieval Index、Conflict Review Items。
 

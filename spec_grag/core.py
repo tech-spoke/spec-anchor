@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import time
 import uuid
@@ -34,6 +33,7 @@ from spec_grag.core_lock import (
     lock_is_stale,
     release_core_update_lock,
 )
+from spec_grag.core_progress import CoreProgressTracker
 from spec_grag.freshness import build_freshness_report
 
 
@@ -52,11 +52,14 @@ def run_spec_core(
     full: bool = False,
     force: bool = False,
     mode: str | None = None,
+    use_cache: bool = False,
+    rebuild_embeddings: bool = False,
     decision_payload: Mapping[str, Any] | None = None,
     decision: Mapping[str, Any] | None = None,
     conflict_decision: Mapping[str, Any] | None = None,
     provider: Any = None,
     llm_provider: Any = None,
+    llm_provider_id: str | None = None,
     conflict_judge: Any = None,
     judge: Any = None,
     generated_at: str | None = None,
@@ -153,11 +156,14 @@ def run_spec_core(
             full=full,
             force=force,
             mode=mode,
+            use_cache=use_cache,
+            rebuild_embeddings=rebuild_embeddings,
             decision_payload=decision_payload,
             decision=decision,
             conflict_decision=conflict_decision,
             provider=provider,
             llm_provider=llm_provider,
+            llm_provider_id=llm_provider_id,
             conflict_judge=conflict_judge,
             judge=judge,
             generated_at=generated_at,
@@ -170,6 +176,7 @@ def run_spec_core(
             called_by_watcher=called_by_watcher,
             execution_role=execution_role,
             heartbeat=heartbeat,
+            run_id=run_id,
             **kwargs,
         )
     finally:
@@ -185,11 +192,14 @@ def _run_spec_core_unlocked(
     full: bool = False,
     force: bool = False,
     mode: str | None = None,
+    use_cache: bool = False,
+    rebuild_embeddings: bool = False,
     decision_payload: Mapping[str, Any] | None = None,
     decision: Mapping[str, Any] | None = None,
     conflict_decision: Mapping[str, Any] | None = None,
     provider: Any = None,
     llm_provider: Any = None,
+    llm_provider_id: str | None = None,
     conflict_judge: Any = None,
     judge: Any = None,
     generated_at: str | None = None,
@@ -202,19 +212,44 @@ def _run_spec_core_unlocked(
     called_by_watcher: bool = False,
     execution_role: str | None = None,
     heartbeat: Callable[..., Any] | None = None,
+    run_id: str | None = None,
     **_: Any,
 ) -> dict[str, Any]:
     """Run a small, deterministic `/spec-core` update after external locking."""
 
-    _emit_heartbeat(heartbeat, stage="core_start")
     root = Path(project_root)
     generated_at = generated_at or _nowish()
     config = dict(config) if config is not None else _load_project_config(root)
+    run_full_for_progress = bool(all or all_mode or full or force or mode == "full")
+    progress_mode = "full" if run_full_for_progress else "incremental"
+    progress_tracker = (
+        CoreProgressTracker(
+            root,
+            run_id=run_id or "unknown",
+            mode=progress_mode,
+            generated_at=generated_at,
+        )
+        if not _is_watcher_internal_update(
+            internal_watcher=internal_watcher,
+            called_by_watcher=called_by_watcher,
+            role=role,
+            runner_role=runner_role,
+            execution_role=execution_role,
+        )
+        else None
+    )
+
+    def emit(stage: str) -> Any:
+        if progress_tracker is not None:
+            progress_tracker.emit(stage)
+        return _emit_heartbeat(heartbeat, stage=stage)
+
+    emit("core_start")
     purpose_path = root / _config_get(config, ("core", "purpose_file"), "docs/core/purpose.md")
     concept_path = root / _config_get(config, ("core", "concept_file"), "docs/core/concept.md")
     purpose_text = _read_required(purpose_path)
     concept_text = _read_required(concept_path)
-    _emit_heartbeat(heartbeat, stage="core_inputs_loaded")
+    emit("core_inputs_loaded")
     purpose_hash = _hash_text(purpose_text)
     concept_hash = _hash_text(concept_text)
     purpose_ref = _project_ref(root, purpose_path)
@@ -229,19 +264,56 @@ def _run_spec_core_unlocked(
 
     run_full = bool(all or all_mode or full or force or mode == "full")
     mode_name = "full" if run_full else "incremental"
-    active_provider = _resolve_spec_core_llm_provider(
+    # Phase H-3: resolve a provider per stage so [llm.stage_routing] can target
+    # different model/effort tuples for extraction (section_metadata),
+    # classification (related_sections), and judgment (conflict_review).
+    metadata_llm_config = _config_with_selected_llm(
         config,
+        provider_id=llm_provider_id,
+        stage="section_metadata",
+    )
+    related_llm_config = _config_with_selected_llm(
+        config,
+        provider_id=llm_provider_id,
+        stage="related_sections",
+    )
+    conflict_llm_config = _config_with_selected_llm(
+        config,
+        provider_id=llm_provider_id,
+        stage="conflict_review",
+    )
+    metadata_provider = _resolve_spec_core_llm_provider(
+        metadata_llm_config,
         provider=provider,
         llm_provider=llm_provider,
+        llm_provider_id=llm_provider_id,
+        stage="section_metadata",
     )
-    active_judge = conflict_judge or judge or active_provider
+    related_provider = _resolve_spec_core_llm_provider(
+        related_llm_config,
+        provider=provider,
+        llm_provider=llm_provider,
+        llm_provider_id=llm_provider_id,
+        stage="related_sections",
+    )
+    conflict_provider = _resolve_spec_core_llm_provider(
+        conflict_llm_config,
+        provider=provider,
+        llm_provider=llm_provider,
+        llm_provider_id=llm_provider_id,
+        stage="conflict_review",
+    )
+    # Backward-compat aliases for code paths that read these names.
+    llm_generation_config = metadata_llm_config
+    active_provider = metadata_provider
+    active_judge = conflict_judge or judge or conflict_provider
 
     sections = _load_sections_from_snapshot(
         root,
         config,
         source_snapshot or snapshot or watcher_snapshot,
     ) if source_snapshot or snapshot or watcher_snapshot else _load_sections(root, config)
-    _emit_heartbeat(heartbeat, stage="core_sections_loaded")
+    emit("core_sections_loaded")
     old_entries = {
         str(entry.get("section_id") or entry.get("source_section_id")): entry
         for entry in previous_metadata.get("sections", [])
@@ -256,13 +328,13 @@ def _run_spec_core_unlocked(
         or old_entries[section["section_id"]].get("source_hash") != section["source_hash"]
     }
 
-    _emit_heartbeat(heartbeat, stage="core_section_metadata_start")
+    emit("core_section_metadata_start")
     metadata_generation = section_metadata_api.generate_section_metadata_result(
         sections,
-        config=config,
+        config=llm_generation_config,
         provider=active_provider,
         previous_metadata=previous_metadata,
-        rebuild_all=False,
+        rebuild_all=run_full and not use_cache,
         cache_dir=context_dir / "cache",
         generated_at=generated_at,
     )
@@ -303,17 +375,44 @@ def _run_spec_core_unlocked(
     )
     section_metadata = dict(metadata_generation.artifact)
     section_metadata["metadata_version"] = 1
-    section_metadata["prompt_version"] = "section-metadata-v1"
+    section_metadata["prompt_version"] = section_metadata_api.SECTION_METADATA_PROMPT_VERSION
     section_metadata["sections"] = metadata_entries
     section_metadata["generated_at"] = generated_at
-    _emit_heartbeat(heartbeat, stage="core_section_metadata_done")
-    _emit_heartbeat(heartbeat, stage="core_related_sections_start")
+    if progress_tracker is not None:
+        _record_llm_call_stats(
+            progress_tracker,
+            "section_metadata",
+            metadata_generation.llm_results,
+        )
+    emit("core_section_metadata_done")
+    emit("core_section_collection_upsert_start")
+    _upsert_section_collection_if_enabled(
+        config=config,
+        sections=sections,
+        section_metadata=section_metadata,
+        force_full_recreate=rebuild_embeddings,
+        emit=emit,
+    )
+    emit("core_section_collection_upsert_done")
+    emit("core_related_sections_start")
+    related_pair_cache_dir = context_dir / "cache"
+    if run_full and not use_cache:
+        # --all clears LLM relation typing cache so re-evaluation can happen.
+        # BGE-M3 embeddings are deterministic so the chunk-level cache is reused
+        # via hash matching, but LLM typing is non-deterministic and --all
+        # is the explicit "do not trust prior judgments" entrypoint.
+        cache_file = related_pair_cache_dir / "related_typing_cache.json"
+        try:
+            cache_file.unlink()
+        except FileNotFoundError:
+            pass
     related_generation = _generate_related_sections(
         sections=sections,
         section_metadata=section_metadata,
-        provider=active_provider,
-        config=config,
+        provider=related_provider,
+        config=related_llm_config,
         generated_at=generated_at,
+        cache_dir=related_pair_cache_dir,
     )
     related_section_candidates = _related_section_candidates(related_generation)
     selected_related_sections = _merge_related_sections_by_source(
@@ -329,7 +428,16 @@ def _run_spec_core_unlocked(
         section_metadata,
         {"related_sections": selected_related_sections},
     )
-    _emit_heartbeat(heartbeat, stage="core_related_sections_done")
+    if progress_tracker is not None:
+        related_llm_results = getattr(
+            getattr(related_generation, "selection", None), "llm_results", []
+        ) or []
+        _record_llm_call_stats(
+            progress_tracker,
+            "related_sections",
+            related_llm_results,
+        )
+    emit("core_related_sections_done")
     metadata_entries = [
         dict(entry)
         for entry in section_metadata.get("sections", [])
@@ -350,19 +458,20 @@ def _run_spec_core_unlocked(
     ]
     payload = decision_payload or decision or conflict_decision
     if payload:
-        _emit_heartbeat(heartbeat, stage="core_conflict_decision_start")
+        emit("core_conflict_decision_start")
         existing_conflict_items = apply_conflict_decision(
             conflict_review_items=existing_conflict_items,
             decision_payload=dict(payload),
             generated_at=generated_at,
         )
-        _emit_heartbeat(heartbeat, stage="core_conflict_decision_done")
+        emit("core_conflict_decision_done")
 
     conflict_candidates = _conflict_candidates_from_related_output(
         related_section_candidates,
         sections=sections,
+        selected_related_sections=selected_related_sections,
     )
-    _emit_heartbeat(heartbeat, stage="core_conflict_evaluation_start")
+    emit("core_conflict_evaluation_start")
     conflict_result = evaluate_conflicts(
         sections=sections,
         related_sections=selected_related_sections,
@@ -375,11 +484,12 @@ def _run_spec_core_unlocked(
             concept_ref=concept_ref,
             concept_text=concept_text,
             concept_hash=concept_hash,
+            llm_config=_config_get(conflict_llm_config, ("llm",), {}),
         ),
         config=None,
         generated_at=generated_at,
     )
-    _emit_heartbeat(heartbeat, stage="core_conflict_evaluation_done")
+    emit("core_conflict_evaluation_done")
     conflict_payload = conflict_result.to_dict() if hasattr(conflict_result, "to_dict") else dict(conflict_result)
     new_items = [
         dict(item)
@@ -465,6 +575,7 @@ def _run_spec_core_unlocked(
         generated_at=generated_at,
         previous_source_chunks=previous_source_chunks,
         previous_revision=previous_retrieval_index_revision,
+        force_full_recreate=rebuild_embeddings,
     )
     if str(retrieval_index_revision.get("status", "")).lower() in {
         "failed",
@@ -501,9 +612,11 @@ def _run_spec_core_unlocked(
     }
     if not watcher_internal_update:
         artifacts["freshness"] = freshness_report
-    _emit_heartbeat(heartbeat, stage="core_artifact_write_start")
+    emit("core_artifact_write_start")
     store.write_context_update(artifacts)
-    _emit_heartbeat(heartbeat, stage="core_artifact_write_done")
+    emit("core_artifact_write_done")
+    if progress_tracker is not None:
+        progress_tracker.finalize(status="completed")
 
     result_warnings = _dedupe_strings(
         [
@@ -546,6 +659,82 @@ def run_spec_core_for_watcher(project_root: str | Path = ".", **kwargs: Any) -> 
     kwargs.setdefault("execution_role", "watcher")
     kwargs.setdefault("bypass_update_lock", True)
     return run_spec_core(project_root, **kwargs)
+
+
+def _record_llm_call_stats(
+    tracker: CoreProgressTracker,
+    stage: str,
+    llm_results: Sequence[Any],
+) -> None:
+    """Aggregate LLM call counts from a stage's `LlmGenerationResult` list and
+    persist them to the progress tracker.
+
+    `LlmGenerationResult.attempts` records the actual number of subprocess
+    invocations (initial + retries). Together with the result count we report:
+    - `llm_calls`: subprocess invocations across the stage (sum of attempts)
+    - `retry_count`: how many of those calls were retries (attempts - 1 each)
+    - `failed_batch_ids`: section_id of any batch whose final status != success
+    """
+
+    if not llm_results:
+        return
+    total_calls = 0
+    total_retries = 0
+    failed_batch_ids: list[str] = []
+    usage_totals: dict[str, Any] = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [],
+    }
+    for index, result in enumerate(llm_results):
+        attempts = int(getattr(result, "attempts", 1) or 1)
+        total_calls += attempts
+        total_retries += max(0, attempts - 1)
+        status = getattr(result, "status", "")
+        if status != "success":
+            artifact = getattr(result, "artifact", None)
+            section_id = (
+                getattr(artifact, "section_id", None)
+                if artifact is not None
+                else None
+            )
+            failed_batch_ids.append(str(section_id or f"{stage}-batch-{index}"))
+        usage = getattr(result, "usage", None) or {}
+        if usage:
+            provider_name = str(usage.get("provider") or "")
+            if provider_name and provider_name not in usage_totals["providers_seen"]:
+                usage_totals["providers_seen"].append(provider_name)
+            for token_field in (
+                "input_tokens",
+                "output_tokens",
+                "cached_input_tokens",
+                "reasoning_output_tokens",
+                "cache_creation_input_tokens",
+                "cache_read_input_tokens",
+            ):
+                if token_field in usage:
+                    usage_totals[token_field] += int(usage.get(token_field) or 0)
+            cost = usage.get("total_cost_usd")
+            if cost is not None:
+                usage_totals["total_cost_usd"] += float(cost or 0.0)
+    tracker.increment(
+        stage,
+        llm_calls=total_calls,
+        retry_count=total_retries,
+        failed_batch_ids=failed_batch_ids,
+        token_count=usage_totals["input_tokens"] + usage_totals["output_tokens"],
+    )
+    tracker.update(
+        stage,
+        batch_count=len(llm_results),
+        actual_call_count=total_calls,
+        usage=usage_totals,
+    )
 
 
 def _bypasses_update_lock(
@@ -798,18 +987,20 @@ def _build_retrieval_index_revision(
     generated_at: str,
     previous_source_chunks: Mapping[str, Any] | None = None,
     previous_revision: Mapping[str, Any] | None = None,
+    force_full_recreate: bool = False,
 ) -> dict[str, Any]:
     collection = str(_config_get(config, ("vector_store", "collection"), "spec_grag_source"))
     embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
     vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
-    reusable = _reusable_retrieval_index_revision(
-        previous_source_chunks,
-        previous_revision,
-        chunks,
-        generated_at=generated_at,
-    )
-    if reusable is not None:
-        return reusable
+    if not force_full_recreate:
+        reusable = _reusable_retrieval_index_revision(
+            previous_source_chunks,
+            previous_revision,
+            chunks,
+            generated_at=generated_at,
+        )
+        if reusable is not None:
+            return reusable
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
         artifact = retrieval_index_api.build_retrieval_index_revision_artifact(
             chunks=chunks,
@@ -829,54 +1020,164 @@ def _build_retrieval_index_revision(
             "fusion_method": "rrf",
         }
         return artifact
-    if _real_retrieval_enabled():
-        url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-        try:
-            artifact = retrieval_index_api.upsert_qdrant_bge_m3_index(
-                chunks,
-                url=url,
-                collection=collection,
-                generated_at=generated_at,
-            )
-            _attach_retrieval_source_update_diff(
-                artifact,
-                previous_source_chunks=previous_source_chunks,
-                previous_revision=previous_revision,
-                chunks=chunks,
-            )
-            return artifact
-        except Exception as exc:
-            artifact = _failed_retrieval_index_revision_artifact(
-                chunks,
-                collection=collection,
-                url=url,
-                generated_at=generated_at,
-                exc=exc,
-            )
-            _attach_retrieval_source_update_diff(
-                artifact,
-                previous_source_chunks=previous_source_chunks,
-                previous_revision=previous_revision,
-                chunks=chunks,
-            )
-            return artifact
+    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
+    try:
+        artifact = _qdrant_upsert_with_partial_dispatch(
+            chunks=chunks,
+            url=url,
+            collection=collection,
+            generated_at=generated_at,
+            previous_source_chunks=previous_source_chunks,
+            previous_revision=previous_revision,
+            force_full_recreate=force_full_recreate,
+        )
+        _attach_retrieval_source_update_diff(
+            artifact,
+            previous_source_chunks=previous_source_chunks,
+            previous_revision=previous_revision,
+            chunks=chunks,
+        )
+        return artifact
+    except Exception as exc:
+        artifact = _failed_retrieval_index_revision_artifact(
+            chunks,
+            collection=collection,
+            url=url,
+            generated_at=generated_at,
+            exc=exc,
+        )
+        _attach_retrieval_source_update_diff(
+            artifact,
+            previous_source_chunks=previous_source_chunks,
+            previous_revision=previous_revision,
+            chunks=chunks,
+        )
+        return artifact
 
-    artifact = retrieval_index_api.build_retrieval_index_revision_artifact(
-        chunks=chunks,
+
+def _upsert_section_collection_if_enabled(
+    *,
+    config: Mapping[str, Any],
+    sections: Sequence[Mapping[str, Any]],
+    section_metadata: Mapping[str, Any],
+    force_full_recreate: bool,
+    emit: Any,
+) -> None:
+    """Build / refresh the section-level Qdrant collection used by Phase C.
+
+    Skipped when the project is configured for fake / offline retrieval.
+    """
+
+    embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
+    vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
+    if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+        return
+    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
+    section_collection = str(
+        _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
+    )
+    metadata_by_id: dict[str, Mapping[str, Any]] = {}
+    for entry in section_metadata.get("sections") or ():
+        if not isinstance(entry, Mapping):
+            continue
+        section_id = str(
+            entry.get("source_section_id") or entry.get("section_id") or ""
+        )
+        if not section_id:
+            continue
+        metadata_by_id[section_id] = {
+            "summary": entry.get("summary"),
+            "search_keys": entry.get("search_keys") or [],
+            "identifiers": entry.get("identifiers") or [],
+        }
+    try:
+        retrieval_index_api.upsert_qdrant_section_collection(
+            sections,
+            metadata_by_id,
+            url=url,
+            collection=section_collection,
+            recreate=bool(force_full_recreate),
+            generated_at=str(section_metadata.get("generated_at") or ""),
+        )
+    except Exception:
+        # Section collection upsert failures must not block /spec-core.
+        # The candidate generator will fall back to in-memory retrieval and
+        # surface the failure via diagnostics in the next aggregation step.
+        return
+
+
+def _qdrant_upsert_with_partial_dispatch(
+    *,
+    chunks: Sequence[Mapping[str, Any]],
+    url: str,
+    collection: str,
+    generated_at: str,
+    previous_source_chunks: Mapping[str, Any] | None,
+    previous_revision: Mapping[str, Any] | None,
+    force_full_recreate: bool = False,
+) -> dict[str, Any]:
+    """Decide between full-recreate and incremental Qdrant upsert.
+
+    - force_full_recreate=True → full recreate regardless of state
+    - No previous chunks / mismatched schema_version → full recreate
+    - Same schema, diff small → incremental (embed only changed chunks)
+    """
+
+    if force_full_recreate:
+        return retrieval_index_api.upsert_qdrant_bge_m3_index(
+            chunks,
+            url=url,
+            collection=collection,
+            generated_at=generated_at,
+        )
+    previous_schema = ""
+    if isinstance(previous_revision, Mapping):
+        qdrant_block = previous_revision.get("qdrant")
+        if isinstance(qdrant_block, Mapping):
+            previous_schema = str(qdrant_block.get("collection_schema_version") or "")
+        if not previous_schema:
+            previous_schema = str(
+                previous_revision.get("qdrant_collection_schema_version")
+                or previous_revision.get("collection_schema_version")
+                or ""
+            )
+    schema_compatible = (
+        previous_schema == retrieval_index_api.QDRANT_COLLECTION_SCHEMA_VERSION
+    )
+    previous_chunk_list: Sequence[Mapping[str, Any]] = []
+    if isinstance(previous_source_chunks, Mapping):
+        candidates = previous_source_chunks.get("chunks") or []
+        if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)):
+            previous_chunk_list = [c for c in candidates if isinstance(c, Mapping)]
+    if not schema_compatible or not previous_chunk_list:
+        # Full rebuild: schema changed or no prior baseline
+        return retrieval_index_api.upsert_qdrant_bge_m3_index(
+            chunks,
+            url=url,
+            collection=collection,
+            generated_at=generated_at,
+        )
+    diff = retrieval_index_api.compute_chunk_diff(previous_chunk_list, chunks)
+    chunks_to_embed = diff["added"] + diff["changed"]
+    removed_uids = diff["removed_uids"]
+    if not chunks_to_embed and not removed_uids:
+        # No actual change (shouldn't happen — fingerprint reuse should've caught
+        # this earlier — but be defensive).
+        return retrieval_index_api.upsert_qdrant_bge_m3_index(
+            chunks,
+            url=url,
+            collection=collection,
+            recreate=False,
+            generated_at=generated_at,
+        )
+    return retrieval_index_api.upsert_qdrant_bge_m3_index_incremental(
+        url=url,
         collection=collection,
+        chunks_to_embed=chunks_to_embed,
+        point_ids_to_delete=removed_uids,
+        all_chunks=chunks,
         generated_at=generated_at,
     )
-    artifact["status"] = "skipped"
-    artifact["diagnostics"] = {
-        "real_retrieval_index": False,
-        "reason": (
-            "real Qdrant/BGE-M3 indexing requires SPEC_GRAG_REAL_RETRIEVAL=1 "
-            "for normal operation, or SPEC_GRAG_REAL_SMOKE=1 and "
-            "SPEC_GRAG_LOCAL_SERVICE=1 for explicit smoke tests"
-        ),
-        "fusion_method": "rrf",
-    }
-    return artifact
 
 
 def _attach_retrieval_source_update_diff(
@@ -1108,18 +1409,6 @@ def _chunk_field(chunk: Any, field: str) -> Any:
     return getattr(chunk, field, "")
 
 
-def _real_retrieval_enabled() -> bool:
-    true_values = {"1", "true", "yes", "on"}
-    normal_operation_enabled = (
-        os.environ.get("SPEC_GRAG_REAL_RETRIEVAL", "").lower() in true_values
-    )
-    smoke_enabled = (
-        os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() in true_values
-        and os.environ.get("SPEC_GRAG_LOCAL_SERVICE", "").lower() in true_values
-    )
-    return normal_operation_enabled or smoke_enabled
-
-
 def _read_required(path: Path) -> str:
     if not path.is_file():
         raise FileNotFoundError(f"required core file not found: {path}")
@@ -1247,13 +1536,48 @@ def _resolve_spec_core_llm_provider(
     *,
     provider: Any,
     llm_provider: Any,
+    llm_provider_id: str | None = None,
+    stage: str | None = None,
 ) -> Any:
     explicit = provider if provider is not None else llm_provider
     if explicit is not None:
         return explicit
     return llm_provider_api.build_spec_core_llm_provider(
         _config_get(config, ("llm",), {}),
+        provider_id=llm_provider_id,
+        stage=stage,
     )
+
+
+def _config_with_selected_llm(
+    config: Mapping[str, Any],
+    *,
+    provider_id: str | None = None,
+    stage: str | None = None,
+) -> dict[str, Any]:
+    selected = llm_provider_api.select_llm_provider_config(
+        _config_get(config, ("llm",), {}),
+        provider_id=provider_id,
+        stage=stage,
+    )
+    updated = dict(config)
+    updated["llm"] = _llm_config_to_mapping(selected)
+    return updated
+
+
+def _llm_config_to_mapping(value: Any) -> dict[str, Any]:
+    if is_dataclass(value):
+        data = asdict(value)
+    elif isinstance(value, Mapping):
+        data = dict(value)
+    else:
+        data = dict(getattr(value, "__dict__", {}))
+    return {
+        key: item
+        for key, item in data.items()
+        if key in {"provider", "command", "model", "effort", "timeout_sec", "max_retries"}
+        and item is not None
+    }
 
 
 def _metadata_generation_results_by_section(
@@ -1296,7 +1620,7 @@ def _core_metadata_entries(
         else:
             entry.setdefault("source_section_id", section_id)
         entry.setdefault("metadata_version", 1)
-        entry["prompt_version"] = "section-metadata-v1"
+        entry["prompt_version"] = section_metadata_api.SECTION_METADATA_PROMPT_VERSION
         entry["llm_provider"] = provider_id
         if section_id in failed_section_ids:
             entry["llm_generation_status"] = "failed"
@@ -1362,6 +1686,7 @@ def _generate_related_sections(
     provider: Any,
     config: Mapping[str, Any],
     generated_at: str,
+    cache_dir: Any | None = None,
 ) -> Any:
     try:
         return related_sections_api.generate_related_sections_result(
@@ -1370,6 +1695,7 @@ def _generate_related_sections(
             provider=provider,
             config=config,
             generated_at=generated_at,
+            cache_dir=cache_dir,
         )
     except Exception as exc:
         return {
@@ -1511,13 +1837,73 @@ def _conflict_candidates_from_related_output(
     candidates: Sequence[Mapping[str, Any]],
     *,
     sections: Sequence[Mapping[str, Any]],
+    selected_related_sections: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
+    """Build Conflict Review judge inputs.
+
+    Phase E primary route: section pairs where LLM relation typing flagged
+    `possible_conflict: True` in `selected_related_sections`. Legacy route
+    (kept as safety net): pre-LLM candidates with conflict-signaling channels
+    and tension between FORBID / REQUIRE / OPTIONAL terms in section text.
+    """
+
     sections_by_id = {
         str(section.get("source_section_id") or section.get("section_id")): section
         for section in sections
     }
     conflict_candidates: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
+    candidate_lookup: dict[tuple[str, str], Mapping[str, Any]] = {}
+    for candidate in candidates:
+        sid = str(candidate.get("source_section_id") or "")
+        tid = str(candidate.get("target_section_id") or "")
+        if sid and tid:
+            candidate_lookup.setdefault((sid, tid), candidate)
+
+    if selected_related_sections:
+        for source_id, items in selected_related_sections.items():
+            sid = str(source_id)
+            for entry in items or ():
+                if not isinstance(entry, Mapping):
+                    continue
+                if not bool(entry.get("possible_conflict")):
+                    continue
+                tid = str(entry.get("target_section_id") or "")
+                if not sid or not tid or sid == tid:
+                    continue
+                key = tuple(sorted((sid, tid)))
+                if key in seen:
+                    continue
+                source = sections_by_id.get(sid)
+                target = sections_by_id.get(tid)
+                if source is None or target is None:
+                    continue
+                base = dict(candidate_lookup.get((sid, tid)) or {})
+                base.update(
+                    {
+                        "source_section_id": sid,
+                        "target_section_id": tid,
+                        "relation_hint": "conflicts_with",
+                        "reason": str(
+                            entry.get("reason")
+                            or "LLM relation typing flagged possible_conflict=true."
+                        ),
+                        "evidence_terms": _dedupe_strings(
+                            [
+                                *_list_of_strings(base.get("evidence_terms")),
+                                *_list_of_strings(entry.get("evidence_terms")),
+                            ]
+                        ),
+                        "channels": _list_of_strings(
+                            base.get("channels") or entry.get("channels")
+                        ),
+                        "possible_conflict": True,
+                        "conflict_route": "possible_conflict_flag",
+                    }
+                )
+                conflict_candidates.append(base)
+                seen.add(key)
+
     for candidate in candidates:
         source_id = str(candidate.get("source_section_id") or "")
         target_id = str(candidate.get("target_section_id") or "")
@@ -1531,10 +1917,7 @@ def _conflict_candidates_from_related_output(
         if source is None or target is None:
             continue
         channels = set(_list_of_strings(candidate.get("channels")))
-        if (
-            candidate.get("relation_hint") != "conflicts_with"
-            and not (channels & CONFLICT_CANDIDATE_CHANNELS)
-        ):
+        if not (channels & CONFLICT_CANDIDATE_CHANNELS):
             continue
         source_signal = _conflict_signal(str(source.get("text", "")))
         target_signal = _conflict_signal(str(target.get("text", "")))
@@ -1556,6 +1939,7 @@ def _conflict_candidates_from_related_output(
             ]
         )
         item["channels"] = _list_of_strings(candidate.get("channels"))
+        item["conflict_route"] = "pattern_signal_legacy"
         conflict_candidates.append(item)
         seen.add(key)
     return conflict_candidates
@@ -1595,6 +1979,9 @@ def _has_conflict_tension(source: Mapping[str, Any], target: Mapping[str, Any]) 
     return "optional" in source_categories and "require" in target_categories
 
 
+CONFLICT_REVIEW_PROMPT_VERSION = "conflict-review-v1"
+
+
 class _EvidenceGroundedConflictJudge:
     def __init__(
         self,
@@ -1606,6 +1993,7 @@ class _EvidenceGroundedConflictJudge:
         concept_ref: str,
         concept_text: str,
         concept_hash: str,
+        llm_config: Mapping[str, Any] | None = None,
     ) -> None:
         self.delegate = delegate
         self.purpose_ref = purpose_ref
@@ -1614,6 +2002,12 @@ class _EvidenceGroundedConflictJudge:
         self.concept_ref = concept_ref
         self.concept_text = concept_text
         self.concept_hash = concept_hash
+        # Capture model / effort from the conflict_review stage's resolved llm
+        # config so we can build a proper LlmRequest when delegate is an
+        # LlmProvider (e.g. SubprocessLlmProvider). Without this the delegate's
+        # `generate(LlmRequest)` contract crashes because conflict_review used
+        # to pass plain dicts before stage_routing existed.
+        self._llm_config = dict(llm_config) if isinstance(llm_config, Mapping) else {}
 
     @property
     def provider_id(self) -> str:
@@ -1633,13 +2027,25 @@ class _EvidenceGroundedConflictJudge:
                 "text": self.concept_text,
             },
         }
-        return _call_conflict_judge(self.delegate, grounded_request, timeout_sec=timeout_sec)
+        return _call_conflict_judge(
+            self.delegate,
+            grounded_request,
+            timeout_sec=timeout_sec,
+            llm_config=self._llm_config,
+        )
 
 
-def _call_conflict_judge(delegate: Any, request: dict[str, Any], *, timeout_sec: int) -> dict[str, Any]:
+def _call_conflict_judge(
+    delegate: Any,
+    request: dict[str, Any],
+    *,
+    timeout_sec: int,
+    llm_config: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     if delegate is None:
         return {"outcome": "needs_human_review", "severity": "medium"}
-    for method_name in ("judge_conflict", "judge", "generate"):
+    # Fake / test judges expose dict-shaped judge_conflict / judge methods.
+    for method_name in ("judge_conflict", "judge"):
         method = getattr(delegate, method_name, None)
         if not callable(method):
             continue
@@ -1647,9 +2053,93 @@ def _call_conflict_judge(delegate: Any, request: dict[str, Any], *, timeout_sec:
             return dict(method(request, timeout_sec=timeout_sec))
         except TypeError:
             return dict(method(request))
+    # LlmProvider exposes generate(LlmRequest, timeout_sec=...) and refuses
+    # plain dicts. Wrap the conflict review request as a stage-tagged
+    # LlmRequest so SubprocessLlmProvider / FakeLlmProvider can both consume it.
+    generate = getattr(delegate, "generate", None)
+    if callable(generate):
+        try:
+            llm_request = _build_conflict_review_llm_request(request, llm_config or {})
+            raw_output = generate(llm_request, timeout_sec=timeout_sec)
+            return _coerce_conflict_judge_output(raw_output)
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "outcome": "needs_human_review",
+                "severity": "medium",
+                "reason": (
+                    "conflict_review LlmProvider call failed: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+            }
     if callable(delegate):
         return dict(delegate(request))
     raise TypeError("conflict_judge must expose judge_conflict, judge, generate, or be callable")
+
+
+def _build_conflict_review_llm_request(
+    request: Mapping[str, Any],
+    llm_config: Mapping[str, Any],
+) -> llm_provider_api.LlmRequest:
+    """Wrap a conflict-review dict request as a stage='conflict_review' LlmRequest."""
+
+    serialized = json.dumps(dict(request), ensure_ascii=False, sort_keys=True, default=str)
+    source_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    section_hashes: dict[str, str] = {}
+    for ref in request.get("source_refs", []) or []:
+        if isinstance(ref, Mapping):
+            sid = ref.get("source_section_id") or ref.get("source_ref") or ref.get("ref")
+            shash = ref.get("source_hash") or ref.get("hash")
+            if isinstance(sid, str) and isinstance(shash, str):
+                section_hashes[sid] = shash
+    purpose = request.get("purpose")
+    if isinstance(purpose, Mapping):
+        ref = str(purpose.get("source_ref") or "")
+        h = str(purpose.get("hash") or "")
+        if ref and h:
+            section_hashes[ref] = h
+    concept = request.get("core_concept")
+    if isinstance(concept, Mapping):
+        ref = str(concept.get("source_ref") or "")
+        h = str(concept.get("hash") or "")
+        if ref and h:
+            section_hashes[ref] = h
+    return llm_provider_api.LlmRequest(
+        task="conflict_review",
+        stage="conflict_review",
+        prompt=serialized,
+        prompt_version=CONFLICT_REVIEW_PROMPT_VERSION,
+        model=str(llm_config.get("model") or "fake"),
+        source_hash=source_hash,
+        section_hashes=section_hashes,
+        effort=llm_config.get("effort"),
+    )
+
+
+def _coerce_conflict_judge_output(output: Any) -> dict[str, Any]:
+    if isinstance(output, Mapping):
+        result = dict(output)
+        # If the LLM returned a top-level conflict outcome, pass through.
+        if "outcome" in result:
+            return result
+        # Some providers nest the actual response under "result" / "output" /
+        # "judgement"; fall back to reading those.
+        for key in ("result", "output", "judgement", "judgment"):
+            value = result.get(key)
+            if isinstance(value, Mapping) and "outcome" in value:
+                return dict(value)
+        # No outcome found in structured output → mark as needing human review
+        # and preserve any reason/text present for diagnostics.
+        return {
+            "outcome": "needs_human_review",
+            "severity": "medium",
+            "reason": "conflict_review LlmProvider output missing outcome field",
+            "raw": result,
+        }
+    return {
+        "outcome": "needs_human_review",
+        "severity": "medium",
+        "reason": f"conflict_review LlmProvider returned non-mapping: {type(output).__name__}",
+    }
 
 
 def _ensure_context_base_hashes(

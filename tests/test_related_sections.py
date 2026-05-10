@@ -276,14 +276,20 @@ def test_t_u09_related_section_candidate_generation_channels_merge_schema_and_li
     by_target = {candidate["target_section_id"]: candidate for candidate in candidates}
 
     beta = by_target["docs/spec/main.md#beta"]
-    assert {"same_chapter", "neighbor_section", "markdown_link"}.issubset(beta["channels"])
-    assert {"shared_identifier", "search_key_match"}.issubset(beta["channels"])
+    # Phase C: candidate channels are now markdown_link / shared_identifier /
+    # search_key_match / qdrant_section_hybrid. The old structural channels
+    # (same_chapter / neighbor_section) and summary_search are removed.
+    assert {"markdown_link", "shared_identifier", "search_key_match"}.issubset(beta["channels"])
     assert "docs/spec/main.md#missing" not in by_target
     assert source_id not in by_target
 
-    assert "same_chapter" in by_target["docs/spec/main.md#gamma"]["channels"]
     assert "search_key_match" in by_target["docs/spec/other.md#delta"]["channels"]
-    assert "summary_search" in by_target["docs/spec/other.md#epsilon"]["channels"]
+
+    legacy_channels = {"same_chapter", "neighbor_section", "summary_search"}
+    for candidate in candidates:
+        assert not (set(candidate["channels"]) & legacy_channels), (
+            f"legacy channels must not appear in candidates: {candidate['channels']}"
+        )
 
     required_fields = {
         "source_section_id",
@@ -491,12 +497,19 @@ def test_t_i06_fake_llm_selection_uses_only_candidates_and_builds_related_sectio
     assert selected[0]["confidence"] in ALLOWED_CONFIDENCE
 
 
-def test_related_sections_configured_provider_requires_real_provider_gate(
+def test_related_sections_configured_provider_runs_without_env_gate_and_reports_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = importlib.import_module("spec_grag.related_sections")
     monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:
+        calls.append(command)
+        return SimpleNamespace(returncode=1, stderr="codex denied", stdout="")
+
+    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
     sections = _fixture_sections()
     candidates = [
         {
@@ -528,9 +541,10 @@ def test_related_sections_configured_provider_requires_real_provider_gate(
     )
 
     assert result.related_sections["docs/spec/main.md#alpha"] == []
+    assert calls, "configured real provider must be called without env opt-in"
     assert result.llm_results
     assert result.llm_results[0].status == "failed"
-    assert "real_provider_required" in json.dumps(result.diagnostics)
+    assert "codex denied" in json.dumps(result.diagnostics).lower()
 
 
 def test_t_i12_incremental_reevaluation_includes_required_related_section_scope() -> None:
@@ -570,9 +584,14 @@ def test_t_i12_incremental_reevaluation_includes_required_related_section_scope(
     target_ids = set(payload if isinstance(payload, list | set | tuple) else payload["section_ids"])
 
     assert changed in target_ids
+    # alpha previously had beta as a selected related target → must re-evaluate
     assert "docs/spec/main.md#alpha" in target_ids
-    assert "docs/spec/main.md#gamma" in target_ids
+    # delta shares the specific search_key "freshness gate" with beta → must re-evaluate
     assert "docs/spec/other.md#delta" in target_ids
+    # Phase F: gamma is NOT a target. The previous design used a chapter
+    # neighbor heuristic that caught gamma simply because it was positionally
+    # after beta in the same file; that channel was removed in Phase C, and
+    # gamma shares no specific identifier / search_key with beta.
 
 
 def test_related_sections_are_reference_helpers_not_evidence() -> None:
@@ -607,3 +626,368 @@ def test_related_sections_are_reference_helpers_not_evidence() -> None:
         assert "evidence_origin" not in candidate
         assert "evidence_ref" not in candidate
         assert candidate["source"] in {"candidate_generation", "retrieval_auxiliary", "reference_helper"}
+
+
+def test_specificity_filter_drops_generic_identifiers() -> None:
+    module = importlib.import_module("spec_grag.related_sections")
+    # generic English & Japanese terms must be filtered out
+    assert not module._is_specific_term("user")
+    assert not module._is_specific_term("API")  # 3 chars
+    assert not module._is_specific_term("ユーザー")
+    assert not module._is_specific_term("123")
+    assert not module._is_specific_term("a")
+    # specific identifiers must pass
+    assert module._is_specific_term("AUTH_TOKEN")
+    assert module._is_specific_term("FreshnessGate")
+    assert module._is_specific_term("auth.token.expiry")
+    assert module._is_specific_term("freshness gate")
+
+
+def test_qdrant_section_hybrid_channel_is_present_in_candidate_set() -> None:
+    module = importlib.import_module("spec_grag.related_sections")
+    assert "qdrant_section_hybrid" in module.MVP_CANDIDATE_CHANNELS
+    assert module.QDRANT_SECTION_HYBRID == "qdrant_section_hybrid"
+
+
+def test_legacy_channels_are_removed_from_module() -> None:
+    """T-Phase-C: regression guard for the deleted pattern-matching channels."""
+    module = importlib.import_module("spec_grag.related_sections")
+    legacy_constants = {"SAME_CHAPTER", "NEIGHBOR_SECTION", "SUMMARY_SEARCH"}
+    for name in legacy_constants:
+        assert not hasattr(module, name), f"{name} must be removed from related_sections"
+    legacy_helpers = {
+        "_add_same_chapter_candidates",
+        "_add_neighbor_candidates",
+        "_add_summary_search_candidates",
+    }
+    for name in legacy_helpers:
+        assert not hasattr(module, name), f"{name} must be removed from related_sections"
+    assert "same_chapter" not in module.MVP_CANDIDATE_CHANNELS
+    assert "neighbor_section" not in module.MVP_CANDIDATE_CHANNELS
+    assert "summary_search" not in module.MVP_CANDIDATE_CHANNELS
+
+
+def test_qdrant_section_hybrid_candidate_generation_produces_candidates() -> None:
+    module = importlib.import_module("spec_grag.related_sections")
+    sections = _fixture_sections()
+    metadata = _metadata_for(sections)
+    payload = module.generate_related_section_candidates(
+        sections,
+        section_metadata=metadata,
+        config=_config(candidate_max=32),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+    candidates = payload["related_section_candidates"]
+    qdrant_candidates = [
+        candidate
+        for candidate in candidates
+        if "qdrant_section_hybrid" in candidate["channels"]
+    ]
+    # The deterministic fake BGE-M3 vectors should produce at least one
+    # qdrant_section_hybrid candidate across the 5-section fixture (Alpha and
+    # Epsilon share repeated phrases in their summaries).
+    assert qdrant_candidates, "qdrant_section_hybrid must contribute candidates"
+    for candidate in qdrant_candidates:
+        terms = candidate["evidence_terms"]
+        assert any("section_similarity" in term for term in terms), terms
+
+
+def test_llm_batch_concurrency_runs_batches_in_parallel() -> None:
+    """Phase H follow-up: when llm_batch_concurrency > 1, batch loop submits
+    multiple LLM calls concurrently. Verify by making provider sleep and
+    asserting wall time < (sequential * concurrency) / concurrency.
+    """
+    import threading
+    import time
+    import importlib
+
+    rs_module = importlib.import_module("spec_grag.related_sections")
+
+    sections_in = [
+        {
+            "section_id": f"doc#sec{i:03d}",
+            "source_section_id": f"doc#sec{i:03d}",
+            "stable_section_uid": f"uid-{i}",
+            "source_document_id": "doc",
+            "heading_path": ["Doc", f"Sec{i}"],
+            "heading_level": 2,
+            "chapter_id": "doc#ch1",
+            "source_hash": f"h{i}",
+            "semantic_hash": f"h{i}",
+            "source_span": {"start_line": i * 10, "end_line": i * 10 + 5},
+            "text": f"Section {i} body referencing AUTH_TOKEN_{i % 4}.",
+            "identifiers": [f"AUTH_TOKEN_{i % 4}"],
+            "summary": f"Section {i} summary covering authentication scenario {i}.",
+            "search_keys": [f"auth scenario {i % 4}", f"sec{i % 4} policy"],
+        }
+        for i in range(16)  # 2 batches of 8
+    ]
+
+    metadata = {
+        "sections": [
+            {
+                "section_id": s["section_id"],
+                "source_section_id": s["section_id"],
+                "summary": s["summary"],
+                "search_keys": s["search_keys"],
+                "identifiers": s["identifiers"],
+                "related_sections": [],
+                "source_hash": s["source_hash"],
+                "semantic_hash": s["semantic_hash"],
+            }
+            for s in sections_in
+        ]
+    }
+
+    call_started_at: list[float] = []
+    lock = threading.Lock()
+
+    class SlowProvider:
+        provider_id = "slow-fake"
+
+        def generate(self, request, *, timeout_sec):
+            with lock:
+                call_started_at.append(time.monotonic())
+            time.sleep(0.5)
+            # Return valid empty batch output keyed by source_section_id
+            return {"sections": []}
+
+    cfg = SimpleNamespace(
+        llm=SimpleNamespace(model="fake", effort="low", timeout_sec=5, max_retries=0),
+        limits=SimpleNamespace(
+            section_summary_max_chars=480,
+            search_keys_max=32,
+            related_candidate_max_per_section=32,
+            related_selected_max_per_section=8,
+            conflict_pair_max_per_section=8,
+            llm_batch_max_sections=8,
+            llm_batch_max_chars=12000,
+            llm_batch_concurrency=4,
+        ),
+    )
+
+    # Generate one candidate per source so all 16 sources are evaluable → 2 batches of 8.
+    candidates = [
+        {
+            "source_section_id": f"doc#sec{i:03d}",
+            "target_section_id": f"doc#sec{(i + 1) % 16:03d}",
+            "channels": ["shared_identifier"],
+            "candidate_score": 50.0,
+            "evidence_terms": [f"AUTH_TOKEN_{i % 4}"],
+            "evidence_snippets": [],
+            "source": "candidate_generation",
+            "generated_at": "2026-05-09T00:00:00Z",
+        }
+        for i in range(16)
+    ]
+    start = time.monotonic()
+    result = rs_module.select_related_sections_result(
+        sections_in,
+        section_metadata=metadata,
+        config=cfg,
+        provider=SlowProvider(),
+        candidates=candidates,
+        generated_at="2026-05-09T00:00:00Z",
+    )
+    elapsed = time.monotonic() - start
+
+    # 2 batches, each sleeping 0.5s. Sequential would take >= 1.0s.
+    # Parallel (concurrency=4) should overlap → wall time < 0.9s.
+    assert result.llm_calls == 2, f"expected 2 batches, got {result.llm_calls}"
+    assert len(call_started_at) == 2
+    # Both calls must start within ~0.1s of each other (parallel)
+    delta = abs(call_started_at[0] - call_started_at[1])
+    assert delta < 0.1, f"calls must be concurrent (delta={delta:.3f}s)"
+    assert elapsed < 0.9, f"parallel batches must finish under 0.9s (got {elapsed:.3f}s)"
+
+
+def test_llm_batch_concurrency_default_is_sequential() -> None:
+    """Default concurrency=1 keeps the sequential code path so existing tests
+    and conservative subscriptions keep their behavior."""
+    import importlib
+
+    rs_module = importlib.import_module("spec_grag.related_sections")
+    cfg = SimpleNamespace(
+        llm=SimpleNamespace(model="fake", effort="low", timeout_sec=5, max_retries=0),
+        limits=SimpleNamespace(
+            section_summary_max_chars=480,
+            search_keys_max=32,
+            related_candidate_max_per_section=32,
+            related_selected_max_per_section=8,
+            conflict_pair_max_per_section=8,
+            llm_batch_max_sections=8,
+            llm_batch_max_chars=12000,
+            # No llm_batch_concurrency override: getattr default = 1
+        ),
+    )
+    # Smoke test: select with empty inputs returns empty result and sets up
+    # llm_calls=0 (no batches to run).
+    result = rs_module.select_related_sections_result(
+        [],
+        section_metadata={"sections": []},
+        config=cfg,
+        candidates=[],
+        generated_at="2026-05-09T00:00:00Z",
+    )
+    assert result.llm_calls == 0
+
+
+def test_pair_level_typing_cache_skips_unchanged_pairs(tmp_path: Path) -> None:
+    """Pair cache should skip the LLM when source_hash + target_hash and other
+    cache key components are unchanged from the previous run.
+    """
+    import importlib
+
+    rs_module = importlib.import_module("spec_grag.related_sections")
+    cache_module = importlib.import_module("spec_grag.related_typing_cache")
+
+    sections_in = [
+        {
+            "section_id": "doc#a",
+            "source_section_id": "doc#a",
+            "stable_section_uid": "uid-a",
+            "source_document_id": "doc",
+            "heading_path": ["Doc", "A"],
+            "heading_level": 2,
+            "chapter_id": "doc#ch1",
+            "source_hash": "ha",
+            "semantic_hash": "ha",
+            "source_span": {"start_line": 0, "end_line": 5},
+            "text": "A references TOKEN.",
+            "identifiers": ["TOKEN"],
+            "summary": "A summary",
+            "search_keys": ["alpha key"],
+        },
+        {
+            "section_id": "doc#b",
+            "source_section_id": "doc#b",
+            "stable_section_uid": "uid-b",
+            "source_document_id": "doc",
+            "heading_path": ["Doc", "B"],
+            "heading_level": 2,
+            "chapter_id": "doc#ch1",
+            "source_hash": "hb",
+            "semantic_hash": "hb",
+            "source_span": {"start_line": 10, "end_line": 15},
+            "text": "B references TOKEN.",
+            "identifiers": ["TOKEN"],
+            "summary": "B summary",
+            "search_keys": ["beta key"],
+        },
+    ]
+    metadata = {
+        "sections": [
+            {
+                "section_id": s["section_id"],
+                "source_section_id": s["section_id"],
+                "summary": s["summary"],
+                "search_keys": s["search_keys"],
+                "identifiers": s["identifiers"],
+                "related_sections": [],
+                "source_hash": s["source_hash"],
+                "semantic_hash": s["semantic_hash"],
+            }
+            for s in sections_in
+        ]
+    }
+    candidates = [
+        {
+            "source_section_id": "doc#a",
+            "target_section_id": "doc#b",
+            "channels": ["shared_identifier"],
+            "candidate_score": 50.0,
+            "evidence_terms": ["TOKEN"],
+            "evidence_snippets": [],
+            "source": "candidate_generation",
+            "generated_at": "2026-05-10T00:00:00Z",
+        }
+    ]
+
+    class CountingProvider:
+        provider_id = "counting-fake"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate(self, request, *, timeout_sec):
+            self.calls += 1
+            return {
+                "sections": [
+                    {
+                        "source_section_id": "doc#a",
+                        "related_sections": [
+                            {
+                                "target_section_id": "doc#b",
+                                "relation_hint": "depends_on",
+                                "confidence": "high",
+                                "reason": "A depends on B for TOKEN policy.",
+                                "evidence_terms": ["TOKEN"],
+                                "channels": ["shared_identifier"],
+                                "possible_conflict": False,
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    cfg = SimpleNamespace(
+        llm=SimpleNamespace(model="fake", effort="low", timeout_sec=5, max_retries=0),
+        limits=SimpleNamespace(
+            section_summary_max_chars=480,
+            search_keys_max=32,
+            related_candidate_max_per_section=32,
+            related_selected_max_per_section=8,
+            conflict_pair_max_per_section=8,
+            llm_batch_max_sections=8,
+            llm_batch_max_chars=12000,
+        ),
+    )
+
+    cache_dir = tmp_path / "cache"
+    provider = CountingProvider()
+    result_first = rs_module.select_related_sections_result(
+        sections_in,
+        section_metadata=metadata,
+        config=cfg,
+        provider=provider,
+        candidates=candidates,
+        cache_dir=cache_dir,
+        generated_at="2026-05-10T00:00:00Z",
+    )
+    assert provider.calls == 1, "first run must call LLM once"
+    assert result_first.related_sections["doc#a"], "first run must produce edges"
+    cache_file = cache_dir / cache_module.CACHE_FILE_NAME
+    assert cache_file.exists(), "cache file must be persisted"
+
+    # Second run: no source/target hash change → all candidates served from cache.
+    provider2 = CountingProvider()
+    result_second = rs_module.select_related_sections_result(
+        sections_in,
+        section_metadata=metadata,
+        config=cfg,
+        provider=provider2,
+        candidates=candidates,
+        cache_dir=cache_dir,
+        generated_at="2026-05-10T00:00:00Z",
+    )
+    assert provider2.calls == 0, "second run must NOT call LLM (pair cache hit)"
+    assert (
+        result_second.related_sections["doc#a"][0]["target_section_id"] == "doc#b"
+    ), "cached entries must populate related_sections"
+
+    # Third run: change target hash → cache miss → LLM is called again.
+    sections_in[1]["source_hash"] = "hb-v2"
+    sections_in[1]["semantic_hash"] = "hb-v2"
+    metadata["sections"][1]["source_hash"] = "hb-v2"
+    metadata["sections"][1]["semantic_hash"] = "hb-v2"
+    provider3 = CountingProvider()
+    rs_module.select_related_sections_result(
+        sections_in,
+        section_metadata=metadata,
+        config=cfg,
+        provider=provider3,
+        candidates=candidates,
+        cache_dir=cache_dir,
+        generated_at="2026-05-10T00:00:00Z",
+    )
+    assert provider3.calls == 1, "target hash change must invalidate the pair cache"

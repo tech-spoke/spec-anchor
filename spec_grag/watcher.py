@@ -159,6 +159,11 @@ def run_spec_grag_watch(
 def run_watcher_once(
     project_root: str | Path = ".",
     *,
+    # SIGTERM handling: the `spec-grag-watch` entry point in cli.py:watch_main()
+    # calls _install_termination_handler() which converts SIGTERM into
+    # SystemExit. The conversion lets the `finally:` block at the end of this
+    # module release the core_update lock cleanly. Do not re-install a SIGTERM
+    # handler inside this module; the entry point owns it.
     root: str | Path | None = None,
     cwd: str | Path | None = None,
     interval_sec: float | None = None,
@@ -649,6 +654,21 @@ def load_watcher_settings(
     raw = dict(project_config.raw)
     include = list(project_config.sources.include)
     exclude = list(project_config.sources.exclude)
+    # Purpose / Core Concept are read-only inputs to /spec-core. CLAUDE.md ルール 4
+    # requires that Purpose / Core Concept changes invalidate the saved
+    # artifacts together with Source Specs changes. Include the two files in
+    # the watcher snapshot so the watcher cycle observes their hash drift.
+    extra_files: list[Path] = []
+    try:
+        purpose_path = project_config.core.purpose_file
+        concept_path = project_config.core.concept_file
+    except Exception:
+        purpose_path = None
+        concept_path = None
+    if purpose_path is not None and Path(purpose_path).is_file():
+        extra_files.append(Path(purpose_path))
+    if concept_path is not None and Path(concept_path).is_file():
+        extra_files.append(Path(concept_path))
     watcher = _optional_table(raw.get("watcher"), "watcher")
     context = _optional_table(raw.get("context"), "context")
 
@@ -668,7 +688,7 @@ def load_watcher_settings(
         context_dir=_relative_path(root, "context", "storage", context_value),
         include=tuple(include),
         exclude=tuple(exclude),
-        source_files=tuple(project_config.sources.files),
+        source_files=tuple(list(project_config.sources.files) + extra_files),
         enabled=_bool(watcher, "watcher", "enabled", False),
         interval_sec=interval,
         debounce_sec=debounce,

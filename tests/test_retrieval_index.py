@@ -1,7 +1,8 @@
 """Retrieval Index contract tests.
 
 The fake tests in this module must not require Qdrant or FlagEmbedding.  The
-real provider roundtrip is kept behind an explicit opt-in environment gate.
+real provider roundtrip is marked external and can be skipped with
+`pytest --skip-external`.
 """
 
 from __future__ import annotations
@@ -345,15 +346,8 @@ def test_t_u24_hybrid_retrieval_tie_break_is_stable_with_fake_backend() -> None:
     assert diagnostics["tie_break"] == ["source_section_id", "stable_chunk_uid"]
 
 
-@pytest.mark.skipif(
-    os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() not in {"1", "true", "yes"}
-    or os.environ.get("SPEC_GRAG_LOCAL_SERVICE", "").lower() not in {"1", "true", "yes"},
-    reason=(
-        "T-I05 real Qdrant/FlagEmbedding roundtrip requires "
-        "SPEC_GRAG_REAL_SMOKE=1 and SPEC_GRAG_LOCAL_SERVICE=1"
-    ),
-)
-def test_t_i05_embedding_to_qdrant_roundtrip_is_explicit_opt_in() -> None:
+@pytest.mark.external
+def test_t_i05_embedding_to_qdrant_roundtrip_uses_real_local_service() -> None:
     flagembedding = pytest.importorskip("FlagEmbedding")
     qdrant_client = pytest.importorskip("qdrant_client")
     qdrant_models = pytest.importorskip("qdrant_client.models")
@@ -431,3 +425,154 @@ def test_t_i05_embedding_to_qdrant_roundtrip_is_explicit_opt_in() -> None:
             assert "source chunk" in payload["text"]
     finally:
         client.delete_collection(collection)
+
+
+def test_section_payloads_one_per_section() -> None:
+    module = _retrieval_module()
+    sections = [
+        {
+            "source_section_id": "spec.md#alpha",
+            "source_document_id": "spec.md",
+            "stable_section_uid": "uid-alpha",
+            "heading_path": ["Spec", "Alpha"],
+            "source_hash": "ha",
+            "semantic_hash": "sa",
+        },
+        {
+            "source_section_id": "spec.md#beta",
+            "source_document_id": "spec.md",
+            "stable_section_uid": "uid-beta",
+            "heading_path": ["Spec", "Beta"],
+            "source_hash": "hb",
+        },
+    ]
+    metadata = {
+        "spec.md#alpha": {
+            "summary": "Alpha covers authentication.",
+            "search_keys": ["auth", "login"],
+            "identifiers": ["AuthService"],
+        },
+    }
+    payloads = module.build_section_payloads(sections, metadata)
+    assert len(payloads) == 2
+    by_id = {p["source_section_id"]: p for p in payloads}
+    assert by_id["spec.md#alpha"]["summary"] == "Alpha covers authentication."
+    assert "Alpha" in by_id["spec.md#alpha"]["text"]
+    assert "auth" in by_id["spec.md#alpha"]["text"].lower()
+    assert by_id["spec.md#beta"]["summary"] == ""
+
+
+def test_section_embeddings_artifact_uses_section_collection() -> None:
+    module = _retrieval_module()
+    sections = [
+        {
+            "source_section_id": "doc.md#a",
+            "source_document_id": "doc.md",
+            "stable_section_uid": "uid-a",
+            "heading_path": ["Doc", "A"],
+            "source_hash": "h1",
+        },
+    ]
+    artifact = module.build_section_embeddings_artifact(
+        sections,
+        {"doc.md#a": {"summary": "Alpha section."}},
+        generated_at="2026-05-08T00:00:00Z",
+    )
+    assert artifact["collection"] == "spec_grag_section"
+    assert artifact["section_count"] == 1
+    assert artifact["embedding"]["model"] == "BAAI/bge-m3"
+    assert artifact["sections"][0]["source_section_id"] == "doc.md#a"
+    assert artifact["generated_at"] == "2026-05-08T00:00:00Z"
+    assert artifact["artifact_revision"]
+
+
+def test_section_collection_is_distinct_from_chunk_collection() -> None:
+    module = _retrieval_module()
+    assert module.DEFAULT_SECTION_COLLECTION == "spec_grag_section"
+    # Sanity: chunk-level standard collection name is not equal to section-level.
+    chunk_default = "spec_grag_source"
+    assert module.DEFAULT_SECTION_COLLECTION != chunk_default
+
+
+def test_section_hybrid_candidates_excludes_self() -> None:
+    module = _retrieval_module()
+    sections = [
+        {"source_section_id": "doc#auth", "source_document_id": "doc", "source_hash": "h1"},
+        {"source_section_id": "doc#session", "source_document_id": "doc", "source_hash": "h2"},
+        {"source_section_id": "doc#billing", "source_document_id": "doc", "source_hash": "h3"},
+    ]
+    metadata = {
+        "doc#auth": {
+            "summary": "User authentication login JWT tokens session refresh authorization",
+            "search_keys": ["auth", "login", "JWT", "session", "tokens"],
+        },
+        "doc#session": {
+            "summary": "Session management JWT tokens authorization refresh login authentication",
+            "search_keys": ["session", "JWT", "tokens", "auth", "login"],
+        },
+        "doc#billing": {
+            "summary": "Invoice rendering PDF layout receipt download printing",
+            "search_keys": ["invoice", "PDF", "receipt"],
+        },
+    }
+    payloads = module.build_section_payloads(sections, metadata)
+    candidates = module.section_hybrid_candidates(
+        "doc#auth",
+        payloads,
+        limit=2,
+    )
+    target_ids = [hit.source_section_id for hit in candidates]
+    assert "doc#auth" not in target_ids
+    if target_ids:
+        assert target_ids[0] == "doc#session"
+
+
+def test_stable_chunk_uid_to_point_id_is_deterministic() -> None:
+    module = _retrieval_module()
+    a1 = module.stable_chunk_uid_to_point_id("chunk-uid-1")
+    a2 = module.stable_chunk_uid_to_point_id("chunk-uid-1")
+    b = module.stable_chunk_uid_to_point_id("chunk-uid-2")
+    assert a1 == a2, "same input must produce same point id"
+    assert a1 != b, "different input must produce different point id"
+    # Must be a valid UUID string
+    import uuid as _uuid
+    _uuid.UUID(a1)
+
+
+def test_compute_chunk_diff_categorizes_added_changed_removed() -> None:
+    module = _retrieval_module()
+    previous = [
+        {"stable_chunk_uid": "u1", "chunk_hash": "h1", "text": "a"},
+        {"stable_chunk_uid": "u2", "chunk_hash": "h2", "text": "b"},
+        {"stable_chunk_uid": "u3", "chunk_hash": "h3", "text": "c"},
+    ]
+    current = [
+        {"stable_chunk_uid": "u1", "chunk_hash": "h1", "text": "a"},  # unchanged
+        {"stable_chunk_uid": "u2", "chunk_hash": "h2-NEW", "text": "b'"},  # changed
+        # u3 removed
+        {"stable_chunk_uid": "u4", "chunk_hash": "h4", "text": "d"},  # added
+    ]
+    diff = module.compute_chunk_diff(previous, current)
+    assert [c["stable_chunk_uid"] for c in diff["added"]] == ["u4"]
+    assert [c["stable_chunk_uid"] for c in diff["changed"]] == ["u2"]
+    assert [c["stable_chunk_uid"] for c in diff["unchanged"]] == ["u1"]
+    assert sorted(diff["removed_uids"]) == ["u3"]
+
+
+def test_compute_chunk_diff_handles_empty_previous() -> None:
+    module = _retrieval_module()
+    current = [
+        {"stable_chunk_uid": "u1", "chunk_hash": "h1", "text": "a"},
+        {"stable_chunk_uid": "u2", "chunk_hash": "h2", "text": "b"},
+    ]
+    diff = module.compute_chunk_diff(None, current)
+    assert len(diff["added"]) == 2
+    assert diff["changed"] == []
+    assert diff["removed_uids"] == []
+
+
+def test_qdrant_collection_schema_version_bumped_for_stable_ids() -> None:
+    """Schema version must reflect the new stable point id format so existing
+    collections are recreated on first run after upgrade."""
+    module = _retrieval_module()
+    assert module.QDRANT_COLLECTION_SCHEMA_VERSION == "qdrant-bge-m3-hybrid-v2-stable-ids"

@@ -7,9 +7,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from markdown_it import MarkdownIt
 
-HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 SPACE_RE = re.compile(r"\s+")
+MARKDOWN = MarkdownIt("commonmark")
 
 
 @dataclass(frozen=True)
@@ -67,7 +68,7 @@ def parse_markdown_sections(
     sections: list[Section] = []
     active_headings: dict[int, str] = {}
     chapter_id = ""
-    for index, (line_index, level, heading) in enumerate(boundaries):
+    for index, (heading_start, heading_end, level, heading) in enumerate(boundaries):
         for old_level in list(active_headings):
             if old_level >= level:
                 del active_headings[old_level]
@@ -81,7 +82,7 @@ def parse_markdown_sections(
             if index + 1 < len(boundaries)
             else len(lines)
         )
-        section_lines = lines[line_index + 1 : next_line_index]
+        section_lines = lines[heading_end:next_line_index]
         sections.append(
             _build_section(
                 document_id=document_id,
@@ -90,12 +91,12 @@ def parse_markdown_sections(
                 heading_level=level,
                 lines=section_lines,
                 line_starts=line_starts,
-                start_line=line_index + 1,
-                end_line=max(line_index + 1, next_line_index),
+                start_line=heading_start + 1,
+                end_line=max(heading_start + 1, next_line_index),
                 chapter_id=chapter_id,
-                heading_line_offset=line_starts[line_index],
-                body_start_offset=line_starts[line_index + 1]
-                if line_index + 1 < len(line_starts)
+                heading_line_offset=line_starts[heading_start],
+                body_start_offset=line_starts[heading_end]
+                if heading_end < len(line_starts)
                 else len("".join(lines)),
             )
         )
@@ -115,15 +116,27 @@ def parse_markdown_file(
     )
 
 
-def _section_boundaries(lines: list[str], max_heading_level: int) -> list[tuple[int, int, str]]:
-    boundaries: list[tuple[int, int, str]] = []
-    for index, line in enumerate(lines):
-        match = HEADING_RE.match(line.rstrip("\n\r"))
-        if not match:
+def _section_boundaries(
+    lines: list[str],
+    max_heading_level: int,
+) -> list[tuple[int, int, int, str]]:
+    text = "".join(lines)
+    tokens = MARKDOWN.parse(text)
+    boundaries: list[tuple[int, int, int, str]] = []
+    for index, token in enumerate(tokens):
+        if token.type != "heading_open" or not token.map:
             continue
-        level = len(match.group(1))
-        if level <= max_heading_level:
-            boundaries.append((index, level, match.group(2).strip()))
+        try:
+            level = int(token.tag.removeprefix("h"))
+        except ValueError:
+            continue
+        if level > max_heading_level:
+            continue
+        heading = ""
+        if index + 1 < len(tokens) and tokens[index + 1].type == "inline":
+            heading = tokens[index + 1].content.strip()
+        start_line, end_line = token.map
+        boundaries.append((start_line, end_line, level, heading))
     return boundaries
 
 

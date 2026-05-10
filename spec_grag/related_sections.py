@@ -11,6 +11,7 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
@@ -26,6 +27,12 @@ from spec_grag.llm_provider import (
     LlmRequest,
     build_spec_core_llm_provider,
     generate_with_retries,
+    select_llm_provider_config,
+)
+from spec_grag.related_typing_cache import (
+    CACHE_FILE_NAME as RELATED_TYPING_CACHE_FILE_NAME,
+    RelatedTypingCache,
+    make_related_typing_cache_key,
 )
 from spec_grag.section_metadata import extract_identifiers
 
@@ -35,28 +42,23 @@ RELATED_SECTIONS_ROLE = "related_sections_retrieval_aid_not_evidence"
 RELATED_SECTIONS_STAGE = "related_section_selection"
 RELATED_SECTIONS_SOURCE = "candidate_generation"
 
-SAME_CHAPTER = "same_chapter"
-NEIGHBOR_SECTION = "neighbor_section"
 MARKDOWN_LINK = "markdown_link"
 SHARED_IDENTIFIER = "shared_identifier"
 SEARCH_KEY_MATCH = "search_key_match"
-SUMMARY_SEARCH = "summary_search"
+QDRANT_SECTION_HYBRID = "qdrant_section_hybrid"
 
 MVP_CANDIDATE_CHANNELS = (
-    SAME_CHAPTER,
-    NEIGHBOR_SECTION,
     MARKDOWN_LINK,
     SHARED_IDENTIFIER,
     SEARCH_KEY_MATCH,
-    SUMMARY_SEARCH,
+    QDRANT_SECTION_HYBRID,
 )
 EXACT_CHANNELS = {MARKDOWN_LINK, SHARED_IDENTIFIER, SEARCH_KEY_MATCH}
-STRUCTURAL_CHANNELS = {SAME_CHAPTER, NEIGHBOR_SECTION}
+SEMANTIC_CHANNELS = {QDRANT_SECTION_HYBRID}
 
 ALLOWED_RELATION_HINTS = {
     "depends_on",
     "impacts",
-    "conflicts_with",
     "same_policy",
     "prerequisite",
     "see_also",
@@ -67,37 +69,70 @@ CHANNEL_WEIGHTS = {
     MARKDOWN_LINK: 100.0,
     SHARED_IDENTIFIER: 90.0,
     SEARCH_KEY_MATCH: 80.0,
-    NEIGHBOR_SECTION: 45.0,
-    SAME_CHAPTER: 30.0,
-    SUMMARY_SEARCH: 10.0,
+    QDRANT_SECTION_HYBRID: 60.0,
 }
 CHANNEL_ORDER = {channel: index for index, channel in enumerate(MVP_CANDIDATE_CHANNELS)}
+
+_GENERIC_TERMS = frozenset(
+    {
+        "user",
+        "users",
+        "data",
+        "info",
+        "config",
+        "configuration",
+        "test",
+        "tests",
+        "section",
+        "sections",
+        "summary",
+        "spec",
+        "specs",
+        "source",
+        "value",
+        "values",
+        "input",
+        "output",
+        "field",
+        "fields",
+        "name",
+        "names",
+        "type",
+        "types",
+        "auth",
+        "api",
+        "url",
+        "key",
+        "keys",
+        "id",
+        "ids",
+        "ユーザー",
+        "データ",
+        "設定",
+        "認証",
+        "テスト",
+    }
+)
+
+
+def _is_specific_term(value: Any) -> bool:
+    cleaned = str(value).strip()
+    if len(cleaned) < 4:
+        return False
+    if cleaned.isdigit():
+        return False
+    if _normalize_key(cleaned) in _GENERIC_TERMS:
+        return False
+    return True
+
+
+def _filter_specific_terms(values: Sequence[Any]) -> list[str]:
+    return [str(value) for value in values if _is_specific_term(value)]
 
 _LINK_RE = re.compile(
     r"(?<!!)\[([^\]\n]+)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)",
 )
-_TOKEN_RE = re.compile(
-    r"@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-    r"|[A-Za-z_][A-Za-z0-9_.-]*"
-    r"|[0-9]+"
-    r"|[一-龯ぁ-んァ-ンー]{2,}"
-)
 _SPACE_RE = re.compile(r"\s+")
-_STOP_WORDS = {
-    "and",
-    "for",
-    "from",
-    "into",
-    "that",
-    "the",
-    "this",
-    "with",
-    "without",
-    "section",
-    "summary",
-    "spec",
-    "source",
-}
 
 
 @dataclass(frozen=True)
@@ -286,14 +321,77 @@ def generate_related_section_candidates_result(
         records,
     )
     limits_config = _limits(_first_not_none(limits, _config_value(config, "limits", None), _config_value(project_config, "limits", None)))
+    retrieval_config = _first_not_none(
+        _config_value(config, "retrieval", None),
+        _config_value(project_config, "retrieval", None),
+    )
+    section_top_k = int(
+        _config_value(retrieval_config, "section_candidate_top_k", 16)
+        if retrieval_config is not None
+        else 16
+    )
+    section_dense_threshold = float(
+        _config_value(retrieval_config, "section_dense_threshold", 0.55)
+        if retrieval_config is not None
+        else 0.55
+    )
+    section_final_top_n = int(
+        _config_value(retrieval_config, "section_final_top_n", 8)
+        if retrieval_config is not None
+        else 8
+    )
+    vector_store_config = _first_not_none(
+        _config_value(config, "vector_store", None),
+        _config_value(project_config, "vector_store", None),
+    )
+    embedding_config = _first_not_none(
+        _config_value(config, "embedding", None),
+        _config_value(project_config, "embedding", None),
+    )
+    qdrant_url = (
+        str(_config_value(vector_store_config, "url", "") or "")
+        if vector_store_config is not None
+        else ""
+    )
+    qdrant_provider = (
+        str(_config_value(vector_store_config, "provider", "") or "")
+        if vector_store_config is not None
+        else ""
+    )
+    section_collection = (
+        str(_config_value(vector_store_config, "section_collection", "spec_grag_section") or "spec_grag_section")
+        if vector_store_config is not None
+        else "spec_grag_section"
+    )
+    embedding_provider_id = (
+        str(_config_value(embedding_config, "provider", "") or "")
+        if embedding_config is not None
+        else ""
+    )
+    use_real_qdrant_section = (
+        qdrant_provider == "qdrant"
+        and bool(qdrant_url)
+        and embedding_provider_id == "flagembedding"
+    )
+
     builders: dict[tuple[str, str], _CandidateBuilder] = {}
 
-    _add_same_chapter_candidates(builders, records, metadata_by_id, generated_at)
-    _add_neighbor_candidates(builders, records, metadata_by_id, generated_at)
     _add_markdown_link_candidates(builders, records, records_by_id, metadata_by_id, generated_at)
     _add_shared_identifier_candidates(builders, records, metadata_by_id, generated_at)
     _add_search_key_candidates(builders, records, metadata_by_id, generated_at)
-    _add_summary_search_candidates(builders, records, metadata_by_id, generated_at)
+    _add_qdrant_section_hybrid_candidates(
+        builders,
+        records,
+        records_by_id,
+        metadata_by_id,
+        generated_at,
+        top_k=section_top_k,
+        dense_threshold=section_dense_threshold,
+        final_top_n=section_final_top_n,
+        use_real_qdrant=use_real_qdrant_section,
+        qdrant_url=qdrant_url,
+        qdrant_collection=section_collection,
+    )
 
     all_candidates = [builder.to_candidate() for builder in builders.values()]
     candidates, diagnostics, counts, dropped_counts = _limit_candidates_by_source(
@@ -358,6 +456,7 @@ def select_related_sections_result(
     generated_at: str | None = None,
     prompt_version: str = RELATED_SECTIONS_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
+    cache_dir: Any | None = None,
 ) -> RelatedSectionSelection:
     """Run LLM selection over CLI-generated candidates only."""
 
@@ -374,6 +473,7 @@ def select_related_sections_result(
         _config_value(config, "llm", None),
         _config_value(project_config, "llm", None),
     )
+    llm_config = _selected_llm_config(llm_config)
     provider = _resolve_selection_provider(
         _first_not_none(provider, llm_provider),
         llm_config,
@@ -403,6 +503,22 @@ def select_related_sections_result(
     diagnostics: list[dict[str, Any]] = []
     llm_results: list[LlmGenerationResult] = []
 
+    cache_path: Any | None = None
+    if cache_dir is not None:
+        try:
+            from pathlib import Path as _Path
+            cache_path = _Path(cache_dir) / RELATED_TYPING_CACHE_FILE_NAME
+        except Exception:
+            cache_path = None
+    typing_cache = RelatedTypingCache(cache_path)
+    cache_hits = 0
+    cache_misses = 0
+    cache_rejected_hits = 0
+    cached_entries_by_source: dict[str, list[dict[str, Any]]] = {}
+    pending_candidates_by_source: dict[str, list[Mapping[str, Any]]] = {}
+    pending_keys_by_source: dict[str, dict[str, str]] = {}
+
+    sources_to_evaluate: list[_SectionRecord] = []
     for source_id in requested:
         source = records_by_id.get(source_id)
         if source is None:
@@ -418,9 +534,68 @@ def select_related_sections_result(
         if not source_candidates or limits_config.related_selected_max_per_section <= 0:
             related_by_source[source_id] = []
             continue
-        request = _build_selection_request(
-            source,
-            source_candidates,
+
+        cached_entries: list[dict[str, Any]] = []
+        pending_candidates: list[Mapping[str, Any]] = []
+        pending_keys: dict[str, str] = {}
+        for candidate in source_candidates:
+            target_id = str(candidate.get("target_section_id", ""))
+            target_record = records_by_id.get(target_id)
+            if not target_id or target_record is None:
+                pending_candidates.append(candidate)
+                continue
+            cache_key = make_related_typing_cache_key(
+                source_section_id=source_id,
+                target_section_id=target_id,
+                source_hash=source.source_hash,
+                target_hash=target_record.source_hash,
+                prompt_version=prompt_version,
+                model=model,
+                effort=effort,
+            )
+            cached = typing_cache.get(cache_key)
+            if cached is None:
+                pending_candidates.append(candidate)
+                pending_keys[target_id] = cache_key
+                cache_misses += 1
+                continue
+            if cached.get("accepted"):
+                entry = dict(cached.get("entry") or {})
+                if entry.get("target_section_id") == target_id:
+                    cached_entries.append(entry)
+                    cache_hits += 1
+                else:
+                    pending_candidates.append(candidate)
+                    pending_keys[target_id] = cache_key
+                    cache_misses += 1
+            else:
+                cache_rejected_hits += 1
+
+        cached_entries_by_source[source_id] = cached_entries
+        if pending_candidates:
+            pending_candidates_by_source[source_id] = pending_candidates
+            pending_keys_by_source[source_id] = pending_keys
+            sources_to_evaluate.append(source)
+        else:
+            related_by_source[source_id] = cached_entries
+
+    batch_size = max(1, int(getattr(limits_config, "llm_batch_max_sections", 8) or 8))
+    batches: list[tuple[list[_SectionRecord], dict[str, list[Mapping[str, Any]]]]] = []
+    for batch_start in range(0, len(sources_to_evaluate), batch_size):
+        batch_sources = sources_to_evaluate[batch_start : batch_start + batch_size]
+        batch_candidates_by_source = {
+            source.source_section_id: pending_candidates_by_source.get(
+                source.source_section_id, []
+            )
+            for source in batch_sources
+        }
+        batches.append((batch_sources, batch_candidates_by_source))
+
+    def _run_related_batch(batch: tuple[list[_SectionRecord], dict[str, list[Mapping[str, Any]]]]):
+        batch_sources, batch_candidates_by_source = batch
+        request = _build_batch_selection_request(
+            batch_sources,
+            batch_candidates_by_source,
             records_by_id,
             metadata_by_id,
             prompt_version=prompt_version,
@@ -434,43 +609,97 @@ def select_related_sections_result(
             request,
             required_fields=(),
             field_schema={
-                "related_sections": "list",
+                "related_sections": "list|object",
                 "sections": "list[object]",
             },
             timeout_sec=timeout_sec,
             max_retries=max_retries,
         )
+        return batch_sources, batch_candidates_by_source, result
+
+    concurrency = max(1, int(getattr(limits_config, "llm_batch_concurrency", 1) or 1))
+    if concurrency > 1 and len(batches) > 1:
+        with ThreadPoolExecutor(max_workers=concurrency) as ex:
+            batch_outputs = list(ex.map(_run_related_batch, batches))
+    else:
+        batch_outputs = [_run_related_batch(batch) for batch in batches]
+
+    for batch_sources, batch_candidates_by_source, result in batch_outputs:
         llm_results.append(result)
         for diagnostic in result.diagnostic_items or []:
             diagnostics.append(dict(diagnostic))
         if result.status != "success" or result.artifact is None:
-            related_by_source[source_id] = []
+            for source in batch_sources:
+                source_id = source.source_section_id
+                related_by_source[source_id] = list(
+                    cached_entries_by_source.get(source_id, [])
+                )
             continue
-        raw_items = _related_items_from_output(result.artifact.output, source_id)
-        if raw_items is None:
-            diagnostics.append(
-                _diagnostic(
-                    "validation_error",
-                    "related_section_selection output did not contain related_sections",
-                    source_section_id=source_id,
-                    stage=RELATED_SECTIONS_STAGE,
-                    prompt_version=prompt_version,
-                    model=model,
-                ),
-            )
-            related_by_source[source_id] = []
-            continue
-        validation = validate_related_sections_result(
-            source_id,
-            raw_items,
-            candidates=source_candidates,
-            sections=records,
-            section_metadata=metadata_by_id,
-            limits=limits_config,
-            generated_at=generated_at,
+        batch_output = _batch_related_items_from_output(
+            result.artifact.output, batch_sources
         )
-        related_by_source[source_id] = validation.related_sections
-        diagnostics.extend(validation.diagnostics)
+        for source in batch_sources:
+            source_id = source.source_section_id
+            raw_items = batch_output.get(source_id)
+            if raw_items is None:
+                diagnostics.append(
+                    _diagnostic(
+                        "validation_error",
+                        "related_section_selection batch output missing source",
+                        source_section_id=source_id,
+                        stage=RELATED_SECTIONS_STAGE,
+                        prompt_version=prompt_version,
+                        model=model,
+                    ),
+                )
+                related_by_source[source_id] = list(
+                    cached_entries_by_source.get(source_id, [])
+                )
+                continue
+            validation = validate_related_sections_result(
+                source_id,
+                raw_items,
+                candidates=batch_candidates_by_source[source_id],
+                sections=records,
+                section_metadata=metadata_by_id,
+                limits=limits_config,
+                generated_at=generated_at,
+            )
+            new_entries = list(validation.related_sections)
+            accepted_targets: set[str] = set()
+            pending_keys = pending_keys_by_source.get(source_id, {})
+            for entry in new_entries:
+                target_id = str(entry.get("target_section_id", ""))
+                if not target_id:
+                    continue
+                cache_key = pending_keys.get(target_id)
+                if cache_key is None:
+                    continue
+                typing_cache.put(
+                    cache_key,
+                    {"accepted": True, "entry": dict(entry)},
+                )
+                accepted_targets.add(target_id)
+            for target_id, cache_key in pending_keys.items():
+                if target_id not in accepted_targets:
+                    typing_cache.put(cache_key, {"accepted": False})
+            cached_entries = cached_entries_by_source.get(source_id, [])
+            related_by_source[source_id] = cached_entries + new_entries
+            diagnostics.extend(validation.diagnostics)
+
+    typing_cache.save()
+    if cache_hits or cache_misses or cache_rejected_hits:
+        diagnostics.append(
+            _diagnostic(
+                "related_typing_cache_stats",
+                "pair-level relation typing cache statistics",
+                cache_hits=cache_hits,
+                cache_misses=cache_misses,
+                cache_rejected_hits=cache_rejected_hits,
+                cache_size=typing_cache.size,
+                stage=RELATED_SECTIONS_STAGE,
+            ),
+        )
 
     sections_payload = [
         {
@@ -497,9 +726,15 @@ def _resolve_selection_provider(
 ) -> LlmProvider:
     if provider is not None:
         return provider
-    if _config_value(llm_config, "provider"):
+    if _config_value(llm_config, "provider") or _config_value(llm_config, "providers"):
         return build_spec_core_llm_provider(llm_config)
     return FakeLlmProvider()
+
+
+def _selected_llm_config(llm_config: Any | None) -> Any | None:
+    if _config_value(llm_config, "providers"):
+        return select_llm_provider_config(llm_config)
+    return llm_config
 
 
 def select_related_sections(
@@ -721,6 +956,7 @@ def validate_related_sections_result(
         if target_id in seen_targets:
             continue
         seen_targets.add(target_id)
+        possible_conflict = bool(item.get("possible_conflict", False))
         valid.append(
             {
                 "target_section_id": target_id,
@@ -732,6 +968,7 @@ def validate_related_sections_result(
                     channels,
                     key=lambda channel: CHANNEL_ORDER.get(channel, 999),
                 ),
+                "possible_conflict": possible_conflict,
                 "generated_at": generated_at,
             },
         )
@@ -784,6 +1021,7 @@ def generate_related_sections_result(
     generated_at: str | None = None,
     prompt_version: str = RELATED_SECTIONS_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
+    cache_dir: Any | None = None,
 ) -> RelatedSectionsGeneration:
     """Generate candidates, run selection, and return a Related Sections artifact."""
 
@@ -809,6 +1047,7 @@ def generate_related_sections_result(
         generated_at=generated_at,
         prompt_version=prompt_version,
         metadata_version=metadata_version,
+        cache_dir=cache_dir,
     )
     diagnostics = candidate_generation.diagnostics + selection.diagnostics
     artifact = {
@@ -879,7 +1118,15 @@ def compute_related_sections_reevaluation_targets(
     candidates: Any | None = None,
     related_section_candidates: Any | None = None,
 ) -> list[str]:
-    """Return the minimum incremental Related Sections re-evaluation scope."""
+    """Return the minimum incremental Related Sections re-evaluation scope.
+
+    External API exposing the re-evaluation set described in DESIGN.ja.md
+    §5.7. The core `/spec-core` path does NOT call this; it uses the pair
+    cache (`related_typing_cache.json`) to skip unchanged (source, target)
+    pairs at LLM-evaluation time, which catches candidate-set shifts that
+    section-level narrowing would miss. Kept available for external
+    incremental orchestration tools and for the unit-test contract.
+    """
 
     records = [_normalize_section(section) for section in sections]
     records_by_id = {record.source_section_id: record for record in records}
@@ -894,16 +1141,13 @@ def compute_related_sections_reevaluation_targets(
     }
     targets: set[str] = set(changed)
     order = [record.source_section_id for record in records]
-    index_by_id = {section_id: index for index, section_id in enumerate(order)}
 
-    for changed_id in list(changed):
-        changed_record = records_by_id[changed_id]
-        index = index_by_id[changed_id]
-        for neighbor_index in (index - 1, index + 1):
-            if 0 <= neighbor_index < len(records):
-                neighbor = records[neighbor_index]
-                if neighbor.chapter_id == changed_record.chapter_id:
-                    targets.add(neighbor.source_section_id)
+    # Phase F: drop the neighbor_section (positional / same-chapter) heuristic
+    # since that channel was removed in Phase C. Re-evaluation now follows the
+    # actually-used channels: prior selected edges, exact-signal overlap
+    # (markdown_link / shared_identifier / search_key_match with specificity
+    # filter), and the qdrant_section_hybrid neighborhood (covered by signal
+    # overlap below as a conservative heuristic).
 
     for record in records:
         metadata_record = metadata_by_id.get(record.source_section_id)
@@ -916,7 +1160,9 @@ def compute_related_sections_reevaluation_targets(
     identifiers_by_id = {
         record.source_section_id: {
             _normalize_key(identifier)
-            for identifier in _metadata_for(record, metadata_by_id).identifiers
+            for identifier in _filter_specific_terms(
+                _metadata_for(record, metadata_by_id).identifiers
+            )
             if _normalize_key(identifier)
         }
         for record in records
@@ -932,7 +1178,9 @@ def compute_related_sections_reevaluation_targets(
     search_keys_by_id = {
         record.source_section_id: {
             _normalize_key(search_key)
-            for search_key in _metadata_for(record, metadata_by_id).search_keys
+            for search_key in _filter_specific_terms(
+                _metadata_for(record, metadata_by_id).search_keys
+            )
             if _normalize_key(search_key)
         }
         for record in records
@@ -945,17 +1193,10 @@ def compute_related_sections_reevaluation_targets(
             if section_id not in changed and search_keys & changed_search_keys:
                 targets.add(section_id)
 
-    summary_tokens_by_id = {
-        record.source_section_id: _summary_tokens(record, metadata_by_id)
-        for record in records
-    }
-    changed_summary_tokens = set().union(
-        *(summary_tokens_by_id.get(section_id, set()) for section_id in changed),
-    )
-    if changed_summary_tokens:
-        for section_id, summary_tokens in summary_tokens_by_id.items():
-            if section_id not in changed and summary_tokens & changed_summary_tokens:
-                targets.add(section_id)
+    # Phase F: drop the summary_tokens overlap heuristic. The qdrant_section_hybrid
+    # channel covers semantic similarity at section level; on incremental update
+    # the conservative scope is captured by exact-signal overlap (above) plus
+    # markdown_link edges and prior candidate edges (below).
 
     link_edges = _markdown_link_edges(records, records_by_id)
     for source_id, target_id in link_edges:
@@ -978,81 +1219,13 @@ def compute_related_sections_reevaluation_targets(
     return [section_id for section_id in order if section_id in targets]
 
 
-def compute_related_section_reevaluation_targets(
-    changed_section_ids: Sequence[str],
-    **kwargs: Any,
-) -> list[str]:
-    return compute_related_sections_reevaluation_targets(changed_section_ids, **kwargs)
-
-
-def related_sections_incremental_targets(
-    changed_section_ids: Sequence[str],
-    **kwargs: Any,
-) -> list[str]:
-    return compute_related_sections_reevaluation_targets(changed_section_ids, **kwargs)
-
-
-def incremental_related_section_targets(
-    changed_section_ids: Sequence[str],
-    **kwargs: Any,
-) -> list[str]:
-    return compute_related_sections_reevaluation_targets(changed_section_ids, **kwargs)
-
-
 def related_section_reevaluation_targets(
     changed_section_ids: Sequence[str],
     **kwargs: Any,
 ) -> list[str]:
+    """Compatibility alias used by section_metadata re-export and existing tests."""
+
     return compute_related_sections_reevaluation_targets(changed_section_ids, **kwargs)
-
-
-def _add_same_chapter_candidates(
-    builders: dict[tuple[str, str], _CandidateBuilder],
-    records: Sequence[_SectionRecord],
-    metadata_by_id: Mapping[str, _MetadataRecord],
-    generated_at: str,
-) -> None:
-    by_chapter: dict[str, list[_SectionRecord]] = {}
-    for record in records:
-        by_chapter.setdefault(record.chapter_id, []).append(record)
-    for chapter_records in by_chapter.values():
-        if len(chapter_records) <= 1:
-            continue
-        for source in chapter_records:
-            for target in chapter_records:
-                if source.source_section_id == target.source_section_id:
-                    continue
-                _add_candidate(
-                    builders,
-                    source,
-                    target,
-                    SAME_CHAPTER,
-                    generated_at,
-                    evidence_terms=[source.chapter_id],
-                    evidence_snippets=[_candidate_snippet(target, metadata_by_id)],
-                )
-
-
-def _add_neighbor_candidates(
-    builders: dict[tuple[str, str], _CandidateBuilder],
-    records: Sequence[_SectionRecord],
-    metadata_by_id: Mapping[str, _MetadataRecord],
-    generated_at: str,
-) -> None:
-    for index, source in enumerate(records):
-        for neighbor_index, label in ((index - 1, "previous_section"), (index + 1, "next_section")):
-            if not 0 <= neighbor_index < len(records):
-                continue
-            target = records[neighbor_index]
-            _add_candidate(
-                builders,
-                source,
-                target,
-                NEIGHBOR_SECTION,
-                generated_at,
-                evidence_terms=[label],
-                evidence_snippets=[_candidate_snippet(target, metadata_by_id)],
-            )
 
 
 def _add_markdown_link_candidates(
@@ -1088,7 +1261,9 @@ def _add_shared_identifier_candidates(
 ) -> None:
     index = _inverted_terms(
         {
-            record.source_section_id: _metadata_for(record, metadata_by_id).identifiers
+            record.source_section_id: _filter_specific_terms(
+                _metadata_for(record, metadata_by_id).identifiers
+            )
             for record in records
         },
     )
@@ -1110,7 +1285,9 @@ def _add_search_key_candidates(
 ) -> None:
     index = _inverted_terms(
         {
-            record.source_section_id: _metadata_for(record, metadata_by_id).search_keys
+            record.source_section_id: _filter_specific_terms(
+                _metadata_for(record, metadata_by_id).search_keys
+            )
             for record in records
         },
     )
@@ -1124,37 +1301,114 @@ def _add_search_key_candidates(
     )
 
 
-def _add_summary_search_candidates(
+def _add_qdrant_section_hybrid_candidates(
     builders: dict[tuple[str, str], _CandidateBuilder],
     records: Sequence[_SectionRecord],
+    records_by_id: Mapping[str, _SectionRecord],
     metadata_by_id: Mapping[str, _MetadataRecord],
     generated_at: str,
+    *,
+    top_k: int,
+    dense_threshold: float = 0.0,
+    final_top_n: int = 0,
+    use_real_qdrant: bool = False,
+    qdrant_url: str = "",
+    qdrant_collection: str = "spec_grag_section",
 ) -> None:
-    records_by_id = {record.source_section_id: record for record in records}
-    tokens_by_id = {
-        record.source_section_id: _summary_tokens(record, metadata_by_id)
+    """Add candidates from section-level dense+sparse hybrid retrieval (Qdrant)."""
+
+    if not records or top_k <= 0:
+        return
+    try:
+        from spec_grag.retrieval_index import (
+            InMemoryHybridRetriever,
+            build_section_payloads,
+        )
+    except ImportError:
+        return
+
+    sections_for_payload = [
+        {
+            "source_section_id": record.source_section_id,
+            "source_document_id": record.source_document_id,
+            "stable_section_uid": record.stable_section_uid,
+            "heading_path": record.heading_path,
+            "source_hash": record.source_hash,
+            "semantic_hash": record.semantic_hash,
+        }
         for record in records
-    }
+    ]
+    metadata_for_payload: dict[str, dict[str, Any]] = {}
+    for record in records:
+        metadata = _metadata_for(record, metadata_by_id)
+        metadata_for_payload[record.source_section_id] = {
+            "summary": metadata.summary,
+            "search_keys": list(metadata.search_keys),
+            "identifiers": list(metadata.identifiers),
+        }
+    payloads = build_section_payloads(sections_for_payload, metadata_for_payload)
+    payload_by_id = {payload["source_section_id"]: payload for payload in payloads}
+    if not payloads:
+        return
+
+    retriever: Any = None
+    if use_real_qdrant and qdrant_url and qdrant_collection:
+        try:
+            from spec_grag.retrieval_index import QdrantHybridRetriever
+
+            retriever = QdrantHybridRetriever(
+                url=qdrant_url,
+                collection=qdrant_collection,
+            )
+        except Exception:
+            retriever = None
+    if retriever is None:
+        retriever = InMemoryHybridRetriever(payloads)
+    cap = max(0, int(final_top_n)) if final_top_n else 0
     for source in records:
-        source_tokens = tokens_by_id[source.source_section_id]
-        if not source_tokens:
+        source_payload = payload_by_id.get(source.source_section_id)
+        if source_payload is None:
             continue
-        for target in records:
-            if source.source_section_id == target.source_section_id:
+        query_text = str(source_payload.get("text") or "")
+        if not query_text.strip():
+            continue
+        result = retriever.search(
+            query_text,
+            limit=top_k + 1,
+            fusion_owner="related_sections_section_hybrid",
+        )
+        accepted_for_source = 0
+        for hit in result.hits:
+            target_id = hit.source_section_id
+            if not target_id or target_id == source.source_section_id:
                 continue
-            target_tokens = tokens_by_id[target.source_section_id]
-            overlap = sorted(source_tokens & target_tokens)
-            if not overlap:
+            target_record = records_by_id.get(target_id)
+            if target_record is None:
+                continue
+            score = float(hit.score)
+            existing = builders.get((source.source_section_id, target_id))
+            has_exact_signal = bool(
+                existing
+                and existing.channels & {MARKDOWN_LINK, SHARED_IDENTIFIER}
+            )
+            if (
+                dense_threshold > 0.0
+                and score < dense_threshold
+                and not has_exact_signal
+            ):
+                continue
+            if cap and accepted_for_source >= cap and not has_exact_signal:
                 continue
             _add_candidate(
                 builders,
                 source,
-                records_by_id[target.source_section_id],
-                SUMMARY_SEARCH,
+                target_record,
+                QDRANT_SECTION_HYBRID,
                 generated_at,
-                evidence_terms=overlap[:8],
-                evidence_snippets=[_candidate_snippet(target, metadata_by_id)],
+                evidence_terms=[f"section_similarity:{round(score, 4)}"],
+                evidence_snippets=[_candidate_snippet(target_record, metadata_by_id)],
             )
+            accepted_for_source += 1
 
 
 def _add_index_candidates(
@@ -1272,13 +1526,13 @@ def _limit_candidates_by_source(
 def _candidate_sort_key(candidate: Mapping[str, Any]) -> tuple[Any, ...]:
     channels = set(_candidate_channels(candidate))
     exact_priority = 1 if channels & EXACT_CHANNELS else 0
-    structural_priority = 1 if channels & STRUCTURAL_CHANNELS else 0
+    semantic_priority = 1 if channels & SEMANTIC_CHANNELS else 0
     best_channel_score = max((CHANNEL_WEIGHTS.get(channel, 0.0) for channel in channels), default=0.0)
     return (
         -exact_priority,
         -best_channel_score,
         -float(candidate.get("candidate_score", 0.0) or 0.0),
-        -structural_priority,
+        -semantic_priority,
         str(candidate.get("target_section_id", "")),
     )
 
@@ -1485,6 +1739,226 @@ def _selection_section_payload(
         "identifiers": metadata.identifiers[:16],
         "snippet": _short_text(record.text, 320),
     }
+
+
+def _catalog_entry(
+    record: _SectionRecord,
+    metadata_by_id: Mapping[str, _MetadataRecord],
+) -> dict[str, Any]:
+    """Compact section descriptor used in batch LLM catalogs.
+
+    Includes heading_path / summary / search_keys / identifiers / short snippet
+    / source_document_id (per Phase D plan rule 4) so the LLM can classify
+    relation type without needing the full section text.
+    """
+
+    metadata = _metadata_for(record, metadata_by_id)
+    return {
+        "heading_path": record.heading_path,
+        "summary": metadata.summary,
+        "search_keys": metadata.search_keys[:8],
+        "identifiers": metadata.identifiers[:8],
+        "short_snippet": _short_text(record.text, 160),
+        "source_document_id": record.source_document_id,
+    }
+
+
+def _build_batch_selection_request(
+    sources: Sequence[_SectionRecord],
+    candidates_by_source: Mapping[str, Sequence[Mapping[str, Any]]],
+    records_by_id: Mapping[str, _SectionRecord],
+    metadata_by_id: Mapping[str, _MetadataRecord],
+    *,
+    prompt_version: str,
+    model: str,
+    effort: str | None,
+    metadata_version: int,
+    limits: LimitsConfig,
+) -> LlmRequest:
+    """Build a single LLM request that classifies multiple source sections at once.
+
+    The catalog dedupes section descriptors so each section's heading / summary
+    / keys appear at most once per call (Phase D plan eliminates the per-source
+    payload duplication that produced ~33x repeats in the previous design).
+    """
+
+    involved_ids: set[str] = set()
+    evaluations: list[dict[str, Any]] = []
+    for source in sources:
+        source_id = source.source_section_id
+        involved_ids.add(source_id)
+        candidate_payload: list[dict[str, Any]] = []
+        for candidate in candidates_by_source.get(source_id, []):
+            target_id = str(candidate.get("target_section_id", ""))
+            if not target_id or target_id not in records_by_id:
+                continue
+            involved_ids.add(target_id)
+            candidate_payload.append(
+                {
+                    "target_section_id": target_id,
+                    "channels": list(candidate.get("channels", [])),
+                    "candidate_score": float(candidate.get("candidate_score", 0.0) or 0.0),
+                    "evidence_terms": list(candidate.get("evidence_terms", [])),
+                }
+            )
+        evaluations.append(
+            {
+                "source_section_id": source_id,
+                "candidates": candidate_payload,
+            }
+        )
+
+    catalog = {
+        section_id: _catalog_entry(records_by_id[section_id], metadata_by_id)
+        for section_id in sorted(involved_ids)
+        if section_id in records_by_id
+    }
+
+    payload = {
+        "task": "related_section_selection_batch",
+        "artifact_role": RELATED_SECTIONS_ROLE,
+        "related_sections_are_evidence": False,
+        "instructions": [
+            "Each candidate has been pre-scored by deterministic signals "
+            "(markdown_link, shared_identifier, search_key_match, qdrant_section_hybrid).",
+            "Your task is to classify each candidate's relation_hint, confidence, "
+            "and reason. Reject only obviously unrelated candidates.",
+            "Do not search beyond the supplied candidates. Use only catalog entries.",
+            "Set possible_conflict=true when both sections show conflicting "
+            "requirement vs prohibition vs optional language. The Conflict Review "
+            "pipeline will independently verify before any conflict is finalized; "
+            "do not output relation_hint=conflicts_with from this stage.",
+        ],
+        "boundary": {
+            "must_choose_from_candidate_target_section_ids_per_source": True,
+            "do_not_search_full_text_outside_candidates": True,
+            "use_only_catalog_for_section_descriptors": True,
+        },
+        "return_shape": {
+            "sections": [
+                {
+                    "source_section_id": "string (one of the evaluation source ids)",
+                    "related_sections": [
+                        {
+                            "target_section_id": "string",
+                            "relation_hint": sorted(ALLOWED_RELATION_HINTS),
+                            "confidence": sorted(ALLOWED_CONFIDENCE),
+                            "reason": "string",
+                            "evidence_terms": ["string"],
+                            "channels": list(MVP_CANDIDATE_CHANNELS),
+                            "possible_conflict": "boolean",
+                        },
+                    ],
+                },
+            ],
+        },
+        "limits": {
+            "related_selected_max_per_section": limits.related_selected_max_per_section,
+            "batch_size": len(sources),
+        },
+        "catalog": catalog,
+        "evaluations": evaluations,
+    }
+
+    prompt = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    section_hashes = {
+        section_id: records_by_id[section_id].source_hash
+        for section_id in involved_ids
+        if section_id in records_by_id
+    }
+    source_hash = _sha256_text(
+        _stable_json(
+            {
+                "batch_source_ids": [source.source_section_id for source in sources],
+                "candidate_pairs": [
+                    [
+                        evaluation["source_section_id"],
+                        candidate.get("target_section_id"),
+                        candidate.get("candidate_score"),
+                        candidate.get("channels"),
+                    ]
+                    for evaluation in evaluations
+                    for candidate in evaluation["candidates"]
+                ],
+                "prompt_version": prompt_version,
+            },
+        ),
+    )
+    semantic_hash = _sha256_text(
+        _stable_json(
+            {
+                "section_semantic_hashes": {
+                    section_id: records_by_id[section_id].semantic_hash
+                    for section_id in sorted(involved_ids)
+                    if section_id in records_by_id
+                },
+            },
+        ),
+    )
+    primary_section_id = sources[0].source_section_id if sources else ""
+    return LlmRequest(
+        task=RELATED_SECTIONS_STAGE,
+        stage=RELATED_SECTIONS_STAGE,
+        prompt=prompt,
+        prompt_version=prompt_version,
+        model=model,
+        source_hash=source_hash,
+        semantic_hash=semantic_hash,
+        section_id=primary_section_id,
+        metadata_version=metadata_version,
+        effort=effort,
+        section_hashes=section_hashes,
+        context_hashes={
+            "artifact_role": _sha256_text(RELATED_SECTIONS_ROLE),
+            "candidate_channels": _sha256_text("|".join(MVP_CANDIDATE_CHANNELS)),
+            "batch_format": _sha256_text("related_section_selection_batch"),
+        },
+    )
+
+
+def _batch_related_items_from_output(
+    output: Mapping[str, Any],
+    sources: Sequence[_SectionRecord],
+) -> dict[str, list[Any]]:
+    """Extract per-source related_sections lists from a batch LLM output."""
+
+    result: dict[str, list[Any]] = {}
+    related = output.get("related_sections")
+    if isinstance(related, Mapping):
+        for source in sources:
+            source_id = source.source_section_id
+            items = related.get(source_id)
+            if isinstance(items, Sequence) and not isinstance(items, (str, bytes)):
+                result[source_id] = list(items)
+            else:
+                result[source_id] = []
+        return result
+    sections = output.get("sections")
+    if isinstance(sections, Sequence) and not isinstance(sections, (str, bytes)):
+        items_by_source: dict[str, list[Any]] = {}
+        for entry in sections:
+            if not isinstance(entry, Mapping):
+                continue
+            source_id = entry.get("source_section_id") or entry.get("section_id")
+            entry_items = entry.get("related_sections")
+            if isinstance(source_id, str) and isinstance(entry_items, Sequence) and not isinstance(entry_items, (str, bytes)):
+                items_by_source[source_id] = list(entry_items)
+        for source in sources:
+            result[source.source_section_id] = items_by_source.get(source.source_section_id, [])
+        return result
+    if isinstance(related, Sequence) and not isinstance(related, (str, bytes)):
+        if len(sources) == 1:
+            result[sources[0].source_section_id] = list(related)
+            return result
+    for source in sources:
+        result.setdefault(source.source_section_id, [])
+    return result
 
 
 def _related_items_from_output(
@@ -1777,19 +2251,6 @@ def _fallback_summary(record: _SectionRecord) -> str:
     return heading or first_line
 
 
-def _summary_tokens(
-    record: _SectionRecord,
-    metadata_by_id: Mapping[str, _MetadataRecord],
-) -> set[str]:
-    metadata = _metadata_for(record, metadata_by_id)
-    text = " ".join([metadata.summary, *record.heading_path])
-    return {
-        token
-        for token in (_normalize_key(match.group(0)) for match in _TOKEN_RE.finditer(text))
-        if len(token) >= 2 and token not in _STOP_WORDS
-    }
-
-
 def _inverted_terms(values_by_section: Mapping[str, Sequence[str]]) -> dict[str, list[str]]:
     index: dict[str, list[str]] = {}
     for section_id, values in values_by_section.items():
@@ -1899,6 +2360,10 @@ def _limits(value: Any | None) -> LimitsConfig:
         llm_batch_max_chars=max(
             1,
             int(_config_value(value, "llm_batch_max_chars", 12000)),
+        ),
+        llm_batch_concurrency=max(
+            1,
+            int(_config_value(value, "llm_batch_concurrency", 1)),
         ),
     )
 
@@ -2037,15 +2502,12 @@ __all__ = [
     "RelatedSectionsGeneration",
     "apply_related_sections_to_metadata",
     "build_related_section_candidates",
-    "compute_related_section_reevaluation_targets",
     "compute_related_sections_reevaluation_targets",
     "generate_related_section_candidates",
     "generate_related_section_candidates_result",
     "generate_related_sections",
     "generate_related_sections_result",
-    "incremental_related_section_targets",
     "related_section_reevaluation_targets",
-    "related_sections_incremental_targets",
     "select_related_sections",
     "select_related_sections_result",
     "validate_related_sections",

@@ -20,8 +20,10 @@ from spec_grag.llm_provider import (
     LlmRequest,
     RealLlmProviderDisabledError,
     SubprocessLlmProvider,
+    build_spec_core_llm_provider,
     generate_with_cache,
     generate_with_retries,
+    select_llm_provider_config,
     summarize_generation_results,
 )
 
@@ -58,10 +60,6 @@ def _request(
         semantic_hash=semantic_hash,
         section_id="section-a",
     )
-
-
-def _real_smoke_enabled() -> bool:
-    return os.environ.get("SPEC_GRAG_REAL_SMOKE") == "1"
 
 
 def test_t_u26_fake_provider_returns_deterministic_structured_response() -> None:
@@ -135,7 +133,7 @@ def test_t_u26_timeout_returns_structured_failure_diagnostics() -> None:
 
 
 @pytest.mark.parametrize("command", (["codex"], ["claude"]))
-def test_t_u26_real_provider_does_not_call_subprocess_without_opt_in(
+def test_t_u26_real_provider_can_be_explicitly_disabled_by_tests(
     monkeypatch: pytest.MonkeyPatch,
     command: list[str],
 ) -> None:
@@ -153,6 +151,22 @@ def test_t_u26_real_provider_does_not_call_subprocess_without_opt_in(
         provider.generate(_request(), timeout_sec=1)
 
     assert called is False
+
+
+def test_t_u26_configured_real_provider_is_enabled_by_default() -> None:
+    from spec_grag.llm_provider import build_spec_core_llm_provider
+
+    provider = build_spec_core_llm_provider(
+        {
+            "provider": "codex_cli",
+            "command": "codex",
+            "model": "real-smoke",
+            "effort": "low",
+        }
+    )
+
+    assert getattr(provider, "provider_id") == "codex_cli"
+    assert getattr(provider, "real_provider_enabled") is True
 
 
 def test_t_u26_codex_provider_uses_noninteractive_exec(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -293,12 +307,9 @@ def test_t_u26_claude_provider_uses_print_and_structured_output(
     assert calls[0]["kwargs"]["input"] is None
 
 
-@pytest.mark.skipif(
-    not _real_smoke_enabled(),
-    reason="real provider smoke requires SPEC_GRAG_REAL_SMOKE=1",
-)
-def test_t_u26_real_provider_smoke_is_opt_in() -> None:
-    command_name = os.environ.get("SPEC_GRAG_REAL_SMOKE_COMMAND", "codex")
+@pytest.mark.external
+def test_t_u26_real_provider_uses_configured_agent_cli() -> None:
+    command_name = os.environ.get("SPEC_GRAG_REAL_PROVIDER_COMMAND", "codex")
     executable = shutil.which(command_name)
     if executable is None:
         pytest.skip(f"{command_name} is not installed on PATH")
@@ -306,9 +317,9 @@ def test_t_u26_real_provider_smoke_is_opt_in() -> None:
     provider = SubprocessLlmProvider([executable], real_smoke_enabled=True)
     result = generate_with_retries(
         provider,
-        _request(model=os.environ.get("SPEC_GRAG_REAL_SMOKE_MODEL", "real-smoke")),
+        _request(model=os.environ.get("SPEC_GRAG_REAL_PROVIDER_MODEL", "real-smoke")),
         required_fields=("summary", "search_keys"),
-        timeout_sec=int(os.environ.get("SPEC_GRAG_REAL_SMOKE_TIMEOUT_SEC", "5")),
+        timeout_sec=int(os.environ.get("SPEC_GRAG_REAL_PROVIDER_TIMEOUT_SEC", "120")),
         max_retries=0,
     )
 
@@ -403,6 +414,68 @@ def test_t_u26_llm_config_scope_is_spec_core_only() -> None:
         assert "[llm]" in message
         assert "/spec-core" in message
         assert "Agent" in message
+
+
+def test_t_u26_multi_llm_config_selects_explicit_agent_provider() -> None:
+    config = {
+        "default_provider": "codex",
+        "fallback_order": ["codex", "claude"],
+        "providers": {
+            "codex": {
+                "provider": "codex_cli",
+                "command": "codex",
+                "model": "gpt-5.4-mini",
+            },
+            "claude": {"provider": "claude_cli", "command": "claude"},
+        },
+    }
+
+    selected = select_llm_provider_config(config, provider_id="claude")
+    provider = build_spec_core_llm_provider(
+        config,
+        provider_id="claude",
+        real_smoke_enabled=True,
+    )
+
+    assert selected["provider"] == "claude_cli"
+    assert getattr(provider, "provider_id") == "claude_cli"
+    assert getattr(provider, "command") == ["claude"]
+
+
+def test_t_u26_multi_llm_config_uses_default_or_env_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = {
+        "default_provider": "codex",
+        "fallback_order": ["codex", "claude"],
+        "providers": {
+            "codex": {"provider": "codex_cli", "command": "codex"},
+            "claude": {"provider": "claude_cli", "command": "claude"},
+        },
+    }
+
+    assert select_llm_provider_config(config)["provider"] == "codex_cli"
+    monkeypatch.setenv("SPEC_GRAG_LLM_PROVIDER", "claude")
+
+    assert select_llm_provider_config(config)["provider"] == "claude_cli"
+    with pytest.raises(Exception) as exc_info:
+        select_llm_provider_config(config, provider_id="missing")
+    assert "configured providers" in str(exc_info.value)
+
+
+def test_t_u26_max_retries_is_additional_attempt_count() -> None:
+    provider = FakeLlmProvider(mode="invalid")
+
+    result = generate_with_retries(
+        provider,
+        _request(),
+        required_fields=("summary",),
+        max_retries=1,
+    )
+
+    assert result.status == "failed"
+    assert provider.calls == 2
+    assert result.attempts == 2
 
 
 def test_t_i07_partial_llm_failure_is_degraded_and_total_failure_is_failed() -> None:

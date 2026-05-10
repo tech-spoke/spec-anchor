@@ -55,13 +55,35 @@ class ChapterAnchorConfig:
 
 
 @dataclass(frozen=True)
-class LlmConfig:
+class LlmProviderConfig:
+    name: str
     provider: str
     command: str | None = None
     model: str | None = None
     effort: str | None = None
     timeout_sec: int = 120
     max_retries: int = 1
+
+
+@dataclass(frozen=True)
+class LlmConfig:
+    # Compatibility view for the selected default provider. New configs should
+    # use default_provider + providers, but existing tests/projects may still
+    # read these fields directly.
+    provider: str
+    command: str | None = None
+    model: str | None = None
+    effort: str | None = None
+    timeout_sec: int = 120
+    max_retries: int = 1
+    default_provider: str | None = None
+    fallback_order: list[str] = field(default_factory=list)
+    providers: dict[str, LlmProviderConfig] = field(default_factory=dict)
+    # Phase H-2: per-stage provider routing. Maps SPEC-grag pipeline stages to
+    # provider names (keys of `providers`). Stages with no entry fall back to
+    # `default_provider`. Allowed stages: section_metadata, related_sections,
+    # conflict_review.
+    stage_routing: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -73,6 +95,12 @@ class LimitsConfig:
     conflict_pair_max_per_section: int = 8
     llm_batch_max_sections: int = 8
     llm_batch_max_chars: int = 12000
+    # Phase H follow-up: parallel LLM batch execution for section_metadata and
+    # related_sections. Default 1 = strictly sequential. Higher values reduce
+    # wall time for large corpora at the cost of subscription quota burn-down.
+    # Empirically Codex Plus tolerates ~4, Codex Pro 5x / Claude Max 5x tolerate
+    # 8-16. Tune per project.
+    llm_batch_concurrency: int = 1
 
 
 @dataclass(frozen=True)
@@ -82,6 +110,10 @@ class RetrievalConfig:
     dense_top_k: int = 12
     sparse_top_k: int = 20
     rank_fusion: str = "rrf"
+    section_collection: str = "spec_grag_section"
+    section_dense_threshold: float = 0.55
+    section_candidate_top_k: int = 16
+    section_final_top_n: int = 8
 
 
 @dataclass(frozen=True)
@@ -244,6 +276,15 @@ def _int(table: dict[str, Any], table_name: str, key: str, default: int) -> int:
     return value
 
 
+def _float(table: dict[str, Any], table_name: str, key: str, default: float) -> float:
+    if key not in table:
+        return default
+    value = table[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigError(f"{table_name}.{key} must be a number")
+    return float(value)
+
+
 def _relative_path(root: Path, table_name: str, key: str, value: str) -> Path:
     path = Path(value)
     if path.is_absolute():
@@ -352,6 +393,38 @@ def _load_chapter_anchor(raw_value: Any) -> ChapterAnchorConfig:
 
 
 def _load_llm(table: dict[str, Any]) -> LlmConfig:
+    providers_table = table.get("providers")
+    if providers_table is not None:
+        if not isinstance(providers_table, dict) or not providers_table:
+            raise ConfigError("llm.providers must be a non-empty table")
+        providers: dict[str, LlmProviderConfig] = {}
+        for name, value in providers_table.items():
+            if not isinstance(name, str) or not name:
+                raise ConfigError("llm.providers keys must be non-empty strings")
+            provider_table = _optional_table(value, f"llm.providers.{name}")
+            providers[name] = _load_llm_provider(name, provider_table)
+        fallback_order = _string_list(table, "llm", "fallback_order", [])
+        default_provider = _optional_str(table, "llm", "default_provider")
+        if default_provider is None:
+            default_provider = fallback_order[0] if fallback_order else next(iter(providers))
+        _require_known_llm_provider(default_provider, providers, "llm.default_provider")
+        for provider_name in fallback_order:
+            _require_known_llm_provider(provider_name, providers, "llm.fallback_order")
+        stage_routing = _load_stage_routing(table.get("stage_routing"), providers)
+        selected = providers[default_provider]
+        return LlmConfig(
+            provider=selected.provider,
+            command=selected.command,
+            model=selected.model,
+            effort=selected.effort,
+            timeout_sec=selected.timeout_sec,
+            max_retries=selected.max_retries,
+            default_provider=default_provider,
+            fallback_order=fallback_order,
+            providers=providers,
+            stage_routing=stage_routing,
+        )
+
     return LlmConfig(
         provider=_required_str(table, "llm", "provider"),
         command=_optional_str(table, "llm", "command"),
@@ -360,6 +433,73 @@ def _load_llm(table: dict[str, Any]) -> LlmConfig:
         timeout_sec=_int(table, "llm", "timeout_sec", 120),
         max_retries=_int(table, "llm", "max_retries", 1),
     )
+
+
+def _load_llm_provider(name: str, table: dict[str, Any]) -> LlmProviderConfig:
+    return LlmProviderConfig(
+        name=name,
+        provider=_required_str(table, f"llm.providers.{name}", "provider"),
+        command=_optional_str(table, f"llm.providers.{name}", "command"),
+        model=_optional_str(table, f"llm.providers.{name}", "model"),
+        effort=_optional_str(table, f"llm.providers.{name}", "effort"),
+        timeout_sec=_int(table, f"llm.providers.{name}", "timeout_sec", 120),
+        max_retries=_int(table, f"llm.providers.{name}", "max_retries", 1),
+    )
+
+
+_STAGE_ROUTING_ALLOWED_STAGES = frozenset(
+    {"section_metadata", "related_sections", "conflict_review"}
+)
+
+
+def _load_stage_routing(
+    raw: Any,
+    providers: dict[str, LlmProviderConfig],
+) -> dict[str, str]:
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ConfigError("llm.stage_routing must be a table mapping stage names to provider names")
+    routing: dict[str, str] = {}
+    for stage, provider_name in raw.items():
+        if not isinstance(stage, str) or not stage:
+            raise ConfigError("llm.stage_routing keys must be non-empty strings")
+        if stage not in _STAGE_ROUTING_ALLOWED_STAGES:
+            allowed = ", ".join(sorted(_STAGE_ROUTING_ALLOWED_STAGES))
+            raise ConfigError(
+                f"llm.stage_routing.{stage} is not an allowed stage. Allowed: {allowed}"
+            )
+        if not isinstance(provider_name, str) or not provider_name:
+            raise ConfigError(
+                f"llm.stage_routing.{stage} must be a non-empty provider name string"
+            )
+        _require_known_llm_provider(provider_name, providers, f"llm.stage_routing.{stage}")
+        routing[stage] = provider_name
+    return routing
+
+
+def _require_known_llm_provider(
+    provider_name: str,
+    providers: dict[str, LlmProviderConfig],
+    key: str,
+) -> None:
+    if provider_name not in providers:
+        known = ", ".join(sorted(providers))
+        raise ConfigError(f"{key} must reference a configured provider: {known}")
+
+
+def _string_list(
+    table: dict[str, Any],
+    table_name: str,
+    key: str,
+    default: list[str],
+) -> list[str]:
+    if key not in table:
+        return list(default)
+    value = table[key]
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise ConfigError(f"{table_name}.{key} must be a list of non-empty strings")
+    return list(value)
 
 
 def _load_limits(raw_value: Any) -> LimitsConfig:
@@ -387,6 +527,10 @@ def _load_limits(raw_value: Any) -> LimitsConfig:
         ),
         llm_batch_max_sections=_int(table, "limits", "llm_batch_max_sections", 8),
         llm_batch_max_chars=_int(table, "limits", "llm_batch_max_chars", 12000),
+        llm_batch_concurrency=max(
+            1,
+            _int(table, "limits", "llm_batch_concurrency", 1),
+        ),
     )
 
 
@@ -401,6 +545,11 @@ def _load_retrieval(raw_value: Any) -> RetrievalConfig:
         dense_top_k=_int(table, "retrieval", "dense_top_k", 12),
         sparse_top_k=_int(table, "retrieval", "sparse_top_k", 20),
         rank_fusion=rank_fusion,
+        section_collection=_optional_str(table, "retrieval", "section_collection")
+        or "spec_grag_section",
+        section_dense_threshold=_float(table, "retrieval", "section_dense_threshold", 0.55),
+        section_candidate_top_k=_int(table, "retrieval", "section_candidate_top_k", 16),
+        section_final_top_n=_int(table, "retrieval", "section_final_top_n", 8),
     )
 
 

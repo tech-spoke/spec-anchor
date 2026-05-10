@@ -12,7 +12,9 @@ license = { text = "Proprietary" }
 authors = [
   { name = "SPEC-grag contributors" }
 ]
-dependencies = []
+dependencies = [
+  "markdown-it-py>=3,<5",
+]
 
 [project.optional-dependencies]
 test = [
@@ -36,7 +38,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 spec_grag = [
-  "templates/.codex/commands/*.md",
+  "templates/.codex/skills/spec-grag/*.md",
   "templates/.claude/commands/*.md",
   "templates/.spec-grag/config.toml",
   "templates/.spec-grag/.gitignore",
@@ -45,3 +47,6 @@ spec_grag = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+  "external: test requires external dependencies such as Agent CLI, Qdrant, FlagEmbedding BGE-M3, or native service readiness checks",
+]
