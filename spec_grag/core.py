@@ -1187,6 +1187,26 @@ def _build_retrieval_index_revision(
         return artifact
 
 
+def _section_collection_exists(url: str, collection: str) -> bool:
+    """Return True when the Qdrant section-level collection already exists.
+
+    Used by Phase R-3 follow-up logic to decide whether the section-level
+    upsert needs `recreate=True`. A failure to query Qdrant (network
+    error, 404 service down) returns False so the caller falls back to
+    creating the collection.
+    """
+
+    try:
+        from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    except ImportError:
+        return False
+    try:
+        client = QdrantClient(url)
+        return bool(client.collection_exists(collection_name=collection))
+    except Exception:
+        return False
+
+
 def _upsert_section_collection_if_enabled(
     *,
     config: Mapping[str, Any],
@@ -1221,14 +1241,25 @@ def _upsert_section_collection_if_enabled(
             "summary": entry.get("summary"),
             "search_keys": entry.get("search_keys") or [],
             "identifiers": entry.get("identifiers") or [],
+            "related_sections": entry.get("related_sections") or [],
         }
+    # Phase R-3 follow-up: when the spec_grag_section collection has not
+    # been created yet (first run that exercises section-level retrieval,
+    # or the operator deleted it manually), the incremental upsert path
+    # used to fail silently. Force `recreate=True` in that case so the
+    # collection is materialized on first encounter and downstream R-3
+    # `set_payload` (related_sections) can land successfully. Existing
+    # collections still respect the explicit `force_full_recreate` flag.
+    recreate = bool(force_full_recreate) or not _section_collection_exists(
+        url, section_collection
+    )
     try:
         retrieval_index_api.upsert_qdrant_section_collection(
             sections,
             metadata_by_id,
             url=url,
             collection=section_collection,
-            recreate=bool(force_full_recreate),
+            recreate=recreate,
             generated_at=str(section_metadata.get("generated_at") or ""),
         )
     except Exception:

@@ -356,6 +356,35 @@ evidence_origin: `Conflict Review Item`
   - 実装: spec_grag/section_metadata.py:93 (`_SEARCH_KEY_IDENTIFIER_REGEXES`)、spec_grag/section_metadata.py:120 (`_is_identifier_like_search_key`)、spec_grag/section_metadata.py:1147 (`_search_keys` で deduped 後に filter 適用、また `keys.extend(identifiers)` の重複混入を撤去)
   - 検証: tests/test_section_metadata_generation.py::test_search_keys_and_identifiers_are_disjoint (`bindContext` / `productStoreGroup.replace` / `--rebuild` / `/spec-core` / `BINDING_KEY` / `PascalName` / `config.toml` を drop し、`context registration` / `freshness gate` を保持することを assert)
 
+### 7.2.2 Phase R-7 実 codex 検証で発見した問題と対処
+
+`spec-grag core --all` を実 codex provider (gpt-5.4-mini, low effort) で再実行 (2026-05-11 04:35 JST 頃) し、生成された `.spec-grag/context/chapter_anchors.json` を確認したところ、`generation.fallback_chapter_ids` に全 4 chapter が含まれ、機械集約 fallback 経路を踏んでいた。
+
+原因: `spec_grag/llm_provider.py:_spec_core_output_schema` が `chapter_key_anchor` stage を未認識で、section_metadata 用の `{summary, search_keys}` 形 schema を codex に渡していた。codex は schema に従い section 形式で出力するため、`spec_grag.chapter_anchors._anchor_from_llm_output` が `summary` を見つけられず (出力に `key_topics` / `important_sections` / `notes` が欠落)、毎 chapter で mechanical fallback に降格していた。
+
+対処:
+
+1. `spec_grag/llm_provider.py` に `_chapter_key_anchor_output_schema` を追加し、`_spec_core_output_schema` の dispatch で `chapter_key_anchor` stage を分岐 (`summary` / `key_topics[]` / `important_sections[]` / `notes[]` を required にした schema を返す)
+2. `spec_grag/chapter_anchors.py` の `generate_with_retries` 呼び出しで `required_fields=("summary", "key_topics", "important_sections", "notes")` を明示し、検証エラー時に diagnostic を残すよう変更
+3. tests/test_chapter_anchors.py::test_chapter_key_anchor_output_schema_includes_required_fields で schema 内容を assert
+
+残: 修正後の再 run で実 codex から本物の summary / key_topics / important_sections / notes が返ることを実測検証する step (運用環境で再 `spec-grag core --all` を回す必要)
+
+### 7.2.3 Phase R-3 follow-up: section collection 初期化の silent failure
+
+同じ実 codex 検証で、`spec_grag_section` Qdrant collection が **そもそも存在していない** (Qdrant /collections に `spec_grag_source` だけがある) ことを発見。`_upsert_section_collection_if_enabled` は `force_full_recreate=False`(`--all` 経路の default) で `client.upsert(spec_grag_section, ...)` を試み、collection 不在で 404 → `except Exception: return` で silent fail していた。`--rebuild` を使った時だけ `recreate=True` で collection が作られていた。
+
+原因: Phase R-3 で `build_section_payloads` に `related_sections` を含める変更を入れたが、上流の「collection の初回生成」 path が `--rebuild` 限定だったため、`--all` だけを回している環境では section collection そのものが空のままだった。R-3 / R-6 の inject CLI は section collection 前提のため、これは末端機能の動作不能を招く。
+
+対処:
+
+1. `spec_grag/core.py` に `_section_collection_exists(url, collection)` helper を追加 (`qdrant_client.QdrantClient.collection_exists`)
+2. `_upsert_section_collection_if_enabled` 内で `recreate = bool(force_full_recreate) or not _section_collection_exists(url, section_collection)` に変更し、未存在時は自動 recreate
+3. 同 helper の metadata_by_id 構築に `related_sections` を追加 (R-3 と整合)
+4. tests/test_chunk_level_disabled.py に `_section_collection_exists` の 3 tests (unreachable / missing / present) を追加
+
+残: 修正後の再 run で `spec_grag_section` collection が `--all` 実行のみで作成されること、related_sections が set_payload で書き込まれることを実測検証する step
+
 ### 7.2.1 Phase R-5 実施で発見した問題と対処
 
 実 codex / claude subprocess を立ち上げる smoke test (`tests/test_agent_cli_smoke.py::test_t_a02_real_setup_core_inject_realign_watch_roundtrip_with_agent_entrypoints`) で、tests/conftest.py の `_enable_chunk_level_for_tests` autouse hook が **subprocess に届かない**ため、`spec-grag core --all` 実行後の `client.count(collection)` assertion が `Collection ... doesn't exist` で失敗した。

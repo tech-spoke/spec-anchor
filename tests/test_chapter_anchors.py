@@ -305,6 +305,34 @@ def test_chapter_anchors_cache_path_matches_phase_r7_layout(tmp_path: Path) -> N
     assert path == tmp_path / "cache" / "chapter_anchors" / f"{key}.json"
 
 
+def test_chapter_key_anchor_output_schema_includes_required_fields() -> None:
+    """Phase R-7 followup: codex receives the chapter-shaped schema, not the
+    section_metadata one.
+
+    The bug found during real-codex verification was: codex was given the
+    default `_spec_core_output_schema` (which requires `summary` +
+    `search_keys`) for the `chapter_key_anchor` stage. The LLM returned a
+    section-shaped object, `_anchor_from_llm_output` rejected the
+    `key_topics`/`important_sections`/`notes` absence, and every chapter
+    fell back to the mechanical aggregator. Verify the schema now reflects
+    Phase R-7 contract.
+    """
+
+    from spec_grag.llm_provider import _chapter_key_anchor_output_schema
+
+    schema = _chapter_key_anchor_output_schema()
+
+    assert set(schema["required"]) == {
+        "summary",
+        "key_topics",
+        "important_sections",
+        "notes",
+    }
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["summary"] == {"type": "string"}
+    assert schema["properties"]["key_topics"]["items"] == {"type": "string"}
+
+
 def test_generate_chapter_anchors_handles_empty_input() -> None:
     result = generate_chapter_anchors(
         [],

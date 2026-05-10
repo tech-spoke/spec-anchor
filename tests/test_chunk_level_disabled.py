@@ -114,6 +114,73 @@ def test_chunk_level_disabled_retrieval_index_revision_stub_shape() -> None:
     assert "spec_grag_section" in stub["diagnostics"]["message"]
 
 
+def test_section_collection_exists_returns_false_when_qdrant_unreachable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase R-3 follow-up: gate must tolerate Qdrant being unreachable."""
+
+    import spec_grag.core as core_module
+
+    def _explode(*args: Any, **kwargs: Any) -> Any:
+        raise ConnectionError("simulated Qdrant outage")
+
+    # Monkey-patch the QdrantClient import path so the helper hits the
+    # exception branch.
+    import qdrant_client
+
+    monkeypatch.setattr(qdrant_client, "QdrantClient", _explode)
+
+    assert core_module._section_collection_exists(
+        "http://localhost:6333", "spec_grag_section"
+    ) is False
+
+
+def test_section_collection_exists_returns_false_when_collection_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase R-3 follow-up: helper returns False when Qdrant says missing."""
+
+    import spec_grag.core as core_module
+
+    class _StubClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        def collection_exists(self, *, collection_name: str) -> bool:
+            return False
+
+    import qdrant_client
+
+    monkeypatch.setattr(qdrant_client, "QdrantClient", _StubClient)
+
+    assert core_module._section_collection_exists(
+        "http://localhost:6333", "spec_grag_section"
+    ) is False
+
+
+def test_section_collection_exists_returns_true_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase R-3 follow-up: helper returns True when Qdrant has the collection."""
+
+    import spec_grag.core as core_module
+
+    class _StubClient:
+        def __init__(self, url: str) -> None:
+            self.url = url
+
+        def collection_exists(self, *, collection_name: str) -> bool:
+            return collection_name == "spec_grag_section"
+
+    import qdrant_client
+
+    monkeypatch.setattr(qdrant_client, "QdrantClient", _StubClient)
+
+    assert core_module._section_collection_exists(
+        "http://localhost:6333", "spec_grag_section"
+    ) is True
+
+
 def test_chunk_level_disabled_does_not_call_chunk_helpers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

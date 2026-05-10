@@ -515,6 +515,8 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
 def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
     if request.stage == "related_section_selection":
         return _related_section_selection_output_schema()
+    if request.stage == "chapter_key_anchor":
+        return _chapter_key_anchor_output_schema()
     section_hashes = request.section_hashes
     is_batch = len(section_hashes) > 1
     section_item_schema = {
@@ -543,6 +545,32 @@ def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
             "search_keys": {"type": "array", "items": {"type": "string"}},
         },
         "required": ["summary", "search_keys"],
+        "additionalProperties": False,
+    }
+
+
+def _chapter_key_anchor_output_schema() -> dict[str, Any]:
+    """JSON schema for the chapter_key_anchor LLM stage (Phase R-7).
+
+    The chapter anchor structure differs from the section_metadata
+    schema: the LLM emits a chapter-level `summary` plus `key_topics`,
+    `important_sections`, and `notes` aligned with
+    `doc/EXTERNAL_DESIGN.ja.md` §2.9. Without this dedicated schema the
+    codex provider would receive the section_metadata schema (with
+    `search_keys`) and produce output that
+    `spec_grag.chapter_anchors._anchor_from_llm_output` rejects, forcing
+    every chapter through the mechanical fallback path.
+    """
+
+    return {
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string"},
+            "key_topics": {"type": "array", "items": {"type": "string"}},
+            "important_sections": {"type": "array", "items": {"type": "string"}},
+            "notes": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["summary", "key_topics", "important_sections", "notes"],
         "additionalProperties": False,
     }
 

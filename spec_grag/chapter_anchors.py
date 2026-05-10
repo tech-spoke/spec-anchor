@@ -224,7 +224,7 @@ def generate_chapter_anchors(
         result = generate_with_retries(
             provider,
             request,
-            required_fields=(),
+            required_fields=("summary", "key_topics", "important_sections", "notes"),
             field_schema={
                 "summary": "string",
                 "key_topics": "list[string]",
