@@ -556,8 +556,20 @@ def _run_spec_core_unlocked(
         }
     }
 
+    section_manifest_audit_by_id = _section_manifest_audit_by_id(
+        metadata_entries,
+        generated_at=generated_at,
+    )
     section_manifest = {
-        "sections": [_section_manifest_entry(section) for section in sections],
+        "sections": [
+            _section_manifest_entry(
+                section,
+                audit=section_manifest_audit_by_id.get(
+                    str(section.get("section_id") or section.get("source_section_id") or ""),
+                ),
+            )
+            for section in sections
+        ],
         "purpose_hash": purpose_hash,
         "concept_hash": concept_hash,
         "generated_at": generated_at,
@@ -2289,8 +2301,56 @@ def _chapter_anchors(sections: Sequence[Mapping[str, Any]], metadata: Sequence[M
     return {"status": "success", "chapters": chapters, "generated_at": generated_at}
 
 
-def _section_manifest_entry(section: Mapping[str, Any]) -> dict[str, Any]:
-    return {
+def _section_manifest_audit_by_id(
+    metadata_entries: Sequence[Mapping[str, Any]],
+    *,
+    generated_at: str | None,
+) -> dict[str, dict[str, Any]]:
+    """Collect per-section audit fields for `section_manifest.json`.
+
+    Phase R-4 (`doc/STORAGE_REDESIGN.ja.md` §7.4) sources the audit data
+    (`llm_provider`, `llm_generation_status`, `last_prompt_version`,
+    `generated_at`) from the freshly built `metadata_entries`. The
+    section_metadata.json artifact still carries the same fields until
+    Phase R-5 removes the JSON, so this helper just lifts the values into
+    the manifest shape without rewriting the metadata entries.
+    """
+
+    audit_by_id: dict[str, dict[str, Any]] = {}
+    for entry in metadata_entries:
+        if not isinstance(entry, Mapping):
+            continue
+        section_id = str(
+            entry.get("section_id") or entry.get("source_section_id") or ""
+        )
+        if not section_id:
+            continue
+        audit_by_id[section_id] = {
+            "llm_provider": entry.get("llm_provider"),
+            "llm_generation_status": entry.get("llm_generation_status"),
+            "last_prompt_version": entry.get("prompt_version"),
+            "generated_at": entry.get("generated_at") or generated_at,
+        }
+    return audit_by_id
+
+
+def _section_manifest_entry(
+    section: Mapping[str, Any],
+    *,
+    audit: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return one `section_manifest.json` entry.
+
+    Phase R-4 (`doc/STORAGE_REDESIGN.ja.md` §7.4) adds per-section audit
+    metadata (`llm_provider`, `llm_generation_status`, `last_prompt_version`,
+    `generated_at`) here so the manifest can carry the data that used to
+    live inside section_metadata.json. The same fields remain on
+    section_metadata entries for backward compat until Phase R-5 retires
+    the JSON. `audit` is optional so callers that build a manifest before
+    LLM generation (or in tests) still produce a valid entry.
+    """
+
+    entry: dict[str, Any] = {
         key: section[key]
         for key in (
             "section_id",
@@ -2304,6 +2364,16 @@ def _section_manifest_entry(section: Mapping[str, Any]) -> dict[str, Any]:
             "source_span",
         )
     }
+    if audit:
+        for key in (
+            "llm_provider",
+            "llm_generation_status",
+            "last_prompt_version",
+            "generated_at",
+        ):
+            if key in audit:
+                entry[key] = audit[key]
+    return entry
 
 
 def _source_chunk(section: Mapping[str, Any]) -> dict[str, Any]:
