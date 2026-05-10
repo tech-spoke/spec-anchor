@@ -368,7 +368,7 @@ evidence_origin: `Conflict Review Item`
 2. `spec_grag/chapter_anchors.py` の `generate_with_retries` 呼び出しで `required_fields=("summary", "key_topics", "important_sections", "notes")` を明示し、検証エラー時に diagnostic を残すよう変更
 3. tests/test_chapter_anchors.py::test_chapter_key_anchor_output_schema_includes_required_fields で schema 内容を assert
 
-残: 修正後の再 run で実 codex から本物の summary / key_topics / important_sections / notes が返ることを実測検証する step (運用環境で再 `spec-grag core --all` を回す必要)
+修正後 (実 LLM 検証完了): 2026-05-11 04:40 UTC+9 頃に spec-grag リポジトリで `spec-grag core --all` を再実行。`chapter_anchors.json.generation.fallback_chapter_ids` が `[]` になり (4/4 → 0/4)、各 chapter に LLM 生成の自然言語 `summary` (例: 25 章 "This chapter defines the component placement layer for editing slot composition, ..."), 6 件の `key_topics` (例: "component placement editing", "slot-based arrangement changes"), 3 件の substantive `notes` (例: "Treat missing component ids as errors, including remove operations") が入ることを確認。`provider: codex_cli` / `model: gpt-5.4-mini`
 
 ### 7.2.3 Phase R-3 follow-up: section collection 初期化の silent failure
 
@@ -383,7 +383,7 @@ evidence_origin: `Conflict Review Item`
 3. 同 helper の metadata_by_id 構築に `related_sections` を追加 (R-3 と整合)
 4. tests/test_chunk_level_disabled.py に `_section_collection_exists` の 3 tests (unreachable / missing / present) を追加
 
-残: 修正後の再 run で `spec_grag_section` collection が `--all` 実行のみで作成されること、related_sections が set_payload で書き込まれることを実測検証する step
+修正後 (実 LLM 検証完了): 2026-05-11 04:40 UTC+9 頃の再 run で `spec_grag_section` collection が `--all` のみで作成 (`curl http://localhost:6333/collections` で確認、collection が事前削除されていた状態から自動 recreate)、50 sections 全てに `related_sections` が payload に書き込まれた (`spec_grag_section` 内 50/50 points が related_sections を保持、合計 328 edges)。section_metadata.json 側も同 50 sections が related_sections を持つ。sample edge: `25_コンポーネント層（配置操作）.md#0001` → `#0002` (`depends_on` / `high` confidence)
 
 ### 7.2.1 Phase R-5 実施で発見した問題と対処
 
