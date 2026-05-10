@@ -43,6 +43,96 @@ FORBID_TERMS = ("forbids", "forbidden", "must not", "cannot", "prohibited", "sho
 OPTIONAL_TERMS = ("optional", "任意")
 CONFLICT_CANDIDATE_CHANNELS = {"markdown_link", "shared_identifier", "search_key_match"}
 
+# Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4): chunk-level retrieval is the
+# legacy path. Case C-1 keeps only the section-level Qdrant collection
+# (`spec_grag_section`). The chunk-level routines in
+# `spec_grag/retrieval_index.py` (`build_source_chunks`,
+# `build_source_chunks_artifact`, `compute_chunk_diff`,
+# `upsert_qdrant_bge_m3_index_incremental`, `_qdrant_upsert_with_partial_dispatch`)
+# remain in the codebase as commented-out / dormant utilities so they can be
+# re-enabled or referenced during the transition. Production callers gate
+# every chunk-level entry point behind this constant. Tests that exercise
+# the dormant code path monkeypatch the constant to True or stub the
+# upsert/diff helpers directly.
+CHUNK_LEVEL_ENABLED: bool = False
+
+
+def _chunk_level_enabled(config: Mapping[str, Any] | None = None) -> bool:
+    """Return True when the chunk-level retrieval path should run.
+
+    Phase R-5 disables this path by default (case C-1). The default is
+    sourced from `CHUNK_LEVEL_ENABLED`; callers can pass a project
+    config to look up `[vector_store].chunk_level_enabled = true` as
+    an explicit opt-in. Test fixtures use the config override to keep
+    exercising the dormant code path while it stays in the repository.
+    """
+
+    if config is not None:
+        override = _config_get(config, ("vector_store", "chunk_level_enabled"), None)
+        if isinstance(override, bool):
+            return override
+    return bool(CHUNK_LEVEL_ENABLED)
+
+
+def _chunk_level_disabled_artifact_source_chunks(generated_at: str) -> dict[str, Any]:
+    """Stub `source_chunks` artifact written while chunk-level is disabled.
+
+    Keeps the artifact filename present so freshness gate / store layout
+    expectations don't fail, but the body declares the disabled state and
+    holds no chunk bodies. Phase R-6 inject CLI and watcher consumers read
+    `status == "disabled"` and skip chunk-level lookups.
+    """
+
+    return {
+        "artifact_version": 1,
+        "artifact_revision": "chunk-level-disabled",
+        "status": "disabled",
+        "chunks": [],
+        "chunking": {"enabled": False, "phase": "R-5"},
+        "diagnostics": {
+            "phase_r5": True,
+            "message": (
+                "chunk-level retrieval is disabled per Phase R-5 "
+                "(doc/STORAGE_REDESIGN.ja.md §7.4 / case C-1). "
+                "Section-level retrieval via spec_grag_section is the "
+                "single source of truth."
+            ),
+        },
+        "generated_at": generated_at,
+    }
+
+
+def _chunk_level_disabled_artifact_retrieval_index_revision(
+    config: Mapping[str, Any],
+    generated_at: str,
+) -> dict[str, Any]:
+    """Stub `retrieval_index_revision` artifact while chunk-level is disabled."""
+
+    return {
+        "artifact_version": 1,
+        "artifact_revision": "chunk-level-disabled",
+        "status": "disabled",
+        "collection_revision": "chunk-level-disabled",
+        "embedding": {
+            "provider": str(_config_get(config, ("embedding", "provider"), "")),
+            "model": str(_config_get(config, ("embedding", "model"), "")),
+        },
+        "vector_store": {
+            "provider": str(_config_get(config, ("vector_store", "provider"), "")),
+            "collection": str(_config_get(config, ("vector_store", "collection"), "")),
+        },
+        "diagnostics": {
+            "phase_r5": True,
+            "message": (
+                "chunk-level Qdrant upsert is disabled per Phase R-5 "
+                "(doc/STORAGE_REDESIGN.ja.md §7.4 / case C-1). The "
+                "spec_grag_section collection (set elsewhere) is the "
+                "live retrieval surface."
+            ),
+        },
+        "generated_at": generated_at,
+    }
+
 
 def run_spec_core(
     project_root: str | Path = ".",
@@ -575,33 +665,50 @@ def _run_spec_core_unlocked(
         "generated_at": generated_at,
     }
     chapter_anchors = _chapter_anchors(sections, metadata_entries, generated_at)
-    retrieval_chunks = retrieval_index_api.build_source_chunks(
-        sections,
-        retrieval_config=_config_get(config, ("retrieval",), {}),
-    )
-    source_chunks = retrieval_index_api.build_source_chunks_artifact(
-        retrieval_chunks,
-        chunk_size=_config_get(config, ("retrieval", "chunk_size"), 1200),
-        chunk_overlap=_config_get(config, ("retrieval", "chunk_overlap"), 160),
-    )
-    source_chunks["status"] = "success"
-    source_chunks["generated_at"] = generated_at
-    retrieval_index_revision = _build_retrieval_index_revision(
-        config,
-        retrieval_chunks,
-        generated_at=generated_at,
-        previous_source_chunks=previous_source_chunks,
-        previous_revision=previous_retrieval_index_revision,
-        force_full_recreate=rebuild_embeddings,
-    )
-    if str(retrieval_index_revision.get("status", "")).lower() in {
-        "failed",
-        "missing",
-        "error",
-        "unavailable",
-        "skipped",
-    }:
-        failed_required_artifacts.append("retrieval_index_revision")
+    if _chunk_level_enabled(config):
+        # Phase R-5 legacy path: chunk-level retrieval. Kept under the
+        # CHUNK_LEVEL_ENABLED guard so the body can be exercised in tests
+        # that opt into the dormant code while remaining inert in
+        # production. The spec_grag_section collection (R-3) is the live
+        # retrieval surface.
+        retrieval_chunks = retrieval_index_api.build_source_chunks(
+            sections,
+            retrieval_config=_config_get(config, ("retrieval",), {}),
+        )
+        source_chunks = retrieval_index_api.build_source_chunks_artifact(
+            retrieval_chunks,
+            chunk_size=_config_get(config, ("retrieval", "chunk_size"), 1200),
+            chunk_overlap=_config_get(config, ("retrieval", "chunk_overlap"), 160),
+        )
+        source_chunks["status"] = "success"
+        source_chunks["generated_at"] = generated_at
+        retrieval_index_revision = _build_retrieval_index_revision(
+            config,
+            retrieval_chunks,
+            generated_at=generated_at,
+            previous_source_chunks=previous_source_chunks,
+            previous_revision=previous_retrieval_index_revision,
+            force_full_recreate=rebuild_embeddings,
+        )
+        if str(retrieval_index_revision.get("status", "")).lower() in {
+            "failed",
+            "missing",
+            "error",
+            "unavailable",
+            "skipped",
+        }:
+            failed_required_artifacts.append("retrieval_index_revision")
+    else:
+        # Phase R-5 disabled path: write stub artifacts so the artifact
+        # store layout stays consistent. Section-level retrieval is the
+        # only live path.
+        source_chunks = _chunk_level_disabled_artifact_source_chunks(generated_at)
+        retrieval_index_revision = (
+            _chunk_level_disabled_artifact_retrieval_index_revision(
+                config,
+                generated_at,
+            )
+        )
     freshness_report = build_freshness_report(
         conflict_review_items=conflict_review_items,
         failed_required_artifacts=failed_required_artifacts,
