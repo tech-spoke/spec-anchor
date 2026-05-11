@@ -341,7 +341,7 @@ System Setup Script は対象プロジェクトの Source Specs、Purpose、Core
 
 ### 6.1 設定ファイル配置
 
-設定ファイルは `<project_root>/.spec-grag/config.toml` に置く。各コマンドは project root を引数で受け取る (`--project-root`、`--target`、または位置引数。省略時はカレントディレクトリ)。親ディレクトリへの自動探索はしない。
+プロジェクトごとの設定は `<project_root>/.spec-grag/config.toml` に置く。親ディレクトリへの自動探索はしない。
 
 ```text
 <project_root>/
