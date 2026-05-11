@@ -35,9 +35,10 @@
   - 検証: tests/test_retrieval_index.py の 5 件 (R-3)、tests/test_section_payload.py の 10 件 (R-2)
   - 注意: `.spec-grag/context/section_metadata.json` は backward compat 期間として並行更新を継続 (Phase R-5 完全廃止予定)
 - [x] §4 Source Retrieval Index は section-level Qdrant collection のみ (chunk-level collection は持たない)
-  - 実装: Phase R-5 で `CHUNK_LEVEL_ENABLED: bool = False` (spec_grag/core.py:51) と config override `[vector_store].chunk_level_enabled` を導入。disable 時は spec_grag/core.py `_chunk_level_disabled_artifact_source_chunks` / `_chunk_level_disabled_artifact_retrieval_index_revision` が status="disabled" stub を書き出し、chunk helper (`build_source_chunks` / `upsert_qdrant_bge_m3_index_incremental` 等) は呼ばれない
-  - 検証: tests/test_chunk_level_disabled.py の 6 件
-  - 注意: chunk-level dormant code は撤去せずコメントアウト相当で残置 (ユーザー指示「chunk-level はコメントアウトしておく」)。Qdrant `spec_grag_source` collection の物理削除は別 migration step
+  - 実装 (Phase R-5 改訂後): chunk-level 関数 (`build_source_chunks` / `build_source_chunks_artifact` / `compute_chunk_diff` / `upsert_qdrant_bge_m3_index` / `upsert_qdrant_bge_m3_index_incremental` in spec_grag/retrieval_index.py、`_qdrant_upsert_with_partial_dispatch` / `_build_retrieval_index_revision` in spec_grag/core.py) は本体を `#` でコメントアウトし `raise NotImplementedError("Phase R-5: ...")`。`_run_spec_core_unlocked` の chunk-level call site も同様に `#` 化、`_chunk_level_disabled_artifact_*` stub を直接代入。ランタイム gate (`CHUNK_LEVEL_ENABLED`、`_chunk_level_enabled`) は撤去
+  - 検証: tests/test_chunk_level_disabled.py の 12 件 (NotImplementedError 7 件、stub shape 2 件、gate 撤去 1 件、section_collection_exists 3 件)。chunk-level test 多数は `@pytest.mark.skip(reason="Phase R-5 dormant: ...")`
+  - Qdrant 状態: `spec_grag_source` collection を 2026-05-11 09:35 JST 頃に物理削除済み
+  - 注意: chunk-level dormant code は撤去せずソースに残置 (ユーザー指示「chunk-level はコメントアウトしておく」)。最終撤去は別 commit にてユーザー指示後に実施
 - [x] §6 Chapter Key Anchor は LLM が章単位で生成する (input: 章 heading + 配下 summary / search_keys / identifiers / related_sections + 関連 Core Concept、output: chapter_id / summary / key_topics / important_sections / notes / source_section_ids / generated_at)
   - 実装: Phase R-7 で spec_grag/chapter_anchors.py (`generate_chapter_anchors`、`ChapterAnchorsCache`、`CHAPTER_ANCHORS_PROMPT_VERSION = "chapter-anchors-v1"`)。spec_grag/core.py `_chapter_anchors` を新 module 委譲に置換 (cache_dir = context_dir / "cache"、provider は section_metadata と同 active_provider、concept_text は `[core].concept_file` から読み込み)。stage は LlmRequest contract に合わせ `chapter_key_anchor`
   - 検証: tests/test_chapter_anchors.py の 9 件 (chapter ごとに LLM call、summary/key_topics/notes が LLM 出力に由来、important_sections が章内 section_ids に絞られる、unparseable response 時の mechanical fallback、cache reuse、section_hash 変更時の選択的 invalidation)

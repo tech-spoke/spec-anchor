@@ -389,9 +389,34 @@ evidence_origin: `Conflict Review Item`
 
 実 codex / claude subprocess を立ち上げる smoke test (`tests/test_agent_cli_smoke.py::test_t_a02_real_setup_core_inject_realign_watch_roundtrip_with_agent_entrypoints`) で、tests/conftest.py の `_enable_chunk_level_for_tests` autouse hook が **subprocess に届かない**ため、`spec-grag core --all` 実行後の `client.count(collection)` assertion が `Collection ... doesn't exist` で失敗した。
 
-対処: tests/test_agent_cli_smoke.py の `_patch_collection` で生成する config に `[vector_store].chunk_level_enabled = true` を inject する形で test 個別に opt-in。これにより同 test を含む全 unit suite が pass する (`389 passed, 9 skipped` のうち calibration matrix の 9 件 skip だけが残る、`SPEC_GRAG_LOCAL_SERVICE=1` 未設定が理由)。
+最初の対処 (Phase R-5 初版): tests/test_agent_cli_smoke.py の `_patch_collection` で生成する config に `[vector_store].chunk_level_enabled = true` を inject する形で test 個別に opt-in。
 
-残: 運用 template `spec_grag/templates/.spec-grag/config.toml` には `chunk_level_enabled` を明示的に追加しない (case C-1 default で disable のまま)。chunk-level の dormant code をいずれ完全撤去する場合は、本 test 全体を section-level 計測に書き直すこと。
+#### 7.2.1.a Phase R-5 改訂: ランタイムゲート → リテラルコメントアウト
+
+Phase R-5 初版は「`CHUNK_LEVEL_ENABLED: bool = False` 定数 + `_chunk_level_enabled(config)` ゲート + 関数本体は active」というランタイム gate 方式だったが、ユーザーから「**コメントアウトしておく**」(指示時の意図はリテラルコメント化) との指示を再度受けて改訂した。
+
+改訂内容:
+
+- `spec_grag/retrieval_index.py` の chunk-level 5 関数 (`build_source_chunks`, `build_source_chunks_artifact`, `compute_chunk_diff`, `upsert_qdrant_bge_m3_index`, `upsert_qdrant_bge_m3_index_incremental`) を、関数本体を `#` プレフィックスのコメントブロックに置換し、各関数冒頭に `raise NotImplementedError("Phase R-5: ...")` を追加
+- `spec_grag/core.py` の `_qdrant_upsert_with_partial_dispatch` / `_build_retrieval_index_revision` を同様にコメントアウト + `raise NotImplementedError`
+- `_run_spec_core_unlocked` の chunk-level call site (`if _chunk_level_enabled(config):` 以下) をコメントアウトし、stub artifact (`_chunk_level_disabled_artifact_*`) を直接代入する分岐に置換
+- `CHUNK_LEVEL_ENABLED` 定数と `_chunk_level_enabled()` helper を撤去 (gate が NotImplementedError しか守らないため、残すと誤読を招く)
+- `tests/conftest.py` の `_enable_chunk_level_for_tests` autouse hook を削除
+- `tests/test_agent_cli_smoke.py` の `chunk_level_enabled = true` injection を削除し、test 自体を `@pytest.mark.skip` (`Phase R-5 dormant: assertion targets the chunk-level spec_grag_source collection`) に変更
+- `tests/test_retrieval_index.py::test_compute_chunk_diff_*` を `@pytest.mark.skip`
+- `tests/test_spec_core.py::test_g11_standard_retrieval_service_failure_is_failed_not_fake_success` / `test_t_r12_standard_qdrant_retrieval_is_default_without_smoke_env` / `test_t_r15_retrieval_failure_diagnostics_distinguish_required_categories` を `@pytest.mark.skip`
+- `tests/test_chunk_level_disabled.py` を整理: gate test を削除し、`raise NotImplementedError` を 5 dormant function + 2 core helper で assert する 7 件、stub artifact shape 2 件、section_collection_exists 3 件の合計 12 件に再編
+- `spec_grag/retrieval_index.py` 冒頭に「DORMANT FUNCTIONS」WARNING ブロックを追加し、live (case C-1) / dormant (R-5) の関数リストを明示
+
+運用環境への影響:
+
+- Qdrant `spec_grag_source` collection を `curl -X DELETE http://localhost:6333/collections/spec_grag_source` で物理削除済み (このセッション 2026-05-11 09:35 JST 頃)
+- 運用 template `spec_grag/templates/.spec-grag/config.toml` の `chunk_level_enabled` 行は不要になったため追加しない (gate 自体が消えたので config override も無効)
+
+残:
+
+- 全 unit suite を再実行し、skip-marked test 以外が全て pass することを確認 (本 commit 後に実施)
+- chunk-level dormant code を最終的にソースから撤去するかは、ユーザー判断後に別 commit で実施
 
 ### 7.3 案 C-1 確定時の確認事項
 

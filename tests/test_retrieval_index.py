@@ -709,6 +709,10 @@ def test_stable_chunk_uid_to_point_id_is_deterministic() -> None:
     _uuid.UUID(a1)
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: compute_chunk_diff is commented out in "
+    "spec_grag/retrieval_index.py. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 def test_compute_chunk_diff_categorizes_added_changed_removed() -> None:
     module = _retrieval_module()
     previous = [
@@ -729,6 +733,10 @@ def test_compute_chunk_diff_categorizes_added_changed_removed() -> None:
     assert sorted(diff["removed_uids"]) == ["u3"]
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: compute_chunk_diff is commented out in "
+    "spec_grag/retrieval_index.py. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 def test_compute_chunk_diff_handles_empty_previous() -> None:
     module = _retrieval_module()
     current = [

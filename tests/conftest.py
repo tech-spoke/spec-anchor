@@ -32,30 +32,6 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     _prepend_venv_to_path()
     _stash_runtime_state_for_session(config)
-    _enable_chunk_level_for_tests()
-
-
-def _enable_chunk_level_for_tests() -> None:
-    """Phase R-5: keep the dormant chunk-level path on inside the test suite.
-
-    `doc/STORAGE_REDESIGN.ja.md` §7.4 R-5 disables chunk-level retrieval
-    by default (case C-1). The dormant code stays in
-    `spec_grag/{core,retrieval_index}.py` so it can still be exercised
-    by existing integration tests and so a future operator can re-enable
-    it without resurrecting deleted history. Tests in this repository
-    still assert on `source_chunks` and chunk-level Qdrant upsert
-    behavior, so we flip the constant on for the session here.
-
-    Production callers see the production default
-    (`CHUNK_LEVEL_ENABLED = False`). A specific test that wants to
-    cover the disabled path explicitly can monkeypatch
-    `spec_grag.core.CHUNK_LEVEL_ENABLED` back to False or set
-    `[vector_store].chunk_level_enabled = false` in its project config.
-    """
-
-    import spec_grag.core as core_module
-
-    core_module.CHUNK_LEVEL_ENABLED = True
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:

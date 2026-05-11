@@ -4,6 +4,37 @@ The standard retrieval stack is Qdrant + BGE-M3 dense/sparse vectors + RRF.
 This module keeps provider and service imports lazy so unit tests can exercise
 chunking, sparse normalization, schema metadata, and fusion without starting
 FlagEmbedding or Qdrant.
+
+============================================================================
+Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4 / case C-1) — DORMANT FUNCTIONS
+============================================================================
+The following chunk-level helpers are COMMENTED OUT. Their function
+signatures still exist so import sites don't break, but the bodies are
+preserved as `#`-prefixed comments and each function raises
+`NotImplementedError("Phase R-5: ...")` if called. To restore the
+chunk-level path, remove the raise + uncomment the body block + reverse
+the test skip marks.
+
+Dormant functions:
+* `build_source_chunks`
+* `build_source_chunks_artifact`
+* `compute_chunk_diff`
+* `upsert_qdrant_bge_m3_index`
+* `upsert_qdrant_bge_m3_index_incremental`
+
+Live (case C-1) section-level helpers:
+* `build_section_payloads`
+* `upsert_qdrant_section_collection`
+* `update_section_collection_related_sections`
+* `build_section_embeddings_artifact`
+* `section_hybrid_candidates`
+* `HybridRetrievalIndex` (used for both legacy chunk and live section)
+* `BgeM3EmbeddingProvider` / `FlagEmbeddingBgeM3Provider`
+
+`SourceChunk` dataclass and `_coerce_chunk_payload` helper are still
+defined because the dormant function signatures reference them; they are
+inert otherwise.
+============================================================================
 """
 
 from __future__ import annotations
@@ -498,42 +529,53 @@ def build_source_chunks(
     chunk_overlap: int | None = None,
     artifact_revision: str | None = None,
 ) -> list[SourceChunk]:
-    """Split Source Spec sections into stable payload chunks."""
+    """Phase R-5 dormant: chunk-level retrieval is commented out per case C-1.
 
-    size = int(_config_value(retrieval_config, "chunk_size", chunk_size or 1200))
-    overlap = int(_config_value(retrieval_config, "chunk_overlap", chunk_overlap or 160))
-    if size <= 0:
-        raise ValueError("chunk_size must be positive")
-    if overlap < 0:
-        raise ValueError("chunk_overlap must be non-negative")
-    if overlap >= size:
-        raise ValueError("chunk_overlap must be smaller than chunk_size")
+    Restore: remove the NotImplementedError below and uncomment the body
+    block. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
+    """
 
-    normalized_sections = [_normalize_section(section) for section in sections]
-    revision = artifact_revision or _artifact_revision_from_sections(normalized_sections)
-    chunks: list[SourceChunk] = []
-    for section in normalized_sections:
-        for ordinal, (start, end) in enumerate(
-            _chunk_ranges(section["text"], chunk_size=size, chunk_overlap=overlap),
-            start=1,
-        ):
-            text = section["text"][start:end]
-            stable_chunk_uid = _stable_chunk_uid(section["stable_section_uid"], ordinal)
-            chunks.append(
-                SourceChunk(
-                    source_document_id=section["source_document_id"],
-                    source_section_id=section["source_section_id"],
-                    stable_section_uid=section["stable_section_uid"],
-                    stable_chunk_uid=stable_chunk_uid,
-                    heading_path=list(section["heading_path"]),
-                    source_span=_chunk_source_span(section["source_span"], section["text"], start, end),
-                    source_hash=section["source_hash"],
-                    chunk_hash=_hash_text(text),
-                    text=text,
-                    artifact_revision=revision,
-                )
-            )
-    return chunks
+    raise NotImplementedError(
+        "Phase R-5: chunk-level retrieval is dormant per case C-1. See "
+        "doc/STORAGE_REDESIGN.ja.md §7.4 R-5; section-level retrieval "
+        "via spec_grag_section is the live surface."
+    )
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # size = int(_config_value(retrieval_config, "chunk_size", chunk_size or 1200))
+    # overlap = int(_config_value(retrieval_config, "chunk_overlap", chunk_overlap or 160))
+    # if size <= 0:
+    #     raise ValueError("chunk_size must be positive")
+    # if overlap < 0:
+    #     raise ValueError("chunk_overlap must be non-negative")
+    # if overlap >= size:
+    #     raise ValueError("chunk_overlap must be smaller than chunk_size")
+    #
+    # normalized_sections = [_normalize_section(section) for section in sections]
+    # revision = artifact_revision or _artifact_revision_from_sections(normalized_sections)
+    # chunks: list[SourceChunk] = []
+    # for section in normalized_sections:
+    #     for ordinal, (start, end) in enumerate(
+    #         _chunk_ranges(section["text"], chunk_size=size, chunk_overlap=overlap),
+    #         start=1,
+    #     ):
+    #         text = section["text"][start:end]
+    #         stable_chunk_uid = _stable_chunk_uid(section["stable_section_uid"], ordinal)
+    #         chunks.append(
+    #             SourceChunk(
+    #                 source_document_id=section["source_document_id"],
+    #                 source_section_id=section["source_section_id"],
+    #                 stable_section_uid=section["stable_section_uid"],
+    #                 stable_chunk_uid=stable_chunk_uid,
+    #                 heading_path=list(section["heading_path"]),
+    #                 source_span=_chunk_source_span(section["source_span"], section["text"], start, end),
+    #                 source_hash=section["source_hash"],
+    #                 chunk_hash=_hash_text(text),
+    #                 text=text,
+    #                 artifact_revision=revision,
+    #             )
+    #         )
+    # return chunks
+    # ---- end Phase R-5 dormant body ----
 
 
 def build_source_chunks_artifact(
@@ -543,18 +585,29 @@ def build_source_chunks_artifact(
     chunk_overlap: int | None = None,
     artifact_revision: str | None = None,
 ) -> dict[str, Any]:
-    payloads = [_coerce_chunk_payload(chunk) for chunk in chunks]
-    revision = artifact_revision or _artifact_revision_from_chunks(payloads)
-    return {
-        "artifact_version": SOURCE_CHUNKS_ARTIFACT_VERSION,
-        "artifact_revision": revision,
-        "chunking": {
-            "chunk_size": chunk_size,
-            "chunk_overlap": chunk_overlap,
-        },
-        "payload_schema_version": PAYLOAD_SCHEMA_VERSION,
-        "chunks": payloads,
-    }
+    """Phase R-5 dormant: chunk-level artifact builder is commented out.
+
+    Restore: remove NotImplementedError and uncomment body. See
+    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
+    """
+
+    raise NotImplementedError(
+        "Phase R-5: chunk-level artifact builder is dormant per case C-1."
+    )
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # payloads = [_coerce_chunk_payload(chunk) for chunk in chunks]
+    # revision = artifact_revision or _artifact_revision_from_chunks(payloads)
+    # return {
+    #     "artifact_version": SOURCE_CHUNKS_ARTIFACT_VERSION,
+    #     "artifact_revision": revision,
+    #     "chunking": {
+    #         "chunk_size": chunk_size,
+    #         "chunk_overlap": chunk_overlap,
+    #     },
+    #     "payload_schema_version": PAYLOAD_SCHEMA_VERSION,
+    #     "chunks": payloads,
+    # }
+    # ---- end Phase R-5 dormant body ----
 
 
 def normalize_bge_m3_sparse_output(output: Any, *, row: int = 0) -> SparseVector:
@@ -760,86 +813,97 @@ def upsert_qdrant_bge_m3_index(
     recreate: bool = True,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
-    """Create the standard Qdrant dense/sparse collection and upsert chunks."""
+    """Phase R-5 dormant: chunk-level Qdrant upsert is commented out.
 
-    from qdrant_client import QdrantClient  # type: ignore[import-not-found]
-    from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
+    Restore: remove NotImplementedError and uncomment body. See
+    doc/STORAGE_REDESIGN.ja.md §7.4 R-5. Section-level retrieval via
+    `upsert_qdrant_section_collection` is the live path.
+    """
 
-    payloads = [_coerce_chunk_payload(chunk) for chunk in chunks]
-    client = QdrantClient(url)
-    server_version = _qdrant_server_version(client)
-    provider = embedding_provider or FlagEmbeddingBgeM3Provider(
-        allow_real_provider=True,
-        use_fp16=False,
+    raise NotImplementedError(
+        "Phase R-5: chunk-level Qdrant upsert is dormant per case C-1. "
+        "Use upsert_qdrant_section_collection for section-level retrieval."
     )
-    batch = provider.embed_documents([payload["text"] for payload in payloads])
-
-    if recreate:
-        client.recreate_collection(
-            collection_name=collection,
-            vectors_config={
-                DENSE_VECTOR_NAME: qdrant_models.VectorParams(
-                    size=BGE_M3_DENSE_SIZE,
-                    distance=qdrant_models.Distance.COSINE,
-                )
-            },
-            sparse_vectors_config={SPARSE_VECTOR_NAME: qdrant_models.SparseVectorParams()},
-        )
-
-    points = []
-    for payload, embedding in zip(payloads, batch.embeddings, strict=True):
-        sparse = embedding.sparse or SparseVector()
-        points.append(
-            qdrant_models.PointStruct(
-                id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
-                vector={
-                    DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
-                    SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
-                        indices=list(sparse.indices),
-                        values=[float(value) for value in sparse.values],
-                    ),
-                },
-                payload=payload,
-            )
-        )
-    if points:
-        client.upsert(collection_name=collection, points=points)
-
-    revision = _artifact_revision_from_chunks(
-        payloads,
-        schema=qdrant_named_vector_schema_metadata(
-            collection=collection,
-            qdrant_server_version=server_version,
-        ),
-    )
-    artifact = build_retrieval_index_revision_artifact(
-        chunks=payloads,
-        artifact_revision=revision,
-        collection=collection,
-        qdrant_server_version=server_version,
-        qdrant_collection_revision=revision,
-        generated_at=generated_at,
-    )
-    artifact["status"] = "success"
-    artifact["diagnostics"] = {
-        "real_retrieval_index": True,
-        "qdrant_url": url,
-        "collection": collection,
-        "qdrant_server_version": server_version,
-        "embedding_model": STANDARD_EMBEDDING_MODEL,
-        "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
-        "flagembedding_package_version": _package_version("FlagEmbedding"),
-        "embedding_device": _provider_device(provider),
-        "embedding_model_cache_dir": _provider_model_cache_dir(provider),
-        "embedding_model_revision": "unknown",
-        "dense_vector": DENSE_VECTOR_NAME,
-        "sparse_vector": SPARSE_VECTOR_NAME,
-        "fusion_method": FUSION_METHOD,
-        "rrf_k": DEFAULT_RRF_K,
-        "chunk_count": len(payloads),
-        "upsert_mode": "full_recreate" if recreate else "full_overwrite",
-    }
-    return artifact
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    # from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
+    #
+    # payloads = [_coerce_chunk_payload(chunk) for chunk in chunks]
+    # client = QdrantClient(url)
+    # server_version = _qdrant_server_version(client)
+    # provider = embedding_provider or FlagEmbeddingBgeM3Provider(
+    #     allow_real_provider=True,
+    #     use_fp16=False,
+    # )
+    # batch = provider.embed_documents([payload["text"] for payload in payloads])
+    #
+    # if recreate:
+    #     client.recreate_collection(
+    #         collection_name=collection,
+    #         vectors_config={
+    #             DENSE_VECTOR_NAME: qdrant_models.VectorParams(
+    #                 size=BGE_M3_DENSE_SIZE,
+    #                 distance=qdrant_models.Distance.COSINE,
+    #             )
+    #         },
+    #         sparse_vectors_config={SPARSE_VECTOR_NAME: qdrant_models.SparseVectorParams()},
+    #     )
+    #
+    # points = []
+    # for payload, embedding in zip(payloads, batch.embeddings, strict=True):
+    #     sparse = embedding.sparse or SparseVector()
+    #     points.append(
+    #         qdrant_models.PointStruct(
+    #             id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
+    #             vector={
+    #                 DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
+    #                 SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
+    #                     indices=list(sparse.indices),
+    #                     values=[float(value) for value in sparse.values],
+    #                 ),
+    #             },
+    #             payload=payload,
+    #         )
+    #     )
+    # if points:
+    #     client.upsert(collection_name=collection, points=points)
+    #
+    # revision = _artifact_revision_from_chunks(
+    #     payloads,
+    #     schema=qdrant_named_vector_schema_metadata(
+    #         collection=collection,
+    #         qdrant_server_version=server_version,
+    #     ),
+    # )
+    # artifact = build_retrieval_index_revision_artifact(
+    #     chunks=payloads,
+    #     artifact_revision=revision,
+    #     collection=collection,
+    #     qdrant_server_version=server_version,
+    #     qdrant_collection_revision=revision,
+    #     generated_at=generated_at,
+    # )
+    # artifact["status"] = "success"
+    # artifact["diagnostics"] = {
+    #     "real_retrieval_index": True,
+    #     "qdrant_url": url,
+    #     "collection": collection,
+    #     "qdrant_server_version": server_version,
+    #     "embedding_model": STANDARD_EMBEDDING_MODEL,
+    #     "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
+    #     "flagembedding_package_version": _package_version("FlagEmbedding"),
+    #     "embedding_device": _provider_device(provider),
+    #     "embedding_model_cache_dir": _provider_model_cache_dir(provider),
+    #     "embedding_model_revision": "unknown",
+    #     "dense_vector": DENSE_VECTOR_NAME,
+    #     "sparse_vector": SPARSE_VECTOR_NAME,
+    #     "fusion_method": FUSION_METHOD,
+    #     "rrf_k": DEFAULT_RRF_K,
+    #     "chunk_count": len(payloads),
+    #     "upsert_mode": "full_recreate" if recreate else "full_overwrite",
+    # }
+    # return artifact
+    # ---- end Phase R-5 dormant body ----
 
 
 def stable_chunk_uid_to_point_id(stable_chunk_uid: str) -> str:
@@ -858,50 +922,49 @@ def compute_chunk_diff(
     previous_chunks: Sequence[Mapping[str, Any]] | None,
     current_chunks: Sequence[Mapping[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Diff two chunk lists by stable_chunk_uid + chunk_hash.
+    """Phase R-5 dormant: chunk diff is commented out.
 
-    Returns:
-        {
-            "added":   chunks present in current but not in previous,
-            "changed": chunks whose stable_chunk_uid is in previous but
-                       chunk_hash differs,
-            "unchanged": chunks identical in both,
-            "removed_uids": stable_chunk_uids only in previous,
-        }
+    Restore: remove NotImplementedError and uncomment body. See
+    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
     """
 
-    prev_by_uid: dict[str, dict[str, Any]] = {}
-    if previous_chunks:
-        for chunk in previous_chunks:
-            prev_payload = _coerce_chunk_payload(chunk)
-            uid = prev_payload.get("stable_chunk_uid", "")
-            if uid:
-                prev_by_uid[uid] = prev_payload
-    added: list[dict[str, Any]] = []
-    changed: list[dict[str, Any]] = []
-    unchanged: list[dict[str, Any]] = []
-    seen_uids: set[str] = set()
-    for chunk in current_chunks:
-        payload = _coerce_chunk_payload(chunk)
-        uid = payload.get("stable_chunk_uid", "")
-        if not uid:
-            continue
-        seen_uids.add(uid)
-        prev = prev_by_uid.get(uid)
-        if prev is None:
-            added.append(payload)
-            continue
-        if prev.get("chunk_hash") != payload.get("chunk_hash"):
-            changed.append(payload)
-        else:
-            unchanged.append(payload)
-    removed_uids = [uid for uid in prev_by_uid if uid not in seen_uids]
-    return {
-        "added": added,
-        "changed": changed,
-        "unchanged": unchanged,
-        "removed_uids": removed_uids,
-    }
+    raise NotImplementedError(
+        "Phase R-5: chunk-level diffing is dormant per case C-1."
+    )
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # prev_by_uid: dict[str, dict[str, Any]] = {}
+    # if previous_chunks:
+    #     for chunk in previous_chunks:
+    #         prev_payload = _coerce_chunk_payload(chunk)
+    #         uid = prev_payload.get("stable_chunk_uid", "")
+    #         if uid:
+    #             prev_by_uid[uid] = prev_payload
+    # added: list[dict[str, Any]] = []
+    # changed: list[dict[str, Any]] = []
+    # unchanged: list[dict[str, Any]] = []
+    # seen_uids: set[str] = set()
+    # for chunk in current_chunks:
+    #     payload = _coerce_chunk_payload(chunk)
+    #     uid = payload.get("stable_chunk_uid", "")
+    #     if not uid:
+    #         continue
+    #     seen_uids.add(uid)
+    #     prev = prev_by_uid.get(uid)
+    #     if prev is None:
+    #         added.append(payload)
+    #         continue
+    #     if prev.get("chunk_hash") != payload.get("chunk_hash"):
+    #         changed.append(payload)
+    #     else:
+    #         unchanged.append(payload)
+    # removed_uids = [uid for uid in prev_by_uid if uid not in seen_uids]
+    # return {
+    #     "added": added,
+    #     "changed": changed,
+    #     "unchanged": unchanged,
+    #     "removed_uids": removed_uids,
+    # }
+    # ---- end Phase R-5 dormant body ----
 
 
 def upsert_qdrant_bge_m3_index_incremental(
@@ -914,98 +977,103 @@ def upsert_qdrant_bge_m3_index_incremental(
     embedding_provider: BgeM3EmbeddingProvider | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
-    """Embed only changed/added chunks, delete removed chunks. No recreate.
+    """Phase R-5 dormant: incremental chunk upsert is commented out.
 
-    `all_chunks` is the full current chunk set (used for artifact_revision /
-    chunk_count metadata). `chunks_to_embed` and `point_ids_to_delete` are the
-    diff produced by ``compute_chunk_diff``.
+    Restore: remove NotImplementedError and uncomment body. See
+    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
     """
 
-    from qdrant_client import QdrantClient  # type: ignore[import-not-found]
-    from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
-
-    client = QdrantClient(url)
-    server_version = _qdrant_server_version(client)
-
-    # Delete removed points first (before upsert so id reuse is unambiguous).
-    if point_ids_to_delete:
-        client.delete(
-            collection_name=collection,
-            points_selector=qdrant_models.PointIdsList(
-                points=[
-                    stable_chunk_uid_to_point_id(uid) for uid in point_ids_to_delete
-                ],
-            ),
-        )
-
-    # Embed and upsert only the chunks that actually changed.
-    embed_payloads = [_coerce_chunk_payload(chunk) for chunk in chunks_to_embed]
-    if embed_payloads:
-        provider = embedding_provider or FlagEmbeddingBgeM3Provider(
-            allow_real_provider=True,
-            use_fp16=False,
-        )
-        batch = provider.embed_documents([payload["text"] for payload in embed_payloads])
-        points = []
-        for payload, embedding in zip(embed_payloads, batch.embeddings, strict=True):
-            sparse = embedding.sparse or SparseVector()
-            points.append(
-                qdrant_models.PointStruct(
-                    id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
-                    vector={
-                        DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
-                        SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
-                            indices=list(sparse.indices),
-                            values=[float(value) for value in sparse.values],
-                        ),
-                    },
-                    payload=payload,
-                )
-            )
-        if points:
-            client.upsert(collection_name=collection, points=points)
-    else:
-        provider = embedding_provider  # not used for diagnostics if no embed
-
-    full_payloads = [_coerce_chunk_payload(chunk) for chunk in all_chunks]
-    revision = _artifact_revision_from_chunks(
-        full_payloads,
-        schema=qdrant_named_vector_schema_metadata(
-            collection=collection,
-            qdrant_server_version=server_version,
-        ),
+    raise NotImplementedError(
+        "Phase R-5: incremental chunk-level Qdrant upsert is dormant "
+        "per case C-1."
     )
-    artifact = build_retrieval_index_revision_artifact(
-        chunks=full_payloads,
-        artifact_revision=revision,
-        collection=collection,
-        qdrant_server_version=server_version,
-        qdrant_collection_revision=revision,
-        generated_at=generated_at,
-    )
-    artifact["status"] = "success"
-    artifact["diagnostics"] = {
-        "real_retrieval_index": True,
-        "qdrant_url": url,
-        "collection": collection,
-        "qdrant_server_version": server_version,
-        "embedding_model": STANDARD_EMBEDDING_MODEL,
-        "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
-        "flagembedding_package_version": _package_version("FlagEmbedding"),
-        "embedding_device": (
-            _provider_device(provider) if provider is not None else "skipped"
-        ),
-        "embedding_model_revision": "unknown",
-        "dense_vector": DENSE_VECTOR_NAME,
-        "sparse_vector": SPARSE_VECTOR_NAME,
-        "fusion_method": FUSION_METHOD,
-        "rrf_k": DEFAULT_RRF_K,
-        "chunk_count": len(full_payloads),
-        "upsert_mode": "incremental",
-        "embedded_chunk_count": len(embed_payloads),
-        "deleted_chunk_count": len(point_ids_to_delete),
-    }
-    return artifact
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    # from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
+    #
+    # client = QdrantClient(url)
+    # server_version = _qdrant_server_version(client)
+    #
+    # # Delete removed points first (before upsert so id reuse is unambiguous).
+    # if point_ids_to_delete:
+    #     client.delete(
+    #         collection_name=collection,
+    #         points_selector=qdrant_models.PointIdsList(
+    #             points=[
+    #                 stable_chunk_uid_to_point_id(uid) for uid in point_ids_to_delete
+    #             ],
+    #         ),
+    #     )
+    #
+    # # Embed and upsert only the chunks that actually changed.
+    # embed_payloads = [_coerce_chunk_payload(chunk) for chunk in chunks_to_embed]
+    # if embed_payloads:
+    #     provider = embedding_provider or FlagEmbeddingBgeM3Provider(
+    #         allow_real_provider=True,
+    #         use_fp16=False,
+    #     )
+    #     batch = provider.embed_documents([payload["text"] for payload in embed_payloads])
+    #     points = []
+    #     for payload, embedding in zip(embed_payloads, batch.embeddings, strict=True):
+    #         sparse = embedding.sparse or SparseVector()
+    #         points.append(
+    #             qdrant_models.PointStruct(
+    #                 id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
+    #                 vector={
+    #                     DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
+    #                     SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
+    #                         indices=list(sparse.indices),
+    #                         values=[float(value) for value in sparse.values],
+    #                     ),
+    #                 },
+    #                 payload=payload,
+    #             )
+    #         )
+    #     if points:
+    #         client.upsert(collection_name=collection, points=points)
+    # else:
+    #     provider = embedding_provider  # not used for diagnostics if no embed
+    #
+    # full_payloads = [_coerce_chunk_payload(chunk) for chunk in all_chunks]
+    # revision = _artifact_revision_from_chunks(
+    #     full_payloads,
+    #     schema=qdrant_named_vector_schema_metadata(
+    #         collection=collection,
+    #         qdrant_server_version=server_version,
+    #     ),
+    # )
+    # artifact = build_retrieval_index_revision_artifact(
+    #     chunks=full_payloads,
+    #     artifact_revision=revision,
+    #     collection=collection,
+    #     qdrant_server_version=server_version,
+    #     qdrant_collection_revision=revision,
+    #     generated_at=generated_at,
+    # )
+    # artifact["status"] = "success"
+    # artifact["diagnostics"] = {
+    #     "real_retrieval_index": True,
+    #     "qdrant_url": url,
+    #     "collection": collection,
+    #     "qdrant_server_version": server_version,
+    #     "embedding_model": STANDARD_EMBEDDING_MODEL,
+    #     "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
+    #     "flagembedding_package_version": _package_version("FlagEmbedding"),
+    #     "embedding_device": (
+    #         _provider_device(provider) if provider is not None else "skipped"
+    #     ),
+    #     "embedding_model_revision": "unknown",
+    #     "dense_vector": DENSE_VECTOR_NAME,
+    #     "sparse_vector": SPARSE_VECTOR_NAME,
+    #     "fusion_method": FUSION_METHOD,
+    #     "rrf_k": DEFAULT_RRF_K,
+    #     "chunk_count": len(full_payloads),
+    #     "upsert_mode": "incremental",
+    #     "embedded_chunk_count": len(embed_payloads),
+    #     "deleted_chunk_count": len(point_ids_to_delete),
+    # }
+    # return artifact
+    # ---- end Phase R-5 dormant body ----
 
 
 def build_section_embedding_text(

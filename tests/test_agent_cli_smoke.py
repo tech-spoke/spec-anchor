@@ -139,15 +139,10 @@ def _patch_collection(project_root: Path) -> str:
     text = config_path.read_text(encoding="utf-8")
     text = text.replace('url = "http://localhost:6333"', f'url = "{qdrant_url}"')
     text = text.replace('collection = "spec_grag_source"', f'collection = "{collection}"')
-    # Phase R-5: production default disables chunk-level retrieval. This
-    # smoke test runs in a subprocess, so the conftest constant override
-    # does not reach it. Opt back in via the config flag so the
-    # `client.count(collection)` assertion still has chunk-level data.
-    if "chunk_level_enabled" not in text:
-        text = text.replace(
-            f'collection = "{collection}"',
-            f'collection = "{collection}"\nchunk_level_enabled = true',
-        )
+    # Phase R-5 (case C-1): chunk-level retrieval is dormant; the
+    # `client.count(collection)` assertion below targets the chunk-level
+    # collection that no longer gets populated. The test is skip-marked
+    # to reflect this; this helper is kept for the eventual restore path.
     config_path.write_text(text, encoding="utf-8")
     return collection
 
@@ -224,6 +219,13 @@ def test_t_a01_claude_project_command_files_are_available_to_claude_cli(
         assert "spec-grag" in text
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: assertion targets the chunk-level "
+    "spec_grag_source collection which is commented out. The CLI "
+    "smoke roundtrip itself still works against section-level retrieval; "
+    "rewrite the assertions for spec_grag_section if you want to reactivate. "
+    "See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 @pytest.mark.external
 def test_t_a02_real_setup_core_inject_realign_watch_roundtrip_with_agent_entrypoints(
     tmp_path: Path,

@@ -1053,6 +1053,12 @@ def test_t_r13_failed_core_result_keeps_last_success_and_failure_reason(
     assert json.loads(fake_project["queue"].read_text())["queue_count"] == 1
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: assertion targets chunk-level "
+    "retrieval_index_revision.diagnostics.source_update_diff which is "
+    "absent from the disabled stub artifact. Rewrite assertions for "
+    "spec_grag_section if needed. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 @pytest.mark.external
 def test_t_r09_real_watcher_reports_running_queue_lock_heartbeat_and_stale_recovery(
     tmp_path: Path,

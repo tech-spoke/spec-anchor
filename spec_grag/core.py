@@ -43,44 +43,44 @@ FORBID_TERMS = ("forbids", "forbidden", "must not", "cannot", "prohibited", "sho
 OPTIONAL_TERMS = ("optional", "任意")
 CONFLICT_CANDIDATE_CHANNELS = {"markdown_link", "shared_identifier", "search_key_match"}
 
-# Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4): chunk-level retrieval is the
-# legacy path. Case C-1 keeps only the section-level Qdrant collection
-# (`spec_grag_section`). The chunk-level routines in
-# `spec_grag/retrieval_index.py` (`build_source_chunks`,
-# `build_source_chunks_artifact`, `compute_chunk_diff`,
-# `upsert_qdrant_bge_m3_index_incremental`, `_qdrant_upsert_with_partial_dispatch`)
-# remain in the codebase as commented-out / dormant utilities so they can be
-# re-enabled or referenced during the transition. Production callers gate
-# every chunk-level entry point behind this constant. Tests that exercise
-# the dormant code path monkeypatch the constant to True or stub the
-# upsert/diff helpers directly.
-CHUNK_LEVEL_ENABLED: bool = False
-
-
-def _chunk_level_enabled(config: Mapping[str, Any] | None = None) -> bool:
-    """Return True when the chunk-level retrieval path should run.
-
-    Phase R-5 disables this path by default (case C-1). The default is
-    sourced from `CHUNK_LEVEL_ENABLED`; callers can pass a project
-    config to look up `[vector_store].chunk_level_enabled = true` as
-    an explicit opt-in. Test fixtures use the config override to keep
-    exercising the dormant code path while it stays in the repository.
-    """
-
-    if config is not None:
-        override = _config_get(config, ("vector_store", "chunk_level_enabled"), None)
-        if isinstance(override, bool):
-            return override
-    return bool(CHUNK_LEVEL_ENABLED)
+# =============================================================================
+# Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4 / case C-1):
+# CHUNK-LEVEL RETRIEVAL IS COMMENTED OUT.
+#
+# The chunk-level helpers in `spec_grag/retrieval_index.py`
+# (`build_source_chunks`, `build_source_chunks_artifact`,
+# `compute_chunk_diff`, `upsert_qdrant_bge_m3_index`,
+# `upsert_qdrant_bge_m3_index_incremental`) and the dispatchers below
+# (`_qdrant_upsert_with_partial_dispatch`, `_build_retrieval_index_revision`)
+# all raise `NotImplementedError`; their bodies are preserved as
+# `#`-prefixed comments so an operator can restore the path by removing
+# the raise and uncommenting. Section-level retrieval via
+# `_upsert_section_collection_if_enabled` is the live path.
+#
+# Production callers MUST NOT invoke the dormant chunk-level functions.
+# `_run_spec_core_unlocked` writes the disabled-state stub artifacts
+# (`_chunk_level_disabled_artifact_source_chunks` /
+# `_chunk_level_disabled_artifact_retrieval_index_revision`) directly
+# instead of running the chunk-level pipeline.
+#
+# The previous runtime gate (`CHUNK_LEVEL_ENABLED` constant +
+# `_chunk_level_enabled(config)` helper, with
+# `[vector_store].chunk_level_enabled = true` opt-in) has been removed
+# because the gated functions are themselves commented out — the gate
+# would only ever guard a NotImplementedError, which would mislead
+# readers. To re-enable chunk-level: uncomment the function bodies in
+# retrieval_index.py + this file AND restore the gate AND update
+# `_run_spec_core_unlocked` to call the gated path again.
+# =============================================================================
 
 
 def _chunk_level_disabled_artifact_source_chunks(generated_at: str) -> dict[str, Any]:
-    """Stub `source_chunks` artifact written while chunk-level is disabled.
+    """Stub `source_chunks` artifact written while chunk-level is dormant.
 
     Keeps the artifact filename present so freshness gate / store layout
-    expectations don't fail, but the body declares the disabled state and
-    holds no chunk bodies. Phase R-6 inject CLI and watcher consumers read
-    `status == "disabled"` and skip chunk-level lookups.
+    expectations don't fail, but the body declares the disabled state
+    and holds no chunk bodies. Phase R-6 inject CLI and watcher
+    consumers read `status == "disabled"` and skip chunk-level lookups.
     """
 
     return {
@@ -349,8 +349,14 @@ def _run_spec_core_unlocked(
     store = ContextArtifactStore(context_dir)
     previous_metadata = _read_artifact(store, "section_metadata")
     previous_conflicts = _read_artifact(store, "conflict_review_items")
+    # Phase R-5 (case C-1): chunk-level retrieval is dormant. The
+    # following reads used to feed `_qdrant_upsert_with_partial_dispatch`
+    # which is now NotImplementedError-only. The variables are kept (and
+    # the artifact still gets a stub written) so freshness gate / store
+    # layout stay consistent.
     previous_source_chunks = _read_artifact(store, "source_chunks")
     previous_retrieval_index_revision = _read_artifact(store, "retrieval_index_revision")
+    del previous_source_chunks, previous_retrieval_index_revision  # dormant
 
     run_full = bool(all or all_mode or full or force or mode == "full")
     mode_name = "full" if run_full else "incremental"
@@ -673,50 +679,48 @@ def _run_spec_core_unlocked(
         cache_dir=context_dir / "cache",
         concept_text=concept_text,
     )
-    if _chunk_level_enabled(config):
-        # Phase R-5 legacy path: chunk-level retrieval. Kept under the
-        # CHUNK_LEVEL_ENABLED guard so the body can be exercised in tests
-        # that opt into the dormant code while remaining inert in
-        # production. The spec_grag_section collection (R-3) is the live
-        # retrieval surface.
-        retrieval_chunks = retrieval_index_api.build_source_chunks(
-            sections,
-            retrieval_config=_config_get(config, ("retrieval",), {}),
-        )
-        source_chunks = retrieval_index_api.build_source_chunks_artifact(
-            retrieval_chunks,
-            chunk_size=_config_get(config, ("retrieval", "chunk_size"), 1200),
-            chunk_overlap=_config_get(config, ("retrieval", "chunk_overlap"), 160),
-        )
-        source_chunks["status"] = "success"
-        source_chunks["generated_at"] = generated_at
-        retrieval_index_revision = _build_retrieval_index_revision(
+    # Phase R-5 (case C-1): chunk-level retrieval is dormant. Always
+    # write the disabled-state stub artifacts. Do NOT call
+    # `retrieval_index_api.build_source_chunks` /
+    # `_build_retrieval_index_revision` etc. — they raise
+    # NotImplementedError. Section-level retrieval via
+    # `_upsert_section_collection_if_enabled` is the live path.
+    # ---- Phase R-5 dormant call site (uncomment to restore) ----
+    # retrieval_chunks = retrieval_index_api.build_source_chunks(
+    #     sections,
+    #     retrieval_config=_config_get(config, ("retrieval",), {}),
+    # )
+    # source_chunks = retrieval_index_api.build_source_chunks_artifact(
+    #     retrieval_chunks,
+    #     chunk_size=_config_get(config, ("retrieval", "chunk_size"), 1200),
+    #     chunk_overlap=_config_get(config, ("retrieval", "chunk_overlap"), 160),
+    # )
+    # source_chunks["status"] = "success"
+    # source_chunks["generated_at"] = generated_at
+    # retrieval_index_revision = _build_retrieval_index_revision(
+    #     config,
+    #     retrieval_chunks,
+    #     generated_at=generated_at,
+    #     previous_source_chunks=previous_source_chunks,
+    #     previous_revision=previous_retrieval_index_revision,
+    #     force_full_recreate=rebuild_embeddings,
+    # )
+    # if str(retrieval_index_revision.get("status", "")).lower() in {
+    #     "failed",
+    #     "missing",
+    #     "error",
+    #     "unavailable",
+    #     "skipped",
+    # }:
+    #     failed_required_artifacts.append("retrieval_index_revision")
+    # ---- end Phase R-5 dormant call site ----
+    source_chunks = _chunk_level_disabled_artifact_source_chunks(generated_at)
+    retrieval_index_revision = (
+        _chunk_level_disabled_artifact_retrieval_index_revision(
             config,
-            retrieval_chunks,
-            generated_at=generated_at,
-            previous_source_chunks=previous_source_chunks,
-            previous_revision=previous_retrieval_index_revision,
-            force_full_recreate=rebuild_embeddings,
+            generated_at,
         )
-        if str(retrieval_index_revision.get("status", "")).lower() in {
-            "failed",
-            "missing",
-            "error",
-            "unavailable",
-            "skipped",
-        }:
-            failed_required_artifacts.append("retrieval_index_revision")
-    else:
-        # Phase R-5 disabled path: write stub artifacts so the artifact
-        # store layout stays consistent. Section-level retrieval is the
-        # only live path.
-        source_chunks = _chunk_level_disabled_artifact_source_chunks(generated_at)
-        retrieval_index_revision = (
-            _chunk_level_disabled_artifact_retrieval_index_revision(
-                config,
-                generated_at,
-            )
-        )
+    )
     freshness_report = build_freshness_report(
         conflict_review_items=conflict_review_items,
         failed_required_artifacts=failed_required_artifacts,
@@ -1121,70 +1125,83 @@ def _build_retrieval_index_revision(
     previous_revision: Mapping[str, Any] | None = None,
     force_full_recreate: bool = False,
 ) -> dict[str, Any]:
-    collection = str(_config_get(config, ("vector_store", "collection"), "spec_grag_source"))
-    embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
-    vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
-    if not force_full_recreate:
-        reusable = _reusable_retrieval_index_revision(
-            previous_source_chunks,
-            previous_revision,
-            chunks,
-            generated_at=generated_at,
-        )
-        if reusable is not None:
-            return reusable
-    if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
-        artifact = retrieval_index_api.build_retrieval_index_revision_artifact(
-            chunks=chunks,
-            collection=collection,
-            generated_at=generated_at,
-        )
-        artifact["status"] = "success"
-        artifact["diagnostics"] = {
-            "real_retrieval_index": False,
-            "provider_mode": "offline",
-            "reason": (
-                "non-standard retrieval providers are treated as offline/fake "
-                "profile and do not create a Qdrant index"
-            ),
-            "embedding_provider": embedding_provider,
-            "vector_store_provider": vector_store_provider,
-            "fusion_method": "rrf",
-        }
-        return artifact
-    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-    try:
-        artifact = _qdrant_upsert_with_partial_dispatch(
-            chunks=chunks,
-            url=url,
-            collection=collection,
-            generated_at=generated_at,
-            previous_source_chunks=previous_source_chunks,
-            previous_revision=previous_revision,
-            force_full_recreate=force_full_recreate,
-        )
-        _attach_retrieval_source_update_diff(
-            artifact,
-            previous_source_chunks=previous_source_chunks,
-            previous_revision=previous_revision,
-            chunks=chunks,
-        )
-        return artifact
-    except Exception as exc:
-        artifact = _failed_retrieval_index_revision_artifact(
-            chunks,
-            collection=collection,
-            url=url,
-            generated_at=generated_at,
-            exc=exc,
-        )
-        _attach_retrieval_source_update_diff(
-            artifact,
-            previous_source_chunks=previous_source_chunks,
-            previous_revision=previous_revision,
-            chunks=chunks,
-        )
-        return artifact
+    """Phase R-5 dormant: chunk-level retrieval index builder is commented out.
+
+    Restore: remove NotImplementedError and uncomment body. See
+    doc/STORAGE_REDESIGN.ja.md §7.4 R-5. Section-level retrieval via
+    `_upsert_section_collection_if_enabled` is the live path.
+    """
+
+    raise NotImplementedError(
+        "Phase R-5: chunk-level retrieval index build is dormant per case "
+        "C-1. spec_grag_section is the live retrieval surface."
+    )
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # collection = str(_config_get(config, ("vector_store", "collection"), "spec_grag_source"))
+    # embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
+    # vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
+    # if not force_full_recreate:
+    #     reusable = _reusable_retrieval_index_revision(
+    #         previous_source_chunks,
+    #         previous_revision,
+    #         chunks,
+    #         generated_at=generated_at,
+    #     )
+    #     if reusable is not None:
+    #         return reusable
+    # if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+    #     artifact = retrieval_index_api.build_retrieval_index_revision_artifact(
+    #         chunks=chunks,
+    #         collection=collection,
+    #         generated_at=generated_at,
+    #     )
+    #     artifact["status"] = "success"
+    #     artifact["diagnostics"] = {
+    #         "real_retrieval_index": False,
+    #         "provider_mode": "offline",
+    #         "reason": (
+    #             "non-standard retrieval providers are treated as offline/fake "
+    #             "profile and do not create a Qdrant index"
+    #         ),
+    #         "embedding_provider": embedding_provider,
+    #         "vector_store_provider": vector_store_provider,
+    #         "fusion_method": "rrf",
+    #     }
+    #     return artifact
+    # url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
+    # try:
+    #     artifact = _qdrant_upsert_with_partial_dispatch(
+    #         chunks=chunks,
+    #         url=url,
+    #         collection=collection,
+    #         generated_at=generated_at,
+    #         previous_source_chunks=previous_source_chunks,
+    #         previous_revision=previous_revision,
+    #         force_full_recreate=force_full_recreate,
+    #     )
+    #     _attach_retrieval_source_update_diff(
+    #         artifact,
+    #         previous_source_chunks=previous_source_chunks,
+    #         previous_revision=previous_revision,
+    #         chunks=chunks,
+    #     )
+    #     return artifact
+    # except Exception as exc:
+    #     artifact = _failed_retrieval_index_revision_artifact(
+    #         chunks,
+    #         collection=collection,
+    #         url=url,
+    #         generated_at=generated_at,
+    #         exc=exc,
+    #     )
+    #     _attach_retrieval_source_update_diff(
+    #         artifact,
+    #         previous_source_chunks=previous_source_chunks,
+    #         previous_revision=previous_revision,
+    #         chunks=chunks,
+    #     )
+    #     return artifact
+    # ---- end Phase R-5 dormant body ----
 
 
 def _section_collection_exists(url: str, collection: str) -> bool:
@@ -1338,68 +1355,70 @@ def _qdrant_upsert_with_partial_dispatch(
     previous_revision: Mapping[str, Any] | None,
     force_full_recreate: bool = False,
 ) -> dict[str, Any]:
-    """Decide between full-recreate and incremental Qdrant upsert.
+    """Phase R-5 dormant: chunk-level upsert dispatch is commented out.
 
-    - force_full_recreate=True → full recreate regardless of state
-    - No previous chunks / mismatched schema_version → full recreate
-    - Same schema, diff small → incremental (embed only changed chunks)
+    Restore: remove NotImplementedError and uncomment body. See
+    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
     """
 
-    if force_full_recreate:
-        return retrieval_index_api.upsert_qdrant_bge_m3_index(
-            chunks,
-            url=url,
-            collection=collection,
-            generated_at=generated_at,
-        )
-    previous_schema = ""
-    if isinstance(previous_revision, Mapping):
-        qdrant_block = previous_revision.get("qdrant")
-        if isinstance(qdrant_block, Mapping):
-            previous_schema = str(qdrant_block.get("collection_schema_version") or "")
-        if not previous_schema:
-            previous_schema = str(
-                previous_revision.get("qdrant_collection_schema_version")
-                or previous_revision.get("collection_schema_version")
-                or ""
-            )
-    schema_compatible = (
-        previous_schema == retrieval_index_api.QDRANT_COLLECTION_SCHEMA_VERSION
+    raise NotImplementedError(
+        "Phase R-5: chunk-level Qdrant upsert dispatch is dormant per "
+        "case C-1."
     )
-    previous_chunk_list: Sequence[Mapping[str, Any]] = []
-    if isinstance(previous_source_chunks, Mapping):
-        candidates = previous_source_chunks.get("chunks") or []
-        if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)):
-            previous_chunk_list = [c for c in candidates if isinstance(c, Mapping)]
-    if not schema_compatible or not previous_chunk_list:
-        # Full rebuild: schema changed or no prior baseline
-        return retrieval_index_api.upsert_qdrant_bge_m3_index(
-            chunks,
-            url=url,
-            collection=collection,
-            generated_at=generated_at,
-        )
-    diff = retrieval_index_api.compute_chunk_diff(previous_chunk_list, chunks)
-    chunks_to_embed = diff["added"] + diff["changed"]
-    removed_uids = diff["removed_uids"]
-    if not chunks_to_embed and not removed_uids:
-        # No actual change (shouldn't happen — fingerprint reuse should've caught
-        # this earlier — but be defensive).
-        return retrieval_index_api.upsert_qdrant_bge_m3_index(
-            chunks,
-            url=url,
-            collection=collection,
-            recreate=False,
-            generated_at=generated_at,
-        )
-    return retrieval_index_api.upsert_qdrant_bge_m3_index_incremental(
-        url=url,
-        collection=collection,
-        chunks_to_embed=chunks_to_embed,
-        point_ids_to_delete=removed_uids,
-        all_chunks=chunks,
-        generated_at=generated_at,
-    )
+    # ---- Phase R-5 dormant body (uncomment to restore) ----
+    # if force_full_recreate:
+    #     return retrieval_index_api.upsert_qdrant_bge_m3_index(
+    #         chunks,
+    #         url=url,
+    #         collection=collection,
+    #         generated_at=generated_at,
+    #     )
+    # previous_schema = ""
+    # if isinstance(previous_revision, Mapping):
+    #     qdrant_block = previous_revision.get("qdrant")
+    #     if isinstance(qdrant_block, Mapping):
+    #         previous_schema = str(qdrant_block.get("collection_schema_version") or "")
+    #     if not previous_schema:
+    #         previous_schema = str(
+    #             previous_revision.get("qdrant_collection_schema_version")
+    #             or previous_revision.get("collection_schema_version")
+    #             or ""
+    #         )
+    # schema_compatible = (
+    #     previous_schema == retrieval_index_api.QDRANT_COLLECTION_SCHEMA_VERSION
+    # )
+    # previous_chunk_list: Sequence[Mapping[str, Any]] = []
+    # if isinstance(previous_source_chunks, Mapping):
+    #     candidates = previous_source_chunks.get("chunks") or []
+    #     if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)):
+    #         previous_chunk_list = [c for c in candidates if isinstance(c, Mapping)]
+    # if not schema_compatible or not previous_chunk_list:
+    #     return retrieval_index_api.upsert_qdrant_bge_m3_index(
+    #         chunks,
+    #         url=url,
+    #         collection=collection,
+    #         generated_at=generated_at,
+    #     )
+    # diff = retrieval_index_api.compute_chunk_diff(previous_chunk_list, chunks)
+    # chunks_to_embed = diff["added"] + diff["changed"]
+    # removed_uids = diff["removed_uids"]
+    # if not chunks_to_embed and not removed_uids:
+    #     return retrieval_index_api.upsert_qdrant_bge_m3_index(
+    #         chunks,
+    #         url=url,
+    #         collection=collection,
+    #         recreate=False,
+    #         generated_at=generated_at,
+    #     )
+    # return retrieval_index_api.upsert_qdrant_bge_m3_index_incremental(
+    #     url=url,
+    #     collection=collection,
+    #     chunks_to_embed=chunks_to_embed,
+    #     point_ids_to_delete=removed_uids,
+    #     all_chunks=chunks,
+    #     generated_at=generated_at,
+    # )
+    # ---- end Phase R-5 dormant body ----
 
 
 def _attach_retrieval_source_update_diff(

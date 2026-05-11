@@ -768,6 +768,11 @@ def test_t_i01_incremental_updates_changed_section_and_skips_unchanged(
     assert unchanged_after["search_keys"] == unchanged_before["search_keys"]
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: chunk-level retrieval_index_revision is "
+    "always the disabled stub (no embedding_generation_skipped / "
+    "skip_reason fields). See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 def test_t_e07_spec_core_batches_metadata_and_reuses_unchanged_sections(
     tmp_path: Path,
 ) -> None:
@@ -1264,6 +1269,10 @@ def test_g11_provider_failure_does_not_use_fixed_metadata_fallback(
     assert all(section["search_keys"] == [] for section in sections)
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: chunk-level upsert_qdrant_bge_m3_index is "
+    "commented out. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 def test_g11_standard_retrieval_service_failure_is_failed_not_fake_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1308,6 +1317,10 @@ def test_g11_standard_retrieval_service_failure_is_failed_not_fake_success(
     assert "qdrant unavailable" in _json_text(revision)
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: chunk-level upsert_qdrant_bge_m3_index is "
+    "commented out. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 def test_t_r12_standard_qdrant_retrieval_is_default_without_smoke_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1361,6 +1374,10 @@ def test_t_r12_standard_qdrant_retrieval_is_default_without_smoke_env(
     assert calls, "standard Qdrant/BGE-M3 config must run real retrieval without env opt-in"
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: chunk-level upsert_qdrant_bge_m3_index is "
+    "commented out. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 @pytest.mark.parametrize(
     ("exc", "reason_code"),
     [
@@ -1417,6 +1434,12 @@ def test_t_r15_retrieval_failure_diagnostics_distinguish_required_categories(
 
 
 @pytest.mark.external
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: assertion targets the chunk-level "
+    "spec_grag_source collection / qdrant_hybrid_retrieve which is "
+    "commented out. Rewrite for spec_grag_section to reactivate. See "
+    "doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 def test_t_r07_real_core_uses_configured_llm_provider_and_real_index(
     tmp_path: Path,
 ) -> None:
@@ -1459,6 +1482,12 @@ def test_t_r07_real_core_uses_configured_llm_provider_and_real_index(
             pass
 
 
+@pytest.mark.skip(
+    reason="Phase R-5 dormant: assertion targets the chunk-level "
+    "spec_grag_source collection / qdrant_hybrid_retrieve which is "
+    "commented out. Rewrite for spec_grag_section to reactivate. See "
+    "doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
+)
 @pytest.mark.external
 def test_t_r12_production_core_uses_real_provider_and_retrieval_without_smoke_env(
     tmp_path: Path,
