@@ -252,7 +252,7 @@ spec-grag-watch [project_root]
 | オプション | 既定 | 内容 |
 |---|---|---|
 | `project_root` (位置引数) | `.` | プロジェクトルート |
-| `--once` | — | 1 回だけ scan して終了する (daemon にならない) |
+| `--once` | — | 1 回だけ scan して終了する (poll ループに入らない) |
 | `--interval-sec <秒>` | 2.0 | 変更がないときの poll 間隔 |
 | `--debounce-sec <秒>` | 1.0 | 変更検知後、update を開始するまでの待ち時間 (連続変更をまとめる) |
 | `--stale-lock-sec <秒>` | 300 | lock file がこの秒数を超えたら stale とみなして回収する |
