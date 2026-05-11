@@ -245,7 +245,6 @@ class _SectionRecord:
     stable_section_uid: str
     source_document_id: str
     heading_path: list[str]
-    heading_level: int
     chapter_id: str
     source_hash: str
     semantic_hash: str
@@ -2216,7 +2215,6 @@ def _normalize_section(section: Any) -> _SectionRecord:
         ),
         source_document_id=source_document_id,
         heading_path=_list_of_strings(_section_value(section, "heading_path", [])),
-        heading_level=int(_section_value(section, "heading_level", 0) or 0),
         chapter_id=str(_section_value(section, "chapter_id", source_document_id)),
         source_hash=source_hash,
         semantic_hash=semantic_hash,

@@ -82,10 +82,6 @@ def _span_value(source_span: Any, field: str) -> Any:
     return getattr(source_span, field)
 
 
-def _heading_levels(sections: list[Any]) -> list[int]:
-    return [_get(section, "heading_level") for section in sections]
-
-
 def _section_ids(sections: list[Any]) -> list[str]:
     return [_get(section, "section_id") for section in sections]
 
@@ -106,7 +102,7 @@ helper body
 """
     )
 
-    assert _heading_levels(sections) == [1, 2, 3, 4]
+    assert len(sections) == 4
     assert [_heading_path(section) for section in sections] == [
         ["Chapter"],
         ["Chapter", "Feature"],
@@ -132,7 +128,7 @@ image body
         max_heading_level=2,
     )
 
-    assert _heading_levels(sections) == [1, 2]
+    assert len(sections) == 2
     assert _heading_path(sections[-1]) == ["Chapter", "Feature"]
     assert "### Field group" in _body(sections[-1])
     assert "#### Image upload" in _body(sections[-1])
@@ -151,7 +147,7 @@ field body
         max_heading_level=1,
     )
 
-    assert _heading_levels(sections) == [1]
+    assert len(sections) == 1
     assert _heading_path(sections[0]) == ["Chapter"]
     assert "## Feature" in _body(sections[0])
     assert "### Field group" in _body(sections[0])
@@ -161,7 +157,6 @@ def test_t_u01_document_without_heading_becomes_single_root_section() -> None:
     sections = _parse_sections("intro line\nsecond line\n")
 
     assert len(sections) == 1
-    assert _get(sections[0], "heading_level") == 0
     assert _heading_path(sections[0]) == []
     assert _body(sections[0]) == "intro line\nsecond line\n"
 
@@ -221,7 +216,7 @@ details
 """
     )
 
-    assert _heading_levels(sections) == [1, 2]
+    assert len(sections) == 2
     assert [_heading_path(section) for section in sections] == [
         ["認証設計"],
         ["認証設計", "セッション管理"],
@@ -247,7 +242,6 @@ feature body
         "stable_section_uid",
         "source_document_id",
         "heading_path",
-        "heading_level",
         "source_span",
         "source_hash",
         "semantic_hash",
@@ -261,7 +255,6 @@ feature body
     assert _get(section, "section_id") == _get(section, "source_section_id")
     assert _get(section, "source_document_id") == "docs/spec/core.md"
     assert _get(section, "heading_path") == ["Chapter", "Feature"]
-    assert _get(section, "heading_level") == 2
 
     source_span = _get(section, "source_span")
     assert _span_value(source_span, "start_line") <= _span_value(source_span, "end_line")

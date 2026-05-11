@@ -28,7 +28,6 @@ class Section:
     stable_section_uid: str
     source_document_id: str
     heading_path: list[str]
-    heading_level: int
     source_span: SourceSpan
     source_hash: str
     semantic_hash: str
@@ -56,7 +55,6 @@ def parse_markdown_sections(
                 document_id=document_id,
                 ordinal=1,
                 heading_path=[],
-                heading_level=0,
                 lines=lines,
                 line_starts=line_starts,
                 start_line=1,
@@ -88,7 +86,6 @@ def parse_markdown_sections(
                 document_id=document_id,
                 ordinal=index + 1,
                 heading_path=heading_path,
-                heading_level=level,
                 lines=section_lines,
                 line_starts=line_starts,
                 start_line=heading_start + 1,
@@ -145,7 +142,6 @@ def _build_section(
     document_id: str,
     ordinal: int,
     heading_path: list[str],
-    heading_level: int,
     lines: list[str],
     line_starts: list[int],
     start_line: int,
@@ -174,7 +170,6 @@ def _build_section(
         stable_section_uid=stable_section_uid,
         source_document_id=document_id,
         heading_path=heading_path,
-        heading_level=heading_level,
         source_span=SourceSpan(
             start_line=start_line,
             end_line=end_line,

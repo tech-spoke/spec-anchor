@@ -41,7 +41,6 @@ def _section(section_id: str) -> dict[str, Any]:
         "semantic_hash": f"hash-{section_id}",
         "chapter_id": "chapter-1",
         "heading_path": ["Chapter", section_id],
-        "heading_level": 2,
         "source_span": {"start": 0, "end": 10},
     }
 
@@ -132,7 +131,6 @@ def test_section_manifest_entry_includes_audit_when_provided() -> None:
         "semantic_hash",
         "chapter_id",
         "heading_path",
-        "heading_level",
         "source_span",
         "llm_provider",
         "llm_generation_status",
@@ -156,7 +154,6 @@ def test_section_manifest_entry_without_audit_is_unchanged() -> None:
         "semantic_hash",
         "chapter_id",
         "heading_path",
-        "heading_level",
         "source_span",
     ):
         assert key in entry

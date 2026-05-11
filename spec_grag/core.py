@@ -1883,7 +1883,6 @@ def _core_metadata_entries(
             entry.setdefault("stable_section_uid", section.get("stable_section_uid"))
             entry.setdefault("source_document_id", section.get("source_document_id"))
             entry.setdefault("heading_path", list(section.get("heading_path", [])))
-            entry.setdefault("heading_level", section.get("heading_level"))
             entry["source_hash"] = section.get("source_hash")
             entry["semantic_hash"] = section.get("semantic_hash")
         else:
@@ -2586,7 +2585,6 @@ def _section_manifest_entry(
             "semantic_hash",
             "chapter_id",
             "heading_path",
-            "heading_level",
             "source_span",
         )
     }

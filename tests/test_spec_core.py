@@ -631,7 +631,6 @@ def test_g11_runtime_core_uses_section_parser_for_no_heading_source_specs(
     assert result["status"] == "updated"
     assert _freshness(result)["status"] == "fresh"
     assert len(manifest_sections) == 1
-    assert manifest_sections[0]["heading_level"] == 0
     assert manifest_sections[0]["heading_path"] == []
     assert manifest_sections[0]["section_id"] == "docs/spec/main.md#0001-document"
 
