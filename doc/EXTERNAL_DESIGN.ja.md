@@ -230,18 +230,35 @@ CLI / SPEC-grag は次を担当しない。
 
 SPEC-grag は、ユーザー向け slash command、Source Specs 変更を background で処理する watcher process、導入を支援する setup script を提供する。
 
-| コマンド | オプション / 引数 | 目的 | 回答生成 |
-|---|---|---|---|
-| `/spec-core` | `--all` / `-a` / `--rebuild` / conflict decision | Purpose / Core Concept 以外の保持物を生成・更新し、Conflict Review Item への人間判断を記録する。3 段階 rebuild フラグの詳細は §7.1 | しない |
-| `/spec-inject` | `[<課題プロンプト>]` | Agent / LLM が会話区間と課題から検索・参照・Agentic Search を行い、今回必要な制約を生成して注入する | しない |
-| `/spec-realign` | `[<課題プロンプト>]` | `/spec-inject` 相当の制約生成を行った上で、課題を解決する | する |
-| `spec-grag-watch` | `[project_root]` / `--once` / `--interval-sec` / `--debounce-sec` / `--stale-lock-sec` / `--max-runs` | Source Specs 変更を監視し、background で `/spec-core` 相当の incremental update を行う | しない |
-| `spec-grag-setup-project` | `--target <project_root>` / `--agent codex\|claude\|both` / `--codex-install user\|project` / `--dry-run` / `--force` / `--no-init-core-files` | 対象プロジェクトに `.spec-grag/config.toml`、Agent 別の command または skill 入口、Purpose / Core Concept 雛形、ignore 設定を配置する | しない |
-| `spec-grag-setup-system` | `--check-only` / `--mode editable\|archive\|install` / `--run-smoke` | SPEC-grag 本体の導入、実行ファイル、package data、依存ツール、smoke を確認・準備する | しない |
+| コマンド | 目的 | 詳細 |
+|---|---|---|
+| `/spec-core` | 保持物を生成・更新する | §7 |
+| `/spec-inject` | 課題に対する制約を生成する (回答は出さない) | §8 |
+| `/spec-realign` | 制約を生成し、課題に回答する | §9 |
+| `spec-grag-watch` | Source Specs 変更を監視し background で更新する | 下記 |
+| `spec-grag-setup-project` | プロジェクトに設定と Agent 入口を配置する | §5.2.1 |
+| `spec-grag-setup-system` | 外部依存の導入状態を確認する | §5.2.2 |
 
-slash command と watcher process は、対象プロジェクトルートで実行する。実行時には、そのプロジェクトルート直下の `.spec-grag/config.toml` を読み込む。
+全コマンドは対象プロジェクトルート直下の `.spec-grag/config.toml` を読み込む。
 
-setup script は runtime command ではない。`/spec-inject` や `/spec-realign` の実行中に自動起動してはいけない。
+#### spec-grag-watch
+
+Source Specs の変更を検知し、background で `/spec-core` 相当の incremental update を繰り返す。
+
+```
+spec-grag-watch [project_root]
+```
+
+| オプション | 既定 | 内容 |
+|---|---|---|
+| `project_root` (位置引数) | `.` | プロジェクトルート |
+| `--once` | — | 1 回だけ scan して終了する (daemon にならない) |
+| `--interval-sec <秒>` | 2.0 | 変更がないときの poll 間隔 |
+| `--debounce-sec <秒>` | 1.0 | 変更検知後、update を開始するまでの待ち時間 (連続変更をまとめる) |
+| `--stale-lock-sec <秒>` | 300 | lock file がこの秒数を超えたら stale とみなして回収する |
+| `--max-runs <回数>` | 無制限 | 指定回数だけ update したら終了する |
+
+出力: 各 update の結果を JSON で標準出力に出す。watcher 実行中は freshness gate が `status = blocked` (`watcher_running`) になり、`/spec-inject` と `/spec-realign` は停止する。
 
 ### 5.1 Agent 別 command / skill 入口
 
