@@ -254,8 +254,6 @@ SPEC-grag は、同じ CLI 契約を、各 Agent CLI が認識する入口形式
 
 入口形式は Agent CLI ごとに固定であり、利用者が選ぶ対象ではない。配置は Project Setup Script (§5.2.1) が行う。
 
-source of truth は本書の外部コマンド契約と SPEC-grag CLI の入出力である。command template / SKILL.md を仕様の唯一の根拠にしてはいけない。
-
 ### 5.2 Setup Script
 
 本書でいう setup script は、実行時の検索・制約生成ではなく、SPEC-grag を使い始めるための配置と検証を行う補助コマンドである。
