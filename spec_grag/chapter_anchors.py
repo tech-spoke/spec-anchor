@@ -134,6 +134,7 @@ def generate_chapter_anchors(
     concept_text: str | None = None,
     generated_at: str | None = None,
     prompt_version: str = CHAPTER_ANCHORS_PROMPT_VERSION,
+    rebuild_all: bool = False,
 ) -> ChapterAnchorsGeneration:
     """Run one LLM call per chapter and assemble the chapter_anchors artifact.
 
@@ -142,6 +143,14 @@ def generate_chapter_anchors(
     the provider is missing, fails, or returns an unparseable response.
     Each chapter that fell back is listed in `fallback_chapter_ids` so
     callers can surface a diagnostic.
+
+    `rebuild_all=True` honors the `--all` / `--rebuild` CLI contract:
+    the on-disk chapter anchor cache is bypassed for the load step
+    (every chapter is recomputed via LLM). New entries are still
+    written to the cache so subsequent default-mode runs can reuse
+    them. When `rebuild_all=False` (default), unchanged chapters
+    (`section_hashes` + `concept_hash` + `prompt_version` + `model` +
+    `provider` unchanged) reuse the cached anchor.
     """
 
     metadata_by_section_id = {
@@ -202,7 +211,7 @@ def generate_chapter_anchors(
                 metadata_version=metadata_version,
                 concept_hash=concept_hash,
             )
-            cached = cache.load(cache_key)
+            cached = None if rebuild_all else cache.load(cache_key)
             if cached is not None:
                 cached.setdefault("source_section_ids", list(section_ids))
                 cached.setdefault("chapter_id", chapter_id)

@@ -385,6 +385,19 @@ evidence_origin: `Conflict Review Item`
 
 修正後 (実 LLM 検証完了): 2026-05-11 04:40 UTC+9 頃の再 run で `spec_grag_section` collection が `--all` のみで作成 (`curl http://localhost:6333/collections` で確認、collection が事前削除されていた状態から自動 recreate)、50 sections 全てに `related_sections` が payload に書き込まれた (`spec_grag_section` 内 50/50 points が related_sections を保持、合計 328 edges)。section_metadata.json 側も同 50 sections が related_sections を持つ。sample edge: `25_コンポーネント層（配置操作）.md#0001` → `#0002` (`depends_on` / `high` confidence)
 
+### 7.2.5 Phase R-7 cache の `--all` 契約漏れ
+
+Phase R-7 (commit 295b3c2) で `ChapterAnchorsCache` を追加した際、`generate_chapter_anchors` が `cache.load(cache_key)` を**無条件で**呼ぶ実装になっており、`--all` / `--rebuild` の「LLM 由来 cache をクリア」契約 (doc/EXTERNAL_DESIGN.ja.md §3.2) を尊重していなかった。`section_metadata` cache と `pair typing` cache (`related_typing_cache.json`) は `--all` で正しく invalidate される (前者は in-memory bypass、後者は物理削除) のに対し、`chapter_anchors` cache だけ取り残されており、`.md` 本文が不変なら新しい section_metadata 出力に対しても古い chapter anchor を再利用してしまう構造的欠陥だった。
+
+対処:
+
+- spec_grag/chapter_anchors.py `generate_chapter_anchors` に `rebuild_all: bool = False` 引数を追加し、`cached = None if rebuild_all else cache.load(cache_key)` で `--all` 時の cache.load を bypass
+- spec_grag/core.py `_chapter_anchors` wrapper にも `rebuild_all` 引数を追加し、call site で `rebuild_all=run_full and not use_cache` を伝銬
+- `_run_spec_core_unlocked` の cache 物理削除 block を拡張: `related_typing_cache.json` 削除に加え、`section_metadata/*.json` と `chapter_anchors/*.json` も物理削除する (in-memory bypass と二重 invalidation することで watcher / 別プロセス経由でも一貫)
+- spec_grag/cli.py の `--all` help を `(section metadata + pair typing + chapter anchors)` に更新。`--rebuild` help を「chunk-level vector store」(Phase R-5 で dormant) から「spec_grag_section collection」に修正
+- doc/EXTERNAL_DESIGN.ja.md §3.2 rebuild flag 表に `chapter_anchors cache` 列を追加し、根拠説明文を「LLM 由来 cache (section_metadata, pair relation typing, chapter_anchors) はすべて非決定論的」に更新
+- tests/test_chapter_anchors.py に `test_chapter_anchors_rebuild_all_bypasses_cache` regression test (11 件 passed)
+
 ### 7.2.4 Phase R-6 inject-search 実 BGE-M3 + Qdrant load test 実施
 
 Phase R-6 commit (3636f48) では inject-search の fallback path のみを test (`test_inject_search_warns_on_empty_query` / `test_inject_search_warns_when_embedding_provider_unavailable`) でカバーしていた。実 BGE-M3 + Qdrant 経路の load test を 2026-05-11 09:55 JST 頃に実施し、以下の 1 件のバグを発見・修正した。

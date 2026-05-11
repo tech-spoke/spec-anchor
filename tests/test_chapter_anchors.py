@@ -261,6 +261,58 @@ def test_chapter_anchors_cache_reuses_unchanged_chapter(tmp_path: Path) -> None:
     assert main["generated_at"] == "2026-05-11T04:00:00Z"
 
 
+def test_chapter_anchors_rebuild_all_bypasses_cache(tmp_path: Path) -> None:
+    """Phase R-7 follow-up: rebuild_all=True honors the `--all` CLI contract.
+
+    The first run populates the chapter_anchors cache. A second run with
+    `rebuild_all=True` MUST call the LLM again for every chapter even
+    though `section_hashes` + `concept_hash` + `prompt_version` +
+    `model` + `provider` are unchanged. Without this, the `--all` /
+    `--rebuild` flag fails to invalidate Phase R-7's LLM-derived cache,
+    contradicting its documented "clear LLM-derived caches" contract.
+    """
+
+    provider = RecordingChapterAnchorsProvider()
+    cache_dir = tmp_path / "cache"
+
+    first = generate_chapter_anchors(
+        _sections(),
+        _metadata_entries(),
+        provider=provider,
+        cache_dir=cache_dir,
+        generated_at="2026-05-11T03:00:00Z",
+    )
+    assert first.llm_calls == 2
+    assert first.cache_hits == 0
+
+    # Re-run with rebuild_all=True. The on-disk cache files still exist
+    # (this test does not physically delete them; the CLI dispatcher
+    # does that in addition for safety). The chapter_anchors module
+    # itself must bypass the cache.load step via the rebuild_all flag.
+    rebuilt_provider = RecordingChapterAnchorsProvider(summary_prefix="rebuilt")
+    second = generate_chapter_anchors(
+        _sections(),
+        _metadata_entries(),
+        provider=rebuilt_provider,
+        cache_dir=cache_dir,
+        generated_at="2026-05-11T04:00:00Z",
+        rebuild_all=True,
+    )
+
+    assert second.cache_hits == 0, (
+        "rebuild_all=True must bypass the cache.load step entirely. "
+        "Phase R-7 cache hits would mask the --all contract."
+    )
+    assert second.llm_calls == 2
+    assert len(rebuilt_provider.calls) == 2
+    # The new summary text comes from the fresh LLM, not the cached
+    # entry, proving the bypass.
+    main = next(
+        chapter for chapter in second.chapters if chapter["chapter_id"] == "docs/spec/main.md"
+    )
+    assert main["summary"].startswith("rebuilt "), main["summary"]
+
+
 def test_chapter_anchors_cache_invalidates_on_section_hash_change(tmp_path: Path) -> None:
     provider = RecordingChapterAnchorsProvider()
     cache_dir = tmp_path / "cache"

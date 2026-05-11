@@ -493,15 +493,43 @@ def _run_spec_core_unlocked(
     emit("core_related_sections_start")
     related_pair_cache_dir = context_dir / "cache"
     if run_full and not use_cache:
-        # --all clears LLM relation typing cache so re-evaluation can happen.
-        # BGE-M3 embeddings are deterministic so the chunk-level cache is reused
-        # via hash matching, but LLM typing is non-deterministic and --all
-        # is the explicit "do not trust prior judgments" entrypoint.
+        # --all clears every LLM-derived cache so re-evaluation can happen.
+        # BGE-M3 embeddings are deterministic so the section-level vector
+        # cache is reused via hash matching, but LLM section_metadata /
+        # pair typing / chapter_anchors stages are non-deterministic and
+        # `--all` is the explicit "do not trust prior judgments" entry.
+        # Phase R-7 added chapter_anchors LLM stage; its on-disk cache
+        # files must also be cleared here to honor the `--all` contract.
         cache_file = related_pair_cache_dir / "related_typing_cache.json"
         try:
             cache_file.unlink()
         except FileNotFoundError:
             pass
+        # section_metadata cache files: keys are content-addressed; new
+        # LLM output writes to a different key. Bypass-at-load (via
+        # `rebuild=True` argument to `generate_section_metadata_result`)
+        # suffices for invalidation. Physical purge optional.
+        section_metadata_cache_dir = related_pair_cache_dir / "section_metadata"
+        if section_metadata_cache_dir.is_dir():
+            for cache_file in section_metadata_cache_dir.glob("*.json"):
+                try:
+                    cache_file.unlink()
+                except FileNotFoundError:
+                    pass
+        # chapter_anchors cache files: section source_hash unchanged means
+        # the cache key matches across runs even when section_metadata
+        # content (summary / search_keys / identifiers) has been
+        # regenerated. Physically purging guarantees the chapter LLM is
+        # re-called under `--all`. `_chapter_anchors` also receives
+        # `rebuild_all=True` so the load step is bypassed even when this
+        # purge is skipped (e.g. a watcher / programmatic caller).
+        chapter_anchors_cache_dir = related_pair_cache_dir / "chapter_anchors"
+        if chapter_anchors_cache_dir.is_dir():
+            for cache_file in chapter_anchors_cache_dir.glob("*.json"):
+                try:
+                    cache_file.unlink()
+                except FileNotFoundError:
+                    pass
     related_generation = _generate_related_sections(
         sections=sections,
         section_metadata=section_metadata,
@@ -678,6 +706,7 @@ def _run_spec_core_unlocked(
         provider=active_provider,
         cache_dir=context_dir / "cache",
         concept_text=concept_text,
+        rebuild_all=run_full and not use_cache,
     )
     # Phase R-5 (case C-1): chunk-level retrieval is dormant. Always
     # write the disabled-state stub artifacts. Do NOT call
@@ -2463,6 +2492,7 @@ def _chapter_anchors(
     provider: Any = None,
     cache_dir: str | Path | None = None,
     concept_text: str | None = None,
+    rebuild_all: bool = False,
 ) -> dict[str, Any]:
     """Phase R-7: LLM-generated Chapter Key Anchor.
 
@@ -2473,6 +2503,12 @@ def _chapter_anchors(
     unparseable. Callers that don't pass `config` / `provider` (e.g.
     legacy tests, watcher snapshot paths) still get a usable anchor via
     the fallback path.
+
+    `rebuild_all=True` propagates the `--all` / `--rebuild` CLI contract
+    into chapter_anchors so its on-disk cache is bypassed for the load
+    step (every chapter is recomputed via LLM). This parallels the
+    section_metadata cache bypass and the related_typing_cache.json
+    deletion that `_run_spec_core_unlocked` already performs for `--all`.
     """
 
     import spec_grag.chapter_anchors as chapter_anchors_api
@@ -2487,6 +2523,7 @@ def _chapter_anchors(
         cache_dir=cache_dir,
         concept_text=concept_text or "",
         generated_at=generated_at,
+        rebuild_all=rebuild_all,
     )
     return generation.artifact
 

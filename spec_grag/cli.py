@@ -59,12 +59,12 @@ def build_main_parser() -> argparse.ArgumentParser:
         "--all",
         "-a",
         action="store_true",
-        help="clear LLM-derived caches (section metadata + pair typing) and re-evaluate",
+        help="clear LLM-derived caches (section metadata + pair typing + chapter anchors) and re-evaluate",
     )
     core.add_argument(
         "--rebuild",
         action="store_true",
-        help="recreate the Qdrant chunk-level vector store (implies --all). Use when embeddings are suspected corrupt.",
+        help="drop and recreate the Qdrant spec_grag_section collection (implies --all). Use when embeddings are suspected corrupt or the collection has stale residue. Phase R-5: chunk-level collection (spec_grag_source) is dormant and not affected.",
     )
     core.add_argument(
         "--use-cache",
