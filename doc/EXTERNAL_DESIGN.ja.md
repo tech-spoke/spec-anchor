@@ -239,7 +239,6 @@ SPEC-grag は、ユーザー向け slash command、Source Specs 変更を backgr
 | `spec-grag-setup-project` | プロジェクトに設定と Agent 入口を配置する | §5.2.1 |
 | `spec-grag-setup-system` | 外部依存の導入状態を確認する | §5.2.2 |
 
-全コマンドは対象プロジェクトルート直下の `.spec-grag/config.toml` を読み込む。
 
 #### spec-grag-watch
 
@@ -342,15 +341,13 @@ System Setup Script は対象プロジェクトの Source Specs、Purpose、Core
 
 ### 6.1 設定ファイル配置
 
-コマンドは、対象プロジェクトルートで実行することを前提にする。コマンドは、実行ディレクトリ直下の `.spec-grag/config.toml` を読み込む。設定ファイルの場所は固定であり、カレントディレクトリから親方向へ探索しない。
+設定ファイルは `<project_root>/.spec-grag/config.toml` に置く。各コマンドは project root を引数で受け取る (`--project-root`、`--target`、または位置引数。省略時はカレントディレクトリ)。親ディレクトリへの自動探索はしない。
 
 ```text
-対象プロジェクト/
+<project_root>/
 └── .spec-grag/
     └── config.toml
 ```
-
-SPEC-grag 本体は共通ツールとして配置し、プロジェクトごとの差分は対象プロジェクト側の `.spec-grag/config.toml` に閉じ込める。
 
 ### 6.2 Context Freshness
 
