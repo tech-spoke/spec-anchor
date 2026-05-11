@@ -18,7 +18,7 @@
 
 ## 設計書の記述ルール
 
-設計書 (特に `doc/EXTERNAL_DESIGN.ja.md`) を記述・レビューする際は、[doc/WRITING_RULES.ja.md](doc/WRITING_RULES.ja.md) に従うこと。外部設計書にソースコードの知識がないと読めない文を書いてはいけない。
+`doc/EXTERNAL_DESIGN.ja.md` を記述・レビューする際は、[doc/EXTERNAL_DESIGN_RULES.ja.md](doc/EXTERNAL_DESIGN_RULES.ja.md) に従うこと。外部設計書にソースコードの知識がないと読めない文を書いてはいけない。
 
 ## 報告ルール
 
