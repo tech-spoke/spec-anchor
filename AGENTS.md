@@ -18,9 +18,9 @@
 
 ## 設計書の記述ルール
 
-`doc/EXTERNAL_DESIGN.ja.md` を記述・レビューする際は、[doc/EXTERNAL_DESIGN_RULES.ja.md](doc/EXTERNAL_DESIGN_RULES.ja.md) に従うこと。外部設計書にソースコードの知識がないと読めない文を書いてはいけない。
+`doc/EXTERNAL_DESIGN.ja.md` を記述・レビューする際は、[agent_doc/EXTERNAL_DESIGN_RULES.ja.md](agent_doc/EXTERNAL_DESIGN_RULES.ja.md) に従うこと。外部設計書にソースコードの知識がないと読めない文を書いてはいけない。
 
-`doc/DESIGN.ja.md` を記述・レビューする際は、[doc/INTERNAL_DESIGN_RULES.ja.md](doc/INTERNAL_DESIGN_RULES.ja.md) に従うこと。内部設計は実装メモではなく、確定した設計判断の記録として書かなければならない。
+`doc/DESIGN.ja.md` を記述・レビューする際は、[agent_doc/INTERNAL_DESIGN_RULES.ja.md](agent_doc/INTERNAL_DESIGN_RULES.ja.md) に従うこと。内部設計は実装メモではなく、確定した設計判断の記録として書かなければならない。
 
 ## 報告ルール
 
