@@ -600,7 +600,7 @@ freshness gate の扱いは次のとおりである。
 
 watcher は任意である。watcher を使う場合は Source Specs の変更を background で `/spec-core` 相当の incremental update として処理する。watcher が実行中である、または queue file に未処理変更が残っている場合、freshness gate は `status = blocked` とし、`watcher_running` または `watcher_queue_pending` を `blocking_reasons[]` に入れる。watcher を使わない場合は、人間または CI が `/spec-core` を明示実行してから `/spec-inject` / `/spec-realign` を実行する。
 
-`/spec-core --all` (または `-a`) は LLM 由来 cache を全クリアして再評価する。`/spec-core --rebuild` は加えて Qdrant chunk-level collection も full recreate する。通常の `/spec-core` は変更分のみを更新する。
+`/spec-core --all` (または `-a`) は LLM 由来 cache (section_metadata / pair typing / chapter_anchors) を全クリアして再評価する。`/spec-core --rebuild` は加えて Qdrant `spec_grag_section` collection も drop + recreate する。通常の `/spec-core` は変更分のみを更新する。
 
 ### 6.3 Watcher Snapshot Isolation
 
@@ -663,11 +663,11 @@ section 化する最大見出し深さは `.spec-grag/config.toml` の `[section
   = section hash に基づく incremental update。LLM cache と embedding を hash 一致時に再利用
 
 /spec-core --all
-  = LLM 由来 cache (section_metadata / pair typing) をクリアして再評価
+  = LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価
     embedding は決定論的なので hash 一致時に再利用 (時間と計算資源を節約)
 
 /spec-core --rebuild
-  = 上記に加え、Qdrant chunk-level collection を full recreate
+  = 上記に加え、Qdrant spec_grag_section collection を drop + recreate
     embedding 破損や schema 移行など vector store 再構築が必要な場合に使う
 ```
 
@@ -679,8 +679,8 @@ section 化する最大見出し深さは `.spec-grag/config.toml` の `[section
 | Source Specs | `sources.include` で指定された仕様ファイル |
 | Purpose | `core.purpose_file` で指定されたファイル。読み取り専用 |
 | Core Concept | `core.concept_file` で指定されたファイル。人間更新対象 |
-| `--all` / `-a` | LLM 由来 cache (section_metadata / pair typing) をクリアして再評価する。embedding は hash 一致時に再利用 |
-| `--rebuild` | `--all` を含意し、さらに Qdrant chunk-level collection を full recreate する。embedding 破損や schema 移行時に使う |
+| `--all` / `-a` | LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。embedding は hash 一致時に再利用 |
+| `--rebuild` | `--all` を含意し、さらに Qdrant `spec_grag_section` collection を drop + recreate する。embedding 破損や schema 移行時に使う |
 | `--use-cache` | (deprecated) 過去互換のために残置。指定しても挙動は無指定と同等 |
 
 ### 7.3 動作

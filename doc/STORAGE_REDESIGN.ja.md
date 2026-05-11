@@ -213,7 +213,7 @@ per section:
   source_hash
   semantic_hash
   heading_path
-  heading_level                  ← UI で必要な場合のみ、原則 heading_path から派生
+  (heading_level は撤去済み。SPEC-grag は heading_path のみ使用、markdown 見出しレベル整数は不要)
   llm_generation_status          ← success / failed / skipped (失敗 section は Qdrant に index しない)
   llm_provider                   ← 監査用
   generated_at                   ← 監査用
@@ -339,8 +339,11 @@ evidence_origin: `Conflict Review Item`
 ### 7.1 設計判断 (確定)
 
 - [x] 案 C-1 を採用 (Qdrant をコンテンツ正本、`section_metadata.json` 完全廃止、JSON は人間判断 / 軽量 tracking / 状態のみ)
-- [ ] `doc/EXTERNAL_DESIGN.ja.md` と `doc/DESIGN.ja.md` の関連節を案 C-1 で改訂
-- [ ] 改訂と同時に CLAUDE.md ルール 13 の checkbox 化を実施
+- [x] `doc/EXTERNAL_DESIGN.ja.md` と `doc/DESIGN.ja.md` の関連節を案 C-1 で改訂
+  - Phase R-1 (commit `c43e5bb`) で checkbox ブロックを追加、Phase R-7 以降で evidence を更新
+  - 本 commit で chunk-level → section-level 改訂 (§6.2 / §7 の `--rebuild` / `--all` 記述から `chunk-level collection` を `spec_grag_section collection` に修正、heading_level 撤去を反映、DESIGN.ja.md §4.6 の `source_chunks.json` 参照を `--rebuild` に修正)
+- [x] 改訂と同時に CLAUDE.md ルール 13 の checkbox 化を実施
+  - Phase R-1 で EXTERNAL_DESIGN.ja.md §2.6/2.6.1/2.7/2.8/2.9/3.1/8.4、DESIGN.ja.md §0 に checkpoint ブロックを追加。以後の Phase で evidence を [x] + file:line + test name で更新
 
 ### 7.2 役割分離 (search_keys vs identifiers, §1.0)
 
@@ -449,10 +452,10 @@ Phase R-5 初版は「`CHUNK_LEVEL_ENABLED: bool = False` 定数 + `_chunk_level
 
 ### 7.3 案 C-1 確定時の確認事項
 
-- [ ] `heading_level` の用途確認 (現状どこで使われているか調査)。利用箇所が無ければ `section_manifest.json` からも除外
-- [ ] `semantic_hash` と `source_hash` の使い分け確認 (現状ほぼ同じ値が入っている可能性)。同一なら 1 つに統合
-- [ ] `text` (embedding 入力テキスト) を Qdrant payload から除外可能か検討 (節約。再生成は他 field から決定論的に可能)
-- [ ] `section_manifest.json` の最終 schema 確定 (本ドキュメント §4.3 案を本実装の docstring に転記)
+- [x] `heading_level` の用途確認 → **撤去** (commit `84bc451`)。production で不使用 (dead store)。SPEC-grag の retrieval / embedding / chapter grouping は heading_path (見出し親子チェーン) のみ使用し、markdown 見出しレベル整数は不要。`max_heading_level` (parser の section 境界判定) は heading_level field を参照しない (parse 時に `_section_boundaries` 内で直接 level 判定)
+- [x] `semantic_hash` と `source_hash` の使い分け確認 → **両方残す。cache key を semantic_hash に変更** (commit `0d38042`)。source_hash = raw body の SHA-256 (file integrity)、semantic_hash = whitespace 正規化後 SHA-256 (LLM cache key)。両 hash は目的が異なり統合不可。修正前は cache key が source_hash だったため semantic_hash が dead field 化していた (whitespace-only edit でも LLM 再呼出していた)。cache key を semantic_hash に変更し、本来の設計意図 (whitespace-only edit で LLM skip) を実現
+- [x] `text` (embedding 入力テキスト) を Qdrant payload から除外可能か検討 → **除去不可** (設計判断確定)。`text` = BGE-M3 検索面 (searchable surface) の specification で、section の vector が何を表すかを宣言する field。除去すると vector の audit trail を失い、`build_section_embedding_text` の formula 変更時に recompute と既存 vector が乖離するリスクがある。14KB の storage 節約は vector 容量 (50 sections × ~8KB/section) と比べて誤差
+- [x] `section_manifest.json` の最終 schema 確定 → **docstring 転記済み** (commit `c44ee64`)。`build_section_manifest` (artifacts.py) と `_section_manifest_entry` (core.py) の両方に §4.3 schema を docstring として追加
 
 ### 7.4 段階的 refactor (案 C-1)
 

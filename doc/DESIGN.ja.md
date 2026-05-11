@@ -83,7 +83,6 @@ section_id
 stable_section_uid
 source_document_id
 heading_path
-heading_level
 source_span
 source_hash
 semantic_hash
@@ -365,12 +364,9 @@ Qdrant 側 RRF と CLI 側 RRF のどちらを使った場合でも、diagnostic
 - `--all` の本来の意図は「LLM 段階の非決定性を排除して再生成する」ことであり、決定論的な後段処理まで強制再計算する必要はない
 - Vector 破損 / collection schema 移行などの異常系は `--rebuild` で対応する
 
-retrieval index を意図的に再構築したい場合 (例: BGE-M3 model revision 変更、Qdrant collection schema 変更) の手段は次のいずれかとする。
+retrieval index を意図的に再構築したい場合 (例: BGE-M3 model revision 変更、Qdrant collection schema 変更) の手段は `/spec-core --rebuild` とする。`--rebuild` は Qdrant `spec_grag_section` collection を drop + recreate し、全 section を再 embed + upsert する。
 
-- `.spec-grag/context/source_chunks.json` を削除する → 次回 `/spec-core` で fingerprint mismatch となり再 upsert
-- Qdrant collection を直接削除する → 次回 query 時にエラー → 検出後 `/spec-core --all`
-
-`--rebuild-retrieval` のような専用 flag は現状提供しない。将来的に embedding model のメジャー切替時にのみ追加検討する。
+`--rebuild-retrieval` のような専用 flag は現状提供しない。`--rebuild` が `--all` (LLM cache クリア) を含意するため、1 command で LLM 再生成 + retrieval 再構築が完結する。
 
 ## 5. Related Sections 生成
 
