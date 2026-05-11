@@ -245,38 +245,16 @@ setup script は runtime command ではない。`/spec-inject` や `/spec-realig
 
 ### 5.1 Agent 別 command / skill 入口
 
-SPEC-grag は、同じ外部コマンド契約を、各 Agent CLI が公式に認識する入口形式で提供する。形式は Agent CLI ごとに固定とし、利用者が選ぶ対象ではない。
+SPEC-grag は、同じ CLI 契約を、各 Agent CLI が認識する入口形式で提供する。
 
-| Agent 環境 | 入口形式 | 配置先 | 配置物 |
-|---|---|---|---|
-| Claude Code / Claude CLI | command 形式 | `<project>/.claude/commands/` | `spec-core.md` / `spec-inject.md` / `spec-realign.md` |
-| Codex CLI | skill 形式 | `<codex_install_path>/skills/spec-grag/` | `SKILL.md`（任意で `agents/openai.yaml` などの bundle） |
-
-Codex の `<codex_install_path>` は、`spec-grag-setup-project --codex-install` で次のいずれかを選ぶ。
-
-| 値 | 配置先 | 用途 |
+| Agent 環境 | 入口形式 | 配置先 |
 |---|---|---|
-| `user`（既定） | `~/.codex/` | ユーザーの Codex CLI 全体で SPEC-grag skill を有効にする |
-| `project` | `<project>/.codex/` | プロジェクトに閉じた Codex skill 配置 |
+| Claude Code / Claude CLI | command template | `<project>/.claude/commands/` |
+| Codex CLI | skill (SKILL.md) | `<codex_install_path>/skills/spec-grag/` |
 
-未決事項: `<project>/.codex/skills/<name>/SKILL.md` を Codex CLI が認識するか。Codex CLI の version とプロジェクトローカル skill サポートを実環境で確認し、認識されない version では setup-project が `--codex-install project` を warning と共に user フォールバックする、または diagnostics で手作業手順を提示する挙動に確定する。
+入口形式は Agent CLI ごとに固定であり、利用者が選ぶ対象ではない。配置は Project Setup Script (§5.2.1) が行う。
 
-Codex の SKILL.md は、Codex skill 公式仕様に従う。
-
-```text
-SKILL.md frontmatter
-  name        必須。skill 識別名（ディレクトリ名と一致）
-  description 必須。Codex CLI が skill を呼び出すかを判断する説明文
-  metadata.short-description  任意。UI / list 表示用の短い説明
-SKILL.md 本文
-  Markdown。SPEC-grag CLI の呼び出し手順、Agent / LLM 責務、freshness gate、pending conflict 停止、根拠区別の指示
-```
-
-Claude Code の command template は、Claude Code slash command 公式仕様に従い、frontmatter (`description`, `argument-hint`, `allowed-tools` 等) と本文を持つ。
-
-CODEX 版 SKILL.md と CLAUDE 版 command template は、同じ SPEC-grag CLI 契約を使う。違いは、入口形式、metadata 構造、tool permission 表現、引数展開方式だけである。
-
-source of truth は、外部コマンド契約と SPEC-grag CLI の入出力である。CODEX 版 SKILL.md または CLAUDE 版 command template を、仕様の唯一の根拠にしてはいけない。
+source of truth は本書の外部コマンド契約と SPEC-grag CLI の入出力である。command template / SKILL.md を仕様の唯一の根拠にしてはいけない。
 
 ### 5.2 Setup Script
 
