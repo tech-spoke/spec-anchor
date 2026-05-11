@@ -385,6 +385,22 @@ evidence_origin: `Conflict Review Item`
 
 修正後 (実 LLM 検証完了): 2026-05-11 04:40 UTC+9 頃の再 run で `spec_grag_section` collection が `--all` のみで作成 (`curl http://localhost:6333/collections` で確認、collection が事前削除されていた状態から自動 recreate)、50 sections 全てに `related_sections` が payload に書き込まれた (`spec_grag_section` 内 50/50 points が related_sections を保持、合計 328 edges)。section_metadata.json 側も同 50 sections が related_sections を持つ。sample edge: `25_コンポーネント層（配置操作）.md#0001` → `#0002` (`depends_on` / `high` confidence)
 
+### 7.2.4 Phase R-6 inject-search 実 BGE-M3 + Qdrant load test 実施
+
+Phase R-6 commit (3636f48) では inject-search の fallback path のみを test (`test_inject_search_warns_on_empty_query` / `test_inject_search_warns_when_embedding_provider_unavailable`) でカバーしていた。実 BGE-M3 + Qdrant 経路の load test を 2026-05-11 09:55 JST 頃に実施し、以下の 1 件のバグを発見・修正した。
+
+**バグ**: `spec_grag/inject.py:_build_hybrid_retriever` が存在しない `HybridRetrievalIndex` クラスを import しようとし、`ImportError: cannot import name 'HybridRetrievalIndex' from 'spec_grag.retrieval_index'` で `retriever_init_failed` warning を返して hits が空になる。実際には `spec_grag/retrieval_index.py:408` の `QdrantHybridRetriever` が live クラス。constructor kwarg も `provider` ではなく `embedding_provider`、`search` の per-query 上限 kwarg も `top_k` ではなく `limit`。
+
+**対処**: spec_grag/inject.py:903-918 の import / fallback 二重 try ブロックを `from spec_grag.retrieval_index import FlagEmbeddingBgeM3Provider, QdrantHybridRetriever` の単純 import + 失敗時 `retriever_unavailable` warning に整理。`_build_hybrid_retriever` を `QdrantHybridRetriever(url=..., collection=..., embedding_provider=provider)` に修正。`retriever.search(query, limit=int(top_k))` に修正。tests/test_inject_cli_extension.py に `test_build_hybrid_retriever_constructs_qdrant_hybrid_retriever` regression guard を追加。
+
+**実 LLM 検証 (修正後)**: `spec-grag inject-search "コンポーネント配置と差し替え操作" --top-k 3` を spec-grag リポジトリで実行 (Qdrant `spec_grag_section` collection に 50 sections / 328 related_sections edges が事前に投入済みの状態)。結果:
+
+- `hits` 3 件返却 (top score 0.0314、`25_コンポーネント層（配置操作）.md#0008-core-customize-の役割分担` 等)
+- 各 hit に summary / search_keys / identifiers / related_sections (R-3 set_payload で書き込まれた typed graph) / source_section_id / score を含む payload
+- `warnings: []` (fallback に降格していないことを確認)
+
+これで Phase R-6 inject CLI の最後に残っていた live retrieval 経路が end-to-end で動作することを実測確認できた。
+
 ### 7.2.1 Phase R-5 実施で発見した問題と対処
 
 実 codex / claude subprocess を立ち上げる smoke test (`tests/test_agent_cli_smoke.py::test_t_a02_real_setup_core_inject_realign_watch_roundtrip_with_agent_entrypoints`) で、tests/conftest.py の `_enable_chunk_level_for_tests` autouse hook が **subprocess に届かない**ため、`spec-grag core --all` 実行後の `client.count(collection)` assertion が `Collection ... doesn't exist` で失敗した。

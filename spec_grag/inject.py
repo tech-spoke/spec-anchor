@@ -900,27 +900,12 @@ def run_inject_search(
         return base_result
     try:
         from spec_grag.retrieval_index import (
-            QdrantHybridRetriever,  # type: ignore[attr-defined]
+            FlagEmbeddingBgeM3Provider,
+            QdrantHybridRetriever,
         )
-    except ImportError:
-        try:
-            from spec_grag.retrieval_index import (  # type: ignore[attr-defined]
-                _hit_from_qdrant_point as _hit,  # noqa: F401
-            )
-            from spec_grag.retrieval_index import (
-                HybridRetrievalIndex,
-            )
-            QdrantHybridRetriever = None  # type: ignore[assignment]
-        except ImportError:
-            base_result["warnings"].append(
-                {"reason_code": "retriever_unavailable", "message": "QdrantHybridRetriever import failed"}
-            )
-            return base_result
-    try:
-        from spec_grag.retrieval_index import FlagEmbeddingBgeM3Provider
     except ImportError as exc:
         base_result["warnings"].append(
-            {"reason_code": "embedding_unavailable", "message": str(exc)}
+            {"reason_code": "retriever_unavailable", "message": str(exc)}
         )
         return base_result
     try:
@@ -939,7 +924,7 @@ def run_inject_search(
         )
         return base_result
     try:
-        result = retriever.search(query, top_k=int(top_k))
+        result = retriever.search(query, limit=int(top_k))
     except Exception as exc:  # pragma: no cover - integration boundary
         base_result["warnings"].append(
             {"reason_code": "retrieval_failed", "message": str(exc)}
@@ -983,12 +968,21 @@ def _build_qdrant_client(url: str) -> Any:
 
 
 def _build_hybrid_retriever(url: str, collection: str, provider: Any) -> Any:
-    from spec_grag.retrieval_index import HybridRetrievalIndex
+    """Phase R-6: build the live BGE-M3 + Qdrant section-level retriever.
 
-    return HybridRetrievalIndex(
+    Uses `QdrantHybridRetriever` (real Qdrant + BGE-M3 dense/sparse + RRF)
+    against the section-level collection. The chunk-level
+    `HybridRetrievalIndex` alias does not exist; the live class is
+    `QdrantHybridRetriever` which serves both legacy chunk-level and
+    Phase R-3 section-level collections.
+    """
+
+    from spec_grag.retrieval_index import QdrantHybridRetriever
+
+    return QdrantHybridRetriever(
         url=url,
         collection=collection,
-        provider=provider,
+        embedding_provider=provider,
     )
 
 

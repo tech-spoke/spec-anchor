@@ -250,6 +250,31 @@ def test_inject_search_warns_on_empty_query(tmp_path: Path) -> None:
     assert "empty_query" in reasons
 
 
+def test_build_hybrid_retriever_constructs_qdrant_hybrid_retriever() -> None:
+    """Regression guard: `_build_hybrid_retriever` must construct the
+    real `QdrantHybridRetriever` class, not the non-existent
+    `HybridRetrievalIndex`. The first real-codex `inject-search` run
+    after Phase R-6 surfaced this import-name bug; without this test
+    the dormant bug returns silently because every other test stubs the
+    constructor.
+    """
+
+    from spec_grag.retrieval_index import (
+        FakeBgeM3EmbeddingProvider,
+        QdrantHybridRetriever,
+    )
+    from spec_grag.inject import _build_hybrid_retriever
+
+    retriever = _build_hybrid_retriever(
+        "http://localhost:6333",
+        "spec_grag_section",
+        FakeBgeM3EmbeddingProvider(),
+    )
+
+    assert isinstance(retriever, QdrantHybridRetriever)
+    assert retriever.collection == "spec_grag_section"
+
+
 def test_inject_search_warns_when_embedding_provider_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
