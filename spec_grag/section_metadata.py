@@ -575,7 +575,7 @@ def section_metadata_cache_key(
     limits_config = _limits(limits)
     payload = {
         "stable_section_uid": normalized.stable_section_uid,
-        "source_hash": normalized.source_hash,
+        "semantic_hash": normalized.semantic_hash,
         "prompt_version": prompt_version,
         "model": model,
         "provider": provider_id,
@@ -832,7 +832,6 @@ def _entry_matches_section(entry: Mapping[str, Any], section: _NormalizedSection
     return (
         entry.get("section_id") == section.section_id
         and entry.get("stable_section_uid") == section.stable_section_uid
-        and entry.get("source_hash") == section.source_hash
         and entry.get("semantic_hash") == section.semantic_hash
     )
 

@@ -421,7 +421,6 @@ def _run_spec_core_unlocked(
         if run_full
         or section["section_id"] not in old_entries
         or old_entries[section["section_id"]].get("semantic_hash") != section["semantic_hash"]
-        or old_entries[section["section_id"]].get("source_hash") != section["source_hash"]
     }
 
     emit("core_section_metadata_start")
@@ -1885,8 +1884,8 @@ def _core_metadata_entries(
             entry.setdefault("source_document_id", section.get("source_document_id"))
             entry.setdefault("heading_path", list(section.get("heading_path", [])))
             entry.setdefault("heading_level", section.get("heading_level"))
-            entry.setdefault("source_hash", section.get("source_hash"))
-            entry.setdefault("semantic_hash", section.get("semantic_hash"))
+            entry["source_hash"] = section.get("source_hash")
+            entry["semantic_hash"] = section.get("semantic_hash")
         else:
             entry.setdefault("source_section_id", section_id)
         entry.setdefault("metadata_version", 1)
