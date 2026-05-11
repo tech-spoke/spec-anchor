@@ -338,12 +338,6 @@ exit code: ready なら 0、blocked なら非 0。
 
 System Setup Script は対象プロジェクトの Source Specs、Purpose、Core Concept、生成済み保持物を変更しない。プロジェクトへのファイル配置は Project Setup Script (§5.2.1) の責務である。
 
-### 5.3 本運用 readiness
-
-`/spec-core` は `.spec-grag/config.toml` の `[llm]`、`[embedding]`、`[vector_store]` で指定された provider をそのまま使う。指定された provider が失敗した場合は、別の provider に黙って切り替えず、失敗として報告する。
-
-`spec-grag-setup-system --check-only` は、本運用に必要な外部依存 (console script、FlagEmbedding、qdrant-client、Qdrant service、Agent CLI) の状態を確認し、結果を `production_readiness.status` (`ready` / `blocked`) で返す。
-
 ## 6. 共通契約
 
 ### 6.1 設定ファイル配置
@@ -494,6 +488,8 @@ section 化する最大見出し深さは `.spec-grag/config.toml` の `[section
 | `--rebuild` | clear → 再生成 | full recreate (collection 再作成) |
 
 `--rebuild` は `--all` を含意する。`--use-cache` は deprecated (挙動は無指定と同等)。
+
+`/spec-core` は `.spec-grag/config.toml` の `[llm]`、`[embedding]`、`[vector_store]` で指定された provider をそのまま使う。指定された provider が失敗した場合は、別の provider に黙って切り替えず、失敗として報告する。
 
 ### 7.2 入力
 
