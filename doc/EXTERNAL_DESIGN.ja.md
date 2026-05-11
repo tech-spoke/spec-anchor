@@ -54,20 +54,6 @@ Source Specs は、SPEC-grag の対象となる仕様本文ファイル群であ
 
 Source Specs は、現在の仕様本文であり、今回の課題に対して「守るべき既存仕様」になる場合も、「修正対象」になる場合もある。
 
-含むもの:
-
-- 仕様章ファイル
-- section 化された本文
-- source span を持つ根拠 snippet
-
-含まないもの:
-
-- Purpose
-- Core Concept
-- Section Metadata
-- Chapter Key Anchor
-- 会話区間上の仮説
-
 ### 2.3 Core Concept
 
 Core Concept は、プロジェクト全体の判断軸、承認済みの設計原則、不変に近い方針を指す。
