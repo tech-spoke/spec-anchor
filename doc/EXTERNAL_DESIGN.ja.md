@@ -324,21 +324,11 @@ System Setup Script は対象プロジェクトの Source Specs、Purpose、Core
 
 ### 5.3 本運用 readiness と実 provider 実行
 
-本運用 readiness は、pytest の実行範囲切り替えとは別の運用前確認である。
+`/spec-core` は設定が `codex_cli` / `claude_cli` と Qdrant / BGE-M3 を指している場合、追加の実行許可環境変数なしで real provider / real retrieval を実行する。fake provider、fake embedding、memory vector store は test / offline 用 config で明示した場合だけ使う。real provider / real retrieval が失敗した場合、fake fallback で成功扱いにせず、diagnostics と freshness failure として扱う。
 
-本運用では、通常 CLI 経路が fake provider や memory retrieval に落ちず、認証済み Agent CLI、BGE-M3、Qdrant を既定で使える状態であることを確認する。
+Qdrant 接続先は `.spec-grag/config.toml` の `[vector_store].url` が正本である。
 
-`/spec-core` は設定が `codex_cli` / `claude_cli` と Qdrant / BGE-M3 を指している場合、追加の実行許可環境変数なしで real provider / real retrieval を実行する。fake provider、fake embedding、memory vector store は test / offline 用 config で明示した場合だけ使う。real provider / real retrieval が失敗した場合、通常経路は fake fallback で成功扱いにせず、diagnostics と freshness failure として扱う。
-
-Qdrant 接続先は project 設定であるため、通常の `/spec-core` / watcher 実行では `.spec-grag/config.toml` の `[vector_store].url` を正とする。`SPEC_GRAG_QDRANT_URL` は test / smoke / system readiness probe の接続先を差し替えるための補助入力であり、project 設定の代替正本ではない。
-
-`spec-grag-setup-system --check-only` は、console script、配布 template、FlagEmbedding、qdrant-client、Qdrant service、Agent CLI の状態を確認し、本運用可能な場合は `production_readiness.status = ready` と `blocking_reasons = []` を返す。Qdrant の probe 先を default の `http://localhost:6333` から変える場合は `--qdrant-url` を渡す。欠損がある場合は `production_readiness.status = blocked` とし、欠損理由を diagnostics に出す。
-
-pytest の通常実行は、外部依存を使う検証も実行対象にする。Codex / Claude CLI、FlagEmbedding BGE-M3、Qdrant が使えない環境では、それらの検証は失敗する。これは実装が壊れるという意味ではなく、必要な外部依存がないために検証が成立しないという意味である。
-
-外部依存がない開発環境や軽量確認では、`pytest --skip-external` を使う。このオプションを指定した場合だけ、Agent CLI、Qdrant、FlagEmbedding BGE-M3、native service readiness などを必要とする test を skip する。skip された検証は未実行として報告し、実動作完了や本運用可能の根拠にしてはいけない。
-
-`pytest --skip-external` は pytest の実行範囲を狭めるための指定であり、通常の `spec-grag core` / watcher / 本運用 CLI 実行に fake provider や memory retrieval を選ばせる指定ではない。本運用の provider / retrieval は `.spec-grag/config.toml` の `[llm]`、`[embedding]`、`[vector_store]` で決まる。
+`spec-grag-setup-system --check-only` は、console script、配布 template、FlagEmbedding、qdrant-client、Qdrant service、Agent CLI の状態を確認し、本運用可能な場合は `production_readiness.status = ready` と `blocking_reasons = []` を返す。欠損がある場合は `production_readiness.status = blocked` とし、欠損理由を diagnostics に出す。
 
 ## 6. 共通契約
 
