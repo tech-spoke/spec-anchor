@@ -2564,15 +2564,22 @@ def _section_manifest_entry(
     *,
     audit: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Return one `section_manifest.json` entry.
+    """Return one ``section_manifest.json`` entry.
 
-    Phase R-4 (`doc/STORAGE_REDESIGN.ja.md` §7.4) adds per-section audit
-    metadata (`llm_provider`, `llm_generation_status`, `last_prompt_version`,
-    `generated_at`) here so the manifest can carry the data that used to
-    live inside section_metadata.json. The same fields remain on
-    section_metadata entries for backward compat until Phase R-5 retires
-    the JSON. `audit` is optional so callers that build a manifest before
-    LLM generation (or in tests) still produce a valid entry.
+    Schema (``doc/STORAGE_REDESIGN.ja.md`` §4.3)::
+
+        source_section_id   — 一次 key
+        source_hash         — raw body の SHA-256 (file integrity)
+        semantic_hash       — whitespace 正規化後の SHA-256 (LLM cache key)
+        heading_path        — 見出し親子チェーン list[str]
+        chapter_id          — 章 ID
+        source_span         — {start_line, end_line, start_offset, end_offset}
+        llm_provider        — 監査用 (audit, optional)
+        llm_generation_status — success / failed / skipped (audit, optional)
+        last_prompt_version — cache 整合確認用 (audit, optional)
+        generated_at        — 監査用 (audit, optional)
+
+    ``audit`` dict が渡された場合のみ下 4 行が追加される。
     """
 
     entry: dict[str, Any] = {

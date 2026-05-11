@@ -94,6 +94,24 @@ class ContextArtifactStore:
 
 
 def build_section_manifest(sections: list[Any]) -> dict[str, Any]:
+    """Build a minimal ``section_manifest.json`` payload.
+
+    Used by tests and initial setup paths. The production entry builder
+    is ``spec_grag.core._section_manifest_entry`` which adds audit
+    fields (Phase R-4). Schema per section::
+
+        source_section_id   — 一次 key
+        source_hash         — raw body の SHA-256 (file integrity)
+        semantic_hash       — whitespace 正規化後の SHA-256 (LLM cache key)
+        heading_path        — 見出し親子チェーン list[str]
+        chapter_id          — 章 ID
+        source_span         — {start_line, end_line, start_offset, end_offset}
+        llm_provider        — 監査用 (audit, Phase R-4)
+        llm_generation_status — success / failed / skipped (audit)
+        last_prompt_version — cache 整合確認用 (audit)
+        generated_at        — 監査用 (audit)
+    """
+
     return {
         "sections": [_jsonable(section) for section in sections],
     }
