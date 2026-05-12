@@ -610,7 +610,8 @@ def _run_spec_core_unlocked(
     if isinstance(metadata_generation_block, Mapping):
         section_manifest_payload["generation"] = dict(metadata_generation_block)
     section_manifest = section_manifest_payload
-    chapter_anchors = _chapter_anchors(
+    emit("core_chapter_anchors_start")
+    chapter_anchors, chapter_anchors_llm_results = _chapter_anchors(
         sections,
         metadata_entries,
         generated_at,
@@ -620,6 +621,13 @@ def _run_spec_core_unlocked(
         concept_text=concept_text,
         rebuild_all=run_full and not use_cache,
     )
+    if progress_tracker is not None:
+        _record_llm_call_stats(
+            progress_tracker,
+            "chapter_anchors",
+            chapter_anchors_llm_results,
+        )
+    emit("core_chapter_anchors_done")
     freshness_report = build_freshness_report(
         conflict_review_items=conflict_review_items,
         failed_required_artifacts=failed_required_artifacts,
@@ -2082,7 +2090,7 @@ def _chapter_anchors(
     cache_dir: str | Path | None = None,
     concept_text: str | None = None,
     rebuild_all: bool = False,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], list[Any]]:
     """Phase R-7: LLM-generated Chapter Key Anchor.
 
     Delegates to `spec_grag.chapter_anchors.generate_chapter_anchors`
@@ -2114,7 +2122,7 @@ def _chapter_anchors(
         generated_at=generated_at,
         rebuild_all=rebuild_all,
     )
-    return generation.artifact
+    return generation.artifact, list(generation.llm_results)
 
 
 def _section_manifest_audit_by_id(
