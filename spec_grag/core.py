@@ -263,6 +263,30 @@ def _run_spec_core_unlocked(
 
     run_full = bool(all or all_mode or full or force or mode == "full")
     mode_name = "full" if run_full else "incremental"
+
+    # `--all` (use_cache=False) clears the LLM-derived caches BEFORE the
+    # stages run, so the new run's `cache.store()` writes become the
+    # post-run cache state (EXTERNAL_DESIGN §7.4 「クリアして再評価」).
+    # - section_metadata / chapter_anchors caches are content-addressed
+    #   per-section / per-chapter; the clear removes orphans from earlier
+    #   prompt_version / model / cache_key changes.
+    # - related_typing_cache.json is flat JSON keyed by section pair
+    #   signatures with no content-addressed naming, so the physical
+    #   removal is the only way to force re-typing under `--all`.
+    if run_full and not use_cache:
+        related_pair_cache_file = cache_dir / "related_typing_cache.json"
+        try:
+            related_pair_cache_file.unlink()
+        except FileNotFoundError:
+            pass
+        for subdir_name in ("section_metadata", "chapter_anchors"):
+            subdir = cache_dir / subdir_name
+            if subdir.is_dir():
+                for cache_file in subdir.glob("*.json"):
+                    try:
+                        cache_file.unlink()
+                    except FileNotFoundError:
+                        pass
     # Phase H-3: resolve a provider per stage so [llm.stage_routing] can target
     # different model/effort tuples for extraction (section_metadata),
     # classification (related_sections), judgment (conflict_review), and
@@ -407,31 +431,6 @@ def _run_spec_core_unlocked(
     emit("core_section_collection_upsert_done")
     emit("core_related_sections_start")
     related_pair_cache_dir = cache_dir
-    if run_full and not use_cache:
-        # `--all` is the explicit "do not trust prior judgments" entry. LLM
-        # stages bypass the cache at load time via `rebuild_all=True`, but
-        # `--all` additionally wipes the on-disk LLM caches so stale entries
-        # from earlier prompt / model / metadata versions do not survive on
-        # disk. Three caches live here:
-        # 1. related_typing_cache.json — pair-typing cache, flat JSON keyed
-        #    by section pair signatures (no content-addressed naming).
-        # 2. section_metadata/<hash>.json — per-section LLM output cache.
-        #    Content-addressed; orphans accumulate if not purged.
-        # 3. chapter_anchors/<hash>.json — per-chapter LLM output cache.
-        #    Content-addressed; same orphan risk as above.
-        cache_file = related_pair_cache_dir / "related_typing_cache.json"
-        try:
-            cache_file.unlink()
-        except FileNotFoundError:
-            pass
-        for subdir_name in ("section_metadata", "chapter_anchors"):
-            subdir = related_pair_cache_dir / subdir_name
-            if subdir.is_dir():
-                for cache_file in subdir.glob("*.json"):
-                    try:
-                        cache_file.unlink()
-                    except FileNotFoundError:
-                        pass
     related_generation = _generate_related_sections(
         sections=sections,
         section_metadata=section_metadata,
