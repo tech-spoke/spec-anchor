@@ -736,7 +736,7 @@ def test_stale_watcher_recovery_clears_old_running_freshness_when_idle(
 ) -> None:
     root = fake_project["root"]
     state = fake_project["state"]
-    freshness_path = root / ".spec-grag/context/freshness.json"
+    freshness_path = root / ".spec-grag/state/freshness.json"
     watcher = _watcher_module()
     snapshot = watcher.collect_source_snapshot(root)
 
@@ -847,7 +847,7 @@ def test_watcher_internal_core_runner_sees_watcher_running_freshness_artifact(
     fake_project: dict[str, Path],
 ) -> None:
     root = fake_project["root"]
-    freshness_path = root / ".spec-grag/context/freshness.json"
+    freshness_path = root / ".spec-grag/state/freshness.json"
     observed: list[dict[str, Any]] = []
 
     def core_runner(**_: Any) -> dict[str, Any]:
@@ -1052,162 +1052,3 @@ def test_t_r13_failed_core_result_keeps_last_success_and_failure_reason(
     assert state["last_failure_reason"]["blocking_reasons"] == ["failed_required_artifact"]
     assert json.loads(fake_project["queue"].read_text())["queue_count"] == 1
 
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: assertion targets chunk-level "
-    "retrieval_index_revision.diagnostics.source_update_diff which is "
-    "absent from the disabled stub artifact. Rewrite assertions for "
-    "spec_grag_section if needed. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-@pytest.mark.external
-def test_t_r09_real_watcher_reports_running_queue_lock_heartbeat_and_stale_recovery(
-    tmp_path: Path,
-) -> None:
-    pytest.importorskip("FlagEmbedding")
-    qdrant_client = pytest.importorskip("qdrant_client")
-
-    watcher = _watcher_module()
-    from spec_grag.core import run_spec_core, run_spec_core_for_watcher
-
-    root = tmp_path / "real-watcher"
-    collection = f"spec_grag_t_r09_{uuid.uuid4().hex}"
-    qdrant_url = os.environ.get("SPEC_GRAG_QDRANT_URL", "http://localhost:6333")
-    _write_real_watcher_project(root, collection=collection, qdrant_url=qdrant_url)
-    state_path = root / ".spec-grag/state/watch_state.json"
-    queue_path = root / ".spec-grag/state/watch_queue.json"
-    lock_path = root / ".spec-grag/state/core_update.lock.json"
-    freshness_path = root / ".spec-grag/context/freshness.json"
-    source_path = root / "docs/spec/main.md"
-
-    client = qdrant_client.QdrantClient(qdrant_url)
-    try:
-        initial = run_spec_core(root, all=True)
-        assert initial["freshness_report"]["status"] == "fresh"
-        initial_revision = json.loads(
-            (root / ".spec-grag/context/retrieval_index_revision.json").read_text()
-        )["artifact_revision"]
-        initial_snapshot = watcher.collect_source_snapshot(root)
-        state_path.write_text(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "running": False,
-                    "is_running": False,
-                    "last_snapshot": initial_snapshot,
-                }
-            )
-        )
-
-        source_path.write_text(
-            source_path.read_text()
-            + "\n## Real Watcher Update\nThe watcher must rebuild the real index.\n"
-        )
-        queue_observations: list[dict[str, Any]] = []
-        running_observations: list[dict[str, Any]] = []
-        lock_observations: list[dict[str, Any]] = []
-        heartbeat_results: list[dict[str, Any]] = []
-
-        def observe_debounce(_: float) -> None:
-            queue_observations.append(json.loads(freshness_path.read_text()))
-
-        def observing_core_runner(**kwargs: Any) -> dict[str, Any]:
-            running_observations.append(json.loads(freshness_path.read_text()))
-            status = watcher.get_watcher_status(root)
-            lock_observations.append(status)
-            heartbeat = kwargs["heartbeat"]
-            heartbeat_results.append(dict(heartbeat(metadata={"test_stage": "t-r09"})))
-            assert lock_path.is_file()
-            return run_spec_core_for_watcher(**kwargs)
-
-        result = watcher.run_spec_grag_watch(
-            root,
-            once=True,
-            interval_ms=0,
-            debounce_ms=1,
-            sleep=observe_debounce,
-            core_runner=observing_core_runner,
-        )
-
-        assert queue_observations
-        assert queue_observations[0]["status"] == "blocked"
-        assert "watcher_queue_pending" in queue_observations[0]["blocking_reasons"]
-        assert running_observations
-        assert running_observations[0]["status"] == "blocked"
-        assert "watcher_running" in running_observations[0]["blocking_reasons"]
-        assert lock_observations[0]["running"] is True
-        assert lock_observations[0]["lock"]["owner"] == "watcher"
-        assert heartbeat_results[0]["lock_updated"] is True
-        assert result["freshness_report"]["status"] == "fresh"
-        assert result["queue_count"] == 0
-        assert json.loads(queue_path.read_text())["queue_count"] == 0
-        assert not lock_path.exists()
-        updated_revision = json.loads(
-            (root / ".spec-grag/context/retrieval_index_revision.json").read_text()
-        )
-        source_update_diff = updated_revision["diagnostics"]["source_update_diff"]
-        assert source_update_diff["old_revision"] == initial_revision
-        assert source_update_diff["new_revision"] == updated_revision["artifact_revision"]
-        assert _has_section_id(
-            source_update_diff["changed_sections"],
-            "docs/spec/main.md#real-watcher-update",
-        )
-
-        final_state = json.loads(state_path.read_text())
-        assert final_state["last_lock"]["owner"] == "watcher"
-        assert final_state["last_lock_file"].endswith(".spec-grag/state/core_update.lock.json")
-        assert isinstance(final_state["last_heartbeat_at_epoch_ms"], int)
-        assert isinstance(final_state["last_lock_updated_at_epoch_ms"], int)
-        assert final_state["last_success_artifact_revision"] == updated_revision["artifact_revision"]
-        assert final_state["last_success_result"]["source_update_diff"]["old_revision"] == initial_revision
-
-        current_snapshot = watcher.collect_source_snapshot(root)
-        state_path.write_text(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "running": True,
-                    "is_running": True,
-                    "owner": "watcher",
-                    "run_id": "stale-real-watcher",
-                    "started_at_epoch_ms": 1_000,
-                    "updated_at_epoch_ms": 1_000,
-                    "last_snapshot": current_snapshot,
-                }
-            )
-        )
-        lock_path.write_text(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "lock_kind": "core_update",
-                    "owner": "watcher",
-                    "run_id": "stale-real-watcher",
-                    "token": "stale-real-token",
-                    "acquired_at_epoch_ms": 1_000,
-                    "updated_at_epoch_ms": 1_000,
-                }
-            )
-        )
-
-        stale_result = watcher.run_spec_grag_watch(
-            root,
-            once=True,
-            interval_ms=0,
-            debounce_ms=0,
-            stale_lock_ms=100,
-            now_ms=1_500,
-        )
-
-        assert stale_result["freshness_report"]["status"] == "fresh"
-        assert stale_result["stale_lock_discarded"] is True
-        assert stale_result["stale_locks"]
-        assert stale_result["stale_locks"][0]["stale_age_ms"] >= 500
-        assert not lock_path.exists()
-        recovered_state = json.loads(state_path.read_text())
-        assert recovered_state["stale_lock_discarded"] is True
-        assert recovered_state["stale_locks"]
-    finally:
-        try:
-            client.delete_collection(collection)
-        except Exception:
-            pass

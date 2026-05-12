@@ -1290,7 +1290,8 @@ def _write_freshness_artifact(settings: WatcherSettings, report: Mapping[str, An
 
 
 def _read_freshness_artifact(settings: WatcherSettings) -> dict[str, Any] | None:
-    path = settings.context_dir / "freshness.json"
+    store = ContextArtifactStore(settings.context_dir)
+    path = store.path_for("freshness")
     payload = _read_json(path)
     if isinstance(payload, Mapping):
         return normalize_freshness_report(payload)

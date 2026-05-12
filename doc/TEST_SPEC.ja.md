@@ -557,7 +557,7 @@ Decision payload の異常系:
 
 | # | 状態 | 検証内容 |
 |---|---|---|
-| 1 | [x] | section_metadata.json の各エントリに `section_id` が含まれる |
+| 1 | [x] | Section Metadata の各エントリに `section_id` が含まれる |
 | 2 | [x] | 各エントリに `stable_section_uid` が含まれる |
 | 3 | [x] | 各エントリに `source_document_id` が含まれる |
 | 4 | [x] | 各エントリに `heading_path` が含まれる |
@@ -595,7 +595,7 @@ Decision payload の異常系:
 
 | # | 状態 | 検証内容 |
 |---|---|---|
-| 1 | [x] | `retrieval_index_revision.json` に embedding model (`BAAI/bge-m3`) が記録される |
+| 1 | [x] | section collection upsert diagnostics に embedding model (`BAAI/bge-m3`) が記録される |
 | 2 | [x] | dense vector size (`1024`) が記録される |
 | 3 | [x] | dense distance (`cosine`) が記録される |
 | 4 | [x] | sparse vector kind (`bge-m3 lexical weights`) が記録される |
@@ -1231,7 +1231,7 @@ Codex 用 skill の配置と内容:
 | 7 | [~] | Codex CLI で `/spec-inject` 相当を起動 | `spec-grag inject` の real CLI 経路は確認済み。Codex CLI 自身が skill 経由で同等に起動する end-to-end は未確認 |
 | 8 | [ ] | Claude Code CLI で `/spec-realign "問題点一覧の優先順位案"` を起動 | constraints + answer 4 区分が返る |
 | 9 | [~] | Codex CLI で `/spec-realign` 相当を起動 | `spec-grag realign` の real CLI 経路は確認済み。Codex CLI 自身が skill 経由で同等に起動する end-to-end は未確認 |
-| 10 | [x] | `spec-grag-watch --once` を Source Specs 変更後に実行 | freshness が `watcher_running` → 完了後 `fresh` に戻り、`retrieval_index_revision.json` の `source_update_diff` に変更が記録される |
+| 10 | [x] | `spec-grag-watch --once` を Source Specs 変更後に実行 | freshness が `watcher_running` → 完了後 `fresh` に戻り、section manifest と Qdrant section collection に変更が反映される |
 | 11 | [~] | 実行証跡 | `テスト用ドキュメント/` 由来の最小代表 Source Specs を使った real `core -> inject -> realign -> watch` CLI 一巡は記録済み。Claude Code / Codex どちらの Agent CLI 経由でも完走する確認は未完了 |
 
 実装 / 未実行:
@@ -1499,7 +1499,7 @@ Codex 用 skill の配置と内容:
 実行証跡:
 
 - `tests/test_spec_core.py::test_t_r12_production_core_uses_real_provider_and_retrieval_without_smoke_env` で、複数 Source Specs の real core、real Qdrant/BGE-M3 index、`qdrant_hybrid_retrieve()` による real dense / sparse query、inject / realign、pending Conflict Review Item の CLI 停止を一巡した。
-- `tests/test_watcher.py::test_t_r09_real_watcher_reports_running_queue_lock_heartbeat_and_stale_recovery` で、Source Specs 更新後の watcher 再生成が `retrieval_index_revision.diagnostics.source_update_diff.old_revision/new_revision/changed_sections` と `watch_state.last_success_result.source_update_diff` を残すことを確認した。
+- `tests/test_watcher.py::test_t_r09_real_watcher_reports_running_queue_lock_heartbeat_and_stale_recovery` で、Source Specs 更新後の watcher 再生成と `watch_state.last_success_result` の整合性を確認した。
 
 ### T-R15: 本運用 reporting / privacy / runbook
 

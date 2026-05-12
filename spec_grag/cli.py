@@ -64,7 +64,7 @@ def build_main_parser() -> argparse.ArgumentParser:
     core.add_argument(
         "--rebuild",
         action="store_true",
-        help="drop and recreate the Qdrant spec_grag_section collection (implies --all). Use when embeddings are suspected corrupt or the collection has stale residue. Phase R-5: chunk-level collection (spec_grag_source) is dormant and not affected.",
+        help="drop and recreate the Qdrant spec_grag_section collection (implies --all). Use when embeddings are suspected corrupt or the collection has stale residue.",
     )
     core.add_argument(
         "--use-cache",

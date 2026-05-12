@@ -221,19 +221,11 @@ def _base_state(**overrides: Any) -> dict[str, Any]:
                 ],
             },
             "chapter_anchors": {"status": "success", "chapters": []},
-            "source_chunks": {"status": "success", "chunks": []},
-            "retrieval_index_revision": {
-                "status": "success",
-                "embedding": {"provider": "flagembedding", "model": "BAAI/bge-m3"},
-                "collection_revision": "revision-a",
-            },
         },
         "artifact_statuses": {
             "section_manifest": "success",
             "section_metadata": "success",
             "chapter_anchors": "success",
-            "source_chunks": "success",
-            "retrieval_index": "success",
         },
         "watcher": {"running": False, "queue_pending": False},
         "conflict_review_items": [],
@@ -396,8 +388,6 @@ def test_t_u03_optional_artifact_degraded_continues_with_warning() -> None:
                 "section_manifest": "success",
                 "section_metadata": "degraded",
                 "chapter_anchors": "success",
-                "source_chunks": "success",
-                "retrieval_index": "success",
             }
         )
     )
@@ -415,11 +405,9 @@ def test_t_u03_required_artifact_failure_fails_and_stops() -> None:
     report = _freshness(
         _base_state(
             artifact_statuses={
-                "section_manifest": "success",
+                "section_manifest": "failed",
                 "section_metadata": "success",
                 "chapter_anchors": "success",
-                "source_chunks": "success",
-                "retrieval_index": "failed",
             }
         )
     )
@@ -442,11 +430,9 @@ def test_t_u03_required_artifact_failure_wins_with_blocked_reasons() -> None:
                 }
             ],
             artifact_statuses={
-                "section_manifest": "success",
+                "section_manifest": "failed",
                 "section_metadata": "success",
                 "chapter_anchors": "success",
-                "source_chunks": "success",
-                "retrieval_index": "failed",
             },
         )
     )

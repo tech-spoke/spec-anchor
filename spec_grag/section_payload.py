@@ -1,18 +1,15 @@
 """Qdrant section-level payload read helpers.
 
-Phase R-2 (`doc/STORAGE_REDESIGN.ja.md` §7.4) consolidates section content
-read paths onto the `spec_grag_section` Qdrant collection payload. This
-module hosts the lookup helpers downstream callers (Phase R-6 inject CLI,
-watcher snapshot consumers, future agents) use to read section data
-without opening `.spec-grag/context/section_metadata.json`.
+Section content (summary / search_keys / identifiers / related_sections /
+heading_path / source_hash / semantic_hash) lives on the `spec_grag_section`
+Qdrant collection payload. This module hosts the lookup helpers downstream
+callers (inject CLI, watcher snapshot consumers, future agents) use to read
+section data from Qdrant.
 
 The Qdrant payload schema written by `build_section_payloads` in
-`spec_grag/retrieval_index.py:1043` is the contract. This module
-normalizes payload dicts back into the `section_metadata.json["sections"]`
-entry shape so legacy consumers can switch over without restructuring.
-The legacy JSON artifact remains the write-time fallback until Phase R-3
-attaches Related Sections to the payload via `set_payload` and Phase R-5
-removes the JSON entirely.
+`spec_grag/retrieval_index.py` is the contract. This module normalizes
+payload dicts back into the historical section metadata entry shape so
+consumers can keep using the same field names.
 """
 
 from __future__ import annotations
@@ -98,12 +95,12 @@ def section_payload_to_metadata_entry(
     *,
     extra: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Translate a Qdrant section payload into a section_metadata entry shape.
+    """Translate a Qdrant section payload into a section metadata entry shape.
 
-    The shape matches `.spec-grag/context/section_metadata.json["sections"][i]`
-    so consumers that historically read the JSON can pass a Qdrant payload
-    through this normalizer instead. Fields absent from the payload are
-    filled with empty defaults.
+    Fields absent from the payload are filled with empty defaults. The returned
+    shape includes section_id, source_section_id, stable_section_uid,
+    source_document_id, heading_path, summary, search_keys, identifiers,
+    related_sections, source_hash, semantic_hash.
     """
 
     section_id = str(payload.get("source_section_id") or payload.get("section_id") or "")

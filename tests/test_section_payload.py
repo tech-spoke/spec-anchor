@@ -1,13 +1,13 @@
-"""Phase R-2 (`doc/STORAGE_REDESIGN.ja.md` §7.4) tests.
+"""Tests for the Qdrant section-payload read helpers.
 
-Cover the Qdrant section-payload read helpers in
-`spec_grag/section_payload.py`. Verify that:
+Cover the helpers in `spec_grag/section_payload.py`. Verify that:
 
 * `fetch_section_payloads` issues a single scroll per batch with a
   `MatchAny(any=section_ids)` filter on the `source_section_id` field, and
   returns a `{section_id: payload}` dict that follows insertion order.
-* `section_payload_to_metadata_entry` reproduces the
-  `section_metadata.json["sections"][i]` shape so consumers can swap over.
+* `section_payload_to_metadata_entry` reproduces the section metadata entry
+  shape (section_id, summary, search_keys, identifiers, related_sections,
+  heading_path, source_hash, semantic_hash, ...).
 * Empty input returns an empty dict without touching the client.
 
 These tests use a `FakeQdrantClient` that captures scroll arguments and

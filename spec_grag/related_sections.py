@@ -1093,7 +1093,7 @@ def apply_related_sections_to_metadata(
     section_metadata: Any,
     related_sections: Any,
 ) -> dict[str, Any]:
-    """Return section_metadata.json with selected related_sections applied."""
+    """Return the section metadata payload with selected related_sections applied."""
 
     metadata_payload = dict(section_metadata) if isinstance(section_metadata, Mapping) else {}
     entries = _metadata_entries(section_metadata)

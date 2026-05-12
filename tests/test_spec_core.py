@@ -375,10 +375,16 @@ def _freshness(result: Any) -> dict[str, Any]:
     return dict(payload)
 
 
-def _artifact(project_root: Path, name: str) -> dict[str, Any]:
-    from spec_grag.artifacts import ARTIFACT_FILENAMES
+def _artifact_path(project_root: Path, name: str) -> Path:
+    from spec_grag.artifacts import ARTIFACT_FILENAMES, STATE_ARTIFACTS
 
-    path = project_root / ".spec-grag/context" / ARTIFACT_FILENAMES[name]
+    filename = ARTIFACT_FILENAMES[name]
+    base = ".spec-grag/state" if name in STATE_ARTIFACTS else ".spec-grag/context"
+    return project_root / base / filename
+
+
+def _artifact(project_root: Path, name: str) -> dict[str, Any]:
+    path = _artifact_path(project_root, name)
     assert path.is_file(), f"{name} artifact must be written at {path}"
     return json.loads(path.read_text())
 
@@ -386,11 +392,10 @@ def _artifact(project_root: Path, name: str) -> dict[str, Any]:
 def _artifact_texts(project_root: Path) -> dict[str, str]:
     from spec_grag.artifacts import ARTIFACT_FILENAMES
 
-    context_dir = project_root / ".spec-grag/context"
     return {
-        name: (context_dir / filename).read_text()
-        for name, filename in ARTIFACT_FILENAMES.items()
-        if (context_dir / filename).is_file()
+        name: _artifact_path(project_root, name).read_text()
+        for name in ARTIFACT_FILENAMES
+        if _artifact_path(project_root, name).is_file()
     }
 
 
@@ -415,15 +420,17 @@ def _looks_exclusively_blocked(result: Any, *expected_terms: str) -> bool:
     ) and any(term in text for term in expected_terms)
 
 
-def _sections(project_root: Path) -> list[dict[str, Any]]:
-    metadata = _artifact(project_root, "section_metadata")
+def _sections(result: Any) -> list[dict[str, Any]]:
+    data = _result_dict(result)
+    diagnostics = data.get("diagnostics") or {}
+    metadata = diagnostics.get("section_metadata") or {}
     sections = metadata.get("sections", [])
-    assert isinstance(sections, list), "section_metadata.sections must be a list"
+    assert isinstance(sections, list), "diagnostics.section_metadata.sections must be a list"
     return [dict(section) for section in sections]
 
 
-def _section_by_id(project_root: Path, suffix: str) -> dict[str, Any]:
-    for section in _sections(project_root):
+def _section_by_id(result: Any, suffix: str) -> dict[str, Any]:
+    for section in _sections(result):
         section_id = str(section.get("section_id") or section.get("source_section_id"))
         if section_id.endswith(suffix) or _legacy_section_id(section_id).endswith(suffix):
             return section
@@ -583,10 +590,7 @@ def test_t_i02_all_mode_regenerates_all_artifacts_and_returns_fresh(
         assert _has_id(updated_sections, section_id)
     for artifact_name in (
         "section_manifest",
-        "section_metadata",
         "chapter_anchors",
-        "source_chunks",
-        "retrieval_index_revision",
         "freshness",
     ):
         _artifact(project_root, artifact_name)
@@ -746,14 +750,20 @@ def test_t_i01_incremental_updates_changed_section_and_skips_unchanged(
 ) -> None:
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
-    _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
-    unchanged_before = _section_by_id(project_root, "#beta")
+    # The first run is incremental on an empty project so it generates every
+    # section's LLM cache without later wiping it. The second run is the
+    # actual subject of this test: incremental reuse of unchanged sections.
+    # Note: using `all_mode=True` here would wipe the section_metadata cache
+    # files after generation (the documented `--all` semantic), so the
+    # second run would have no reuse source and would re-run every section.
+    initial_result = _run_spec_core(project_root, provider=FakeSpecCoreProvider())
+    unchanged_before = _section_by_id(initial_result, "#beta")
 
     paths["main"].write_text(paths["main"].read_text().replace("standard requests", "enterprise requests"))
     result = _run_spec_core(project_root, provider=FakeSpecCoreProvider())
     data = _result_dict(result)
-    changed_after = _section_by_id(project_root, "#alpha")
-    unchanged_after = _section_by_id(project_root, "#beta")
+    changed_after = _section_by_id(result, "#alpha")
+    unchanged_after = _section_by_id(result, "#beta")
 
     assert data["mode"] == "incremental"
     updated_sections = _ids(data["updated_sections"])
@@ -762,61 +772,6 @@ def test_t_i01_incremental_updates_changed_section_and_skips_unchanged(
     assert changed_after["summary"]
     assert unchanged_after["summary"] == unchanged_before["summary"]
     assert unchanged_after["search_keys"] == unchanged_before["search_keys"]
-
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: chunk-level retrieval_index_revision is "
-    "always the disabled stub (no embedding_generation_skipped / "
-    "skip_reason fields). See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-def test_t_e07_spec_core_batches_metadata_and_reuses_unchanged_sections(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "large-project"
-    _write_large_project(project_root, section_count=52)
-    provider = FakeSpecCoreProvider()
-
-    result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=provider)
-    )
-    sections = _sections(project_root)
-    metadata_calls = _metadata_calls(provider)
-    generation = result["diagnostics"]["section_metadata_generation"]
-
-    assert len(sections) >= 50
-    assert 1 < len(metadata_calls) < len(sections)
-    assert generation["llm_calls"] == len(metadata_calls)
-    assert generation["batch_sizes"]
-    assert max(generation["batch_sizes"]) <= 8
-    assert all(1 <= len(_request_section_ids(call)) <= 8 for call in metadata_calls)
-
-    full_provider = FakeSpecCoreProvider()
-    full = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=full_provider)
-    )
-    full_generation = full["diagnostics"]["section_metadata_generation"]
-
-    assert _metadata_calls(full_provider)
-    assert full_generation["llm_calls"] == len(_metadata_calls(full_provider))
-    assert full_generation["cache_hits"] == 0
-
-    cached_provider = FakeSpecCoreProvider()
-    cached = _result_dict(
-        _run_spec_core(
-            project_root,
-            all_mode=True,
-            provider=cached_provider,
-            use_cache=True,
-        )
-    )
-    cached_generation = cached["diagnostics"]["section_metadata_generation"]
-    cached_revision = _artifact(project_root, "retrieval_index_revision")
-
-    assert _metadata_calls(cached_provider) == []
-    assert cached_generation["llm_calls"] == 0
-    assert cached_generation["cache_hits"] >= len(sections)
-    assert cached_revision["diagnostics"]["embedding_generation_skipped"] is True
-    assert cached_revision["diagnostics"]["skip_reason"] == "source_hash_unchanged"
 
 
 def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
@@ -973,7 +928,7 @@ def test_g11_context_update_rolls_back_partial_artifact_set_on_failure(
         artifact_name: str,
         payload: dict[str, Any],
     ) -> Path:
-        if artifact_name == "source_chunks":
+        if artifact_name == "chapter_anchors":
             raise OSError("simulated context update failure")
         return original_write(self, artifact_name, payload)
 
@@ -1076,11 +1031,11 @@ def test_g11_spec_core_populates_related_sections_through_core_path(
     project_root = tmp_path / "project"
     _write_project(project_root)
 
-    _run_spec_core(project_root, all_mode=True, provider=RelatedSectionsProvider())
+    result = _run_spec_core(project_root, all_mode=True, provider=RelatedSectionsProvider())
 
     related_entries = [
         related
-        for section in _sections(project_root)
+        for section in _sections(result)
         for related in section.get("related_sections", [])
     ]
     assert related_entries, "`/spec-core` must orchestrate and persist Related Sections"
@@ -1118,7 +1073,7 @@ def test_g11_core_builds_configured_llm_provider_when_not_injected(
     assert provider.calls, "configured provider must be called without explicit injection"
     stages = {str(getattr(call, "stage", "")) for call in provider.calls}
     assert "section_metadata" in stages
-    sections = _sections(project_root)
+    sections = _sections(result)
     assert any(section["summary"].startswith("summary:") for section in sections)
 
 
@@ -1210,7 +1165,7 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
     assert freshness["status"] == "failed"
     assert "failed_required_artifact" in freshness["blocking_reasons"]
     assert result["failed_sections"]
-    sections = _sections(project_root)
+    sections = _sections(result)
     assert all(section["llm_provider"] == "codex" for section in sections)
     assert all(section["llm_generation_status"] == "failed" for section in sections)
     text = _json_text(result).lower()
@@ -1258,444 +1213,11 @@ def test_g11_provider_failure_does_not_use_fixed_metadata_fallback(
     assert freshness["status"] == "failed"
     assert "failed_required_artifact" in freshness["blocking_reasons"]
     assert result["failed_sections"]
-    sections = _sections(project_root)
+    sections = _sections(result)
     assert all(section["summary"] == "" for section in sections)
     assert all(section["search_keys"] == [] for section in sections)
 
 
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: chunk-level upsert_qdrant_bge_m3_index is "
-    "commented out. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-def test_g11_standard_retrieval_service_failure_is_failed_not_fake_success(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
-    config_path.write_text(
-        config_path.read_text()
-        .replace(
-            '[embedding]\nprovider = "fake"\nmodel = "fake-embedding"\n',
-            '[embedding]\nprovider = "flagembedding"\nmodel = "BAAI/bge-m3"\ndense_enabled = true\nsparse_enabled = true\n',
-        )
-        .replace(
-            '    [vector_store]\n    provider = "memory"\n    ',
-            '[vector_store]\nprovider = "qdrant"\nurl = "http://localhost:6333"\ncollection = "spec_grag_source"\n',
-        )
-    )
-    core_module = _core_module()
-
-    def fake_upsert(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
-        raise RuntimeError("qdrant unavailable")
-
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "upsert_qdrant_bge_m3_index",
-        fake_upsert,
-    )
-
-    result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
-    )
-    freshness = _freshness(result)
-    revision = _artifact(project_root, "retrieval_index_revision")
-
-    assert result["status"] == "failed"
-    assert result["retrieval_index_status"] == "failed"
-    assert freshness["status"] == "failed"
-    assert "failed_required_artifact" in freshness["blocking_reasons"]
-    assert revision["status"] == "failed"
-    assert revision["diagnostics"]["real_retrieval_index"] is False
-    assert "qdrant unavailable" in _json_text(revision)
-
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: chunk-level upsert_qdrant_bge_m3_index is "
-    "commented out. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-def test_t_r12_standard_qdrant_retrieval_is_default_without_smoke_env(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
-    config_path.write_text(
-        config_path.read_text()
-        .replace(
-            '[embedding]\nprovider = "fake"\nmodel = "fake-embedding"\n',
-            '[embedding]\nprovider = "flagembedding"\nmodel = "BAAI/bge-m3"\ndense_enabled = true\nsparse_enabled = true\n',
-        )
-        .replace(
-            '    [vector_store]\n    provider = "memory"\n    ',
-            '[vector_store]\nprovider = "qdrant"\nurl = "http://localhost:6333"\ncollection = "spec_grag_source"\n',
-        )
-    )
-    calls: list[dict[str, Any]] = []
-
-    def fake_upsert(chunks: Any, **kwargs: Any) -> dict[str, Any]:
-        calls.append({"chunks": list(chunks), **kwargs})
-        return {
-            "status": "success",
-            "artifact_revision": "fake-real-retrieval",
-            "diagnostics": {
-                "real_retrieval_index": True,
-                "qdrant_url": kwargs["url"],
-                "collection": kwargs["collection"],
-                "embedding_model": "BAAI/bge-m3",
-                "fusion_method": "rrf",
-            },
-        }
-
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
-    core_module = _core_module()
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "upsert_qdrant_bge_m3_index",
-        fake_upsert,
-    )
-
-    result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
-    )
-
-    assert result["status"] != "failed"
-    assert result["retrieval_index_status"] == "success"
-    assert calls, "standard Qdrant/BGE-M3 config must run real retrieval without env opt-in"
-
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: chunk-level upsert_qdrant_bge_m3_index is "
-    "commented out. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-@pytest.mark.parametrize(
-    ("exc", "reason_code"),
-    [
-        (RuntimeError("401 Unauthorized: Not logged in"), "agent_cli_unauthenticated"),
-        (ConnectionError("Qdrant connection refused"), "qdrant_service_unavailable"),
-        (ValueError("Qdrant schema mismatch: dense vector size differs"), "qdrant_schema_mismatch"),
-        (RuntimeError("FlagEmbedding BGE-M3 model load failure"), "embedding_model_load_failure"),
-        (TimeoutError("provider timeout while generating vectors"), "provider_timeout"),
-    ],
-)
-def test_t_r15_retrieval_failure_diagnostics_distinguish_required_categories(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    exc: Exception,
-    reason_code: str,
-) -> None:
-    project_root = tmp_path / f"project-{reason_code}"
-    _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
-    config_path.write_text(
-        config_path.read_text()
-        .replace(
-            '[embedding]\nprovider = "fake"\nmodel = "fake-embedding"\n',
-            '[embedding]\nprovider = "flagembedding"\nmodel = "BAAI/bge-m3"\ndense_enabled = true\nsparse_enabled = true\n',
-        )
-        .replace(
-            '    [vector_store]\n    provider = "memory"\n    ',
-            '[vector_store]\nprovider = "qdrant"\nurl = "http://127.0.0.1:65535"\ncollection = "spec_grag_failure"\n',
-        )
-    )
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-
-    core_module = _core_module()
-
-    def failing_upsert(*_: Any, **__: Any) -> dict[str, Any]:
-        raise exc
-
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "upsert_qdrant_bge_m3_index",
-        failing_upsert,
-    )
-
-    result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
-    )
-    revision = _artifact(project_root, "retrieval_index_revision")
-
-    assert result["status"] == "failed"
-    assert result["retrieval_index_status"] == "failed"
-    assert revision["status"] == "failed"
-    assert revision["diagnostics"]["reason_code"] == reason_code
-    assert "failed_required_artifact" in result["freshness_report"]["blocking_reasons"]
-
-
-@pytest.mark.external
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: assertion targets the chunk-level "
-    "spec_grag_source collection / qdrant_hybrid_retrieve which is "
-    "commented out. Rewrite for spec_grag_section to reactivate. See "
-    "doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-def test_t_r07_real_core_uses_configured_llm_provider_and_real_index(
-    tmp_path: Path,
-) -> None:
-    pytest.importorskip("FlagEmbedding")
-    qdrant_client = pytest.importorskip("qdrant_client")
-
-    from spec_grag.core import run_spec_core
-
-    project_root = tmp_path / "real-core-provider"
-    collection = f"spec_grag_t_r07_{uuid.uuid4().hex}"
-    qdrant_url = os.environ.get("SPEC_GRAG_QDRANT_URL", "http://localhost:6333")
-    _write_real_provider_project(
-        project_root,
-        collection=collection,
-        qdrant_url=qdrant_url,
-    )
-    client = qdrant_client.QdrantClient(qdrant_url)
-    try:
-        result = run_spec_core(project_root, all=True)
-
-        assert result["status"] == "updated"
-        assert result["freshness_report"]["status"] == "fresh"
-        metadata = _artifact(project_root, "section_metadata")
-        sections = metadata["sections"]
-        assert sections
-        assert {section["llm_provider"] for section in sections} <= {
-            "codex_cli",
-            "claude_cli",
-        }
-        assert all(section["llm_generation_status"] == "success" for section in sections)
-        assert all(not section["summary"].startswith("summary:") for section in sections)
-        revision = _artifact(project_root, "retrieval_index_revision")
-        assert revision["status"] == "success"
-        assert revision["diagnostics"]["real_retrieval_index"] is True
-        assert client.count(collection).count >= 1
-    finally:
-        try:
-            client.delete_collection(collection)
-        except Exception:
-            pass
-
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: assertion targets the chunk-level "
-    "spec_grag_source collection / qdrant_hybrid_retrieve which is "
-    "commented out. Rewrite for spec_grag_section to reactivate. See "
-    "doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-@pytest.mark.external
-def test_t_r12_production_core_uses_real_provider_and_retrieval_without_smoke_env(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    pytest.importorskip("FlagEmbedding")
-    qdrant_client = pytest.importorskip("qdrant_client")
-
-    from spec_grag.core import run_spec_core
-    from spec_grag.inject import run_spec_inject
-    from spec_grag.realign import run_spec_realign
-    from spec_grag.retrieval_index import qdrant_hybrid_retrieve
-
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
-
-    project_root = tmp_path / "production-core-provider"
-    collection = f"spec_grag_t_r12_{uuid.uuid4().hex}"
-    qdrant_url = os.environ.get("SPEC_GRAG_QDRANT_URL", "http://localhost:6333")
-    _write_multi_source_real_provider_project(
-        project_root,
-        collection=collection,
-        qdrant_url=qdrant_url,
-    )
-    client = qdrant_client.QdrantClient(qdrant_url)
-    try:
-        result = run_spec_core(project_root, all=True)
-
-        assert result["status"] == "updated"
-        assert result["freshness_report"]["status"] == "fresh"
-        metadata = _artifact(project_root, "section_metadata")
-        sections = metadata["sections"]
-        assert len(sections) >= 4
-        assert {section["llm_provider"] for section in sections} <= {
-            "codex_cli",
-            "claude_cli",
-        }
-        assert all(section["llm_generation_status"] == "success" for section in sections)
-        revision = _artifact(project_root, "retrieval_index_revision")
-        diagnostics = revision["diagnostics"]
-        assert revision["status"] == "success"
-        assert diagnostics["real_retrieval_index"] is True
-        assert diagnostics["qdrant_url"] == qdrant_url
-        assert diagnostics["collection"] == collection
-        assert diagnostics["embedding_model"] == "BAAI/bge-m3"
-        assert diagnostics["flagembedding_package_version"]
-        assert diagnostics["embedding_model_cache_dir"]
-        assert "embedding_device" in diagnostics
-        assert diagnostics["fusion_method"] == "rrf"
-        assert client.count(collection).count >= 1
-        retrieval = qdrant_hybrid_retrieve(
-            "Qdrant dense sparse retrieval RRF Source Specs",
-            url=qdrant_url,
-            collection=collection,
-            dense_top_k=5,
-            sparse_top_k=5,
-            limit=5,
-        )
-        retrieved_sections = {hit.source_section_id for hit in retrieval.hits}
-        assert _has_id(retrieved_sections, "docs/spec/search.md#hybrid-retrieval")
-        dense_sections = {
-            item["source_section_id"]
-            for item in retrieval.diagnostics["dense_ranking"]
-        }
-        sparse_sections = {
-            item["source_section_id"]
-            for item in retrieval.diagnostics["sparse_ranking"]
-        }
-        assert _has_id(dense_sections, "docs/spec/search.md#hybrid-retrieval")
-        assert _has_id(sparse_sections, "docs/spec/search.md#hybrid-retrieval")
-
-        constraints = [
-            {
-                "statement": "Authentication must validate active sessions first.",
-                "evidence_origin": "Source Specs",
-                "evidence_ref": "docs/spec/auth.md#session-validation",
-                "support_refs": [
-                    {
-                        "origin": "Related Sections",
-                        "ref": "docs/spec/auth.md#pending-conflict-gate",
-                    }
-                ],
-                "applicability": "Authentication updates.",
-                "uncertainty": [],
-            }
-        ]
-        inject_result = run_spec_inject(
-            project_root=project_root,
-            task_prompt="Update authentication behavior.",
-            agent_constraints=constraints,
-        )
-        assert inject_result["status"] in {"fresh", "ok", "success", "ready"}
-        assert inject_result["constraints"]
-
-        realign_result = run_spec_realign(
-            project_root=project_root,
-            task_prompt="Update authentication behavior.",
-            agent_constraints=constraints,
-            agent_answer={
-                "今回守る制約": ["Authentication must validate active sessions first."],
-                "今回扱う修正候補または検討対象": [
-                    "Add an active-session validation guard before privileged changes."
-                ],
-                "競合 / 不確実性 / 人間レビューが必要な点": [],
-                "課題プロンプトへの回答または修正案": (
-                    "認証処理の前段で active session を検証する。"
-                ),
-            },
-        )
-        assert realign_result["status"] in {"fresh", "ok", "success", "ready"}
-        realign_text = _json_text(realign_result)
-        assert "今回守る制約" in realign_text
-        assert "課題プロンプトへの回答または修正案" in realign_text
-
-        pending = {
-            "conflict_id": "conflict-production-auth",
-            "status": "pending",
-            "severity": "high",
-            "source_refs": ["docs/spec/auth.md#pending-conflict-gate"],
-            "claims": [
-                {"side": "a", "summary": "The gate blocks until human decision."},
-                {"side": "b", "summary": "The task asks to continue immediately."},
-            ],
-            "why_conflicting": "Pending human decision is required.",
-            "why_llm_cannot_decide": "Only a human can decide the pending conflict.",
-            "decision_options": [{"id": "defer", "label": "Defer"}],
-            "recommended_next_action": "Ask a human to resolve the conflict.",
-        }
-        context_dir = project_root / ".spec-grag/context"
-        (context_dir / "conflict_review_items.json").write_text(
-            json.dumps(
-                {"conflict_review_items": [pending]},
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        (context_dir / "freshness.json").write_text(
-            json.dumps(
-                {
-                    "status": "blocked",
-                    "blocking_reasons": ["pending_conflict"],
-                    "warnings": [],
-                    "pending_conflict_count": 1,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        env = os.environ.copy()
-        env["PYTHONPATH"] = str(REPO_ROOT)
-        inject_cli = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "spec_grag",
-                "inject",
-                "--project-root",
-                project_root.as_posix(),
-                "--constraints",
-                json.dumps(constraints, ensure_ascii=False),
-                "Update authentication behavior.",
-            ],
-            text=True,
-            capture_output=True,
-            env=env,
-            check=False,
-        )
-        realign_cli = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "spec_grag",
-                "realign",
-                "--project-root",
-                project_root.as_posix(),
-                "--constraints",
-                json.dumps(constraints, ensure_ascii=False),
-                "--answer-json",
-                json.dumps(
-                    {
-                        "今回守る制約": ["Authentication must validate active sessions first."],
-                        "今回扱う修正候補または検討対象": ["Do not continue through pending conflicts."],
-                        "競合 / 不確実性 / 人間レビューが必要な点": [],
-                        "課題プロンプトへの回答または修正案": "Pending conflict blocks this run.",
-                    },
-                    ensure_ascii=False,
-                ),
-                "Update authentication behavior.",
-            ],
-            text=True,
-            capture_output=True,
-            env=env,
-            check=False,
-        )
-        assert inject_cli.returncode == 0, inject_cli.stderr or inject_cli.stdout
-        assert realign_cli.returncode == 0, realign_cli.stderr or realign_cli.stdout
-        for completed in (inject_cli, realign_cli):
-            payload = json.loads(completed.stdout)
-            assert payload["status"] == "blocked"
-            assert payload["should_stop"] is True
-            assert payload["can_continue"] is False
-            assert payload["constraints"] == []
-            assert payload["freshness_report"]["blocking_reasons"] == ["pending_conflict"]
-            text = _json_text(payload)
-            assert "conflict-production-auth" in text
-            assert "why_llm_cannot_decide" in text
-            assert "decision_options" in text
-    finally:
-        try:
-            client.delete_collection(collection)
-        except Exception:
-            pass
 
 
 def test_g11_warning_only_conflict_resolution_receives_purpose_and_concept_evidence(

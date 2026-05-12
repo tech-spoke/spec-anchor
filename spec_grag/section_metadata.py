@@ -259,7 +259,7 @@ def generate_section_metadata_result(
     prompt_version: str = SECTION_METADATA_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
 ) -> SectionMetadataGeneration:
-    """Generate section_metadata.json payload entries.
+    """Generate section metadata payload entries (summary/search_keys/identifiers/related_sections).
 
     The generated Summary/Search Keys are retrieval aids only, not evidence.
     Unchanged sections are reused by section-level cache key; changed sections
@@ -494,7 +494,7 @@ def generate_section_metadata(
     prompt_version: str = SECTION_METADATA_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
 ) -> dict[str, Any]:
-    """Return section_metadata.json payload for retrieval aids, not evidence."""
+    """Return a section metadata payload (summary/search_keys/identifiers/related_sections) for retrieval aids, not evidence."""
 
     return generate_section_metadata_result(
         sections,
@@ -523,7 +523,7 @@ def build_section_metadata(
     sections: Sequence[Any],
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Return a section_metadata.json payload of retrieval aids, not evidence."""
+    """Return a section metadata payload (summary/search_keys/identifiers/related_sections) of retrieval aids, not evidence."""
 
     return generate_section_metadata(sections, **kwargs)
 

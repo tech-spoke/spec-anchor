@@ -1,40 +1,12 @@
 """Source Retrieval Index primitives for lightweight SPEC-grag.
 
-The standard retrieval stack is Qdrant + BGE-M3 dense/sparse vectors + RRF.
-This module keeps provider and service imports lazy so unit tests can exercise
-chunking, sparse normalization, schema metadata, and fusion without starting
-FlagEmbedding or Qdrant.
+The standard retrieval stack is Qdrant + BGE-M3 dense/sparse vectors + RRF
+against the section-level collection (`[retrieval].section_collection`,
+default `spec_grag_section`). 1 section = 1 vector.
 
-============================================================================
-Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4 / case C-1) — DORMANT FUNCTIONS
-============================================================================
-The following chunk-level helpers are COMMENTED OUT. Their function
-signatures still exist so import sites don't break, but the bodies are
-preserved as `#`-prefixed comments and each function raises
-`NotImplementedError("Phase R-5: ...")` if called. To restore the
-chunk-level path, remove the raise + uncomment the body block + reverse
-the test skip marks.
-
-Dormant functions:
-* `build_source_chunks`
-* `build_source_chunks_artifact`
-* `compute_chunk_diff`
-* `upsert_qdrant_bge_m3_index`
-* `upsert_qdrant_bge_m3_index_incremental`
-
-Live (case C-1) section-level helpers:
-* `build_section_payloads`
-* `upsert_qdrant_section_collection`
-* `update_section_collection_related_sections`
-* `build_section_embeddings_artifact`
-* `section_hybrid_candidates`
-* `HybridRetrievalIndex` (used for both legacy chunk and live section)
-* `BgeM3EmbeddingProvider` / `FlagEmbeddingBgeM3Provider`
-
-`SourceChunk` dataclass and `_coerce_chunk_payload` helper are still
-defined because the dormant function signatures reference them; they are
-inert otherwise.
-============================================================================
+Provider and service imports stay lazy so unit tests can exercise sparse
+normalization, schema metadata, and fusion without starting FlagEmbedding
+or Qdrant.
 """
 
 from __future__ import annotations
@@ -62,13 +34,8 @@ SPARSE_VECTOR_KIND = "bge-m3 lexical weights"
 FUSION_METHOD = "rrf"
 DEFAULT_RRF_K = 60
 QDRANT_COLLECTION_SCHEMA_VERSION = "qdrant-bge-m3-hybrid-v2-stable-ids"
-# Bumped from v1 in 2026-05-10: point ids are now derived from stable_chunk_uid
-# (UUID5) instead of sequential ints, enabling incremental upsert. Existing
-# collections with int ids will be recreated on next run (schema mismatch).
 QDRANT_POINT_ID_NAMESPACE = uuid.UUID("00000000-0000-0000-0000-5e1c61a9da41")
 PAYLOAD_SCHEMA_VERSION = 1
-SOURCE_CHUNKS_ARTIFACT_VERSION = 1
-RETRIEVAL_INDEX_REVISION_ARTIFACT_VERSION = 1
 SECTION_EMBEDDINGS_ARTIFACT_VERSION = 1
 DEFAULT_SECTION_COLLECTION = "spec_grag_section"
 
@@ -119,42 +86,21 @@ class BgeM3EmbeddingProvider(Protocol):
     sparse_enabled: bool
 
     def embed_documents(self, texts: Sequence[str]) -> BgeM3EmbeddingBatch:
-        """Embed source chunks."""
+        """Embed section texts."""
 
     def embed_query(self, text: str) -> BgeM3Embedding:
         """Embed a query string."""
 
 
 @dataclass(frozen=True)
-class SourceChunk:
-    source_document_id: str
-    source_section_id: str
-    stable_section_uid: str
-    stable_chunk_uid: str
-    heading_path: list[str]
-    source_span: dict[str, int]
-    source_hash: str
-    chunk_hash: str
-    text: str
-    artifact_revision: str
-
-    def to_payload(self) -> dict[str, Any]:
-        return {
-            "source_document_id": self.source_document_id,
-            "source_section_id": self.source_section_id,
-            "stable_section_uid": self.stable_section_uid,
-            "stable_chunk_uid": self.stable_chunk_uid,
-            "heading_path": list(self.heading_path),
-            "source_span": dict(self.source_span),
-            "source_hash": self.source_hash,
-            "chunk_hash": self.chunk_hash,
-            "text": self.text,
-            "artifact_revision": self.artifact_revision,
-        }
-
-
-@dataclass(frozen=True)
 class RetrievalHit:
+    """One ranking entry from a single retrieval channel (dense or sparse).
+
+    `stable_chunk_uid` is the per-vector stable id used as the tie-break /
+    RRF aggregation key. For section-level retrieval each vector represents
+    one section and the field holds the section's `stable_section_uid`.
+    """
+
     stable_chunk_uid: str
     score: float
     payload: dict[str, Any]
@@ -311,19 +257,20 @@ class InMemoryHybridRetriever:
     """Provider-free hybrid retrieval for unit tests.
 
     It uses deterministic fake BGE-M3-shaped vectors and the same RRF fusion
-    path as the Qdrant-backed standard flow.
+    path as the Qdrant-backed standard flow. Inputs are payload mappings
+    (one per vector item, e.g. one per section).
     """
 
     def __init__(
         self,
-        chunks: Sequence[SourceChunk | Mapping[str, Any]],
+        payloads: Sequence[Mapping[str, Any]],
         *,
         embedding_provider: BgeM3EmbeddingProvider | None = None,
         dense_enabled: bool = True,
         sparse_enabled: bool = True,
         rrf_k: int = DEFAULT_RRF_K,
     ) -> None:
-        self.chunks = [_coerce_chunk_payload(chunk) for chunk in chunks]
+        self.payloads = [_coerce_payload(payload) for payload in payloads]
         self.provider = embedding_provider or FakeBgeM3EmbeddingProvider(
             dense_enabled=dense_enabled,
             sparse_enabled=sparse_enabled,
@@ -332,7 +279,7 @@ class InMemoryHybridRetriever:
         self.sparse_enabled = sparse_enabled
         self.rrf_k = rrf_k
         self._document_embeddings = self.provider.embed_documents(
-            [chunk.get("text", "") for chunk in self.chunks]
+            [payload.get("text", "") for payload in self.payloads]
         ).embeddings
 
     def search(
@@ -384,7 +331,7 @@ class InMemoryHybridRetriever:
 
     def _dense_search(self, query_dense: Sequence[float], limit: int) -> list[RetrievalHit]:
         scored: list[RetrievalHit] = []
-        for payload, embedding in zip(self.chunks, self._document_embeddings, strict=False):
+        for payload, embedding in zip(self.payloads, self._document_embeddings, strict=False):
             if embedding.dense is None:
                 continue
             score = _cosine_similarity(query_dense, embedding.dense)
@@ -395,7 +342,7 @@ class InMemoryHybridRetriever:
 
     def _sparse_search(self, query_sparse: SparseVector, limit: int) -> list[RetrievalHit]:
         scored: list[RetrievalHit] = []
-        for payload, embedding in zip(self.chunks, self._document_embeddings, strict=False):
+        for payload, embedding in zip(self.payloads, self._document_embeddings, strict=False):
             if embedding.sparse is None:
                 continue
             score = _sparse_dot(query_sparse, embedding.sparse)
@@ -406,13 +353,13 @@ class InMemoryHybridRetriever:
 
 
 class QdrantHybridRetriever:
-    """Real Qdrant + BGE-M3 dense/sparse retriever for normal operation."""
+    """Real Qdrant + BGE-M3 dense/sparse retriever for the section collection."""
 
     def __init__(
         self,
         *,
         url: str = "http://localhost:6333",
-        collection: str = "spec_grag_source",
+        collection: str = DEFAULT_SECTION_COLLECTION,
         embedding_provider: BgeM3EmbeddingProvider | None = None,
         dense_enabled: bool = True,
         sparse_enabled: bool = True,
@@ -519,95 +466,6 @@ class QdrantHybridRetriever:
             }
         )
         return payload
-
-
-def build_source_chunks(
-    sections: Sequence[Any],
-    *,
-    retrieval_config: Any | None = None,
-    chunk_size: int | None = None,
-    chunk_overlap: int | None = None,
-    artifact_revision: str | None = None,
-) -> list[SourceChunk]:
-    """Phase R-5 dormant: chunk-level retrieval is commented out per case C-1.
-
-    Restore: remove the NotImplementedError below and uncomment the body
-    block. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
-    """
-
-    raise NotImplementedError(
-        "Phase R-5: chunk-level retrieval is dormant per case C-1. See "
-        "doc/STORAGE_REDESIGN.ja.md §7.4 R-5; section-level retrieval "
-        "via spec_grag_section is the live surface."
-    )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # size = int(_config_value(retrieval_config, "chunk_size", chunk_size or 1200))
-    # overlap = int(_config_value(retrieval_config, "chunk_overlap", chunk_overlap or 160))
-    # if size <= 0:
-    #     raise ValueError("chunk_size must be positive")
-    # if overlap < 0:
-    #     raise ValueError("chunk_overlap must be non-negative")
-    # if overlap >= size:
-    #     raise ValueError("chunk_overlap must be smaller than chunk_size")
-    #
-    # normalized_sections = [_normalize_section(section) for section in sections]
-    # revision = artifact_revision or _artifact_revision_from_sections(normalized_sections)
-    # chunks: list[SourceChunk] = []
-    # for section in normalized_sections:
-    #     for ordinal, (start, end) in enumerate(
-    #         _chunk_ranges(section["text"], chunk_size=size, chunk_overlap=overlap),
-    #         start=1,
-    #     ):
-    #         text = section["text"][start:end]
-    #         stable_chunk_uid = _stable_chunk_uid(section["stable_section_uid"], ordinal)
-    #         chunks.append(
-    #             SourceChunk(
-    #                 source_document_id=section["source_document_id"],
-    #                 source_section_id=section["source_section_id"],
-    #                 stable_section_uid=section["stable_section_uid"],
-    #                 stable_chunk_uid=stable_chunk_uid,
-    #                 heading_path=list(section["heading_path"]),
-    #                 source_span=_chunk_source_span(section["source_span"], section["text"], start, end),
-    #                 source_hash=section["source_hash"],
-    #                 chunk_hash=_hash_text(text),
-    #                 text=text,
-    #                 artifact_revision=revision,
-    #             )
-    #         )
-    # return chunks
-    # ---- end Phase R-5 dormant body ----
-
-
-def build_source_chunks_artifact(
-    chunks: Sequence[SourceChunk | Mapping[str, Any]],
-    *,
-    chunk_size: int | None = None,
-    chunk_overlap: int | None = None,
-    artifact_revision: str | None = None,
-) -> dict[str, Any]:
-    """Phase R-5 dormant: chunk-level artifact builder is commented out.
-
-    Restore: remove NotImplementedError and uncomment body. See
-    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
-    """
-
-    raise NotImplementedError(
-        "Phase R-5: chunk-level artifact builder is dormant per case C-1."
-    )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # payloads = [_coerce_chunk_payload(chunk) for chunk in chunks]
-    # revision = artifact_revision or _artifact_revision_from_chunks(payloads)
-    # return {
-    #     "artifact_version": SOURCE_CHUNKS_ARTIFACT_VERSION,
-    #     "artifact_revision": revision,
-    #     "chunking": {
-    #         "chunk_size": chunk_size,
-    #         "chunk_overlap": chunk_overlap,
-    #     },
-    #     "payload_schema_version": PAYLOAD_SCHEMA_VERSION,
-    #     "chunks": payloads,
-    # }
-    # ---- end Phase R-5 dormant body ----
 
 
 def normalize_bge_m3_sparse_output(output: Any, *, row: int = 0) -> SparseVector:
@@ -783,299 +641,6 @@ def qdrant_collection_config_metadata() -> dict[str, Any]:
     }
 
 
-def build_qdrant_point(
-    chunk: SourceChunk | Mapping[str, Any],
-    *,
-    dense: Sequence[float] | None = None,
-    sparse: SparseVector | Mapping[str, Any] | None = None,
-    point_id: str | int | None = None,
-) -> dict[str, Any]:
-    payload = _coerce_chunk_payload(chunk)
-    sparse_vector = normalize_bge_m3_sparse_output(sparse) if sparse is not None else SparseVector()
-    vector: dict[str, Any] = {}
-    if dense is not None:
-        vector[DENSE_VECTOR_NAME] = [float(value) for value in dense]
-    if sparse is not None:
-        vector[SPARSE_VECTOR_NAME] = sparse_vector.to_payload()
-    return {
-        "id": point_id or payload["stable_chunk_uid"],
-        "vector": vector,
-        "payload": payload,
-    }
-
-
-def upsert_qdrant_bge_m3_index(
-    chunks: Sequence[SourceChunk | Mapping[str, Any]],
-    *,
-    url: str = "http://localhost:6333",
-    collection: str = "spec_grag_source",
-    embedding_provider: BgeM3EmbeddingProvider | None = None,
-    recreate: bool = True,
-    generated_at: str | None = None,
-) -> dict[str, Any]:
-    """Phase R-5 dormant: chunk-level Qdrant upsert is commented out.
-
-    Restore: remove NotImplementedError and uncomment body. See
-    doc/STORAGE_REDESIGN.ja.md §7.4 R-5. Section-level retrieval via
-    `upsert_qdrant_section_collection` is the live path.
-    """
-
-    raise NotImplementedError(
-        "Phase R-5: chunk-level Qdrant upsert is dormant per case C-1. "
-        "Use upsert_qdrant_section_collection for section-level retrieval."
-    )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # from qdrant_client import QdrantClient  # type: ignore[import-not-found]
-    # from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
-    #
-    # payloads = [_coerce_chunk_payload(chunk) for chunk in chunks]
-    # client = QdrantClient(url)
-    # server_version = _qdrant_server_version(client)
-    # provider = embedding_provider or FlagEmbeddingBgeM3Provider(
-    #     allow_real_provider=True,
-    #     use_fp16=False,
-    # )
-    # batch = provider.embed_documents([payload["text"] for payload in payloads])
-    #
-    # if recreate:
-    #     client.recreate_collection(
-    #         collection_name=collection,
-    #         vectors_config={
-    #             DENSE_VECTOR_NAME: qdrant_models.VectorParams(
-    #                 size=BGE_M3_DENSE_SIZE,
-    #                 distance=qdrant_models.Distance.COSINE,
-    #             )
-    #         },
-    #         sparse_vectors_config={SPARSE_VECTOR_NAME: qdrant_models.SparseVectorParams()},
-    #     )
-    #
-    # points = []
-    # for payload, embedding in zip(payloads, batch.embeddings, strict=True):
-    #     sparse = embedding.sparse or SparseVector()
-    #     points.append(
-    #         qdrant_models.PointStruct(
-    #             id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
-    #             vector={
-    #                 DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
-    #                 SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
-    #                     indices=list(sparse.indices),
-    #                     values=[float(value) for value in sparse.values],
-    #                 ),
-    #             },
-    #             payload=payload,
-    #         )
-    #     )
-    # if points:
-    #     client.upsert(collection_name=collection, points=points)
-    #
-    # revision = _artifact_revision_from_chunks(
-    #     payloads,
-    #     schema=qdrant_named_vector_schema_metadata(
-    #         collection=collection,
-    #         qdrant_server_version=server_version,
-    #     ),
-    # )
-    # artifact = build_retrieval_index_revision_artifact(
-    #     chunks=payloads,
-    #     artifact_revision=revision,
-    #     collection=collection,
-    #     qdrant_server_version=server_version,
-    #     qdrant_collection_revision=revision,
-    #     generated_at=generated_at,
-    # )
-    # artifact["status"] = "success"
-    # artifact["diagnostics"] = {
-    #     "real_retrieval_index": True,
-    #     "qdrant_url": url,
-    #     "collection": collection,
-    #     "qdrant_server_version": server_version,
-    #     "embedding_model": STANDARD_EMBEDDING_MODEL,
-    #     "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
-    #     "flagembedding_package_version": _package_version("FlagEmbedding"),
-    #     "embedding_device": _provider_device(provider),
-    #     "embedding_model_cache_dir": _provider_model_cache_dir(provider),
-    #     "embedding_model_revision": "unknown",
-    #     "dense_vector": DENSE_VECTOR_NAME,
-    #     "sparse_vector": SPARSE_VECTOR_NAME,
-    #     "fusion_method": FUSION_METHOD,
-    #     "rrf_k": DEFAULT_RRF_K,
-    #     "chunk_count": len(payloads),
-    #     "upsert_mode": "full_recreate" if recreate else "full_overwrite",
-    # }
-    # return artifact
-    # ---- end Phase R-5 dormant body ----
-
-
-def stable_chunk_uid_to_point_id(stable_chunk_uid: str) -> str:
-    """Map a chunk's stable UID to a deterministic Qdrant point id.
-
-    Using UUIDv5 keyed by ``stable_chunk_uid`` means re-running spec-grag
-    produces identical point ids for unchanged chunks → enables incremental
-    upsert (overwrite-by-id without recreate_collection). Schema version
-    `qdrant-bge-m3-hybrid-v2-stable-ids` reflects this id format.
-    """
-
-    return str(uuid.uuid5(QDRANT_POINT_ID_NAMESPACE, str(stable_chunk_uid)))
-
-
-def compute_chunk_diff(
-    previous_chunks: Sequence[Mapping[str, Any]] | None,
-    current_chunks: Sequence[Mapping[str, Any]],
-) -> dict[str, list[dict[str, Any]]]:
-    """Phase R-5 dormant: chunk diff is commented out.
-
-    Restore: remove NotImplementedError and uncomment body. See
-    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
-    """
-
-    raise NotImplementedError(
-        "Phase R-5: chunk-level diffing is dormant per case C-1."
-    )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # prev_by_uid: dict[str, dict[str, Any]] = {}
-    # if previous_chunks:
-    #     for chunk in previous_chunks:
-    #         prev_payload = _coerce_chunk_payload(chunk)
-    #         uid = prev_payload.get("stable_chunk_uid", "")
-    #         if uid:
-    #             prev_by_uid[uid] = prev_payload
-    # added: list[dict[str, Any]] = []
-    # changed: list[dict[str, Any]] = []
-    # unchanged: list[dict[str, Any]] = []
-    # seen_uids: set[str] = set()
-    # for chunk in current_chunks:
-    #     payload = _coerce_chunk_payload(chunk)
-    #     uid = payload.get("stable_chunk_uid", "")
-    #     if not uid:
-    #         continue
-    #     seen_uids.add(uid)
-    #     prev = prev_by_uid.get(uid)
-    #     if prev is None:
-    #         added.append(payload)
-    #         continue
-    #     if prev.get("chunk_hash") != payload.get("chunk_hash"):
-    #         changed.append(payload)
-    #     else:
-    #         unchanged.append(payload)
-    # removed_uids = [uid for uid in prev_by_uid if uid not in seen_uids]
-    # return {
-    #     "added": added,
-    #     "changed": changed,
-    #     "unchanged": unchanged,
-    #     "removed_uids": removed_uids,
-    # }
-    # ---- end Phase R-5 dormant body ----
-
-
-def upsert_qdrant_bge_m3_index_incremental(
-    *,
-    url: str,
-    collection: str,
-    chunks_to_embed: Sequence[Mapping[str, Any]],
-    point_ids_to_delete: Sequence[str],
-    all_chunks: Sequence[Mapping[str, Any]],
-    embedding_provider: BgeM3EmbeddingProvider | None = None,
-    generated_at: str | None = None,
-) -> dict[str, Any]:
-    """Phase R-5 dormant: incremental chunk upsert is commented out.
-
-    Restore: remove NotImplementedError and uncomment body. See
-    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
-    """
-
-    raise NotImplementedError(
-        "Phase R-5: incremental chunk-level Qdrant upsert is dormant "
-        "per case C-1."
-    )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # from qdrant_client import QdrantClient  # type: ignore[import-not-found]
-    # from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
-    #
-    # client = QdrantClient(url)
-    # server_version = _qdrant_server_version(client)
-    #
-    # # Delete removed points first (before upsert so id reuse is unambiguous).
-    # if point_ids_to_delete:
-    #     client.delete(
-    #         collection_name=collection,
-    #         points_selector=qdrant_models.PointIdsList(
-    #             points=[
-    #                 stable_chunk_uid_to_point_id(uid) for uid in point_ids_to_delete
-    #             ],
-    #         ),
-    #     )
-    #
-    # # Embed and upsert only the chunks that actually changed.
-    # embed_payloads = [_coerce_chunk_payload(chunk) for chunk in chunks_to_embed]
-    # if embed_payloads:
-    #     provider = embedding_provider or FlagEmbeddingBgeM3Provider(
-    #         allow_real_provider=True,
-    #         use_fp16=False,
-    #     )
-    #     batch = provider.embed_documents([payload["text"] for payload in embed_payloads])
-    #     points = []
-    #     for payload, embedding in zip(embed_payloads, batch.embeddings, strict=True):
-    #         sparse = embedding.sparse or SparseVector()
-    #         points.append(
-    #             qdrant_models.PointStruct(
-    #                 id=stable_chunk_uid_to_point_id(payload["stable_chunk_uid"]),
-    #                 vector={
-    #                     DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
-    #                     SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
-    #                         indices=list(sparse.indices),
-    #                         values=[float(value) for value in sparse.values],
-    #                     ),
-    #                 },
-    #                 payload=payload,
-    #             )
-    #         )
-    #     if points:
-    #         client.upsert(collection_name=collection, points=points)
-    # else:
-    #     provider = embedding_provider  # not used for diagnostics if no embed
-    #
-    # full_payloads = [_coerce_chunk_payload(chunk) for chunk in all_chunks]
-    # revision = _artifact_revision_from_chunks(
-    #     full_payloads,
-    #     schema=qdrant_named_vector_schema_metadata(
-    #         collection=collection,
-    #         qdrant_server_version=server_version,
-    #     ),
-    # )
-    # artifact = build_retrieval_index_revision_artifact(
-    #     chunks=full_payloads,
-    #     artifact_revision=revision,
-    #     collection=collection,
-    #     qdrant_server_version=server_version,
-    #     qdrant_collection_revision=revision,
-    #     generated_at=generated_at,
-    # )
-    # artifact["status"] = "success"
-    # artifact["diagnostics"] = {
-    #     "real_retrieval_index": True,
-    #     "qdrant_url": url,
-    #     "collection": collection,
-    #     "qdrant_server_version": server_version,
-    #     "embedding_model": STANDARD_EMBEDDING_MODEL,
-    #     "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
-    #     "flagembedding_package_version": _package_version("FlagEmbedding"),
-    #     "embedding_device": (
-    #         _provider_device(provider) if provider is not None else "skipped"
-    #     ),
-    #     "embedding_model_revision": "unknown",
-    #     "dense_vector": DENSE_VECTOR_NAME,
-    #     "sparse_vector": SPARSE_VECTOR_NAME,
-    #     "fusion_method": FUSION_METHOD,
-    #     "rrf_k": DEFAULT_RRF_K,
-    #     "chunk_count": len(full_payloads),
-    #     "upsert_mode": "incremental",
-    #     "embedded_chunk_count": len(embed_payloads),
-    #     "deleted_chunk_count": len(point_ids_to_delete),
-    # }
-    # return artifact
-    # ---- end Phase R-5 dormant body ----
-
-
 def build_section_embedding_text(
     section: Mapping[str, Any],
     metadata: Mapping[str, Any] | None = None,
@@ -1085,9 +650,8 @@ def build_section_embedding_text(
 ) -> str:
     """Build the embedding text for one section (summary + heading + key terms).
 
-    Used by Phase B (section-level Qdrant collection). The text is intentionally
-    short and semantically dense so 1 section = 1 BGE-M3 vector fits the model
-    input length.
+    The text is intentionally short and semantically dense so 1 section = 1
+    BGE-M3 vector fits the model input length.
     """
 
     metadata = metadata or {}
@@ -1114,10 +678,9 @@ def build_section_payloads(
 ) -> list[dict[str, Any]]:
     """Return one Qdrant payload per section for the section-level collection.
 
-    Per Phase R-3 (`doc/STORAGE_REDESIGN.ja.md` §7.4) the payload now also
-    includes `related_sections`. When the related_sections stage has not
-    run yet (e.g. the initial section_metadata upsert), the metadata input
-    has no `related_sections` key and the payload defaults to an empty
+    The payload includes `related_sections`. When the related_sections stage
+    has not run yet (e.g. the initial section payload upsert) the metadata
+    input has no `related_sections` key and the payload defaults to an empty
     list; the related_sections stage then refreshes the field via
     `update_section_collection_related_sections` (`set_payload`) without a
     re-embed.
@@ -1158,23 +721,20 @@ def update_section_collection_related_sections(
     collection: str = DEFAULT_SECTION_COLLECTION,
     client: Any | None = None,
 ) -> dict[str, Any]:
-    """Patch the `related_sections` payload field in `spec_grag_section`.
+    """Patch the `related_sections` payload field in the section collection.
 
-    Phase R-3 (`doc/STORAGE_REDESIGN.ja.md` §7.4) routes the related_sections
-    LLM typing output back to the Qdrant section collection via
-    `client.set_payload` so the `inject-search` API (Phase R-6) can return
+    Routes the related_sections LLM typing output back to the Qdrant section
+    collection via `client.set_payload` so the `inject-search` API can return
     related_sections in the same call as the section content.
 
     `related_sections_by_id` maps `source_section_id` to the related-section
-    list (the same dicts found in section_metadata.json). The function
-    issues one `set_payload` call per section using a
+    list. The function issues one `set_payload` call per section using a
     `source_section_id` filter, so the existing point IDs (assigned by
-    `upsert_qdrant_section_collection`) do not need to be tracked by
-    callers.
+    `upsert_qdrant_section_collection`) do not need to be tracked by callers.
 
     Returns a small diagnostics dict that includes the number of sections
-    successfully patched and the list of section_ids that produced an
-    error (each error is logged into `errors` instead of raising).
+    successfully patched and the list of section_ids that produced an error
+    (each error is logged into `errors` instead of raising).
     """
 
     from qdrant_client import QdrantClient  # type: ignore[import-not-found]
@@ -1347,24 +907,24 @@ def section_hybrid_candidates(
 ) -> list[FusedRetrievalHit]:
     """Return top-N section candidates for one source section via in-process RRF.
 
-    Used by Phase C candidate generation when running without a live Qdrant.
-    The same provider-free path is exercised by unit tests; the real Qdrant
-    backed query lives in :class:`QdrantHybridRetriever` against the section
+    Used by candidate generation when running without a live Qdrant. The same
+    provider-free path is exercised by unit tests; the real Qdrant-backed
+    query lives in :class:`QdrantHybridRetriever` against the section
     collection.
     """
 
-    chunks = list(payloads)
-    if not chunks:
+    items = list(payloads)
+    if not items:
         return []
     source_text = ""
-    for payload in chunks:
+    for payload in items:
         if str(payload.get("source_section_id", "")) == source_section_id:
             source_text = str(payload.get("text", ""))
             break
     if not source_text.strip():
         return []
     retriever = InMemoryHybridRetriever(
-        chunks,
+        items,
         embedding_provider=embedding_provider,
         rrf_k=rrf_k,
     )
@@ -1391,24 +951,24 @@ def rrf_fusion(
 
     dense = _stable_channel_order([_coerce_hit(hit) for hit in dense_hits])
     sparse = _stable_channel_order([_coerce_hit(hit) for hit in sparse_hits])
-    by_chunk: dict[str, dict[str, Any]] = {}
+    by_item: dict[str, dict[str, Any]] = {}
 
     for rank, hit in enumerate(dense, start=1):
-        entry = by_chunk.setdefault(hit.stable_chunk_uid, {"payload": hit.payload})
+        entry = by_item.setdefault(hit.stable_chunk_uid, {"payload": hit.payload})
         entry["payload"] = _prefer_payload(entry.get("payload"), hit.payload)
         entry["dense_rank"] = min(rank, entry.get("dense_rank", rank))
         entry["dense_score"] = hit.score
         entry["rrf_score"] = entry.get("rrf_score", 0.0) + 1.0 / (rrf_k + rank)
 
     for rank, hit in enumerate(sparse, start=1):
-        entry = by_chunk.setdefault(hit.stable_chunk_uid, {"payload": hit.payload})
+        entry = by_item.setdefault(hit.stable_chunk_uid, {"payload": hit.payload})
         entry["payload"] = _prefer_payload(entry.get("payload"), hit.payload)
         entry["sparse_rank"] = min(rank, entry.get("sparse_rank", rank))
         entry["sparse_score"] = hit.score
         entry["rrf_score"] = entry.get("rrf_score", 0.0) + 1.0 / (rrf_k + rank)
 
     ordered_entries = sorted(
-        by_chunk.items(),
+        by_item.items(),
         key=lambda item: (
             -float(item[1].get("rrf_score", 0.0)),
             str(item[1].get("payload", {}).get("source_section_id", "")),
@@ -1494,7 +1054,7 @@ def qdrant_hybrid_retrieve(
     query: str,
     *,
     url: str = "http://localhost:6333",
-    collection: str = "spec_grag_source",
+    collection: str = DEFAULT_SECTION_COLLECTION,
     embedding_provider: BgeM3EmbeddingProvider | None = None,
     dense_top_k: int = 12,
     sparse_top_k: int = 20,
@@ -1514,160 +1074,6 @@ def qdrant_hybrid_retrieve(
 
 
 retrieve_qdrant_hybrid = qdrant_hybrid_retrieve
-
-
-def build_retrieval_index_revision_artifact(
-    *,
-    chunks: Sequence[SourceChunk | Mapping[str, Any]] | None = None,
-    artifact_revision: str | None = None,
-    collection: str | None = None,
-    qdrant_server_version: str | None = None,
-    qdrant_collection_revision: str | None = None,
-    flagembedding_package_version: str | None = None,
-    embedding_model_revision: str | None = None,
-    dense_enabled: bool = True,
-    sparse_enabled: bool = True,
-    generated_at: str | None = None,
-    qdrant_collection_schema_version: str | int | None = None,
-) -> dict[str, Any]:
-    payloads = [_coerce_chunk_payload(chunk) for chunk in chunks or []]
-    schema = qdrant_named_vector_schema_metadata(
-        collection=collection,
-        qdrant_server_version=qdrant_server_version,
-        flagembedding_package_version=flagembedding_package_version,
-        embedding_model_revision=embedding_model_revision,
-    )
-    revision = artifact_revision or _artifact_revision_from_chunks(payloads, schema=schema)
-    collection_schema_version = (
-        qdrant_collection_schema_version or QDRANT_COLLECTION_SCHEMA_VERSION
-    )
-    return {
-        "artifact_version": RETRIEVAL_INDEX_REVISION_ARTIFACT_VERSION,
-        "artifact_revision": revision,
-        "generated_at": generated_at,
-        "retrieval_stack": {
-            "vector_store": STANDARD_VECTOR_STORE_PROVIDER,
-            "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
-            "embedding_model": STANDARD_EMBEDDING_MODEL,
-            "fusion_method": FUSION_METHOD,
-        },
-        "embedding": {
-            "provider": STANDARD_EMBEDDING_PROVIDER,
-            "model": STANDARD_EMBEDDING_MODEL,
-            "model_revision": embedding_model_revision or "unknown",
-            "dense_enabled": bool(dense_enabled),
-            "sparse_enabled": bool(sparse_enabled),
-            "dense_vector_size": BGE_M3_DENSE_SIZE,
-            "dense_distance": DENSE_DISTANCE,
-            "sparse_vector_kind": SPARSE_VECTOR_KIND,
-            "flagembedding_package_version": schema["flagembedding_package_version"],
-        },
-        "vector_store": {
-            "provider": STANDARD_VECTOR_STORE_PROVIDER,
-            "collection": collection,
-            "collection_revision": qdrant_collection_revision or revision,
-            "server_version": schema["qdrant_server_version"],
-            "qdrant_server_version": schema["qdrant_server_version"],
-            "collection_schema_version": collection_schema_version,
-            "qdrant_collection_schema_version": collection_schema_version,
-        },
-        "qdrant": schema,
-        "qdrant_collection_schema_version": collection_schema_version,
-        "flagembedding_package_version": schema["flagembedding_package_version"],
-        "packages": {
-            "FlagEmbedding": schema["flagembedding_package_version"],
-        },
-        "embedding_model": STANDARD_EMBEDDING_MODEL,
-        "dense_vector": {
-            "name": DENSE_VECTOR_NAME,
-            "size": BGE_M3_DENSE_SIZE,
-            "distance": DENSE_DISTANCE,
-        },
-        "dense_vector_size": BGE_M3_DENSE_SIZE,
-        "dense_distance": DENSE_DISTANCE,
-        "sparse_vector": {
-            "name": SPARSE_VECTOR_NAME,
-            "kind": SPARSE_VECTOR_KIND,
-        },
-        "sparse_vector_kind": SPARSE_VECTOR_KIND,
-        "named_vectors": {
-            "dense": DENSE_VECTOR_NAME,
-            "sparse": SPARSE_VECTOR_NAME,
-        },
-        "fusion": {
-            "method": FUSION_METHOD,
-            "rrf_k": DEFAULT_RRF_K,
-            "tie_break": ["source_section_id", "stable_chunk_uid"],
-        },
-        "payload_schema_version": PAYLOAD_SCHEMA_VERSION,
-        "chunk_count": len(payloads),
-    }
-
-
-def build_retrieval_index_revision(**kwargs: Any) -> dict[str, Any]:
-    return build_retrieval_index_revision_artifact(**kwargs)
-
-
-def build_retrieval_index_revision_payload(**kwargs: Any) -> dict[str, Any]:
-    return build_retrieval_index_revision_artifact(**kwargs)
-
-
-def build_retrieval_artifacts(
-    sections: Sequence[Any],
-    *,
-    retrieval_config: Any | None = None,
-    chunk_size: int | None = None,
-    chunk_overlap: int | None = None,
-    artifact_revision: str | None = None,
-    collection: str | None = None,
-    generated_at: str | None = None,
-) -> dict[str, dict[str, Any]]:
-    chunks = build_source_chunks(
-        sections,
-        retrieval_config=retrieval_config,
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        artifact_revision=artifact_revision,
-    )
-    revision = artifact_revision or (chunks[0].artifact_revision if chunks else _hash_text(""))
-    return {
-        "source_chunks": build_source_chunks_artifact(
-            chunks,
-            chunk_size=_config_value(retrieval_config, "chunk_size", chunk_size),
-            chunk_overlap=_config_value(retrieval_config, "chunk_overlap", chunk_overlap),
-            artifact_revision=revision,
-        ),
-        "retrieval_index_revision": build_retrieval_index_revision_artifact(
-            chunks=chunks,
-            artifact_revision=revision,
-            collection=collection,
-            generated_at=generated_at,
-        ),
-    }
-
-
-def source_snippet_from_payload(payload: Mapping[str, Any]) -> str:
-    return str(payload.get("text", ""))
-
-
-def get_source_snippet(
-    chunks: Sequence[SourceChunk | Mapping[str, Any]],
-    *,
-    stable_chunk_uid: str | None = None,
-    source_span: Mapping[str, Any] | None = None,
-    source_document_id: str | None = None,
-) -> str | None:
-    target_span = dict(source_span or {})
-    for chunk in chunks:
-        payload = _coerce_chunk_payload(chunk)
-        if stable_chunk_uid and payload.get("stable_chunk_uid") != stable_chunk_uid:
-            continue
-        if source_document_id and payload.get("source_document_id") != source_document_id:
-            continue
-        if target_span and dict(payload.get("source_span") or {}) != target_span:
-            continue
-        return str(payload.get("text", ""))
-    return None
 
 
 # Friendly aliases for tests and callers using slightly different wording.
@@ -1726,51 +1132,34 @@ def _real_retrieval_provider_enabled() -> bool:
     )
 
 
-def _coerce_chunk_payload(chunk: SourceChunk | Mapping[str, Any]) -> dict[str, Any]:
-    if isinstance(chunk, SourceChunk):
-        return chunk.to_payload()
-    if is_dataclass(chunk):
-        return _coerce_chunk_payload(asdict(chunk))
-    if isinstance(chunk, Mapping):
-        if "payload" in chunk and isinstance(chunk["payload"], Mapping):
-            return _coerce_chunk_payload(chunk["payload"])
+def _coerce_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    if is_dataclass(payload):
+        return _coerce_payload(asdict(payload))
+    if isinstance(payload, Mapping):
+        if "payload" in payload and isinstance(payload["payload"], Mapping):
+            return _coerce_payload(payload["payload"])
         return {
-            "source_document_id": str(chunk.get("source_document_id", "")),
+            "source_document_id": str(payload.get("source_document_id", "")),
             "source_section_id": str(
-                chunk.get("source_section_id", chunk.get("section_id", ""))
+                payload.get("source_section_id", payload.get("section_id", ""))
             ),
-            "stable_section_uid": str(chunk.get("stable_section_uid", "")),
-            "stable_chunk_uid": str(chunk.get("stable_chunk_uid", chunk.get("id", ""))),
-            "heading_path": _heading_path_list(chunk.get("heading_path", [])),
-            "source_span": _source_span_dict(chunk.get("source_span", {})),
-            "source_hash": str(chunk.get("source_hash", "")),
-            "chunk_hash": str(chunk.get("chunk_hash", "")),
-            "text": str(chunk.get("text", chunk.get("body", ""))),
-            "artifact_revision": str(chunk.get("artifact_revision", "")),
+            "stable_section_uid": str(payload.get("stable_section_uid", "")),
+            "stable_chunk_uid": str(
+                payload.get(
+                    "stable_chunk_uid",
+                    payload.get("stable_section_uid", payload.get("id", "")),
+                )
+            ),
+            "heading_path": _heading_path_list(payload.get("heading_path", [])),
+            "source_hash": str(payload.get("source_hash", "")),
+            "semantic_hash": str(payload.get("semantic_hash", "")),
+            "summary": str(payload.get("summary", "")),
+            "search_keys": list(payload.get("search_keys") or []),
+            "identifiers": list(payload.get("identifiers") or []),
+            "related_sections": list(payload.get("related_sections") or []),
+            "text": str(payload.get("text", payload.get("body", ""))),
         }
-    raise TypeError(f"unsupported chunk payload: {type(chunk)!r}")
-
-
-def _normalize_section(section: Any) -> dict[str, Any]:
-    source_section_id = str(
-        _field(section, "source_section_id", _field(section, "section_id", ""))
-    )
-    text = str(_field(section, "text", _field(section, "body", "")))
-    return {
-        "source_document_id": str(_field(section, "source_document_id", "")),
-        "source_section_id": source_section_id,
-        "stable_section_uid": str(_field(section, "stable_section_uid", "")),
-        "heading_path": _heading_path_list(_field(section, "heading_path", [])),
-        "source_span": _source_span_dict(_field(section, "source_span", {})),
-        "source_hash": str(_field(section, "source_hash", _hash_text(text))),
-        "text": text,
-    }
-
-
-def _field(value: Any, name: str, default: Any = None) -> Any:
-    if isinstance(value, Mapping):
-        return value.get(name, default)
-    return getattr(value, name, default)
+    raise TypeError(f"unsupported payload: {type(payload)!r}")
 
 
 def _heading_path_list(value: Any) -> list[str]:
@@ -1779,84 +1168,6 @@ def _heading_path_list(value: Any) -> list[str]:
     if isinstance(value, Sequence):
         return [str(item) for item in value]
     return []
-
-
-def _source_span_dict(value: Any) -> dict[str, int]:
-    if isinstance(value, Mapping):
-        return {
-            "start_line": int(value.get("start_line", 1)),
-            "end_line": int(value.get("end_line", value.get("start_line", 1))),
-            "start_offset": int(value.get("start_offset", 0)),
-            "end_offset": int(value.get("end_offset", value.get("start_offset", 0))),
-        }
-    return {
-        "start_line": int(getattr(value, "start_line", 1)),
-        "end_line": int(getattr(value, "end_line", getattr(value, "start_line", 1))),
-        "start_offset": int(getattr(value, "start_offset", 0)),
-        "end_offset": int(getattr(value, "end_offset", getattr(value, "start_offset", 0))),
-    }
-
-
-def _chunk_ranges(text: str, *, chunk_size: int, chunk_overlap: int) -> list[tuple[int, int]]:
-    if text == "":
-        return [(0, 0)]
-    ranges: list[tuple[int, int]] = []
-    start = 0
-    text_len = len(text)
-    while start < text_len:
-        end = min(text_len, start + chunk_size)
-        ranges.append((start, end))
-        if end >= text_len:
-            break
-        start = max(end - chunk_overlap, start + 1)
-    return ranges
-
-
-def _chunk_source_span(
-    section_span: Mapping[str, int],
-    section_text: str,
-    start: int,
-    end: int,
-) -> dict[str, int]:
-    base_line = int(section_span.get("start_line", 1))
-    start_line = base_line + section_text.count("\n", 0, start)
-    if end <= start:
-        end_line = start_line
-    else:
-        end_line = base_line + section_text.count("\n", 0, max(end - 1, 0))
-    start_offset = int(section_span.get("start_offset", 0)) + start
-    return {
-        "start_line": start_line,
-        "end_line": end_line,
-        "start_offset": start_offset,
-        "end_offset": int(section_span.get("start_offset", 0)) + end,
-    }
-
-
-def _stable_chunk_uid(stable_section_uid: str, ordinal: int) -> str:
-    return _hash_text(f"{stable_section_uid}\n{ordinal:04d}")[:16]
-
-
-def _artifact_revision_from_sections(sections: Sequence[Mapping[str, Any]]) -> str:
-    seed = "\n".join(
-        f"{section.get('source_section_id')}:{section.get('source_hash')}"
-        for section in sections
-    )
-    return _hash_text(seed)[:16]
-
-
-def _artifact_revision_from_chunks(
-    chunks: Sequence[Mapping[str, Any]],
-    *,
-    schema: Mapping[str, Any] | None = None,
-) -> str:
-    parts = [
-        f"{chunk.get('stable_chunk_uid')}:{chunk.get('chunk_hash')}"
-        for chunk in chunks
-    ]
-    if schema:
-        parts.append(repr(sorted(schema.items())))
-    return _hash_text("\n".join(parts))[:16]
 
 
 def _hash_text(text: str) -> str:
@@ -2014,7 +1325,12 @@ def _call_backend_search(
 
 
 def _hit_from_payload(payload: Mapping[str, Any], *, score: float) -> RetrievalHit:
-    stable_chunk_uid = str(payload.get("stable_chunk_uid", payload.get("id", "")))
+    stable_chunk_uid = str(
+        payload.get(
+            "stable_chunk_uid",
+            payload.get("stable_section_uid", payload.get("id", "")),
+        )
+    )
     return RetrievalHit(
         stable_chunk_uid=stable_chunk_uid,
         score=float(score),
@@ -2027,7 +1343,7 @@ def _hit_from_qdrant_point(point: Any) -> RetrievalHit:
     payload = dict(getattr(point, "payload", None) or {})
     stable_chunk_uid = str(
         payload.get("stable_chunk_uid")
-        or payload.get("chunk_id")
+        or payload.get("stable_section_uid")
         or getattr(point, "id", "")
     )
     return RetrievalHit(
@@ -2047,8 +1363,6 @@ def _coerce_hit(hit: Any) -> RetrievalHit:
             score=hit.score,
             payload=hit.payload,
         )
-    if isinstance(hit, SourceChunk):
-        return _hit_from_payload(hit.to_payload(), score=0.0)
     if is_dataclass(hit):
         return _coerce_hit(asdict(hit))
     if isinstance(hit, Mapping):
@@ -2057,7 +1371,10 @@ def _coerce_hit(hit: Any) -> RetrievalHit:
         stable_chunk_uid = str(
             hit.get(
                 "stable_chunk_uid",
-                payload.get("stable_chunk_uid", hit.get("id", "")),
+                payload.get(
+                    "stable_chunk_uid",
+                    payload.get("stable_section_uid", hit.get("id", "")),
+                ),
             )
         )
         return RetrievalHit(
@@ -2172,10 +1489,6 @@ def _provider_device(provider: Any) -> str:
     return str(getattr(provider, "model_kwargs", {}).get("device") or "unknown")
 
 
-def _provider_model_cache_dir(provider: Any) -> str:
-    return str(getattr(provider, "model_cache_dir", None) or _model_cache_dir())
-
-
 def _qdrant_server_version(client: Any) -> str:
     try:
         info = client.info()
@@ -2184,11 +1497,3 @@ def _qdrant_server_version(client: Any) -> str:
     if isinstance(info, Mapping):
         return str(info.get("version") or "unknown")
     return str(getattr(info, "version", None) or "unknown")
-
-
-def _config_value(config: Any, field_name: str, default: Any = None) -> Any:
-    if config is None:
-        return default
-    if isinstance(config, Mapping):
-        return config.get(field_name, default)
-    return getattr(config, field_name, default)
