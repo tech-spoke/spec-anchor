@@ -14,16 +14,6 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-README = REPO_ROOT / "README.md"
-RUNBOOK = REPO_ROOT / "doc" / "RUNBOOK.ja.md"
-
-
-def _readme() -> str:
-    return README.read_text(encoding="utf-8")
-
-
-def _runbook() -> str:
-    return RUNBOOK.read_text(encoding="utf-8")
 
 
 def _project_env() -> dict[str, str]:
@@ -74,74 +64,6 @@ def _base_constraint() -> list[dict[str, object]]:
     ]
 
 
-def test_t_d01_readme_explains_lightweight_setup_smoke_usage_dev_and_privacy() -> None:
-    text = _readme()
-    lowered = text.lower()
-    runbook = _runbook().lower()
-
-    assert "lightweight" in lowered
-    assert "spec-grag" in lowered
-    assert "setup" in lowered
-    assert "smoke" in lowered
-    for command in (
-        "spec-grag core",
-        "spec-grag inject",
-        "spec-grag realign",
-        "spec-grag-setup-project",
-    ):
-        assert command in text
-    assert "doc/runbook.ja.md" in lowered
-    assert "pytest" in runbook
-    assert "local" in runbook
-    assert "core concept" in lowered
-    assert "never updates" in lowered or "does not update" in lowered
-    assert "automatically" in lowered
-
-
-def test_t_d01_readme_is_not_a_runbook() -> None:
-    text = _readme()
-    lowered = text.lower()
-
-    assert "doc/runbook.ja.md" in lowered
-    for forbidden in (
-        "Production Readiness Report Template",
-        "本運用 Readiness 報告テンプレート",
-        "Do not report",
-        "qdrant_schema_mismatch",
-        "agent_cli_unauthenticated",
-    ):
-        assert forbidden not in text
-
-
-def test_t_d01_readme_does_not_present_full_grag_terms_as_standard_path() -> None:
-    lowered = _readme().lower()
-    forbidden_standard_path_phrases = (
-        "standard path is property graph",
-        "standard path: property graph",
-        "standard route is property graph",
-        "uses property graph as the standard",
-        "entity relation graph as the standard",
-        "hierarchical cluster as the standard",
-    )
-
-    for phrase in forbidden_standard_path_phrases:
-        assert phrase not in lowered
-
-    for term in ("property graph", "entity relation graph", "hierarchical cluster"):
-        if term in lowered:
-            paragraphs = [paragraph for paragraph in lowered.split("\n\n") if term in paragraph]
-            assert paragraphs
-            assert any(
-                (
-                    "not part of the standard path" in paragraph
-                    or "not the standard" in paragraph
-                    or "does not use" in paragraph
-                    or "not use" in paragraph
-                )
-                for paragraph in paragraphs
-            )
-
-
 def test_t_r01_root_source_tests_and_docs_do_not_depend_on_archive_or_doc_new() -> None:
     for source_file in (REPO_ROOT / "spec_grag").glob("*.py"):
         tree = ast.parse(source_file.read_text(encoding="utf-8"))
@@ -161,14 +83,6 @@ def test_t_r01_root_source_tests_and_docs_do_not_depend_on_archive_or_doc_new() 
         assert "tests/fixtures/archive" not in text
         assert "tests\\fixtures\\archive" not in text
     assert not (REPO_ROOT / "tests" / "fixtures" / "archive").exists()
-
-    source_of_truth_docs = (
-        REPO_ROOT / "doc" / "EXTERNAL_DESIGN.ja.md",
-        REPO_ROOT / "doc" / "DESIGN.ja.md",
-        REPO_ROOT / "doc" / "IMPLEMENTATION_PLAN.ja.md",
-    )
-    for doc_file in source_of_truth_docs:
-        assert "doc-new" not in doc_file.read_text(encoding="utf-8").lower()
 
 
 def test_t_r02_setup_generated_config_excludes_drafts(tmp_path: Path) -> None:

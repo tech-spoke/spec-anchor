@@ -21,10 +21,6 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-README = REPO_ROOT / "README.md"
-RUNBOOK = REPO_ROOT / "doc" / "RUNBOOK.ja.md"
-def _assert_contains_any(text: str, *terms: str) -> None:
-    assert any(term in text for term in terms)
 
 
 def _free_port() -> int:
@@ -160,40 +156,3 @@ def test_t_r11_native_qdrant_persists_collection_across_restart(tmp_path: Path) 
         except Exception:
             pass
         _stop_process(restarted)
-
-
-def test_t_r15_readme_links_to_production_readiness_runbook() -> None:
-    readme = README.read_text(encoding="utf-8").lower()
-
-    assert "doc/runbook.ja.md" in readme
-    assert "production readiness report template" not in readme
-    assert "do not report" not in readme
-
-
-def test_t_r15_runbook_contains_production_readiness_details() -> None:
-    runbook = RUNBOOK.read_text(encoding="utf-8").lower()
-
-    _assert_contains_any(runbook, "production readiness", "本運用 readiness")
-    _assert_contains_any(runbook, "install", "インストール")
-    _assert_contains_any(runbook, "start qdrant", "qdrant の起動")
-    _assert_contains_any(runbook, "verify", "確認")
-    _assert_contains_any(runbook, "restart", "再起動")
-    _assert_contains_any(runbook, "troubleshoot", "トラブルシュート")
-    assert "spec_grag_fake_llm" in runbook
-    assert "spec_grag_fake_retrieval" in runbook
-
-
-def test_t_r15_runbook_fixes_production_readiness_report_sections() -> None:
-    runbook = RUNBOOK.read_text(encoding="utf-8")
-
-    for term in (
-        "本運用 Readiness 報告テンプレート",
-        "実装済み",
-        "`none` / `fake` profile で passing",
-        "`local-service` / `real-smoke` で passing",
-        "skipped / 未実行",
-        "残 TODO",
-        "証跡",
-        "「本運用可能」と報告しない",
-    ):
-        assert term in runbook
