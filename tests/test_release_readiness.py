@@ -196,8 +196,6 @@ def test_t_r03_external_dependency_tests_are_skipped_only_by_pytest_option() -> 
         "test_production_readiness.py",
         "test_project_skeleton.py",
         "test_retrieval_index.py",
-        "test_spec_core.py",
-        "test_watcher.py",
     )
     for filename in external_test_files:
         text = (REPO_ROOT / "tests" / filename).read_text(encoding="utf-8")

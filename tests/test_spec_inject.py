@@ -795,7 +795,7 @@ def test_spec_inject_reads_freshness_artifact_without_recomputing_core(tmp_path:
     project_root = tmp_path / "project"
     _write_project(project_root)
     _run_spec_core(project_root)
-    freshness_path = project_root / ".spec-grag/context/freshness.json"
+    freshness_path = project_root / ".spec-grag/state/freshness.json"
     freshness = json.loads(freshness_path.read_text())
     assert freshness["status"] == "fresh"
 

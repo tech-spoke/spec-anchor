@@ -1,12 +1,9 @@
-"""Phase R-4 tests for `section_manifest.json` audit fields.
+"""Tests for `section_manifest.json` audit fields.
 
-`doc/STORAGE_REDESIGN.ja.md` §7.4 R-4 moves the LLM-generation audit
-metadata (provider / status / last_prompt_version / generated_at) into
-`section_manifest.json` so the manifest can host those fields once the
-section_metadata.json artifact is retired in Phase R-5. The audit data
-is sourced from the freshly built `metadata_entries` and merged into
-each `_section_manifest_entry` via the new
-`_section_manifest_audit_by_id` helper.
+The LLM-generation audit metadata (provider / status / last_prompt_version /
+generated_at) is hosted in `section_manifest.json`. The audit data is
+sourced from the freshly built `metadata_entries` and merged into each
+`_section_manifest_entry` via the `_section_manifest_audit_by_id` helper.
 
 These tests verify both helpers directly because they live inside
 `spec_grag/core.py` as module-private functions; covering them here

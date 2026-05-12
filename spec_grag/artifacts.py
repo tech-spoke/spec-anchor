@@ -1,4 +1,16 @@
-"""Context artifact read/write helpers."""
+"""Context and state artifact read/write helpers.
+
+Two on-disk locations host the persistent artifacts:
+
+* `.spec-grag/context/`  — human-facing read API (chapter_anchors,
+  conflict_review_items)
+* `.spec-grag/state/`    — `/spec-core` execution state (section_manifest,
+  freshness, watch_state, watch_queue, core_update.lock)
+
+`ContextArtifactStore` resolves the on-disk path per artifact name and
+keeps the atomic-write / rollback behavior for the union of artifacts
+written together by `/spec-core`.
+"""
 
 from __future__ import annotations
 
@@ -12,40 +24,59 @@ from typing import Any
 
 
 SCHEMA_VERSION = 1
+
+# Artifact filename map. The dict is the single source of truth for the
+# physical filenames; the directory each artifact lives in is recorded in
+# `STATE_ARTIFACTS` below (state) vs the remaining keys (context).
 ARTIFACT_FILENAMES = {
     "section_manifest": "section_manifest.json",
-    "section_metadata": "section_metadata.json",
     "conflict_review_items": "conflict_review_items.json",
     "chapter_anchors": "chapter_anchors.json",
-    "source_chunks": "source_chunks.json",
-    "retrieval_index_revision": "retrieval_index_revision.json",
     "freshness": "freshness.json",
 }
+
+# Artifact names that live in `.spec-grag/state/` rather than
+# `.spec-grag/context/`.
+STATE_ARTIFACTS = frozenset({"section_manifest", "freshness"})
+
 CORE_ARTIFACT_ORDER = (
     "section_manifest",
-    "section_metadata",
     "conflict_review_items",
     "chapter_anchors",
-    "source_chunks",
-    "retrieval_index_revision",
     "freshness",
 )
 
 
 class ArtifactError(Exception):
-    """Raised when a context artifact cannot be read or written."""
+    """Raised when an artifact cannot be read or written."""
 
 
 class ContextArtifactStore:
-    def __init__(self, context_dir: str | Path) -> None:
+    """Resolve and atomically write the `.spec-grag/context/` and
+    `.spec-grag/state/` artifacts produced by `/spec-core`.
+
+    `state_dir` defaults to the sibling `.spec-grag/state/` directory of the
+    given `context_dir` (i.e. `context_dir.parent / "state"`).
+    """
+
+    def __init__(
+        self,
+        context_dir: str | Path,
+        *,
+        state_dir: str | Path | None = None,
+    ) -> None:
         self.context_dir = Path(context_dir)
+        self.state_dir = (
+            Path(state_dir) if state_dir is not None else self.context_dir.parent / "state"
+        )
 
     def path_for(self, artifact_name: str) -> Path:
         try:
             filename = ARTIFACT_FILENAMES[artifact_name]
         except KeyError as exc:
             raise ArtifactError(f"unknown artifact: {artifact_name}") from exc
-        return self.context_dir / filename
+        base_dir = self.state_dir if artifact_name in STATE_ARTIFACTS else self.context_dir
+        return base_dir / filename
 
     def read(self, artifact_name: str) -> dict[str, Any]:
         path = self.path_for(artifact_name)
@@ -98,7 +129,7 @@ def build_section_manifest(sections: list[Any]) -> dict[str, Any]:
 
     Used by tests and initial setup paths. The production entry builder
     is ``spec_grag.core._section_manifest_entry`` which adds audit
-    fields (Phase R-4). Schema per section::
+    fields. Schema per section::
 
         source_section_id   — 一次 key
         source_hash         — raw body の SHA-256 (file integrity)
@@ -106,7 +137,7 @@ def build_section_manifest(sections: list[Any]) -> dict[str, Any]:
         heading_path        — 見出し親子チェーン list[str]
         chapter_id          — 章 ID
         source_span         — {start_line, end_line, start_offset, end_offset}
-        llm_provider        — 監査用 (audit, Phase R-4)
+        llm_provider        — 監査用 (audit)
         llm_generation_status — success / failed / skipped (audit)
         last_prompt_version — cache 整合確認用 (audit)
         generated_at        — 監査用 (audit)
@@ -115,29 +146,6 @@ def build_section_manifest(sections: list[Any]) -> dict[str, Any]:
     return {
         "sections": [_jsonable(section) for section in sections],
     }
-
-
-def build_empty_section_metadata(sections: list[Any]) -> dict[str, Any]:
-    entries = []
-    for section in sections:
-        value = _jsonable(section)
-        entries.append(
-            {
-                "section_id": value["section_id"],
-                "stable_section_uid": value["stable_section_uid"],
-                "source_document_id": value["source_document_id"],
-                "heading_path": value["heading_path"],
-                "summary": "",
-                "search_keys": [],
-                "identifiers": [],
-                "related_sections": [],
-                "metadata_version": 1,
-                "source_hash": value["source_hash"],
-                "semantic_hash": value["semantic_hash"],
-                "generated_at": None,
-            }
-        )
-    return {"sections": entries}
 
 
 def build_empty_chapter_anchors(sections: list[Any]) -> dict[str, Any]:

@@ -139,7 +139,7 @@ spec-grag-watch . --interval-sec 2 --debounce-sec 1
 
 ### 5.6 Qdrant の再起動と永続性検証
 
-Qdrant の再起動は、native service / process を停止し、同じ `QDRANT__STORAGE__STORAGE_PATH` で再開する。`spec-grag core` を再実行し、`.spec-grag/context/retrieval_index_revision.json` で同じ Qdrant URL、collection、schema version、server version、BGE-M3 model、dense / sparse named vector、RRF diagnostics が保持されているか確認することで永続性を検証する。
+Qdrant の再起動は、native service / process を停止し、同じ `QDRANT__STORAGE__STORAGE_PATH` で再開する。`spec-grag core` を再実行し、CoreResult の `retrieval_index_status` が `success` に戻ること、Qdrant の section collection に同じ URL / dense / sparse named vector で section が再利用されることで永続性を検証する。
 
 ### 5.7 トラブルシュート
 
@@ -152,7 +152,7 @@ diagnostics から確認する:
 - `qdrant_schema_mismatch`: SPEC-grag が要求する `dense` / `sparse` named vector を持つよう Qdrant collection を再作成または migrate する。
 - `flagembedding_missing` または `embedding_model_load_failure`: retrieval extra をインストールし、`HF_HOME`、`HF_HUB_CACHE`、`~/.cache/huggingface` のいずれかで BGE-M3 model cache を確認する。
 - `provider_timeout` または `timeout`: 設定済みの timeout を増やす、または ブロックされた Agent CLI / model process を解消してから再試行する。
-- `failed_required_artifact`: `.spec-grag/context/freshness.json` を確認し、不足する provider / service を解消した上で `spec-grag core --all` を再実行する。
+- `failed_required_artifact`: `.spec-grag/state/freshness.json` を確認し、不足する provider / service を解消した上で `spec-grag core --all` を再実行する。
 
 ### 5.8 本運用 Readiness 報告テンプレート
 

@@ -11,7 +11,6 @@ from spec_grag.artifacts import (
     ArtifactError,
     ContextArtifactStore,
     build_empty_chapter_anchors,
-    build_empty_section_metadata,
     build_section_manifest,
 )
 from spec_grag.section_parser import parse_markdown_sections
@@ -23,32 +22,6 @@ def _sections() -> list[object]:
         source_path="docs/spec/main.md",
         max_heading_level=4,
     )
-
-
-def test_t_u21_section_metadata_structure_round_trips(tmp_path: Path) -> None:
-    store = ContextArtifactStore(tmp_path / ".spec-grag/context")
-    payload = build_empty_section_metadata(_sections())
-
-    store.write("section_metadata", payload)
-    loaded = store.read("section_metadata")
-    entry = loaded["sections"][0]
-
-    for field in (
-        "section_id",
-        "stable_section_uid",
-        "source_document_id",
-        "heading_path",
-        "summary",
-        "search_keys",
-        "identifiers",
-        "related_sections",
-        "metadata_version",
-        "source_hash",
-        "semantic_hash",
-        "generated_at",
-    ):
-        assert field in entry
-    assert loaded["schema_version"] == 1
 
 
 def test_t_u22_chapter_anchor_structure_round_trips(tmp_path: Path) -> None:
@@ -79,7 +52,6 @@ def test_t_i15_context_update_writes_freshness_last(tmp_path: Path) -> None:
     sections = _sections()
     artifacts = {
         "section_manifest": build_section_manifest(sections),
-        "section_metadata": build_empty_section_metadata(sections),
         "chapter_anchors": build_empty_chapter_anchors(sections),
         "conflict_review_items": {"items": []},
         "freshness": {"status": "fresh", "blocking_reasons": [], "warnings": []},
@@ -120,8 +92,8 @@ def test_context_artifact_missing_artifacts_diagnostic(tmp_path: Path) -> None:
     store = ContextArtifactStore(tmp_path / ".spec-grag/context")
     store.write("section_manifest", {"sections": []})
 
-    assert store.missing_artifacts(("section_manifest", "section_metadata")) == [
-        "section_metadata"
+    assert store.missing_artifacts(("section_manifest", "chapter_anchors")) == [
+        "chapter_anchors"
     ]
 
 

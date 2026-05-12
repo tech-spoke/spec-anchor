@@ -30,15 +30,11 @@
 - [x] §9 Freshness: pending Conflict Review Item は `/spec-inject` / `/spec-realign` の通常進行を blocker にする
   - 実装: spec_grag/freshness.py、spec_grag/conflict_review.py
   - 検証: tests/test_spec_core.py::test_t_i04_conflicts_with_unresolved_blocks_freshness
-- [x] §3 Section Metadata は Qdrant `[vector_store].section_collection` の payload に格納する (二重保管は backward compat 期間のみ)
-  - 実装: Phase R-3 で `build_section_payloads` (spec_grag/retrieval_index.py:1057) に `related_sections` を含めて payload schema を case-C-1 最終形に更新。`update_section_collection_related_sections` が related_sections stage 後に `client.set_payload` で書き戻し (spec_grag/core.py `_update_section_collection_related_sections_if_enabled` が wire)。読み取り API は spec_grag/section_payload.py `fetch_section_payloads`
-  - 検証: tests/test_retrieval_index.py の 5 件 (R-3)、tests/test_section_payload.py の 10 件 (R-2)
-  - 注意: `.spec-grag/context/section_metadata.json` は backward compat 期間として並行更新を継続 (Phase R-5 完全廃止予定)
-- [x] §4 Source Retrieval Index は section-level Qdrant collection のみ (chunk-level collection は持たない)
-  - 実装 (Phase R-5 改訂後): chunk-level 関数 (`build_source_chunks` / `build_source_chunks_artifact` / `compute_chunk_diff` / `upsert_qdrant_bge_m3_index` / `upsert_qdrant_bge_m3_index_incremental` in spec_grag/retrieval_index.py、`_qdrant_upsert_with_partial_dispatch` / `_build_retrieval_index_revision` in spec_grag/core.py) は本体を `#` でコメントアウトし `raise NotImplementedError("Phase R-5: ...")`。`_run_spec_core_unlocked` の chunk-level call site も同様に `#` 化、`_chunk_level_disabled_artifact_*` stub を直接代入。ランタイム gate (`CHUNK_LEVEL_ENABLED`、`_chunk_level_enabled`) は撤去
-  - 検証: tests/test_chunk_level_disabled.py の 12 件 (NotImplementedError 7 件、stub shape 2 件、gate 撤去 1 件、section_collection_exists 3 件)。chunk-level test 多数は `@pytest.mark.skip(reason="Phase R-5 dormant: ...")`
-  - Qdrant 状態: `spec_grag_source` collection を 2026-05-11 09:35 JST 頃に物理削除済み
-  - 注意: chunk-level dormant code は撤去せずソースに残置 (ユーザー指示「chunk-level はコメントアウトしておく」)。最終撤去は別 commit にてユーザー指示後に実施
+- [x] §3 Section Metadata は Qdrant `[retrieval].section_collection` の payload に格納する
+  - 実装: `build_section_payloads` (spec_grag/retrieval_index.py) が related_sections を含めて payload を組み立てる。`update_section_collection_related_sections` が related_sections stage 後に `client.set_payload` で書き戻し (spec_grag/core.py `_update_section_collection_related_sections_if_enabled` が wire)。読み取り API は spec_grag/section_payload.py `fetch_section_payloads`
+  - 検証: tests/test_retrieval_index.py、tests/test_section_payload.py
+- [x] §4 Source Retrieval Index は section-level Qdrant collection のみ
+  - 実装: spec_grag/retrieval_index.py の `upsert_qdrant_section_collection` / `QdrantHybridRetriever` / `section_hybrid_candidates`。spec_grag/core.py の `_upsert_section_collection_if_enabled` が wire し、戻り値で `CoreResult.retrieval_index_status` を埋める
 - [x] §6 Chapter Key Anchor は LLM が章単位で生成する (input: 章 heading + 配下 summary / search_keys / identifiers / related_sections + 関連 Core Concept、output: chapter_id / summary / key_topics / important_sections / notes / source_section_ids / generated_at)
   - 実装: Phase R-7 で spec_grag/chapter_anchors.py (`generate_chapter_anchors`、`ChapterAnchorsCache`、`CHAPTER_ANCHORS_PROMPT_VERSION = "chapter-anchors-v1"`)。spec_grag/core.py `_chapter_anchors` を新 module 委譲に置換 (cache_dir = context_dir / "cache"、provider は section_metadata と同 active_provider、concept_text は `[core].concept_file` から読み込み)。stage は LlmRequest contract に合わせ `chapter_key_anchor`
   - 検証: tests/test_chapter_anchors.py の 9 件 (chapter ごとに LLM call、summary/key_topics/notes が LLM 出力に由来、important_sections が章内 section_ids に絞られる、unparseable response 時の mechanical fallback、cache reuse、section_hash 変更時の選択的 invalidation)
@@ -118,24 +114,29 @@ stable_section_uid:
 ```text
 chapter_anchors.json           # LLM 生成、章単位 anchor
 conflict_review_items.json     # 人間判断 artifact
-freshness.json                 # 実行状態 / blocking_reasons
-retrieval_index_revision.json  # Qdrant collection revision (鏡)
 ```
 
 `.spec-grag/state/` 配下:
 
 ```text
 section_manifest.json                    # section 単位の差分検出 + 監査メタ
+freshness.json                           # 実行状態 / blocking_reasons
 core_progress.json                       # 実行進捗ログ
-cache/section_metadata/<hash>.json       # LLM section_metadata 出力 cache (key 単位)
-cache/related_typing_cache.json          # LLM relation typing 結果 cache (pair 単位)
 ```
 
-section コンテンツ (summary / search_keys / identifiers / related_sections / heading_path / source_hash / semantic_hash) は Qdrant の section-level collection (`[vector_store].section_collection`、default `spec_grag_section`) の payload に格納する。`.spec-grag/context/` 配下には section_metadata.json / source_chunks.json は置かない。
+`.spec-grag/cache/` 配下:
+
+```text
+section_metadata/<hash>.json             # LLM section_metadata 出力 cache (key 単位)
+related_typing_cache.json                # LLM relation typing 結果 cache (pair 単位)
+chapter_anchors/<hash>.json              # chapter_key_anchor LLM 出力 cache
+```
+
+section コンテンツ (summary / search_keys / identifiers / related_sections / heading_path / source_hash / semantic_hash) は Qdrant の section-level collection (`[retrieval].section_collection`、default `spec_grag_section`) の payload に格納する。ローカルディスクには同等の JSON artifact を持たない。
 
 ## 3. Section Metadata
 
-Section Metadata は Qdrant `[vector_store].section_collection` の payload として保存する。1 section = 1 vector で、payload は次を含む。
+Section Metadata は Qdrant `[retrieval].section_collection` の payload として保存する。1 section = 1 vector で、payload は次を含む。
 
 ```text
 source_section_id   # 一次 key
@@ -148,7 +149,7 @@ identifiers[]       # 機械抽出、コードシンボル (§3.3)
 related_sections[]  # typed graph 出向き edge (§5)
 ```
 
-監査メタデータ (provider, status, generated_at, last_prompt_version) は `section_manifest.json` に格納する。LLM 出力の cache 制御 metadata (prompt_version, metadata_version) は `state/cache/section_metadata/<hash>.json` の cache file 内に保持する。
+監査メタデータ (provider, status, generated_at, last_prompt_version) は `section_manifest.json` に格納する。LLM 出力の cache 制御 metadata (prompt_version, metadata_version) は `.spec-grag/cache/section_metadata/<hash>.json` の cache file 内に保持する。
 
 ### 3.1 Section Summary
 
@@ -277,7 +278,7 @@ BM25 は別方式として扱う。Qdrant sparse vector は BM25 も BGE-M3 spar
 
 ### 4.3 Qdrant Collection 構成
 
-Qdrant collection は **section-level の `[vector_store].section_collection` のみ** を持つ。chunk-level collection は持たない。1 section = 1 vector で、payload は次を含む。
+Qdrant collection は **section-level の `[retrieval].section_collection` のみ** を持つ。1 section = 1 vector で、payload は次を含む。
 
 ```text
 source_section_id   # 一次 key
@@ -296,7 +297,7 @@ embedding text は次を連結したものである。
 heading_path | summary | search_keys joined | identifiers joined
 ```
 
-section embedding text は短い (~700 文字程度)。section 本文を chunk に分割して別 collection で持つことはしない。本文の searchable surface は search_keys (自然言語、dense embedding 補強) と identifiers (コードシンボル、sparse / lexical 補強) が section 単位で代理表現する。
+section embedding text は短い (~700 文字程度)。本文の searchable surface は search_keys (自然言語、dense embedding 補強) と identifiers (コードシンボル、sparse / lexical 補強) が section 単位で代理表現する。
 
 Source Specs 本文を直接読みたい場合は、Agent が `sources.include` で指定された Markdown ファイルを Read tool で開く。
 
@@ -350,10 +351,7 @@ Qdrant 側 RRF と CLI 側 RRF のどちらを使った場合でも、diagnostic
 
 ### 4.6 rebuild フラグと Retrieval Index の reuse
 
-`/spec-core --all` は LLM 段階 (section_metadata / related_sections) を強制再生成するが、section-level Qdrant collection は次の条件を満たす場合に再利用する (Phase R-3 以降)。
-
-- 現在の section fingerprint (`source_section_id + source_hash + semantic_hash` を sort した tuple list) が前回と完全一致
-- 前回 `retrieval_index_revision.json` の `status` が `success`
+`/spec-core --all` は LLM 段階 (section_metadata / related_sections / chapter_key_anchor) を強制再生成する。section-level Qdrant collection は section fingerprint が一致する場合に再利用する (BGE-M3 embedding は決定論的なので再計算する利得がないため)。
 
 `/spec-core --rebuild` は条件に関わらず Qdrant collection を `delete_collection` して全 section を re-embed + upsert する。
 

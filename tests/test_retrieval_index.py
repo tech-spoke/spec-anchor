@@ -245,37 +245,6 @@ def test_t_u13_rrf_ties_break_by_source_section_id_then_stable_chunk_uid() -> No
     assert diagnostics["tie_break_results"][0]["stable_chunk_uid"] == "chunk-a"
 
 
-def test_t_u23_retrieval_index_revision_payload_pins_schema() -> None:
-    module = _retrieval_module()
-    build_revision = _callable(
-        module,
-        "build_retrieval_index_revision",
-        "build_retrieval_index_revision_payload",
-    )
-
-    payload = build_revision(
-        qdrant_collection_schema_version=3,
-        qdrant_server_version="1.11.0",
-        flagembedding_package_version="1.3.0",
-        embedding_model_revision="test-revision",
-    )
-
-    assert _get(payload, "embedding", "provider") == "flagembedding"
-    assert _get(payload, "embedding", "model") == "BAAI/bge-m3"
-    assert _get(payload, "embedding", "model_revision") == "test-revision"
-    assert _get(payload, "dense_vector", "name") == "dense"
-    assert _get(payload, "dense_vector", "size") == 1024
-    assert _get(payload, "dense_vector", "distance") == "cosine"
-    assert _get(payload, "sparse_vector", "name") == "sparse"
-    assert _get(payload, "sparse_vector", "kind") == "bge-m3 lexical weights"
-    assert _get(payload, "fusion", "method") == "rrf"
-    assert _get(payload, "fusion", "rrf_k") == 60
-    assert _get(payload, "vector_store", "provider") == "qdrant"
-    assert _get(payload, "vector_store", "qdrant_collection_schema_version") == 3
-    assert _get(payload, "vector_store", "qdrant_server_version") == "1.11.0"
-    assert _get(payload, "packages", "FlagEmbedding") == "1.3.0"
-
-
 def _hybrid_retrieve(
     backend: _FakeSearchBackend,
     query: str,
@@ -656,12 +625,9 @@ def test_section_embeddings_artifact_uses_section_collection() -> None:
     assert artifact["artifact_revision"]
 
 
-def test_section_collection_is_distinct_from_chunk_collection() -> None:
+def test_section_collection_default_name() -> None:
     module = _retrieval_module()
     assert module.DEFAULT_SECTION_COLLECTION == "spec_grag_section"
-    # Sanity: chunk-level standard collection name is not equal to section-level.
-    chunk_default = "spec_grag_source"
-    assert module.DEFAULT_SECTION_COLLECTION != chunk_default
 
 
 def test_section_hybrid_candidates_excludes_self() -> None:
@@ -695,58 +661,6 @@ def test_section_hybrid_candidates_excludes_self() -> None:
     assert "doc#auth" not in target_ids
     if target_ids:
         assert target_ids[0] == "doc#session"
-
-
-def test_stable_chunk_uid_to_point_id_is_deterministic() -> None:
-    module = _retrieval_module()
-    a1 = module.stable_chunk_uid_to_point_id("chunk-uid-1")
-    a2 = module.stable_chunk_uid_to_point_id("chunk-uid-1")
-    b = module.stable_chunk_uid_to_point_id("chunk-uid-2")
-    assert a1 == a2, "same input must produce same point id"
-    assert a1 != b, "different input must produce different point id"
-    # Must be a valid UUID string
-    import uuid as _uuid
-    _uuid.UUID(a1)
-
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: compute_chunk_diff is commented out in "
-    "spec_grag/retrieval_index.py. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-def test_compute_chunk_diff_categorizes_added_changed_removed() -> None:
-    module = _retrieval_module()
-    previous = [
-        {"stable_chunk_uid": "u1", "chunk_hash": "h1", "text": "a"},
-        {"stable_chunk_uid": "u2", "chunk_hash": "h2", "text": "b"},
-        {"stable_chunk_uid": "u3", "chunk_hash": "h3", "text": "c"},
-    ]
-    current = [
-        {"stable_chunk_uid": "u1", "chunk_hash": "h1", "text": "a"},  # unchanged
-        {"stable_chunk_uid": "u2", "chunk_hash": "h2-NEW", "text": "b'"},  # changed
-        # u3 removed
-        {"stable_chunk_uid": "u4", "chunk_hash": "h4", "text": "d"},  # added
-    ]
-    diff = module.compute_chunk_diff(previous, current)
-    assert [c["stable_chunk_uid"] for c in diff["added"]] == ["u4"]
-    assert [c["stable_chunk_uid"] for c in diff["changed"]] == ["u2"]
-    assert [c["stable_chunk_uid"] for c in diff["unchanged"]] == ["u1"]
-    assert sorted(diff["removed_uids"]) == ["u3"]
-
-
-@pytest.mark.skip(
-    reason="Phase R-5 dormant: compute_chunk_diff is commented out in "
-    "spec_grag/retrieval_index.py. See doc/STORAGE_REDESIGN.ja.md §7.4 R-5."
-)
-def test_compute_chunk_diff_handles_empty_previous() -> None:
-    module = _retrieval_module()
-    current = [
-        {"stable_chunk_uid": "u1", "chunk_hash": "h1", "text": "a"},
-        {"stable_chunk_uid": "u2", "chunk_hash": "h2", "text": "b"},
-    ]
-    diff = module.compute_chunk_diff(None, current)
-    assert len(diff["added"]) == 2
-    assert diff["changed"] == []
-    assert diff["removed_uids"] == []
 
 
 def test_qdrant_collection_schema_version_bumped_for_stable_ids() -> None:

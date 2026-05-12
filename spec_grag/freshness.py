@@ -663,17 +663,6 @@ def _state_config_or_schema_stale(
         return True
 
     section_metadata = _mapping_get(artifacts, "section_metadata")
-    retrieval_revision = _mapping_get(artifacts, "retrieval_index_revision")
-
-    expected_model = _nested_get(config, "embedding", "model")
-    artifact_model = _nested_get(retrieval_revision, "embedding", "model")
-    if expected_model is not None and artifact_model is not None and expected_model != artifact_model:
-        return True
-
-    expected_provider = _nested_get(config, "embedding", "provider")
-    artifact_provider = _nested_get(retrieval_revision, "embedding", "provider")
-    if expected_provider is not None and artifact_provider is not None and expected_provider != artifact_provider:
-        return True
 
     expected_prompt = _nested_get(config, "prompt_versions", "section_metadata")
     artifact_prompt = _mapping_get(section_metadata, "prompt_version")
@@ -743,9 +732,6 @@ def _artifact_problem_names(
 def _is_required_artifact(artifact_name: str) -> bool:
     return artifact_name in {
         "section_manifest",
-        "source_chunks",
-        "retrieval_index",
-        "retrieval_index_revision",
     }
 
 
@@ -855,7 +841,6 @@ def _command_label(command: str) -> str:
 
 
 evaluate_freshness = build_freshness_report
-build_context_freshness_report = build_freshness_report
 freshness_report = build_freshness_report
 assess_freshness = build_freshness_report
 
@@ -886,7 +871,6 @@ __all__ = [
     "DEGRADED_OPTIONAL_ARTIFACT",
     "build_freshness_report",
     "evaluate_freshness",
-    "build_context_freshness_report",
     "freshness_report",
     "assess_freshness",
     "normalize_freshness_report",

@@ -18,7 +18,7 @@ import spec_grag.retrieval_index as retrieval_index_api
 import spec_grag.section_metadata as section_metadata_api
 import spec_grag.section_parser as section_parser_api
 import spec_grag.llm_provider as llm_provider_api
-from spec_grag.artifacts import ContextArtifactStore, build_empty_chapter_anchors
+from spec_grag.artifacts import ArtifactError, ContextArtifactStore, build_empty_chapter_anchors
 from spec_grag.conflict_review import (
     apply_conflict_decision,
     evaluate_conflicts,
@@ -42,96 +42,6 @@ REQUIRE_TERMS = ("requires", "required", "requirement", "必須")
 FORBID_TERMS = ("forbids", "forbidden", "must not", "cannot", "prohibited", "should not", "禁止")
 OPTIONAL_TERMS = ("optional", "任意")
 CONFLICT_CANDIDATE_CHANNELS = {"markdown_link", "shared_identifier", "search_key_match"}
-
-# =============================================================================
-# Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4 / case C-1):
-# CHUNK-LEVEL RETRIEVAL IS COMMENTED OUT.
-#
-# The chunk-level helpers in `spec_grag/retrieval_index.py`
-# (`build_source_chunks`, `build_source_chunks_artifact`,
-# `compute_chunk_diff`, `upsert_qdrant_bge_m3_index`,
-# `upsert_qdrant_bge_m3_index_incremental`) and the dispatchers below
-# (`_qdrant_upsert_with_partial_dispatch`, `_build_retrieval_index_revision`)
-# all raise `NotImplementedError`; their bodies are preserved as
-# `#`-prefixed comments so an operator can restore the path by removing
-# the raise and uncommenting. Section-level retrieval via
-# `_upsert_section_collection_if_enabled` is the live path.
-#
-# Production callers MUST NOT invoke the dormant chunk-level functions.
-# `_run_spec_core_unlocked` writes the disabled-state stub artifacts
-# (`_chunk_level_disabled_artifact_source_chunks` /
-# `_chunk_level_disabled_artifact_retrieval_index_revision`) directly
-# instead of running the chunk-level pipeline.
-#
-# The previous runtime gate (`CHUNK_LEVEL_ENABLED` constant +
-# `_chunk_level_enabled(config)` helper, with
-# `[vector_store].chunk_level_enabled = true` opt-in) has been removed
-# because the gated functions are themselves commented out — the gate
-# would only ever guard a NotImplementedError, which would mislead
-# readers. To re-enable chunk-level: uncomment the function bodies in
-# retrieval_index.py + this file AND restore the gate AND update
-# `_run_spec_core_unlocked` to call the gated path again.
-# =============================================================================
-
-
-def _chunk_level_disabled_artifact_source_chunks(generated_at: str) -> dict[str, Any]:
-    """Stub `source_chunks` artifact written while chunk-level is dormant.
-
-    Keeps the artifact filename present so freshness gate / store layout
-    expectations don't fail, but the body declares the disabled state
-    and holds no chunk bodies. Phase R-6 inject CLI and watcher
-    consumers read `status == "disabled"` and skip chunk-level lookups.
-    """
-
-    return {
-        "artifact_version": 1,
-        "artifact_revision": "chunk-level-disabled",
-        "status": "disabled",
-        "chunks": [],
-        "chunking": {"enabled": False, "phase": "R-5"},
-        "diagnostics": {
-            "phase_r5": True,
-            "message": (
-                "chunk-level retrieval is disabled per Phase R-5 "
-                "(doc/STORAGE_REDESIGN.ja.md §7.4 / case C-1). "
-                "Section-level retrieval via spec_grag_section is the "
-                "single source of truth."
-            ),
-        },
-        "generated_at": generated_at,
-    }
-
-
-def _chunk_level_disabled_artifact_retrieval_index_revision(
-    config: Mapping[str, Any],
-    generated_at: str,
-) -> dict[str, Any]:
-    """Stub `retrieval_index_revision` artifact while chunk-level is disabled."""
-
-    return {
-        "artifact_version": 1,
-        "artifact_revision": "chunk-level-disabled",
-        "status": "disabled",
-        "collection_revision": "chunk-level-disabled",
-        "embedding": {
-            "provider": str(_config_get(config, ("embedding", "provider"), "")),
-            "model": str(_config_get(config, ("embedding", "model"), "")),
-        },
-        "vector_store": {
-            "provider": str(_config_get(config, ("vector_store", "provider"), "")),
-            "collection": str(_config_get(config, ("vector_store", "collection"), "")),
-        },
-        "diagnostics": {
-            "phase_r5": True,
-            "message": (
-                "chunk-level Qdrant upsert is disabled per Phase R-5 "
-                "(doc/STORAGE_REDESIGN.ja.md §7.4 / case C-1). The "
-                "spec_grag_section collection (set elsewhere) is the "
-                "live retrieval surface."
-            ),
-        },
-        "generated_at": generated_at,
-    }
 
 
 def run_spec_core(
@@ -346,17 +256,10 @@ def _run_spec_core_unlocked(
     concept_ref = _project_ref(root, concept_path)
 
     context_dir = root / _config_get(config, ("context", "storage"), ".spec-grag/context")
+    cache_dir = root / ".spec-grag/cache"
     store = ContextArtifactStore(context_dir)
-    previous_metadata = _read_artifact(store, "section_metadata")
     previous_conflicts = _read_artifact(store, "conflict_review_items")
-    # Phase R-5 (case C-1): chunk-level retrieval is dormant. The
-    # following reads used to feed `_qdrant_upsert_with_partial_dispatch`
-    # which is now NotImplementedError-only. The variables are kept (and
-    # the artifact still gets a stub written) so freshness gate / store
-    # layout stay consistent.
-    previous_source_chunks = _read_artifact(store, "source_chunks")
-    previous_retrieval_index_revision = _read_artifact(store, "retrieval_index_revision")
-    del previous_source_chunks, previous_retrieval_index_revision  # dormant
+    previous_metadata = _read_previous_section_metadata(config, store)
 
     run_full = bool(all or all_mode or full or force or mode == "full")
     mode_name = "full" if run_full else "incremental"
@@ -443,7 +346,7 @@ def _run_spec_core_unlocked(
         provider=active_provider,
         previous_metadata=previous_metadata,
         rebuild_all=run_full and not use_cache,
-        cache_dir=context_dir / "cache",
+        cache_dir=cache_dir,
         generated_at=generated_at,
     )
     metadata_generation_results = _metadata_generation_results_by_section(
@@ -494,7 +397,7 @@ def _run_spec_core_unlocked(
         )
     emit("core_section_metadata_done")
     emit("core_section_collection_upsert_start")
-    _upsert_section_collection_if_enabled(
+    retrieval_index_status = _upsert_section_collection_if_enabled(
         config=config,
         sections=sections,
         section_metadata=section_metadata,
@@ -503,45 +406,32 @@ def _run_spec_core_unlocked(
     )
     emit("core_section_collection_upsert_done")
     emit("core_related_sections_start")
-    related_pair_cache_dir = context_dir / "cache"
+    related_pair_cache_dir = cache_dir
     if run_full and not use_cache:
-        # --all clears every LLM-derived cache so re-evaluation can happen.
-        # BGE-M3 embeddings are deterministic so the section-level vector
-        # cache is reused via hash matching, but LLM section_metadata /
-        # pair typing / chapter_anchors stages are non-deterministic and
-        # `--all` is the explicit "do not trust prior judgments" entry.
-        # Phase R-7 added chapter_anchors LLM stage; its on-disk cache
-        # files must also be cleared here to honor the `--all` contract.
+        # `--all` is the explicit "do not trust prior judgments" entry. LLM
+        # stages bypass the cache at load time via `rebuild_all=True`, but
+        # `--all` additionally wipes the on-disk LLM caches so stale entries
+        # from earlier prompt / model / metadata versions do not survive on
+        # disk. Three caches live here:
+        # 1. related_typing_cache.json — pair-typing cache, flat JSON keyed
+        #    by section pair signatures (no content-addressed naming).
+        # 2. section_metadata/<hash>.json — per-section LLM output cache.
+        #    Content-addressed; orphans accumulate if not purged.
+        # 3. chapter_anchors/<hash>.json — per-chapter LLM output cache.
+        #    Content-addressed; same orphan risk as above.
         cache_file = related_pair_cache_dir / "related_typing_cache.json"
         try:
             cache_file.unlink()
         except FileNotFoundError:
             pass
-        # section_metadata cache files: keys are content-addressed; new
-        # LLM output writes to a different key. Bypass-at-load (via
-        # `rebuild=True` argument to `generate_section_metadata_result`)
-        # suffices for invalidation. Physical purge optional.
-        section_metadata_cache_dir = related_pair_cache_dir / "section_metadata"
-        if section_metadata_cache_dir.is_dir():
-            for cache_file in section_metadata_cache_dir.glob("*.json"):
-                try:
-                    cache_file.unlink()
-                except FileNotFoundError:
-                    pass
-        # chapter_anchors cache files: section source_hash unchanged means
-        # the cache key matches across runs even when section_metadata
-        # content (summary / search_keys / identifiers) has been
-        # regenerated. Physically purging guarantees the chapter LLM is
-        # re-called under `--all`. `_chapter_anchors` also receives
-        # `rebuild_all=True` so the load step is bypassed even when this
-        # purge is skipped (e.g. a watcher / programmatic caller).
-        chapter_anchors_cache_dir = related_pair_cache_dir / "chapter_anchors"
-        if chapter_anchors_cache_dir.is_dir():
-            for cache_file in chapter_anchors_cache_dir.glob("*.json"):
-                try:
-                    cache_file.unlink()
-                except FileNotFoundError:
-                    pass
+        for subdir_name in ("section_metadata", "chapter_anchors"):
+            subdir = related_pair_cache_dir / subdir_name
+            if subdir.is_dir():
+                for cache_file in subdir.glob("*.json"):
+                    try:
+                        cache_file.unlink()
+                    except FileNotFoundError:
+                        pass
     related_generation = _generate_related_sections(
         sections=sections,
         section_metadata=section_metadata,
@@ -696,7 +586,7 @@ def _run_spec_core_unlocked(
         metadata_entries,
         generated_at=generated_at,
     )
-    section_manifest = {
+    section_manifest_payload: dict[str, Any] = {
         "sections": [
             _section_manifest_entry(
                 section,
@@ -710,57 +600,26 @@ def _run_spec_core_unlocked(
         "concept_hash": concept_hash,
         "generated_at": generated_at,
     }
+    # The `generation` audit block is the prompt / model / provider /
+    # metadata_version / enabled_fields / limits used to produce the section
+    # metadata in this run. Persisting it at the section_manifest top level
+    # lets the next run validate prior Qdrant payload entries with
+    # `_reusable_existing_entry` after `--all` has wiped the on-disk LLM
+    # cache. Without it, the post-`--all` incremental run cannot reuse any
+    # unchanged section and re-runs every LLM call.
+    metadata_generation_block = section_metadata.get("generation")
+    if isinstance(metadata_generation_block, Mapping):
+        section_manifest_payload["generation"] = dict(metadata_generation_block)
+    section_manifest = section_manifest_payload
     chapter_anchors = _chapter_anchors(
         sections,
         metadata_entries,
         generated_at,
         config=config,
         provider=chapter_anchor_provider,
-        cache_dir=context_dir / "cache",
+        cache_dir=cache_dir,
         concept_text=concept_text,
         rebuild_all=run_full and not use_cache,
-    )
-    # Phase R-5 (case C-1): chunk-level retrieval is dormant. Always
-    # write the disabled-state stub artifacts. Do NOT call
-    # `retrieval_index_api.build_source_chunks` /
-    # `_build_retrieval_index_revision` etc. — they raise
-    # NotImplementedError. Section-level retrieval via
-    # `_upsert_section_collection_if_enabled` is the live path.
-    # ---- Phase R-5 dormant call site (uncomment to restore) ----
-    # retrieval_chunks = retrieval_index_api.build_source_chunks(
-    #     sections,
-    #     retrieval_config=_config_get(config, ("retrieval",), {}),
-    # )
-    # source_chunks = retrieval_index_api.build_source_chunks_artifact(
-    #     retrieval_chunks,
-    #     chunk_size=_config_get(config, ("retrieval", "chunk_size"), 1200),
-    #     chunk_overlap=_config_get(config, ("retrieval", "chunk_overlap"), 160),
-    # )
-    # source_chunks["status"] = "success"
-    # source_chunks["generated_at"] = generated_at
-    # retrieval_index_revision = _build_retrieval_index_revision(
-    #     config,
-    #     retrieval_chunks,
-    #     generated_at=generated_at,
-    #     previous_source_chunks=previous_source_chunks,
-    #     previous_revision=previous_retrieval_index_revision,
-    #     force_full_recreate=rebuild_embeddings,
-    # )
-    # if str(retrieval_index_revision.get("status", "")).lower() in {
-    #     "failed",
-    #     "missing",
-    #     "error",
-    #     "unavailable",
-    #     "skipped",
-    # }:
-    #     failed_required_artifacts.append("retrieval_index_revision")
-    # ---- end Phase R-5 dormant call site ----
-    source_chunks = _chunk_level_disabled_artifact_source_chunks(generated_at)
-    retrieval_index_revision = (
-        _chunk_level_disabled_artifact_retrieval_index_revision(
-            config,
-            generated_at,
-        )
     )
     freshness_report = build_freshness_report(
         conflict_review_items=conflict_review_items,
@@ -778,14 +637,11 @@ def _run_spec_core_unlocked(
     )
     artifacts = {
         "section_manifest": section_manifest,
-        "section_metadata": section_metadata,
         "conflict_review_items": {
             "conflict_review_items": conflict_review_items,
             "generated_at": generated_at,
         },
         "chapter_anchors": chapter_anchors,
-        "source_chunks": source_chunks,
-        "retrieval_index_revision": retrieval_index_revision,
     }
     if not watcher_internal_update:
         artifacts["freshness"] = freshness_report
@@ -801,6 +657,8 @@ def _run_spec_core_unlocked(
             *list(freshness_report.get("warnings") or []),
         ]
     )
+    diagnostics_payload = dict(generation_diagnostics)
+    diagnostics_payload["section_metadata"] = section_metadata
     return {
         "status": "failed" if freshness_report["status"] == "failed" else "updated",
         "mode": mode_name,
@@ -811,9 +669,7 @@ def _run_spec_core_unlocked(
         "updated_sections": updated_sections,
         "skipped_sections": skipped_sections,
         "regenerated_chapter_anchors": sorted({section["chapter_id"] for section in sections if section["section_id"] in changed_ids}),
-        "retrieval_index_status": retrieval_index_revision["status"],
-        "retrieval_index_artifact_revision": retrieval_index_revision.get("artifact_revision"),
-        "source_update_diff": (retrieval_index_revision.get("diagnostics") or {}).get("source_update_diff"),
+        "retrieval_index_status": retrieval_index_status,
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
@@ -821,7 +677,7 @@ def _run_spec_core_unlocked(
         "stale_resolution_count": stale_resolution_count,
         "freshness_report": freshness_report,
         "warnings": result_warnings,
-        "diagnostics": generation_diagnostics,
+        "diagnostics": diagnostics_payload,
     }
 
 
@@ -1157,101 +1013,124 @@ def _config_get(config: Mapping[str, Any], path: tuple[str, ...], default: Any =
     return current
 
 
-def _build_retrieval_index_revision(
+def _read_previous_section_metadata(
     config: Mapping[str, Any],
-    chunks: Sequence[Mapping[str, Any]],
-    *,
-    generated_at: str,
-    previous_source_chunks: Mapping[str, Any] | None = None,
-    previous_revision: Mapping[str, Any] | None = None,
-    force_full_recreate: bool = False,
+    store: ContextArtifactStore,
 ) -> dict[str, Any]:
-    """Phase R-5 dormant: chunk-level retrieval index builder is commented out.
+    """Reconstruct the prior section metadata payload for `previous_metadata`.
 
-    Restore: remove NotImplementedError and uncomment body. See
-    doc/STORAGE_REDESIGN.ja.md §7.4 R-5. Section-level retrieval via
-    `_upsert_section_collection_if_enabled` is the live path.
+    Combines:
+    - per-section content (summary / search_keys / identifiers / related_sections)
+      from the Qdrant section collection payload, and
+    - the `generation` audit block (prompt_version / model / provider /
+      metadata_version / enabled_fields / limits) from `section_manifest.json`.
+
+    `generate_section_metadata_result` uses the returned dict via
+    `_existing_entries` to attach `_artifact_generation` to each per-section
+    entry, which lets `_reusable_existing_entry` reuse unchanged sections
+    after `--all` has wiped the on-disk LLM cache.
+
+    Returns `{"sections": [...], "generation": {...}}`. Either field can be
+    empty / missing — `_existing_entries` simply skips reuse when the
+    metadata is incomplete, and the LLM generator regenerates the section.
     """
 
-    raise NotImplementedError(
-        "Phase R-5: chunk-level retrieval index build is dormant per case "
-        "C-1. spec_grag_section is the live retrieval surface."
+    entries = _read_section_payloads_from_qdrant(config)
+    generation = _read_section_manifest_generation(store)
+    if generation is not None:
+        metadata_version = generation.get("metadata_version")
+        if isinstance(metadata_version, int):
+            for entry in entries:
+                entry.setdefault("metadata_version", metadata_version)
+    payload: dict[str, Any] = {"sections": entries}
+    if generation is not None:
+        payload["generation"] = generation
+    return payload
+
+
+def _read_section_payloads_from_qdrant(config: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Scroll the Qdrant section collection and return one entry per section.
+
+    Returns an empty list when the section collection is unavailable (fake
+    embedding, Qdrant down, collection not yet created). Callers fall back to
+    full regeneration in that case.
+    """
+
+    embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
+    vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
+    if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+        return []
+    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
+    section_collection = str(
+        _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
     )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # collection = str(_config_get(config, ("vector_store", "collection"), "spec_grag_source"))
-    # embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
-    # vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
-    # if not force_full_recreate:
-    #     reusable = _reusable_retrieval_index_revision(
-    #         previous_source_chunks,
-    #         previous_revision,
-    #         chunks,
-    #         generated_at=generated_at,
-    #     )
-    #     if reusable is not None:
-    #         return reusable
-    # if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
-    #     artifact = retrieval_index_api.build_retrieval_index_revision_artifact(
-    #         chunks=chunks,
-    #         collection=collection,
-    #         generated_at=generated_at,
-    #     )
-    #     artifact["status"] = "success"
-    #     artifact["diagnostics"] = {
-    #         "real_retrieval_index": False,
-    #         "provider_mode": "offline",
-    #         "reason": (
-    #             "non-standard retrieval providers are treated as offline/fake "
-    #             "profile and do not create a Qdrant index"
-    #         ),
-    #         "embedding_provider": embedding_provider,
-    #         "vector_store_provider": vector_store_provider,
-    #         "fusion_method": "rrf",
-    #     }
-    #     return artifact
-    # url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-    # try:
-    #     artifact = _qdrant_upsert_with_partial_dispatch(
-    #         chunks=chunks,
-    #         url=url,
-    #         collection=collection,
-    #         generated_at=generated_at,
-    #         previous_source_chunks=previous_source_chunks,
-    #         previous_revision=previous_revision,
-    #         force_full_recreate=force_full_recreate,
-    #     )
-    #     _attach_retrieval_source_update_diff(
-    #         artifact,
-    #         previous_source_chunks=previous_source_chunks,
-    #         previous_revision=previous_revision,
-    #         chunks=chunks,
-    #     )
-    #     return artifact
-    # except Exception as exc:
-    #     artifact = _failed_retrieval_index_revision_artifact(
-    #         chunks,
-    #         collection=collection,
-    #         url=url,
-    #         generated_at=generated_at,
-    #         exc=exc,
-    #     )
-    #     _attach_retrieval_source_update_diff(
-    #         artifact,
-    #         previous_source_chunks=previous_source_chunks,
-    #         previous_revision=previous_revision,
-    #         chunks=chunks,
-    #     )
-    #     return artifact
-    # ---- end Phase R-5 dormant body ----
+    try:
+        from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    except ImportError:
+        return []
+    try:
+        client = QdrantClient(url)
+        if not client.collection_exists(collection_name=section_collection):
+            return []
+    except Exception:
+        return []
+    from spec_grag.section_payload import section_payload_to_metadata_entry
+
+    entries: list[dict[str, Any]] = []
+    offset: Any = None
+    try:
+        while True:
+            points, next_offset = client.scroll(
+                collection_name=section_collection,
+                with_payload=True,
+                with_vectors=False,
+                limit=256,
+                offset=offset,
+            )
+            for point in points:
+                payload = dict(getattr(point, "payload", None) or {})
+                if not payload.get("source_section_id"):
+                    continue
+                entries.append(section_payload_to_metadata_entry(payload))
+            if not next_offset:
+                break
+            offset = next_offset
+    except Exception:
+        return []
+    return entries
+
+
+def _read_section_manifest_generation(
+    store: ContextArtifactStore,
+) -> dict[str, Any] | None:
+    """Return the `generation` audit block from the existing section_manifest.
+
+    `generation` was last written by the previous `/spec-core` run. It records
+    the prompt / model / provider / metadata_version / enabled_fields / limits
+    used at that time. Returns None when the manifest is missing or the block
+    is absent (first run).
+    """
+
+    try:
+        manifest = store.read("section_manifest")
+    except ArtifactError:
+        return None
+    except Exception:
+        return None
+    if not isinstance(manifest, Mapping):
+        return None
+    generation = manifest.get("generation")
+    if not isinstance(generation, Mapping):
+        return None
+    return dict(generation)
 
 
 def _section_collection_exists(url: str, collection: str) -> bool:
     """Return True when the Qdrant section-level collection already exists.
 
-    Used by Phase R-3 follow-up logic to decide whether the section-level
-    upsert needs `recreate=True`. A failure to query Qdrant (network
-    error, 404 service down) returns False so the caller falls back to
-    creating the collection.
+    Used to decide whether the section-level upsert needs `recreate=True`.
+    A failure to query Qdrant (network error, 404 service down) returns
+    False so the caller falls back to creating the collection.
     """
 
     try:
@@ -1272,16 +1151,22 @@ def _upsert_section_collection_if_enabled(
     section_metadata: Mapping[str, Any],
     force_full_recreate: bool,
     emit: Any,
-) -> None:
-    """Build / refresh the section-level Qdrant collection used by Phase C.
+) -> str:
+    """Build / refresh the section-level Qdrant collection.
 
-    Skipped when the project is configured for fake / offline retrieval.
+    Returns the section collection status used for `CoreResult.retrieval_index_status`:
+
+    * ``"success"``     — section collection upsert completed against Qdrant.
+    * ``"skipped"``     — fake / offline retrieval (e.g. `embedding.provider != flagembedding`).
+    * ``"failed"``      — Qdrant exception swallowed so `/spec-core` is not blocked,
+      but the section collection is unreliable. The candidate generator falls
+      back to in-memory retrieval; surface this via the result diagnostics.
     """
 
     embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
     vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
-        return
+        return "skipped"
     url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
     section_collection = str(
         _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
@@ -1301,13 +1186,13 @@ def _upsert_section_collection_if_enabled(
             "identifiers": entry.get("identifiers") or [],
             "related_sections": entry.get("related_sections") or [],
         }
-    # Phase R-3 follow-up: when the spec_grag_section collection has not
-    # been created yet (first run that exercises section-level retrieval,
-    # or the operator deleted it manually), the incremental upsert path
-    # used to fail silently. Force `recreate=True` in that case so the
-    # collection is materialized on first encounter and downstream R-3
-    # `set_payload` (related_sections) can land successfully. Existing
-    # collections still respect the explicit `force_full_recreate` flag.
+    # When the section collection has not been created yet (first run that
+    # exercises section-level retrieval, or the operator deleted it
+    # manually), the incremental upsert path would fail silently. Force
+    # `recreate=True` in that case so the collection is materialized on
+    # first encounter and downstream `set_payload` (related_sections) can
+    # land successfully. Existing collections still respect the explicit
+    # `force_full_recreate` flag.
     recreate = bool(force_full_recreate) or not _section_collection_exists(
         url, section_collection
     )
@@ -1320,11 +1205,12 @@ def _upsert_section_collection_if_enabled(
             recreate=recreate,
             generated_at=str(section_metadata.get("generated_at") or ""),
         )
+        return "success"
     except Exception:
         # Section collection upsert failures must not block /spec-core.
         # The candidate generator will fall back to in-memory retrieval and
         # surface the failure via diagnostics in the next aggregation step.
-        return
+        return "failed"
 
 
 def _update_section_collection_related_sections_if_enabled(
@@ -1335,11 +1221,10 @@ def _update_section_collection_related_sections_if_enabled(
 ) -> None:
     """Push the `related_sections` field into the Qdrant section payload.
 
-    Phase R-3 (`doc/STORAGE_REDESIGN.ja.md` §7.4) routes the
-    related_sections LLM typing output back to `spec_grag_section` so the
-    inject CLI (Phase R-6) can return Related Sections in the same call as
-    the section content. Skipped when the project is configured for fake /
-    offline retrieval (the same gate as
+    Routes the related_sections LLM typing output back to the section
+    collection so the inject CLI can return Related Sections in the same
+    call as the section content. Skipped when the project is configured for
+    fake / offline retrieval (the same gate as
     `_upsert_section_collection_if_enabled`).
     """
 
@@ -1375,320 +1260,14 @@ def _update_section_collection_related_sections_if_enabled(
             collection=section_collection,
         )
     except Exception:
-        # set_payload failures must not block /spec-core. The JSON
-        # fallback (section_metadata.json) keeps the data available until
-        # Phase R-5 removes it, so the inject CLI can still resolve
-        # related_sections from the artifact.
+        # set_payload failures must not block /spec-core. The inject CLI
+        # can still resolve related_sections from the in-process metadata
+        # payload until the next successful upsert lands.
         try:
             emit("core_related_sections_payload_patch_failed")
         except Exception:
             pass
         return
-
-
-def _qdrant_upsert_with_partial_dispatch(
-    *,
-    chunks: Sequence[Mapping[str, Any]],
-    url: str,
-    collection: str,
-    generated_at: str,
-    previous_source_chunks: Mapping[str, Any] | None,
-    previous_revision: Mapping[str, Any] | None,
-    force_full_recreate: bool = False,
-) -> dict[str, Any]:
-    """Phase R-5 dormant: chunk-level upsert dispatch is commented out.
-
-    Restore: remove NotImplementedError and uncomment body. See
-    doc/STORAGE_REDESIGN.ja.md §7.4 R-5.
-    """
-
-    raise NotImplementedError(
-        "Phase R-5: chunk-level Qdrant upsert dispatch is dormant per "
-        "case C-1."
-    )
-    # ---- Phase R-5 dormant body (uncomment to restore) ----
-    # if force_full_recreate:
-    #     return retrieval_index_api.upsert_qdrant_bge_m3_index(
-    #         chunks,
-    #         url=url,
-    #         collection=collection,
-    #         generated_at=generated_at,
-    #     )
-    # previous_schema = ""
-    # if isinstance(previous_revision, Mapping):
-    #     qdrant_block = previous_revision.get("qdrant")
-    #     if isinstance(qdrant_block, Mapping):
-    #         previous_schema = str(qdrant_block.get("collection_schema_version") or "")
-    #     if not previous_schema:
-    #         previous_schema = str(
-    #             previous_revision.get("qdrant_collection_schema_version")
-    #             or previous_revision.get("collection_schema_version")
-    #             or ""
-    #         )
-    # schema_compatible = (
-    #     previous_schema == retrieval_index_api.QDRANT_COLLECTION_SCHEMA_VERSION
-    # )
-    # previous_chunk_list: Sequence[Mapping[str, Any]] = []
-    # if isinstance(previous_source_chunks, Mapping):
-    #     candidates = previous_source_chunks.get("chunks") or []
-    #     if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)):
-    #         previous_chunk_list = [c for c in candidates if isinstance(c, Mapping)]
-    # if not schema_compatible or not previous_chunk_list:
-    #     return retrieval_index_api.upsert_qdrant_bge_m3_index(
-    #         chunks,
-    #         url=url,
-    #         collection=collection,
-    #         generated_at=generated_at,
-    #     )
-    # diff = retrieval_index_api.compute_chunk_diff(previous_chunk_list, chunks)
-    # chunks_to_embed = diff["added"] + diff["changed"]
-    # removed_uids = diff["removed_uids"]
-    # if not chunks_to_embed and not removed_uids:
-    #     return retrieval_index_api.upsert_qdrant_bge_m3_index(
-    #         chunks,
-    #         url=url,
-    #         collection=collection,
-    #         recreate=False,
-    #         generated_at=generated_at,
-    #     )
-    # return retrieval_index_api.upsert_qdrant_bge_m3_index_incremental(
-    #     url=url,
-    #     collection=collection,
-    #     chunks_to_embed=chunks_to_embed,
-    #     point_ids_to_delete=removed_uids,
-    #     all_chunks=chunks,
-    #     generated_at=generated_at,
-    # )
-    # ---- end Phase R-5 dormant body ----
-
-
-def _attach_retrieval_source_update_diff(
-    artifact: dict[str, Any],
-    *,
-    previous_source_chunks: Mapping[str, Any] | None,
-    previous_revision: Mapping[str, Any] | None,
-    chunks: Sequence[Mapping[str, Any]],
-) -> None:
-    if not previous_revision and not previous_source_chunks:
-        return
-    old_revision = (
-        str(previous_revision.get("artifact_revision"))
-        if isinstance(previous_revision, Mapping) and previous_revision.get("artifact_revision")
-        else None
-    )
-    new_revision = str(artifact.get("artifact_revision") or "")
-    previous_chunks = (
-        previous_source_chunks.get("chunks", [])
-        if isinstance(previous_source_chunks, Mapping)
-        else []
-    )
-    diff = _source_update_diff(
-        previous_chunks if isinstance(previous_chunks, Sequence) else [],
-        chunks,
-        old_revision=old_revision,
-        new_revision=new_revision,
-    )
-    if diff["changed"]:
-        diagnostics = dict(artifact.get("diagnostics") or {})
-        diagnostics["source_update_diff"] = diff
-        artifact["diagnostics"] = diagnostics
-
-
-def _source_update_diff(
-    previous_chunks: Sequence[Any],
-    chunks: Sequence[Any],
-    *,
-    old_revision: str | None,
-    new_revision: str,
-) -> dict[str, Any]:
-    old_by_uid = {
-        str(chunk.get("stable_chunk_uid")): dict(chunk)
-        for raw_chunk in previous_chunks
-        for chunk in (_chunk_payload(raw_chunk),)
-        if chunk.get("stable_chunk_uid")
-    }
-    new_by_uid = {
-        str(chunk.get("stable_chunk_uid")): dict(chunk)
-        for raw_chunk in chunks
-        for chunk in (_chunk_payload(raw_chunk),)
-        if chunk.get("stable_chunk_uid")
-    }
-    changed_uids = {
-        uid
-        for uid, chunk in new_by_uid.items()
-        if uid not in old_by_uid
-        or old_by_uid[uid].get("chunk_hash") != chunk.get("chunk_hash")
-    }
-    removed_uids = set(old_by_uid) - set(new_by_uid)
-    changed_sections = sorted(
-        {
-            str(new_by_uid[uid].get("source_section_id"))
-            for uid in changed_uids
-            if new_by_uid[uid].get("source_section_id")
-        }
-    )
-    removed_sections = sorted(
-        {
-            str(old_by_uid[uid].get("source_section_id"))
-            for uid in removed_uids
-            if old_by_uid[uid].get("source_section_id")
-        }
-    )
-    changed_sources = sorted(
-        {
-            str(chunk.get("source_document_id"))
-            for uid in changed_uids
-            for chunk in (new_by_uid[uid],)
-            if chunk.get("source_document_id")
-        }
-        | {
-            str(chunk.get("source_document_id"))
-            for uid in removed_uids
-            for chunk in (old_by_uid[uid],)
-            if chunk.get("source_document_id")
-        }
-    )
-    return {
-        "changed": bool(changed_uids or removed_uids or (old_revision and old_revision != new_revision)),
-        "trigger": "source_specs_update",
-        "old_revision": old_revision,
-        "new_revision": new_revision,
-        "changed_sources": changed_sources,
-        "changed_sections": changed_sections,
-        "removed_sections": removed_sections,
-        "changed_chunk_count": len(changed_uids),
-        "removed_chunk_count": len(removed_uids),
-    }
-
-
-def _chunk_payload(chunk: Any) -> dict[str, Any]:
-    if isinstance(chunk, Mapping):
-        return dict(chunk)
-    to_payload = getattr(chunk, "to_payload", None)
-    if callable(to_payload):
-        payload = to_payload()
-        if isinstance(payload, Mapping):
-            return dict(payload)
-    return {}
-
-
-def _failed_retrieval_index_revision_artifact(
-    chunks: Sequence[Mapping[str, Any]],
-    *,
-    collection: str,
-    url: str,
-    generated_at: str,
-    exc: Exception,
-) -> dict[str, Any]:
-    artifact = retrieval_index_api.build_retrieval_index_revision_artifact(
-        chunks=chunks,
-        collection=collection,
-        generated_at=generated_at,
-    )
-    artifact["status"] = "failed"
-    artifact["diagnostics"] = {
-        "real_retrieval_index": False,
-        "reason_code": _classify_retrieval_failure(exc),
-        "message": str(exc),
-        "exception_type": type(exc).__name__,
-        "qdrant_url": url,
-        "collection": collection,
-        "embedding_model": "BAAI/bge-m3",
-        "fusion_method": "rrf",
-    }
-    return artifact
-
-
-def _classify_retrieval_failure(exc: Exception) -> str:
-    text = f"{type(exc).__name__}: {exc}".lower()
-    module = getattr(exc.__class__, "__module__", "")
-    if "unauthor" in text or "not logged in" in text or "authentication" in text:
-        return "agent_cli_unauthenticated"
-    if "timeout" in text or "timed out" in text:
-        return "provider_timeout"
-    if (
-        "schema" in text
-        or "vector params" in text
-        or "dimension" in text
-        or ("dense" in text and "size" in text)
-    ):
-        return "qdrant_schema_mismatch"
-    if _is_model_load_failure(exc, module=module, text=text):
-        return "embedding_model_load_failure"
-    if (
-        "qdrant" in module
-        or "connection" in text
-        or "connect" in text
-        or "refused" in text
-        or "service unavailable" in text
-        or "http" in text
-    ):
-        return "qdrant_service_unavailable"
-    return "retrieval_index_failure"
-
-
-def _is_model_load_failure(exc: Exception, *, module: str, text: str) -> bool:
-    if "flagembedding" in module.lower():
-        return True
-    if isinstance(exc, (ImportError, ModuleNotFoundError)):
-        return True
-    return any(
-        term in text
-        for term in (
-            "flagembedding",
-            "bge-m3",
-            "huggingface",
-            "model",
-            "safetensors",
-            "torch",
-        )
-    )
-
-
-def _reusable_retrieval_index_revision(
-    previous_source_chunks: Mapping[str, Any] | None,
-    previous_revision: Mapping[str, Any] | None,
-    chunks: Sequence[Mapping[str, Any]],
-    *,
-    generated_at: str,
-) -> dict[str, Any] | None:
-    if not previous_source_chunks or not previous_revision:
-        return None
-    if str(previous_revision.get("status", "")).lower() != "success":
-        return None
-    previous_chunks = previous_source_chunks.get("chunks")
-    if not isinstance(previous_chunks, Sequence) or isinstance(previous_chunks, (str, bytes)):
-        return None
-    current_fingerprint = _retrieval_chunk_fingerprint(chunks)
-    previous_fingerprint = _retrieval_chunk_fingerprint(
-        [item for item in previous_chunks if isinstance(item, Mapping)]
-    )
-    if current_fingerprint != previous_fingerprint:
-        return None
-    artifact = dict(previous_revision)
-    artifact["generated_at"] = generated_at
-    diagnostics = dict(artifact.get("diagnostics") or {})
-    diagnostics["embedding_generation_skipped"] = True
-    diagnostics["skip_reason"] = "source_hash_unchanged"
-    artifact["diagnostics"] = diagnostics
-    return artifact
-
-
-def _retrieval_chunk_fingerprint(chunks: Sequence[Any]) -> list[tuple[str, str, str]]:
-    return sorted(
-        (
-            str(_chunk_field(chunk, "stable_chunk_uid")),
-            str(_chunk_field(chunk, "source_hash")),
-            str(_chunk_field(chunk, "chunk_hash")),
-        )
-        for chunk in chunks
-    )
-
-
-def _chunk_field(chunk: Any, field: str) -> Any:
-    if isinstance(chunk, Mapping):
-        return chunk.get(field, "")
-    return getattr(chunk, field, "")
 
 
 def _read_required(path: Path) -> str:
@@ -2546,12 +2125,10 @@ def _section_manifest_audit_by_id(
 ) -> dict[str, dict[str, Any]]:
     """Collect per-section audit fields for `section_manifest.json`.
 
-    Phase R-4 (`doc/STORAGE_REDESIGN.ja.md` §7.4) sources the audit data
-    (`llm_provider`, `llm_generation_status`, `last_prompt_version`,
-    `generated_at`) from the freshly built `metadata_entries`. The
-    section_metadata.json artifact still carries the same fields until
-    Phase R-5 removes the JSON, so this helper just lifts the values into
-    the manifest shape without rewriting the metadata entries.
+    Sources the audit data (`llm_provider`, `llm_generation_status`,
+    `last_prompt_version`, `generated_at`) from the freshly built
+    `metadata_entries`. The values are written into the manifest shape
+    without rewriting the metadata entries themselves.
     """
 
     audit_by_id: dict[str, dict[str, Any]] = {}
@@ -2618,15 +2195,6 @@ def _section_manifest_entry(
             if key in audit:
                 entry[key] = audit[key]
     return entry
-
-
-def _source_chunk(section: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "chunk_id": f"{section['section_id']}::chunk-1",
-        "source_section_id": section["section_id"],
-        "text": section.get("text", ""),
-        "source_hash": section["source_hash"],
-    }
 
 
 def _section_ref(section: Mapping[str, Any]) -> dict[str, str]:

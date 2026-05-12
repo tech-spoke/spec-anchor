@@ -236,7 +236,6 @@ def test_t_s01_setup_does_not_run_spec_core_automatically(tmp_path: Path) -> Non
         generated = {path.name for path in context_dir.rglob("*") if path.is_file()}
         assert generated.isdisjoint(
             {
-                "section_metadata.json",
                 "section_search_keys.json",
                 "related_sections.json",
                 "retrieval_index.json",

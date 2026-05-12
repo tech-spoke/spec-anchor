@@ -597,7 +597,10 @@ def _first_constraints(*values: Any) -> Any | None:
 
 
 def _read_freshness_artifact(project_root: Path) -> dict[str, Any]:
-    path = _context_dir(project_root) / "freshness.json"
+    from spec_grag.artifacts import ContextArtifactStore
+
+    store = ContextArtifactStore(_context_dir(project_root))
+    path = store.path_for("freshness")
     payload = _read_json_file(path)
     if payload:
         return payload
@@ -968,13 +971,10 @@ def _build_qdrant_client(url: str) -> Any:
 
 
 def _build_hybrid_retriever(url: str, collection: str, provider: Any) -> Any:
-    """Phase R-6: build the live BGE-M3 + Qdrant section-level retriever.
+    """Build the live BGE-M3 + Qdrant section-level retriever.
 
     Uses `QdrantHybridRetriever` (real Qdrant + BGE-M3 dense/sparse + RRF)
-    against the section-level collection. The chunk-level
-    `HybridRetrievalIndex` alias does not exist; the live class is
-    `QdrantHybridRetriever` which serves both legacy chunk-level and
-    Phase R-3 section-level collections.
+    against the section-level collection (`[retrieval].section_collection`).
     """
 
     from spec_grag.retrieval_index import QdrantHybridRetriever
