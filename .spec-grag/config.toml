@@ -28,9 +28,6 @@ related_sections_enabled = true
 [chapter_anchor]
 enabled = true
 
-# H-4 calibration 確定値 (doc/CALIBRATION_MODEL_EFFORT.ja.md 参照)
-# 全 stage を stage_routing で明示指定する。
-# default_provider / fallback_order は使わない。
 [llm]
 
 [llm.providers.codex]
