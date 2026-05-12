@@ -167,14 +167,3 @@ diagnostics から確認する:
 
 G-18 または T-R11〜T-R15 のいずれかの行が `[ ]` の間は「本運用可能」と報告しない。
 
-## 6. Diagnostics プライバシー
-
-既定では、run artifact に LLM request prompt 本文、LLM response 本文、Source Specs 全文は保存しない。diagnostics には provider identity、timing、count、reason code、retrieval ranking 概要、fusion method、embedding model、Qdrant collection metadata を保存しうる。既定 template は次の値を保つ。
-
-```toml
-[run]
-save_artifacts = false
-include_request = false
-include_response = false
-redact_payload = true
-```

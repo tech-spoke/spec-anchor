@@ -16,14 +16,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 README = REPO_ROOT / "README.md"
 RUNBOOK = REPO_ROOT / "doc" / "RUNBOOK.ja.md"
-DEFAULT_CONFIG = REPO_ROOT / "spec_grag" / "templates" / ".spec-grag" / "config.toml"
-
-import sys
-
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from spec_grag.config import RunConfig
 
 
 def _readme() -> str:
@@ -101,15 +93,6 @@ def test_t_d01_readme_explains_lightweight_setup_smoke_usage_dev_and_privacy() -
     assert "doc/runbook.ja.md" in lowered
     assert "pytest" in runbook
     assert "local" in runbook
-    assert "diagnostics" in runbook
-    assert _has_any(runbook, "privacy", "プライバシー")
-    for phrase in (
-        "request",
-        "response",
-        "source",
-    ):
-        assert phrase in runbook
-    assert _has_any(runbook, "full text", "full source specs text", "全文")
     assert "core concept" in lowered
     assert "never updates" in lowered or "does not update" in lowered
     assert "automatically" in lowered
@@ -344,28 +327,3 @@ max_retries = 0
     assert realign_payload["can_continue"] is True
 
 
-def test_t_r05_default_run_artifact_privacy_is_documented_and_configured() -> None:
-    # The template ships without [run] (dead settings cleaned up). Privacy defaults
-    # live in RunConfig dataclass; verify they remain privacy-conservative.
-    defaults = RunConfig()
-    assert defaults.save_artifacts is False
-    assert defaults.include_request is False
-    assert defaults.include_response is False
-    assert defaults.redact_payload is True
-
-    # Template must not silently flip the privacy defaults if [run] is reintroduced.
-    config = tomllib.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
-    run_config = config.get("run", {})
-    assert run_config.get("save_artifacts", False) is False
-    assert run_config.get("include_request", False) is False
-    assert run_config.get("include_response", False) is False
-    assert run_config.get("redact_payload", True) is True
-
-    runbook = _runbook().lower()
-    assert "diagnostics" in runbook
-    assert _has_any(runbook, "privacy", "プライバシー")
-    assert "request" in runbook
-    assert "response" in runbook
-    assert "source" in runbook
-    assert _has_any(runbook, "full text", "full source specs text", "全文")
-    assert "default" in runbook

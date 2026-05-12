@@ -100,10 +100,3 @@ debounce_ms = 1000
 stale_lock_ms = 300000
 state_file = ".spec-grag/state/watch_state.json"
 queue_file = ".spec-grag/state/watch_queue.json"
-
-[run]
-save_artifacts = false
-artifact_dir = ".spec-grag/runs"
-include_request = false
-include_response = false
-redact_payload = true

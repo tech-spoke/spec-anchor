@@ -139,15 +139,6 @@ class WatcherConfig:
 
 
 @dataclass(frozen=True)
-class RunConfig:
-    save_artifacts: bool = False
-    artifact_dir: Path | None = None
-    include_request: bool = False
-    include_response: bool = False
-    redact_payload: bool = True
-
-
-@dataclass(frozen=True)
 class ProjectConfig:
     project_root: Path
     config_file: Path
@@ -163,7 +154,6 @@ class ProjectConfig:
     embedding: EmbeddingConfig
     vector_store: VectorStoreConfig
     watcher: WatcherConfig
-    run: RunConfig
     raw: dict[str, Any] = field(repr=False)
 
 
@@ -200,7 +190,6 @@ def load_config(
         allow_non_standard_providers=allow_non_standard_providers,
     )
     watcher = _load_watcher(root, raw.get("watcher", {}))
-    run = _load_run(root, raw.get("run", {}))
 
     return ProjectConfig(
         project_root=root,
@@ -217,7 +206,6 @@ def load_config(
         embedding=embedding,
         vector_store=vector_store,
         watcher=watcher,
-        run=run,
         raw=raw,
     )
 
@@ -579,15 +567,3 @@ def _load_watcher(root: Path, raw_value: Any) -> WatcherConfig:
     )
 
 
-def _load_run(root: Path, raw_value: Any) -> RunConfig:
-    table = _optional_table(raw_value, "run")
-    artifact_dir = _optional_str(table, "run", "artifact_dir")
-    return RunConfig(
-        save_artifacts=_bool(table, "run", "save_artifacts", False),
-        artifact_dir=_relative_path(root, "run", "artifact_dir", artifact_dir)
-        if artifact_dir
-        else None,
-        include_request=_bool(table, "run", "include_request", False),
-        include_response=_bool(table, "run", "include_response", False),
-        redact_payload=_bool(table, "run", "redact_payload", True),
-    )

@@ -92,13 +92,6 @@ debounce_ms = 1000
 stale_lock_ms = 300000
 state_file = ".spec-grag/state/watch_state.json"
 queue_file = ".spec-grag/state/watch_queue.json"
-
-[run]
-save_artifacts = true
-artifact_dir = ".spec-grag/runs"
-include_request = false
-include_response = false
-redact_payload = true
 """
 
 
@@ -239,7 +232,6 @@ def test_t_u05_defaults_are_applied_when_optional_tables_are_omitted(
     assert _get(config, "section_metadata", "related_sections_enabled") is True
     assert _get(config, "chapter_anchor", "enabled") is True
     assert _get(config, "watcher", "enabled") is False
-    assert _get(config, "run", "save_artifacts") is False
 
     assert _get(config, "limits", "section_summary_max_chars") == 480
     assert _get(config, "limits", "search_keys_max") == 32

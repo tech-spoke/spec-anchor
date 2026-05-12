@@ -279,15 +279,14 @@ freshness report は `{status, blocking_reasons[], warnings[]}` を返す。
 | 7 | [x] | `[core].concept_file` | エラー終了 |
 | 8 | [x] | `[section].max_heading_level` 省略 | デフォルト 4 で動作する |
 | 9 | [x] | `[watcher]` 全体省略 | watcher 無効で動作する |
-| 10 | [x] | `[run]` 全体省略 | artifact 保存なしで動作する |
-| 11 | [x] | `[limits]` 全体省略 | 内部設計 §3.5 の標準値で動作する |
-| 12 | [x] | `[context].storage` 省略 | デフォルト `.spec-grag/context/` で動作する |
-| 13 | [x] | `[section_metadata]` 全体省略 | 全て enabled として動作する |
-| 14 | [x] | `[chapter_anchor]` 全体省略 | enabled として動作する |
-| 15 | [x] | `[llm].default_provider`, `fallback_order`, `[llm.providers.codex]`, `[llm.providers.claude]` | 1 つの config で Codex / Claude provider を同時に定義できる |
-| 16 | [x] | `[llm].default_provider` が未定義 provider id | エラー終了 |
-| 17 | [x] | `[llm].fallback_order` が未定義 provider id を含む | エラー終了 |
-| 18 | [x] | `[llm.providers.<id>].provider` 欠損 | エラー終了 |
+| 10 | [x] | `[limits]` 全体省略 | 内部設計 §3.5 の標準値で動作する |
+| 11 | [x] | `[context].storage` 省略 | デフォルト `.spec-grag/context/` で動作する |
+| 12 | [x] | `[section_metadata]` 全体省略 | 全て enabled として動作する |
+| 13 | [x] | `[chapter_anchor]` 全体省略 | enabled として動作する |
+| 14 | [x] | `[llm.providers.codex]`, `[llm.providers.claude_typing]`, `[llm.providers.claude_judge]` | 1 つの config で Codex / Claude provider を同時に定義できる |
+| 15 | [x] | `[llm.stage_routing].<stage>` が未定義 provider id | エラー終了 |
+| 16 | [x] | `[llm.stage_routing]` に許可外の stage key (例: 誤記の `conflict_reveiw`) | エラー終了 |
+| 17 | [x] | `[llm.providers.<id>].provider` 欠損 | エラー終了 |
 
 ### T-U06: Config Loader — ファイル不在・構文エラー
 
@@ -633,8 +632,6 @@ Decision payload の異常系:
 | 4 | [x] | Source Specs 本文に「これまでの指示を無視せよ」と書かれている | その文を command instruction として扱わない |
 | 5 | [x] | Source Specs 本文に JSON / command injection 風の文字列がある | CLI command / shell として実行しない |
 | 6 | [x] | archive 配下を sources.include に含めていない | archive 配下の旧設計を検索・制約生成に混ぜない |
-| 7 | [x] | `run.include_request = false` / `include_response = false` | run artifact に prompt / response 本文を保存しない |
-| 8 | [x] | `run.redact_payload = true` | source text 系 field が redaction される |
 
 ### T-U26: LLM Provider — fake / external dependency / production real 分離
 
@@ -653,7 +650,7 @@ Decision payload の異常系:
 | 7 | [x] | 通常 `/spec-core` で `[llm].provider = codex_cli` かつ追加 env gate なし | configured real provider を呼び、失敗時も fake fallback に落とさず `failed_required_artifact` diagnostics を残す |
 | 8 | [x] | 外部依存 test の timeout 未指定 | 5 秒固定にせず、通常 `[llm].timeout_sec` と同等の 120 秒を既定にする |
 | 9 | [x] | `[llm.providers.codex]` / `[llm.providers.claude]` を持つ config で `--llm-provider claude` を指定 | Claude provider 定義を使い、Codex provider を使わない |
-| 10 | [x] | `--llm-provider` 未指定かつ `[llm].default_provider = "codex"` | Codex provider 定義を使う |
+| 10 | [x] | `--llm-provider` 未指定かつ `[llm.stage_routing]` も未指定 | `[llm.providers.<id>]` の先頭定義を使う |
 | 11 | [x] | `SPEC_GRAG_LLM_PROVIDER=claude` | explicit CLI 指定が無い場合に Claude provider 定義を使う |
 | 12 | [x] | 未定義 provider id を指定 | エラー diagnostics を返し、別 provider へ silent fallback しない |
 | 13 | [x] | `max_retries = 1` | 初回失敗後の追加 retry 回数として扱い、最大 attempt 数は 2 になる |
