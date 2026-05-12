@@ -20,9 +20,9 @@ related_sections_enabled = true
 [chapter_anchor]
 enabled = true
 
+# LLM provider 定義。/spec-core が保持物の生成に使う。
+# /spec-inject と /spec-realign の会話解釈・制約生成は Agent 環境が担うため対象外。
 [llm]
-default_provider = "codex"
-fallback_order = ["codex", "claude"]
 
 [llm.providers.codex]
 provider = "codex_cli"
@@ -32,20 +32,6 @@ effort = "low"
 timeout_sec = 120
 max_retries = 1
 
-[llm.providers.claude]
-provider = "claude_cli"
-command = "claude"
-model = "claude-haiku-4-5"
-effort = "low"
-timeout_sec = 120
-max_retries = 1
-
-# H-4 calibration (2026-05-09、6 cell 実走) で確定した stage 別 provider 構成。
-# 詳細: doc/CALIBRATION_MODEL_EFFORT.ja.md
-# - section_metadata は抽出系 → codex × low が最速 + サブスク内
-# - related_sections は分類系 (recall 重視) → sonnet × low が 0% empty で最良
-# - conflict_review は判定系 (Purpose / Core Concept grounding) → sonnet × low 暫定
-#   (実 fixture で要確認)
 [llm.providers.claude_typing]
 provider = "claude_cli"
 command = "claude"
@@ -62,14 +48,14 @@ effort = "low"
 timeout_sec = 360
 max_retries = 1
 
+# 各 stage がどの provider を使うかを指定する。
 [llm.stage_routing]
-section_metadata = "codex"
-related_sections = "claude_typing"
-conflict_review  = "claude_judge"
+section_metadata   = "codex"
+related_sections   = "claude_typing"
+conflict_review    = "claude_judge"
+chapter_key_anchor = "codex"
 
 [retrieval]
-chunk_size = 1200
-chunk_overlap = 160
 dense_top_k = 12
 sparse_top_k = 20
 rank_fusion = "rrf"
@@ -87,7 +73,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "http://localhost:6333"
-collection = "spec_grag_source"
 
 [limits]
 section_summary_max_chars = 480
@@ -97,9 +82,6 @@ related_selected_max_per_section = 8
 conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
-# 並列度: section_metadata / related_sections の batch を同時実行する数。
-# 1 = 逐次 (互換性デフォルト)。Codex Pro 5x / Claude Max 5x なら 4-8 を推奨。
-# 上げ過ぎるとサブスクの 5h window quota を早く消費する点に注意。
 llm_batch_concurrency = 1
 
 [watcher]
@@ -109,10 +91,3 @@ debounce_ms = 1000
 stale_lock_ms = 300000
 state_file = ".spec-grag/state/watch_state.json"
 queue_file = ".spec-grag/state/watch_queue.json"
-
-[run]
-save_artifacts = false
-artifact_dir = ".spec-grag/runs"
-include_request = false
-include_response = false
-redact_payload = true
