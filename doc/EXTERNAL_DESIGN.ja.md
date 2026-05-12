@@ -494,19 +494,26 @@ Agentic Search は Agent / LLM の責務である。CLI は検索結果を返す
 
 保持物が最新の場合、`/spec-inject` は Agent / LLM が生成した制約セットを出力する。
 
-出力は次を区別する:
+出力は次の構造を基本とする:
 
 ```text
 今回守る制約
   - <制約>
-    根拠: Purpose / Core Concept / Source Specs / Conflict Review Item
+    根拠: Purpose / Core Concept / Source Specs
     参照補助: Section Summary / Chapter Key Anchor / Related Sections
+    source: <source_document_id / source_section_id / source_span>
 
 今回見るべき対象
   - <section または topic>
+    理由: <なぜ今回関係するか>
+
+関連先として確認したもの
+  - <related section>
+    理由: <depends / impacts / related / conflicts など>
 
 採用しなかったもの
-  - <候補> と理由
+  - <候補>
+    理由: <今回の課題には遠い / 根拠不足 / 別論点>
 
 不確実性 / 人間確認
   - <確認すべき点>
