@@ -502,6 +502,7 @@ def test_related_sections_configured_provider_runs_without_env_gate_and_reports_
     module = importlib.import_module("spec_grag.related_sections")
     monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:
@@ -523,12 +524,17 @@ def test_related_sections_configured_provider_runs_without_env_gate_and_reports_
     ]
     config = _config()
     config.llm = SimpleNamespace(
-        provider="codex_cli",
-        command="codex",
-        model="real-smoke",
-        effort="low",
-        timeout_sec=5,
-        max_retries=0,
+        providers={
+            "codex": SimpleNamespace(
+                name="codex",
+                command="codex",
+                model="real-smoke",
+                effort="low",
+                timeout_sec=5,
+                max_retries=0,
+            ),
+        },
+        stage_routing={},
     )
 
     result = module.select_related_sections_result(

@@ -43,6 +43,16 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         pytest.skip("--skip-external was specified; external dependency test not run")
 
 
+@pytest.fixture(autouse=True)
+def _default_fake_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests default to the in-process FakeLlmProvider so that fixtures do not
+    spawn real `codex` / `claude` subprocesses. Real-provider integration tests
+    opt out via ``monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)``.
+    """
+
+    monkeypatch.setenv("SPEC_GRAG_FAKE_PROVIDER", "1")
+
+
 def _prepend_venv_to_path() -> None:
     """Make `spec-grag` console scripts visible to `shutil.which` during tests.
 

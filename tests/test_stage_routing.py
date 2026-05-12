@@ -37,19 +37,16 @@ storage = ".spec-grag/context"
 max_heading_level = 4
 
 [llm.providers.claude]
-provider = "claude_cli"
 command = "claude"
 model = "claude-haiku-4-5"
 effort = "low"
 
 [llm.providers.claude_judge]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "medium"
 
 [llm.providers.claude_typing]
-provider = "claude_cli"
 command = "claude"
 model = "claude-haiku-4-5"
 effort = "medium"
@@ -101,31 +98,24 @@ def test_stage_routing_resolves_to_correct_provider() -> None:
     providers = {
         "claude": LlmProviderConfig(
             name="claude",
-            provider="claude_cli",
             command="claude",
             model="claude-haiku-4-5",
             effort="low",
         ),
         "claude_judge": LlmProviderConfig(
             name="claude_judge",
-            provider="claude_cli",
             command="claude",
             model="claude-sonnet-4-6",
             effort="medium",
         ),
         "claude_typing": LlmProviderConfig(
             name="claude_typing",
-            provider="claude_cli",
             command="claude",
             model="claude-haiku-4-5",
             effort="medium",
         ),
     }
     config = LlmConfig(
-        provider="claude_cli",
-        command="claude",
-        model="claude-haiku-4-5",
-        effort="low",
         providers=providers,
         stage_routing={
             "section_metadata": "claude",
@@ -152,17 +142,12 @@ def test_stage_routing_falls_back_to_first_provider() -> None:
     providers = {
         "claude": LlmProviderConfig(
             name="claude",
-            provider="claude_cli",
             command="claude",
             model="claude-haiku-4-5",
             effort="low",
         ),
     }
     config = LlmConfig(
-        provider="claude_cli",
-        command="claude",
-        model="claude-haiku-4-5",
-        effort="low",
         providers=providers,
         stage_routing={},
     )

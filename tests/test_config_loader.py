@@ -44,7 +44,6 @@ related_sections_enabled = true
 enabled = true
 
 [llm.providers.codex]
-provider = "codex_cli"
 command = "codex"
 model = "gpt-5.4-mini"
 effort = "low"
@@ -52,7 +51,6 @@ timeout_sec = 120
 max_retries = 1
 
 [llm.providers.claude]
-provider = "claude_cli"
 command = "claude"
 effort = "low"
 timeout_sec = 120
@@ -100,8 +98,8 @@ include = ["docs/spec/**/*.md"]
 purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
-[llm]
-provider = "codex_cli"
+[llm.providers.codex]
+command = "codex"
 
 [embedding]
 provider = "flagembedding"
@@ -117,7 +115,7 @@ REQUIRED_KEY_CASES = (
     ("embedding.provider", 'provider = "flagembedding"\nmodel = "BAAI/bge-m3"\n', 'model = "BAAI/bge-m3"\n'),
     ("embedding.model", 'provider = "flagembedding"\nmodel = "BAAI/bge-m3"\n', 'provider = "flagembedding"\n'),
     ("vector_store.provider", '[vector_store]\nprovider = "qdrant"\n', "[vector_store]\n"),
-    ("llm.provider", '[llm]\nprovider = "codex_cli"\n', "[llm]\n"),
+    ("llm", '[llm.providers.codex]\ncommand = "codex"\n', ""),
     ("core.purpose_file", 'purpose_file = "docs/core/purpose.md"\n', ""),
     ("core.concept_file", 'concept_file = "docs/core/concept.md"\n', ""),
 )
@@ -191,9 +189,8 @@ def test_t_u05_standard_config_parses_and_resolves_project_relative_paths(
     assert _get(config, "embedding", "provider") == "flagembedding"
     assert _get(config, "embedding", "model") == "BAAI/bge-m3"
     assert _get(config, "vector_store", "provider") == "qdrant"
-    assert _get(config, "llm", "provider") == "codex_cli"
-    assert _get(config, "llm", "providers", "codex", "provider") == "codex_cli"
-    assert _get(config, "llm", "providers", "claude", "provider") == "claude_cli"
+    assert _get(config, "llm", "providers", "codex", "command") == "codex"
+    assert _get(config, "llm", "providers", "claude", "command") == "claude"
 
     assert _path(_get(config, "core", "purpose_file")) == project_root / "docs/core/purpose.md"
     assert _path(_get(config, "core", "concept_file")) == project_root / "docs/core/concept.md"
@@ -239,22 +236,10 @@ def test_t_u05_defaults_are_applied_when_optional_tables_are_omitted(
     assert _get(config, "limits", "llm_batch_max_chars") == 12000
 
 
-def test_t_u05_legacy_single_llm_provider_config_still_parses(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root, MINIMAL_CONFIG)
-
-    config = _load_config(project_root)
-
-    assert _get(config, "llm", "provider") == "codex_cli"
-    assert _get(config, "llm", "providers") == {}
-
-
 @pytest.mark.parametrize(
     ("old", "new", "expected"),
     (
-        ('provider = "codex_cli"\ncommand = "codex"\n', 'command = "codex"\n', "llm.providers.codex.provider"),
+        ('[llm.providers.codex]\ncommand = "codex"\n', '[llm.providers.codex]\n', "llm.providers.codex.command"),
     ),
 )
 def test_t_u05_multi_llm_provider_config_rejects_invalid_provider_references(

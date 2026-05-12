@@ -197,7 +197,7 @@ status / warning words
 
 ### 3.4 LLM Generation Policy
 
-`/spec-core` は `[llm.providers.<id>]` 設定の provider / command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、Chapter Key Anchor、conflict 判定を生成・実行する。
+`/spec-core` は `[llm.providers.<id>]` 設定の command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、Chapter Key Anchor、conflict 判定を生成・実行する。`SPEC_GRAG_FAKE_PROVIDER` env var が truthy のときは provider 設定を無視して in-process FakeLlmProvider を使う (test / smoke 専用)。
 
 Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[llm.stage_routing]` に従って stage 別に provider を選ばせる。direct CLI / watcher / 手動実行も同様で、`--llm-provider` 未指定なら `[llm.stage_routing]` が、`stage_routing` 未指定の stage は `[llm.providers.<id>]` の先頭定義が選ばれる。`--llm-provider` を明示するとその id が全 stage を上書きする。`max_retries` は初回失敗後の追加 retry 回数であり、`max_retries = 1` は最大 2 attempt を意味する。
 

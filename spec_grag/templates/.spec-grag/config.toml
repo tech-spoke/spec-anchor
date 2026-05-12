@@ -24,7 +24,6 @@ enabled = true
 # /spec-inject と /spec-realign の会話解釈・制約生成は Agent 環境が担うため対象外。
 
 [llm.providers.codex]
-provider = "codex_cli"
 command = "codex"
 model = "gpt-5.4-mini"
 effort = "low"
@@ -32,7 +31,6 @@ timeout_sec = 120
 max_retries = 1
 
 [llm.providers.claude_typing]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "low"
@@ -40,7 +38,6 @@ timeout_sec = 360
 max_retries = 1
 
 [llm.providers.claude_judge]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "low"

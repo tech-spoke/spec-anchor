@@ -14,6 +14,7 @@ authors = [
 ]
 dependencies = [
   "markdown-it-py>=3,<5",
+  "python-dotenv>=1,<2",
 ]
 
 [project.optional-dependencies]

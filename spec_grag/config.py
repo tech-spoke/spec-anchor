@@ -19,6 +19,22 @@ class ConfigError(Exception):
     """Raised when `.spec-grag/config.toml` is missing or invalid."""
 
 
+def _load_project_dotenv(project_root: Path) -> None:
+    """Load `<project_root>/.env` into os.environ without overriding existing vars.
+
+    Existing shell / CI env values win (override=False), so `.env` only
+    supplies fallbacks for unset variables. Silently no-op if no `.env`
+    file exists.
+    """
+
+    dotenv_path = project_root / ".env"
+    if not dotenv_path.is_file():
+        return
+    from dotenv import load_dotenv  # imported lazily so tests not touching config skip the cost
+
+    load_dotenv(dotenv_path, override=False)
+
+
 @dataclass(frozen=True)
 class SourcesConfig:
     include: list[str]
@@ -57,8 +73,7 @@ class ChapterAnchorConfig:
 @dataclass(frozen=True)
 class LlmProviderConfig:
     name: str
-    provider: str
-    command: str | None = None
+    command: str
     model: str | None = None
     effort: str | None = None
     timeout_sec: int = 120
@@ -67,16 +82,7 @@ class LlmProviderConfig:
 
 @dataclass(frozen=True)
 class LlmConfig:
-    # Legacy single-provider view. Multi-provider configs expose the first
-    # entry of `providers` here so callers that read these fields directly
-    # still work.
-    provider: str
-    command: str | None = None
-    model: str | None = None
-    effort: str | None = None
-    timeout_sec: int = 120
-    max_retries: int = 1
-    providers: dict[str, LlmProviderConfig] = field(default_factory=dict)
+    providers: dict[str, LlmProviderConfig]
     # Per-stage provider routing. Maps SPEC-grag pipeline stages to provider
     # names (keys of `providers`). Allowed stages: section_metadata,
     # related_sections, conflict_review, chapter_key_anchor.
@@ -160,6 +166,7 @@ def load_config(
     allow_non_standard_providers: bool = False,
 ) -> ProjectConfig:
     root = Path(project_root).expanduser().resolve()
+    _load_project_dotenv(root)
     config_file = root / ".spec-grag" / "config.toml"
     if not config_file.is_file():
         raise ConfigError(f".spec-grag/config.toml not found under {root}")
@@ -376,43 +383,25 @@ def _load_chapter_anchor(raw_value: Any) -> ChapterAnchorConfig:
 
 def _load_llm(table: dict[str, Any]) -> LlmConfig:
     providers_table = table.get("providers")
-    if providers_table is not None:
-        if not isinstance(providers_table, dict) or not providers_table:
-            raise ConfigError("llm.providers must be a non-empty table")
-        providers: dict[str, LlmProviderConfig] = {}
-        for name, value in providers_table.items():
-            if not isinstance(name, str) or not name:
-                raise ConfigError("llm.providers keys must be non-empty strings")
-            provider_table = _optional_table(value, f"llm.providers.{name}")
-            providers[name] = _load_llm_provider(name, provider_table)
-        stage_routing = _load_stage_routing(table.get("stage_routing"), providers)
-        selected = next(iter(providers.values()))
-        return LlmConfig(
-            provider=selected.provider,
-            command=selected.command,
-            model=selected.model,
-            effort=selected.effort,
-            timeout_sec=selected.timeout_sec,
-            max_retries=selected.max_retries,
-            providers=providers,
-            stage_routing=stage_routing,
-        )
-
+    if not isinstance(providers_table, dict) or not providers_table:
+        raise ConfigError("llm.providers must be a non-empty table")
+    providers: dict[str, LlmProviderConfig] = {}
+    for name, value in providers_table.items():
+        if not isinstance(name, str) or not name:
+            raise ConfigError("llm.providers keys must be non-empty strings")
+        provider_table = _optional_table(value, f"llm.providers.{name}")
+        providers[name] = _load_llm_provider(name, provider_table)
+    stage_routing = _load_stage_routing(table.get("stage_routing"), providers)
     return LlmConfig(
-        provider=_required_str(table, "llm", "provider"),
-        command=_optional_str(table, "llm", "command"),
-        model=_optional_str(table, "llm", "model"),
-        effort=_optional_str(table, "llm", "effort"),
-        timeout_sec=_int(table, "llm", "timeout_sec", 120),
-        max_retries=_int(table, "llm", "max_retries", 1),
+        providers=providers,
+        stage_routing=stage_routing,
     )
 
 
 def _load_llm_provider(name: str, table: dict[str, Any]) -> LlmProviderConfig:
     return LlmProviderConfig(
         name=name,
-        provider=_required_str(table, f"llm.providers.{name}", "provider"),
-        command=_optional_str(table, f"llm.providers.{name}", "command"),
+        command=_required_str(table, f"llm.providers.{name}", "command"),
         model=_optional_str(table, f"llm.providers.{name}", "model"),
         effort=_optional_str(table, f"llm.providers.{name}", "effort"),
         timeout_sec=_int(table, f"llm.providers.{name}", "timeout_sec", 120),

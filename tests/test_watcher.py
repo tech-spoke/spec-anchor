@@ -37,8 +37,8 @@ concept_file = "docs/core/concept.md"
 [context]
 storage = ".spec-grag/context"
 
-[llm]
-provider = "fake"
+[llm.providers.fake]
+command = "fake-noop"
 model = "fake-watcher"
 timeout_sec = 5
 max_retries = 0
@@ -106,8 +106,8 @@ storage = ".spec-grag/context"
 [section]
 max_heading_level = 4
 
-[llm]
-provider = "fake"
+[llm.providers.fake]
+command = "fake-noop"
 model = "fake-real-watcher"
 timeout_sec = 5
 max_retries = 0

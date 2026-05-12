@@ -42,8 +42,8 @@ storage = ".spec-grag/context"
 [section]
 max_heading_level = 4
 
-[llm]
-provider = "fake"
+[llm.providers.fake]
+command = "fake-noop"
 model = "fake-spec-core"
 timeout_sec = 5
 max_retries = 0
@@ -246,8 +246,6 @@ def _write_real_provider_project(
         "SPEC_GRAG_REAL_PROVIDER_COMMAND",
         os.environ.get("SPEC_GRAG_REAL_PROVIDER_COMMAND", "codex"),
     )
-    executable = Path(command.split()[0]).name
-    provider = "claude_cli" if executable == "claude" else "codex_cli"
     (project_root / ".spec-grag").mkdir(parents=True)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
@@ -267,8 +265,7 @@ storage = ".spec-grag/context"
 [section]
 max_heading_level = 4
 
-[llm]
-provider = "{provider}"
+[llm.providers.real]
 command = "{command}"
 model = "real-smoke"
 effort = "low"
@@ -1134,10 +1131,9 @@ def test_g11_core_can_select_codex_or_claude_from_shared_llm_config(
     config_path = project_root / ".spec-grag/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
-            '[llm]\nprovider = "fake"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
+            '[llm.providers.fake]\ncommand = "fake-noop"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
             """\
 [llm.providers.codex]
-provider = "codex_cli"
 command = "codex"
 model = "codex-test"
 effort = "low"
@@ -1145,7 +1141,6 @@ timeout_sec = 5
 max_retries = 0
 
 [llm.providers.claude]
-provider = "claude_cli"
 command = "claude"
 model = "claude-test"
 effort = "low"
@@ -1178,7 +1173,6 @@ max_retries = 0
 
     assert result["status"] == "updated"
     selected_config, kwargs = build_calls[0]
-    assert selected_config["provider"] == "claude_cli"
     assert selected_config["command"] == "claude"
     assert selected_config["model"] == "claude-test"
     assert kwargs["provider_id"] == "claude"
@@ -1193,13 +1187,14 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
     config_path = project_root / ".spec-grag/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
-            '[llm]\nprovider = "fake"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
-            '[llm]\nprovider = "codex_cli"\ncommand = "codex"\nmodel = "real-smoke"\neffort = "low"\ntimeout_sec = 5\nmax_retries = 0\n',
+            '[llm.providers.fake]\ncommand = "fake-noop"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
+            '[llm.providers.codex]\ncommand = "codex"\nmodel = "real-smoke"\neffort = "low"\ntimeout_sec = 5\nmax_retries = 0\n',
         )
     )
     core_module = _core_module()
     monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
     calls: list[Any] = []
 
     def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -1216,7 +1211,7 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
     assert "failed_required_artifact" in freshness["blocking_reasons"]
     assert result["failed_sections"]
     sections = _sections(project_root)
-    assert all(section["llm_provider"] == "codex_cli" for section in sections)
+    assert all(section["llm_provider"] == "codex" for section in sections)
     assert all(section["llm_generation_status"] == "failed" for section in sections)
     text = _json_text(result).lower()
     assert calls, "configured real provider must be called without env opt-in"
@@ -1231,17 +1226,21 @@ def test_t_r12_configured_real_provider_is_default_without_smoke_env(
 
     monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
     monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
 
     provider = build_spec_core_llm_provider(
         {
-            "provider": "codex_cli",
-            "command": "codex",
-            "model": "real-smoke",
-            "effort": "low",
+            "providers": {
+                "codex": {
+                    "command": "codex",
+                    "model": "real-smoke",
+                    "effort": "low",
+                },
+            },
         }
     )
 
-    assert getattr(provider, "provider_id") == "codex_cli"
+    assert getattr(provider, "provider_id") == "codex"
     assert getattr(provider, "real_provider_enabled") is True
 
 

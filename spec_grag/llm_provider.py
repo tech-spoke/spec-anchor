@@ -18,6 +18,7 @@ from typing import Any, Protocol
 REAL_PROVIDER_ENV = "SPEC_GRAG_REAL_PROVIDER"
 REAL_SMOKE_ENV = "SPEC_GRAG_REAL_SMOKE"
 LLM_PROVIDER_ENV = "SPEC_GRAG_LLM_PROVIDER"
+FAKE_PROVIDER_ENV = "SPEC_GRAG_FAKE_PROVIDER"
 SPEC_CORE_SCOPE = "/spec-core"
 TRUE_VALUES = {"1", "true", "yes", "on"}
 DEFAULT_METADATA_VERSION = 1
@@ -295,41 +296,33 @@ def build_spec_core_llm_provider(
     When `stage` is supplied (e.g. ``"section_metadata"``), the per-stage
     routing in `[llm.stage_routing]` selects the model / effort tuned for that
     stage. Explicit `provider_id` overrides the routing.
+
+    If the env var `SPEC_GRAG_FAKE_PROVIDER` is truthy (1 / true / yes / on),
+    return the in-process FakeLlmProvider regardless of `[llm.providers]`
+    contents. Used for tests / smoke runs that must not spawn real CLIs.
     """
 
     validate_llm_usage_scope(usage_scope)
+    source = os.environ if env is None else env
+    if source.get(FAKE_PROVIDER_ENV, "").lower() in TRUE_VALUES:
+        return FakeLlmProvider()
+
     selected_config = select_llm_provider_config(
         llm_config,
         provider_id=provider_id,
         stage=stage,
         env=env,
     )
-    provider_name = _config_value(selected_config, "provider")
-    if not isinstance(provider_name, str) or not provider_name:
-        raise LlmProviderError("[llm].provider must be a non-empty string")
-    normalized = provider_name.lower()
-
-    if normalized == "fake":
-        return FakeLlmProvider()
-
+    command = _config_value(selected_config, "command")
+    command_args = _command_args(command)
+    if not command_args:
+        raise LlmProviderError("[llm.providers.<id>].command is required")
     enabled = True if real_smoke_enabled is None else real_smoke_enabled
-    if normalized in {"subprocess", "codex_cli", "claude_cli"}:
-        command = _config_value(selected_config, "command")
-        if command is None:
-            if normalized == "codex_cli":
-                command = "codex"
-            elif normalized == "claude_cli":
-                command = "claude"
-        command_args = _command_args(command)
-        if not command_args:
-            raise LlmProviderError("[llm].command is required for subprocess provider")
-        return SubprocessLlmProvider(
-            command_args,
-            real_smoke_enabled=enabled,
-            provider_id=normalized,
-        )
-
-    raise LlmProviderError(f"unsupported /spec-core LLM provider: {provider_name}")
+    return SubprocessLlmProvider(
+        command_args,
+        real_smoke_enabled=enabled,
+        provider_id=str(command_args[0]),
+    )
 
 
 def select_llm_provider_config(
@@ -341,44 +334,37 @@ def select_llm_provider_config(
 ) -> Any:
     """Select one configured `/spec-core` LLM provider.
 
-    New configs may define multiple providers under `[llm.providers.<id>]`.
     Resolution priority: explicit `provider_id` > `SPEC_GRAG_LLM_PROVIDER` env >
-    `[llm.stage_routing].<stage>` > first entry of `[llm.providers]`. Legacy
-    single-provider configs remain valid.
+    `[llm.stage_routing].<stage>` > first entry of `[llm.providers]`.
+
+    If `llm_config` has no `providers` key (already a single-provider mapping,
+    e.g. a downstream caller pre-selected one with `_config_with_selected_llm`),
+    it is returned as-is.
     """
 
     source = os.environ if env is None else env
     requested = _first_non_empty(provider_id, source.get(LLM_PROVIDER_ENV))
     providers = _config_value(llm_config, "providers")
-    if isinstance(providers, Mapping) and providers:
-        stage_routing = _config_value(llm_config, "stage_routing")
-        stage_provider = None
-        if (
-            stage
-            and isinstance(stage_routing, Mapping)
-            and isinstance(stage_routing.get(stage), str)
-        ):
-            stage_provider = stage_routing.get(stage)
-        selected_name = requested or stage_provider
-        if not selected_name:
-            selected_name = next(iter(providers))
-        selected = providers.get(str(selected_name))
-        if selected is None:
-            known = ", ".join(sorted(str(name) for name in providers))
-            raise LlmProviderError(
-                f"unknown [llm] provider id {selected_name!r}; configured providers: {known}"
-            )
-        return selected
-
-    if requested and requested != "default":
-        provider_name = _config_value(llm_config, "provider")
-        aliases = _legacy_provider_aliases(provider_name)
-        if str(requested).lower() not in aliases:
-            allowed = ", ".join(sorted(aliases)) or "<none>"
-            raise LlmProviderError(
-                f"unknown [llm] provider id {requested!r}; legacy provider allows: {allowed}"
-            )
-    return llm_config
+    if not isinstance(providers, Mapping) or not providers:
+        return llm_config
+    stage_routing = _config_value(llm_config, "stage_routing")
+    stage_provider = None
+    if (
+        stage
+        and isinstance(stage_routing, Mapping)
+        and isinstance(stage_routing.get(stage), str)
+    ):
+        stage_provider = stage_routing.get(stage)
+    selected_name = requested or stage_provider
+    if not selected_name:
+        selected_name = next(iter(providers))
+    selected = providers.get(str(selected_name))
+    if selected is None:
+        known = ", ".join(sorted(str(name) for name in providers))
+        raise LlmProviderError(
+            f"unknown [llm] provider id {selected_name!r}; configured providers: {known}"
+        )
+    return selected
 
 
 def validate_llm_usage_scope(scope: str) -> str:
@@ -1176,18 +1162,6 @@ def _first_non_empty(*values: Any) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
-
-
-def _legacy_provider_aliases(provider_name: Any) -> set[str]:
-    if not isinstance(provider_name, str) or not provider_name:
-        return set()
-    normalized = provider_name.lower()
-    aliases = {normalized}
-    if normalized == "codex_cli":
-        aliases.add("codex")
-    elif normalized == "claude_cli":
-        aliases.add("claude")
-    return aliases
 
 
 def _command_args(command: Any) -> list[str]:

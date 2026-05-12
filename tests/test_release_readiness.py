@@ -220,7 +220,6 @@ def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -
     config_path = tmp_path / ".spec-grag" / "config.toml"
     real_llm_block = """\
 [llm.providers.codex]
-provider = "codex_cli"
 command = "codex"
 model = "gpt-5.4-mini"
 effort = "low"
@@ -228,7 +227,6 @@ timeout_sec = 120
 max_retries = 1
 
 [llm.providers.claude_typing]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "low"
@@ -236,7 +234,6 @@ timeout_sec = 360
 max_retries = 1
 
 [llm.providers.claude_judge]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "low"
@@ -251,8 +248,8 @@ conflict_review    = "claude_judge"
 chapter_key_anchor = "codex"
 """
     fake_llm_block = """\
-[llm]
-provider = "fake"
+[llm.providers.fake]
+command = "fake-noop"
 model = "fake-release-smoke"
 timeout_sec = 5
 max_retries = 0

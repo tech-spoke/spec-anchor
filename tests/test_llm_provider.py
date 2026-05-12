@@ -153,19 +153,25 @@ def test_t_u26_real_provider_can_be_explicitly_disabled_by_tests(
     assert called is False
 
 
-def test_t_u26_configured_real_provider_is_enabled_by_default() -> None:
+def test_t_u26_configured_real_provider_is_enabled_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from spec_grag.llm_provider import build_spec_core_llm_provider
 
+    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
     provider = build_spec_core_llm_provider(
         {
-            "provider": "codex_cli",
-            "command": "codex",
-            "model": "real-smoke",
-            "effort": "low",
+            "providers": {
+                "codex": {
+                    "command": "codex",
+                    "model": "real-smoke",
+                    "effort": "low",
+                },
+            },
         }
     )
 
-    assert getattr(provider, "provider_id") == "codex_cli"
+    assert getattr(provider, "provider_id") == "codex"
     assert getattr(provider, "real_provider_enabled") is True
 
 
@@ -416,15 +422,17 @@ def test_t_u26_llm_config_scope_is_spec_core_only() -> None:
         assert "Agent" in message
 
 
-def test_t_u26_multi_llm_config_selects_explicit_agent_provider() -> None:
+def test_t_u26_multi_llm_config_selects_explicit_agent_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
     config = {
         "providers": {
             "codex": {
-                "provider": "codex_cli",
                 "command": "codex",
                 "model": "gpt-5.4-mini",
             },
-            "claude": {"provider": "claude_cli", "command": "claude"},
+            "claude": {"command": "claude"},
         },
     }
 
@@ -435,8 +443,8 @@ def test_t_u26_multi_llm_config_selects_explicit_agent_provider() -> None:
         real_smoke_enabled=True,
     )
 
-    assert selected["provider"] == "claude_cli"
-    assert getattr(provider, "provider_id") == "claude_cli"
+    assert selected["command"] == "claude"
+    assert getattr(provider, "provider_id") == "claude"
     assert getattr(provider, "command") == ["claude"]
 
 
@@ -445,16 +453,16 @@ def test_t_u26_multi_llm_config_uses_first_or_env_provider(
 ) -> None:
     config = {
         "providers": {
-            "codex": {"provider": "codex_cli", "command": "codex"},
-            "claude": {"provider": "claude_cli", "command": "claude"},
+            "codex": {"command": "codex"},
+            "claude": {"command": "claude"},
         },
     }
 
     # No CLI / env / stage_routing -> first defined provider (codex).
-    assert select_llm_provider_config(config)["provider"] == "codex_cli"
+    assert select_llm_provider_config(config)["command"] == "codex"
     monkeypatch.setenv("SPEC_GRAG_LLM_PROVIDER", "claude")
 
-    assert select_llm_provider_config(config)["provider"] == "claude_cli"
+    assert select_llm_provider_config(config)["command"] == "claude"
     with pytest.raises(Exception) as exc_info:
         select_llm_provider_config(config, provider_id="missing")
     assert "configured providers" in str(exc_info.value)

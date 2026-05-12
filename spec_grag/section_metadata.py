@@ -19,7 +19,6 @@ from typing import Any
 
 from spec_grag.config import (
     LimitsConfig,
-    LlmConfig,
     SectionMetadataConfig,
 )
 from spec_grag.llm_provider import (
@@ -692,9 +691,9 @@ def _resolve_metadata_provider(
 ) -> LlmProvider:
     if provider is not None:
         return provider
-    if _config_value(llm_config, "provider", None) or _config_value(llm_config, "providers", None):
-        return build_spec_core_llm_provider(llm_config)
-    return FakeLlmProvider()
+    if llm_config is None:
+        return FakeLlmProvider()
+    return build_spec_core_llm_provider(llm_config)
 
 
 def _selected_llm_config(llm_config: Any | None) -> Any | None:
@@ -727,8 +726,6 @@ def _model_name(llm_config: Any, provider_id: str) -> str:
     model = _config_value(llm_config, "model", None)
     if isinstance(model, str) and model:
         return model
-    if isinstance(llm_config, LlmConfig) and llm_config.model:
-        return llm_config.model
     return provider_id or "fake"
 
 

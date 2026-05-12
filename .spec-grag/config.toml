@@ -28,10 +28,7 @@ related_sections_enabled = true
 [chapter_anchor]
 enabled = true
 
-[llm]
-
 [llm.providers.codex]
-provider = "codex_cli"
 command = "codex"
 model = "gpt-5.4-mini"
 effort = "low"
@@ -39,7 +36,6 @@ timeout_sec = 120
 max_retries = 1
 
 [llm.providers.claude_typing]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "low"
@@ -47,7 +43,6 @@ timeout_sec = 360
 max_retries = 1
 
 [llm.providers.claude_judge]
-provider = "claude_cli"
 command = "claude"
 model = "claude-sonnet-4-6"
 effort = "low"

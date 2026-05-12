@@ -274,7 +274,7 @@ freshness report は `{status, blocking_reasons[], warnings[]}` を返す。
 | 2 | [x] | `[embedding].provider` | エラー終了 |
 | 3 | [x] | `[embedding].model` | エラー終了 |
 | 4 | [x] | `[vector_store].provider` | エラー終了 |
-| 5 | [x] | legacy `[llm].provider` | 欠損時はエラー終了 |
+| 5 | [x] | `[llm.providers]` テーブル全体欠損 | エラー終了 |
 | 6 | [x] | `[core].purpose_file` | エラー終了 |
 | 7 | [x] | `[core].concept_file` | エラー終了 |
 | 8 | [x] | `[section].max_heading_level` 省略 | デフォルト 4 で動作する |
@@ -286,7 +286,7 @@ freshness report は `{status, blocking_reasons[], warnings[]}` を返す。
 | 14 | [x] | `[llm.providers.codex]`, `[llm.providers.claude_typing]`, `[llm.providers.claude_judge]` | 1 つの config で Codex / Claude provider を同時に定義できる |
 | 15 | [x] | `[llm.stage_routing].<stage>` が未定義 provider id | エラー終了 |
 | 16 | [x] | `[llm.stage_routing]` に許可外の stage key (例: 誤記の `conflict_reveiw`) | エラー終了 |
-| 17 | [x] | `[llm.providers.<id>].provider` 欠損 | エラー終了 |
+| 17 | [x] | `[llm.providers.<id>].command` 欠損 | エラー終了 |
 
 ### T-U06: Config Loader — ファイル不在・構文エラー
 
@@ -647,8 +647,8 @@ Decision payload の異常系:
 | 4 | [x] | fake provider を指定 | Codex / Claude CLI を呼ばない |
 | 5 | [x] | 外部依存 test として実行 | 設定された `[llm]` provider を使う |
 | 6 | [x] | `/spec-inject` / `/spec-realign` の Agent 側 LLM | `[llm]` provider として扱わない |
-| 7 | [x] | 通常 `/spec-core` で `[llm].provider = codex_cli` かつ追加 env gate なし | configured real provider を呼び、失敗時も fake fallback に落とさず `failed_required_artifact` diagnostics を残す |
-| 8 | [x] | 外部依存 test の timeout 未指定 | 5 秒固定にせず、通常 `[llm].timeout_sec` と同等の 120 秒を既定にする |
+| 7 | [x] | 通常 `/spec-core` で `[llm.providers.<id>].command = "codex"` かつ追加 env gate なし | configured real provider を呼び、失敗時も fake fallback に落とさず `failed_required_artifact` diagnostics を残す |
+| 8 | [x] | 外部依存 test の timeout 未指定 | 5 秒固定にせず、通常 `[llm.providers.<id>].timeout_sec` と同等の 120 秒を既定にする |
 | 9 | [x] | `[llm.providers.codex]` / `[llm.providers.claude]` を持つ config で `--llm-provider claude` を指定 | Claude provider 定義を使い、Codex provider を使わない |
 | 10 | [x] | `--llm-provider` 未指定かつ `[llm.stage_routing]` も未指定 | `[llm.providers.<id>]` の先頭定義を使う |
 | 11 | [x] | `SPEC_GRAG_LLM_PROVIDER=claude` | explicit CLI 指定が無い場合に Claude provider 定義を使う |

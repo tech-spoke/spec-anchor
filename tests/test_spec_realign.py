@@ -35,8 +35,8 @@ storage = ".spec-grag/context"
 [section]
 max_heading_level = 4
 
-[llm]
-provider = "fake"
+[llm.providers.fake]
+command = "fake-noop"
 model = "fake-spec-core"
 timeout_sec = 5
 max_retries = 0
