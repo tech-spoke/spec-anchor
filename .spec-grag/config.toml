@@ -28,9 +28,10 @@ related_sections_enabled = true
 [chapter_anchor]
 enabled = true
 
+# H-4 calibration 確定値 (doc/CALIBRATION_MODEL_EFFORT.ja.md 参照)
+# 全 stage を stage_routing で明示指定する。
+# default_provider / fallback_order は使わない。
 [llm]
-default_provider = "codex"
-fallback_order = ["codex", "claude"]
 
 [llm.providers.codex]
 provider = "codex_cli"
@@ -40,18 +41,6 @@ effort = "low"
 timeout_sec = 120
 max_retries = 1
 
-[llm.providers.claude]
-provider = "claude_cli"
-command = "claude"
-model = "claude-haiku-4-5"
-effort = "low"
-timeout_sec = 120
-max_retries = 1
-
-# H-4 calibration 確定値 (doc/CALIBRATION_MODEL_EFFORT.ja.md 参照)
-# - section_metadata: codex × gpt-5.4-mini × low (抽出最速)
-# - related_sections: claude × sonnet-4-6 × low (recall 0% empty で最良)
-# - conflict_review:  claude × sonnet-4-6 × low (暫定、conflict fixture で要確認)
 [llm.providers.claude_typing]
 provider = "claude_cli"
 command = "claude"
@@ -69,9 +58,10 @@ timeout_sec = 360
 max_retries = 1
 
 [llm.stage_routing]
-section_metadata = "codex"
-related_sections = "claude_typing"
-conflict_review  = "claude_judge"
+section_metadata  = "codex"           # gpt-5.4-mini / low (抽出最速)
+related_sections  = "claude_typing"   # sonnet-4-6 / low (recall 0% empty で最良)
+conflict_review   = "claude_judge"    # sonnet-4-6 / low (暫定、conflict fixture で要確認)
+chapter_key_anchor = "codex"          # gpt-5.4-mini / low
 
 [retrieval]
 chunk_size = 1200
