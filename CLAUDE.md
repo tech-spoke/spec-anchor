@@ -9,7 +9,8 @@
 1. `doc/EXTERNAL_DESIGN.ja.md` - 軽量版 SPEC-grag の外部契約
 2. 本ファイル `CLAUDE.md` - Agent 共通の不変ルール
 3. `AGENTS.md` - 報告ルール、設計書の記述ルール (`agent_doc/` 配下の記述ルールへの入口)
-4. 必要な場合のみ `archive/full-grag-2026-05-05/` - 旧 full GRAG 版の退避資料
+4. `doc/TODO.ja.md` - 開放 task 一覧。実装着手前に該当 task の検証条件・scope・依存を確認する
+5. 必要な場合のみ `archive/full-grag-2026-05-05/` - 旧 full GRAG 版の退避資料
 
 root の `BAK/` は削除済みであり、参照先にしない。
 
