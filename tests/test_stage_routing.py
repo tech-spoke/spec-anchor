@@ -61,8 +61,6 @@ conflict_review = "claude_judge"
 chapter_key_anchor = "claude"
 
 [retrieval]
-chunk_size = 1200
-chunk_overlap = 160
 dense_top_k = 12
 sparse_top_k = 20
 rank_fusion = "rrf"
@@ -74,7 +72,6 @@ model = "BAAI/bge-m3"
 [vector_store]
 provider = "qdrant"
 url = "http://localhost:6333"
-collection = "spec_grag_source"
 """
 
 

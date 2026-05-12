@@ -102,8 +102,6 @@ class LimitsConfig:
 
 @dataclass(frozen=True)
 class RetrievalConfig:
-    chunk_size: int = 1200
-    chunk_overlap: int = 160
     dense_top_k: int = 12
     sparse_top_k: int = 20
     rank_fusion: str = "rrf"
@@ -125,7 +123,6 @@ class EmbeddingConfig:
 class VectorStoreConfig:
     provider: str
     url: str | None = None
-    collection: str | None = None
 
 
 @dataclass(frozen=True)
@@ -502,8 +499,6 @@ def _load_retrieval(raw_value: Any) -> RetrievalConfig:
     if rank_fusion != STANDARD_RANK_FUSION:
         raise ConfigError("retrieval.rank_fusion must be rrf")
     return RetrievalConfig(
-        chunk_size=_int(table, "retrieval", "chunk_size", 1200),
-        chunk_overlap=_int(table, "retrieval", "chunk_overlap", 160),
         dense_top_k=_int(table, "retrieval", "dense_top_k", 12),
         sparse_top_k=_int(table, "retrieval", "sparse_top_k", 20),
         rank_fusion=rank_fusion,
@@ -545,7 +540,6 @@ def _load_vector_store(
     return VectorStoreConfig(
         provider=provider,
         url=_optional_str(table, "vector_store", "url"),
-        collection=_optional_str(table, "vector_store", "collection"),
     )
 
 

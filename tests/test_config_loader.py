@@ -68,8 +68,6 @@ llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 
 [retrieval]
-chunk_size = 1200
-chunk_overlap = 160
 dense_top_k = 12
 sparse_top_k = 20
 rank_fusion = "rrf"
@@ -83,7 +81,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "http://localhost:6333"
-collection = "spec_grag_source"
 
 [watcher]
 enabled = true

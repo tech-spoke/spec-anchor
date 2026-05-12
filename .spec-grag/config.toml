@@ -61,8 +61,6 @@ conflict_review   = "claude_judge"    # sonnet-4-6 / low (暫定、conflict fixt
 chapter_key_anchor = "codex"          # gpt-5.4-mini / low
 
 [retrieval]
-chunk_size = 1200
-chunk_overlap = 160
 dense_top_k = 12
 sparse_top_k = 20
 rank_fusion = "rrf"
@@ -80,7 +78,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "http://localhost:6333"
-collection = "spec_grag_source"
 
 [limits]
 section_summary_max_chars = 480
