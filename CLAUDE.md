@@ -500,6 +500,45 @@ artifact / 設定 / 状態管理の物理配置は、外部設計書または内
 
 例: `doc/EXTERNAL_DESIGN.ja.md` §4.1「保持物の物理配置」が SPEC-grag の artifact マッピング表。これに無い artifact を実装が生成している場合、ルール 15 (廃止 = 根絶) を適用する。
 
+### ルール 18: Agent は git worktree を作らない
+
+Agent (Claude / Codex / その他) は `git worktree add` や Agent 起動オプションの `isolation: "worktree"` を含む、**新しい git worktree を作成する一切の操作を行わない**。worktree が必要な場合は、user が手動で作成・管理する。
+
+#### 禁止する具体的操作
+
+- `git worktree add` を Bash で直接実行する
+- Agent ツール起動時に `isolation: "worktree"` パラメータを指定する
+- general-purpose subagent / 任意の subagent を worktree 隔離で立ち上げる
+- 既存 worktree の `git worktree lock` / `unlock` / 設定変更
+
+#### なぜ禁止するか
+
+複数 worktree が並存すると Agent は確実に次の失敗を起こす:
+
+- **bash cwd が session 中に reset される** ことを忘れ、worktree のつもりが main repo を編集する (またはその逆)。grep / pytest / git status の結果が「どちらの worktree で取得したか」を見失う
+- **「削除した / 修正した」報告の主語の scope (どの worktree か / どの branch か) を省く**。user が main を見ている時に Agent が worktree 側の grep 結果で「除去済み」と報告し、矛盾が発生する
+- **post-merge 後の追加 commit が merge 元 branch / worktree directory に伝播しない** ことを失念する。user が worktree directory を IDE で開いていれば、merge 後に main へ commit した削除が worktree の file には反映されず、「言った通りになっていない」と user が気づく
+- **worktree 内での `.venv` が main repo を指す symlink** であることを失念し、worktree のリファクタコードを実行したつもりが main の editable install を実行する。テスト結果が嘘になる
+- **worktree 内で setup-project / spec-grag core などを試運転すると、副作用 (`.spec-grag/` / `docs/spec/` / `.claude/commands/` の生成) が worktree と main の両方を汚す**。後片付けが必ず漏れる
+
+これらは過去 session で実際に複合発生した。`feedback_report_scope_branch.md` に詳細あり。
+
+#### 例外
+
+user が明示的に「worktree を作って」と指示した場合のみ、Agent は worktree を作ってよい。ただしその場合も:
+
+- 作成した worktree path と branch 名を即座に user へ報告する
+- 作業中に「いま自分はどの worktree で動いているか」を Bash 出力 (`pwd`) で毎回確認する
+- merge 完了後は **即座に** `git worktree remove` + `git branch -D` で削除する
+
+#### 代替策
+
+worktree を使う動機の多くは「main を汚さずに作業したい」「コンテキストを隔離したい」だが、これは次で代替できる:
+
+- topic branch (`git switch -c topic`) を main repo 上で切り、commit して merge / rebase する
+- Agent 内では Phase / step 単位で **そのまま main repo に commit する** (ルール 8「失敗を計画へ反映」+ コミット境界を切る)
+- subagent をコンテキスト消費削減目的で使う場合、`isolation` 未指定 (= main repo 上で動作) で起動する
+
 ## 退避資料
 
 旧 full GRAG 版は次に退避している。
