@@ -418,8 +418,6 @@ def test_t_u26_llm_config_scope_is_spec_core_only() -> None:
 
 def test_t_u26_multi_llm_config_selects_explicit_agent_provider() -> None:
     config = {
-        "default_provider": "codex",
-        "fallback_order": ["codex", "claude"],
         "providers": {
             "codex": {
                 "provider": "codex_cli",
@@ -442,18 +440,17 @@ def test_t_u26_multi_llm_config_selects_explicit_agent_provider() -> None:
     assert getattr(provider, "command") == ["claude"]
 
 
-def test_t_u26_multi_llm_config_uses_default_or_env_provider(
+def test_t_u26_multi_llm_config_uses_first_or_env_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = {
-        "default_provider": "codex",
-        "fallback_order": ["codex", "claude"],
         "providers": {
             "codex": {"provider": "codex_cli", "command": "codex"},
             "claude": {"provider": "claude_cli", "command": "claude"},
         },
     }
 
+    # No CLI / env / stage_routing -> first defined provider (codex).
     assert select_llm_provider_config(config)["provider"] == "codex_cli"
     monkeypatch.setenv("SPEC_GRAG_LLM_PROVIDER", "claude")
 

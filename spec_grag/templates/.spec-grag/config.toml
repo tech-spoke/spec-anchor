@@ -22,7 +22,6 @@ enabled = true
 
 # LLM provider 定義。/spec-core が保持物の生成に使う。
 # /spec-inject と /spec-realign の会話解釈・制約生成は Agent 環境が担うため対象外。
-[llm]
 
 [llm.providers.codex]
 provider = "codex_cli"

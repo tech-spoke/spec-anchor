@@ -67,22 +67,19 @@ class LlmProviderConfig:
 
 @dataclass(frozen=True)
 class LlmConfig:
-    # Compatibility view for the selected default provider. New configs should
-    # use default_provider + providers, but existing tests/projects may still
-    # read these fields directly.
+    # Legacy single-provider view. Multi-provider configs expose the first
+    # entry of `providers` here so callers that read these fields directly
+    # still work.
     provider: str
     command: str | None = None
     model: str | None = None
     effort: str | None = None
     timeout_sec: int = 120
     max_retries: int = 1
-    default_provider: str | None = None
-    fallback_order: list[str] = field(default_factory=list)
     providers: dict[str, LlmProviderConfig] = field(default_factory=dict)
-    # Phase H-2: per-stage provider routing. Maps SPEC-grag pipeline stages to
-    # provider names (keys of `providers`). Stages with no entry fall back to
-    # `default_provider`. Allowed stages: section_metadata, related_sections,
-    # conflict_review.
+    # Per-stage provider routing. Maps SPEC-grag pipeline stages to provider
+    # names (keys of `providers`). Allowed stages: section_metadata,
+    # related_sections, conflict_review, chapter_key_anchor.
     stage_routing: dict[str, str] = field(default_factory=dict)
 
 
@@ -403,15 +400,8 @@ def _load_llm(table: dict[str, Any]) -> LlmConfig:
                 raise ConfigError("llm.providers keys must be non-empty strings")
             provider_table = _optional_table(value, f"llm.providers.{name}")
             providers[name] = _load_llm_provider(name, provider_table)
-        fallback_order = _string_list(table, "llm", "fallback_order", [])
-        default_provider = _optional_str(table, "llm", "default_provider")
-        if default_provider is None:
-            default_provider = fallback_order[0] if fallback_order else next(iter(providers))
-        _require_known_llm_provider(default_provider, providers, "llm.default_provider")
-        for provider_name in fallback_order:
-            _require_known_llm_provider(provider_name, providers, "llm.fallback_order")
         stage_routing = _load_stage_routing(table.get("stage_routing"), providers)
-        selected = providers[default_provider]
+        selected = next(iter(providers.values()))
         return LlmConfig(
             provider=selected.provider,
             command=selected.command,
@@ -419,8 +409,6 @@ def _load_llm(table: dict[str, Any]) -> LlmConfig:
             effort=selected.effort,
             timeout_sec=selected.timeout_sec,
             max_retries=selected.max_retries,
-            default_provider=default_provider,
-            fallback_order=fallback_order,
             providers=providers,
             stage_routing=stage_routing,
         )
@@ -448,7 +436,7 @@ def _load_llm_provider(name: str, table: dict[str, Any]) -> LlmProviderConfig:
 
 
 _STAGE_ROUTING_ALLOWED_STAGES = frozenset(
-    {"section_metadata", "related_sections", "conflict_review"}
+    {"section_metadata", "related_sections", "conflict_review", "chapter_key_anchor"}
 )
 
 
@@ -486,20 +474,6 @@ def _require_known_llm_provider(
     if provider_name not in providers:
         known = ", ".join(sorted(providers))
         raise ConfigError(f"{key} must reference a configured provider: {known}")
-
-
-def _string_list(
-    table: dict[str, Any],
-    table_name: str,
-    key: str,
-    default: list[str],
-) -> list[str]:
-    if key not in table:
-        return list(default)
-    value = table[key]
-    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
-        raise ConfigError(f"{table_name}.{key} must be a list of non-empty strings")
-    return list(value)
 
 
 def _load_limits(raw_value: Any) -> LimitsConfig:

@@ -362,7 +362,8 @@ def _run_spec_core_unlocked(
     mode_name = "full" if run_full else "incremental"
     # Phase H-3: resolve a provider per stage so [llm.stage_routing] can target
     # different model/effort tuples for extraction (section_metadata),
-    # classification (related_sections), and judgment (conflict_review).
+    # classification (related_sections), judgment (conflict_review), and
+    # chapter anchor synthesis (chapter_key_anchor).
     metadata_llm_config = _config_with_selected_llm(
         config,
         provider_id=llm_provider_id,
@@ -377,6 +378,11 @@ def _run_spec_core_unlocked(
         config,
         provider_id=llm_provider_id,
         stage="conflict_review",
+    )
+    chapter_anchor_llm_config = _config_with_selected_llm(
+        config,
+        provider_id=llm_provider_id,
+        stage="chapter_key_anchor",
     )
     metadata_provider = _resolve_spec_core_llm_provider(
         metadata_llm_config,
@@ -398,6 +404,13 @@ def _run_spec_core_unlocked(
         llm_provider=llm_provider,
         llm_provider_id=llm_provider_id,
         stage="conflict_review",
+    )
+    chapter_anchor_provider = _resolve_spec_core_llm_provider(
+        chapter_anchor_llm_config,
+        provider=provider,
+        llm_provider=llm_provider,
+        llm_provider_id=llm_provider_id,
+        stage="chapter_key_anchor",
     )
     # Backward-compat aliases for code paths that read these names.
     llm_generation_config = metadata_llm_config
@@ -702,7 +715,7 @@ def _run_spec_core_unlocked(
         metadata_entries,
         generated_at,
         config=config,
-        provider=active_provider,
+        provider=chapter_anchor_provider,
         cache_dir=context_dir / "cache",
         concept_text=concept_text,
         rebuild_all=run_full and not use_cache,

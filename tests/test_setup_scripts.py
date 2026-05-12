@@ -416,7 +416,6 @@ def _assert_agentic_constraint_workflow_text(text: str) -> None:
         "会話区間",
         "search keys",
         "source specs snippet",
-        "section metadata",
         "related sections",
         "chapter key anchor",
         "agentic search",
@@ -949,15 +948,15 @@ def test_t_r12_setup_project_config_is_production_stack_ready(
     config_path = tmp_path / ".spec-grag" / "config.toml"
     parsed = tomllib.loads(config_path.read_text())
 
-    assert parsed["llm"]["default_provider"] == "codex"
-    assert parsed["llm"]["fallback_order"] == ["codex", "claude"]
+    # default_provider / fallback_order / providers.claude (haiku-4-5) は dead settings として削除済み
+    # (stage_routing が 4 stage 全てを明示指定しているのでフォールバック先は不要)
+    assert "default_provider" not in parsed["llm"]
+    assert "fallback_order" not in parsed["llm"]
+    assert "claude" not in parsed["llm"]["providers"]
     # Base provider entries
     assert parsed["llm"]["providers"]["codex"]["provider"] == "codex_cli"
     assert parsed["llm"]["providers"]["codex"]["model"] == "gpt-5.4-mini"
     assert parsed["llm"]["providers"]["codex"]["effort"] == "low"
-    assert parsed["llm"]["providers"]["claude"]["provider"] == "claude_cli"
-    assert parsed["llm"]["providers"]["claude"]["model"] == "claude-haiku-4-5"
-    assert parsed["llm"]["providers"]["claude"]["effort"] == "low"
     # H-4 calibration (doc/CALIBRATION_MODEL_EFFORT.ja.md) で確定した stage 別 provider
     # related_sections と conflict_review は claude-sonnet-4-6 × low (recall 重視)
     assert parsed["llm"]["providers"]["claude_typing"]["provider"] == "claude_cli"
@@ -971,6 +970,7 @@ def test_t_r12_setup_project_config_is_production_stack_ready(
         "section_metadata": "codex",
         "related_sections": "claude_typing",
         "conflict_review": "claude_judge",
+        "chapter_key_anchor": "codex",
     }
     # Phase H follow-up: llm_batch_concurrency must be present and >= 1
     assert parsed["limits"]["llm_batch_concurrency"] >= 1

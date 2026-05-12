@@ -18,6 +18,13 @@ README = REPO_ROOT / "README.md"
 RUNBOOK = REPO_ROOT / "doc" / "RUNBOOK.ja.md"
 DEFAULT_CONFIG = REPO_ROOT / "spec_grag" / "templates" / ".spec-grag" / "config.toml"
 
+import sys
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from spec_grag.config import RunConfig
+
 
 def _readme() -> str:
     return README.read_text(encoding="utf-8")
@@ -229,9 +236,6 @@ def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -
     assert setup_result["status"] == "ok"
     config_path = tmp_path / ".spec-grag" / "config.toml"
     real_llm_block = """\
-default_provider = "codex"
-fallback_order = ["codex", "claude"]
-
 [llm.providers.codex]
 provider = "codex_cli"
 command = "codex"
@@ -240,17 +244,36 @@ effort = "low"
 timeout_sec = 120
 max_retries = 1
 
-[llm.providers.claude]
+[llm.providers.claude_typing]
 provider = "claude_cli"
 command = "claude"
+model = "claude-sonnet-4-6"
 effort = "low"
-timeout_sec = 120
-max_retries = 1"""
+timeout_sec = 360
+max_retries = 1
+
+[llm.providers.claude_judge]
+provider = "claude_cli"
+command = "claude"
+model = "claude-sonnet-4-6"
+effort = "low"
+timeout_sec = 360
+max_retries = 1
+
+# 各 stage がどの provider を使うかを指定する。
+[llm.stage_routing]
+section_metadata   = "codex"
+related_sections   = "claude_typing"
+conflict_review    = "claude_judge"
+chapter_key_anchor = "codex"
+"""
     fake_llm_block = """\
+[llm]
 provider = "fake"
 model = "fake-release-smoke"
 timeout_sec = 5
-max_retries = 0"""
+max_retries = 0
+"""
     config_path.write_text(
         config_path.read_text(encoding="utf-8")
         .replace(
@@ -262,7 +285,7 @@ max_retries = 0"""
             'provider = "fake"\nmodel = "fake-embedding"\ndense_enabled = false\nsparse_enabled = false',
         )
         .replace(
-            'provider = "qdrant"\nurl = "http://localhost:6333"\ncollection = "spec_grag_source"',
+            'provider = "qdrant"\nurl = "http://localhost:6333"',
             'provider = "memory"\ncollection = "spec_grag_release_smoke"',
         ),
         encoding="utf-8",
@@ -322,13 +345,21 @@ max_retries = 0"""
 
 
 def test_t_r05_default_run_artifact_privacy_is_documented_and_configured() -> None:
-    config = tomllib.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
-    run_config = config["run"]
+    # The template ships without [run] (dead settings cleaned up). Privacy defaults
+    # live in RunConfig dataclass; verify they remain privacy-conservative.
+    defaults = RunConfig()
+    assert defaults.save_artifacts is False
+    assert defaults.include_request is False
+    assert defaults.include_response is False
+    assert defaults.redact_payload is True
 
-    assert run_config["save_artifacts"] is False
-    assert run_config["include_request"] is False
-    assert run_config["include_response"] is False
-    assert run_config["redact_payload"] is True
+    # Template must not silently flip the privacy defaults if [run] is reintroduced.
+    config = tomllib.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
+    run_config = config.get("run", {})
+    assert run_config.get("save_artifacts", False) is False
+    assert run_config.get("include_request", False) is False
+    assert run_config.get("include_response", False) is False
+    assert run_config.get("redact_payload", True) is True
 
     runbook = _runbook().lower()
     assert "diagnostics" in runbook

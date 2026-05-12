@@ -1,9 +1,9 @@
 """Phase H-2/H-3: per-stage LLM provider routing.
 
-These tests pin the contract that `[llm.stage_routing]` overrides
-`[llm.default_provider]` per pipeline stage so section_metadata,
-related_sections, and conflict_review can target different model / effort
-tuples without code changes.
+These tests pin the contract that `[llm.stage_routing]` selects a provider
+per pipeline stage so section_metadata, related_sections, conflict_review,
+and chapter_key_anchor can target different model / effort tuples without
+code changes.
 """
 
 from __future__ import annotations
@@ -36,10 +36,6 @@ storage = ".spec-grag/context"
 [section]
 max_heading_level = 4
 
-[llm]
-default_provider = "claude"
-fallback_order = ["claude", "claude_judge"]
-
 [llm.providers.claude]
 provider = "claude_cli"
 command = "claude"
@@ -62,6 +58,7 @@ effort = "medium"
 section_metadata = "claude"
 related_sections = "claude_typing"
 conflict_review = "claude_judge"
+chapter_key_anchor = "claude"
 
 [retrieval]
 chunk_size = 1200
@@ -99,6 +96,7 @@ def test_stage_routing_loaded_into_llm_config(tmp_path: Path) -> None:
         "section_metadata": "claude",
         "related_sections": "claude_typing",
         "conflict_review": "claude_judge",
+        "chapter_key_anchor": "claude",
     }
 
 
@@ -131,27 +129,29 @@ def test_stage_routing_resolves_to_correct_provider() -> None:
         command="claude",
         model="claude-haiku-4-5",
         effort="low",
-        default_provider="claude",
-        fallback_order=["claude"],
         providers=providers,
         stage_routing={
             "section_metadata": "claude",
             "related_sections": "claude_typing",
             "conflict_review": "claude_judge",
+            "chapter_key_anchor": "claude",
         },
     )
     metadata_provider = select_llm_provider_config(config, stage="section_metadata")
     related_provider = select_llm_provider_config(config, stage="related_sections")
     conflict_provider = select_llm_provider_config(config, stage="conflict_review")
+    chapter_anchor_provider = select_llm_provider_config(config, stage="chapter_key_anchor")
     assert metadata_provider.model == "claude-haiku-4-5"
     assert metadata_provider.effort == "low"
     assert related_provider.model == "claude-haiku-4-5"
     assert related_provider.effort == "medium"
     assert conflict_provider.model == "claude-sonnet-4-6"
     assert conflict_provider.effort == "medium"
+    assert chapter_anchor_provider.model == "claude-haiku-4-5"
+    assert chapter_anchor_provider.effort == "low"
 
 
-def test_stage_routing_falls_back_to_default_provider() -> None:
+def test_stage_routing_falls_back_to_first_provider() -> None:
     providers = {
         "claude": LlmProviderConfig(
             name="claude",
@@ -166,8 +166,6 @@ def test_stage_routing_falls_back_to_default_provider() -> None:
         command="claude",
         model="claude-haiku-4-5",
         effort="low",
-        default_provider="claude",
-        fallback_order=["claude"],
         providers=providers,
         stage_routing={},
     )

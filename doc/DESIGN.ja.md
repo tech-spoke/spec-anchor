@@ -199,7 +199,7 @@ status / warning words
 
 `/spec-core` は `[llm.providers.<id>]` 設定の provider / command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、Chapter Key Anchor、conflict 判定を生成・実行する。
 
-Codex 用 skill は `--llm-provider codex`、Claude 用 command は `--llm-provider claude` で provider id を明示する。direct CLI / watcher / 手動実行で provider id が明示されない場合は `[llm].default_provider` を使う。`max_retries` は初回失敗後の追加 retry 回数であり、`max_retries = 1` は最大 2 attempt を意味する。
+Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[llm.stage_routing]` に従って stage 別に provider を選ばせる。direct CLI / watcher / 手動実行も同様で、`--llm-provider` 未指定なら `[llm.stage_routing]` が、`stage_routing` 未指定の stage は `[llm.providers.<id>]` の先頭定義が選ばれる。`--llm-provider` を明示するとその id が全 stage を上書きする。`max_retries` は初回失敗後の追加 retry 回数であり、`max_retries = 1` は最大 2 attempt を意味する。
 
 `[llm]` は `/spec-core` 用である。`/spec-inject` / `/spec-realign` の会話区間解釈、Agentic Search、制約生成、回答生成を担う Agent / LLM はこの設定の対象外である。
 
@@ -209,7 +209,7 @@ Section Summary と Section Search Keys は同一 section に対して同じ LLM
 
 Conflict 判定は Related Sections の LLM Selection 後に実行する別 stage である。Phase E で `relation_hint = conflicts_with` を Related Sections 出力 enum から削除しているので、対象は **`possible_conflict = true` フラグが立った pair** と、高リスク条件に一致して上限内に入った pair に限定する。全 section pair の総当たり LLM 判定は行わない。
 
-stage 単位での model / effort 切替は `[llm.stage_routing]` で指定する。許可される stage key は `section_metadata` / `related_sections` / `conflict_review` の 3 つ。stage_routing で指定された provider が `[llm.providers.<id>]` に存在しない場合、または stage key が許可外の場合は `ConfigError` で reject する。stage_routing 未指定の stage は `default_provider` にフォールバックする。`select_llm_provider_config(stage=...)` の解決優先順は `provider_id (CLI 引数 / env)` → `stage_routing[stage]` → `default_provider` → `fallback_order` の順である。
+stage 単位での model / effort 切替は `[llm.stage_routing]` で指定する。許可される stage key は `section_metadata` / `related_sections` / `conflict_review` / `chapter_key_anchor` の 4 つ。stage_routing で指定された provider が `[llm.providers.<id>]` に存在しない場合、または stage key が許可外の場合は `ConfigError` で reject する。stage_routing 未指定の stage は `[llm.providers.<id>]` の先頭定義へフォールバックする。`select_llm_provider_config(stage=...)` の解決優先順は `provider_id (CLI 引数 / env)` → `stage_routing[stage]` → `[llm.providers.<id>]` の先頭定義の順である。
 
 高リスク pair は、Related Sections として採用されなかった候補も含める。初期条件は、同一 identifier、同一 config / status 名、must / must not / 禁止 / 例外 / required / optional などの衝突語を共有する pair とする。条件に一致した pair は、`conflict_pair_max_per_section` の範囲で conflict 判定 stage に送る。上限で送らなかった pair は diagnostics に残す。
 

@@ -43,10 +43,6 @@ related_sections_enabled = true
 [chapter_anchor]
 enabled = true
 
-[llm]
-default_provider = "codex"
-fallback_order = ["codex", "claude"]
-
 [llm.providers.codex]
 provider = "codex_cli"
 command = "codex"
@@ -206,8 +202,6 @@ def test_t_u05_standard_config_parses_and_resolves_project_relative_paths(
     assert _get(config, "embedding", "model") == "BAAI/bge-m3"
     assert _get(config, "vector_store", "provider") == "qdrant"
     assert _get(config, "llm", "provider") == "codex_cli"
-    assert _get(config, "llm", "default_provider") == "codex"
-    assert _get(config, "llm", "fallback_order") == ["codex", "claude"]
     assert _get(config, "llm", "providers", "codex", "provider") == "codex_cli"
     assert _get(config, "llm", "providers", "claude", "provider") == "claude_cli"
 
@@ -271,8 +265,6 @@ def test_t_u05_legacy_single_llm_provider_config_still_parses(
 @pytest.mark.parametrize(
     ("old", "new", "expected"),
     (
-        ('default_provider = "codex"', 'default_provider = "missing"', "llm.default_provider"),
-        ('fallback_order = ["codex", "claude"]', 'fallback_order = ["missing"]', "llm.fallback_order"),
         ('provider = "codex_cli"\ncommand = "codex"\n', 'command = "codex"\n', "llm.providers.codex.provider"),
     ),
 )

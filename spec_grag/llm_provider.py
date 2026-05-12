@@ -293,8 +293,8 @@ def build_spec_core_llm_provider(
     """Build the provider described by `[llm]` for `/spec-core` only.
 
     When `stage` is supplied (e.g. ``"section_metadata"``), the per-stage
-    routing in `[llm.stage_routing]` overrides `[llm.default_provider]` so each
-    pipeline stage can target a model / effort tuned for its task (Phase H-3).
+    routing in `[llm.stage_routing]` selects the model / effort tuned for that
+    stage. Explicit `provider_id` overrides the routing.
     """
 
     validate_llm_usage_scope(usage_scope)
@@ -343,8 +343,8 @@ def select_llm_provider_config(
 
     New configs may define multiple providers under `[llm.providers.<id>]`.
     Resolution priority: explicit `provider_id` > `SPEC_GRAG_LLM_PROVIDER` env >
-    `[llm.stage_routing].<stage>` > `[llm].default_provider` > first
-    `[llm].fallback_order` entry. Legacy single-provider configs remain valid.
+    `[llm.stage_routing].<stage>` > first entry of `[llm.providers]`. Legacy
+    single-provider configs remain valid.
     """
 
     source = os.environ if env is None else env
@@ -359,19 +359,9 @@ def select_llm_provider_config(
             and isinstance(stage_routing.get(stage), str)
         ):
             stage_provider = stage_routing.get(stage)
-        selected_name = (
-            requested
-            or stage_provider
-            or _config_value(llm_config, "default_provider")
-        )
-        if not selected_name:
-            fallback_order = _config_value(llm_config, "fallback_order")
-            if isinstance(fallback_order, Sequence) and not isinstance(fallback_order, str):
-                selected_name = next((str(item) for item in fallback_order if item), None)
+        selected_name = requested or stage_provider
         if not selected_name:
             selected_name = next(iter(providers))
-        if selected_name == "default":
-            selected_name = _config_value(llm_config, "default_provider") or next(iter(providers))
         selected = providers.get(str(selected_name))
         if selected is None:
             known = ", ".join(sorted(str(name) for name in providers))

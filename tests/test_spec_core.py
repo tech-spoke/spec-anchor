@@ -1136,10 +1136,6 @@ def test_g11_core_can_select_codex_or_claude_from_shared_llm_config(
         config_path.read_text().replace(
             '[llm]\nprovider = "fake"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
             """\
-[llm]
-default_provider = "codex"
-fallback_order = ["codex", "claude"]
-
 [llm.providers.codex]
 provider = "codex_cli"
 command = "codex"
