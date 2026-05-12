@@ -471,9 +471,11 @@ reason
 
 ### 5.4 LLM Selection
 
-LLM は候補 section の heading、summary、search keys、短い snippet、channels を読んで、採用する `related_sections` を選ぶ。
+LLM は候補 section の `heading_path`、`identifiers`、`source_document_id`、本文先頭 480 文字の `short_snippet`、`channels` を読んで、採用する `related_sections` を選ぶ。
 
-LLM 呼び出しは batch 化されており、1 batch に最大 `[limits].llm_batch_max_sections` 件の source section を含める。section_metadata stage と同様、batch payload は `catalog` (重複排除された section descriptor 集合) と `evaluations` (source_section_id + 候補 list の配列) で構成される。
+`catalog` の field は意図的に **Source Specs から決定論的に導ける情報だけ** に絞っている。section_metadata stage が LLM 生成した `summary` / `search_keys` は同一入力でも run 毎に文字列レベルで揺れ、Claude prompt cache の prefix 一致を毎回破壊するため、related_sections の prompt 構築に持ち込まない。`spec-grag core --rebuild` の 2 回目で 90% 以上が `cache_read_input_tokens` に流れる前提は、この catalog 決定論性に依存する。
+
+LLM 呼び出しは batch 化されており、1 batch に最大 `[limits].llm_batch_max_sections` 件の source section を含める。section_metadata stage と同様、batch payload は `catalog` (重複排除された section descriptor 集合) と `evaluations` (source_section_id + 候補 list の配列) で構成される。`evaluations` の候補 score / channel / evidence_terms はすべて mechanical (候補生成側の signal) で、LLM 介入なしに stable。
 
 batch の同時実行は `[limits].llm_batch_concurrency` で制御する:
 

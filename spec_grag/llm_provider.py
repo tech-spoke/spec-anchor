@@ -257,6 +257,12 @@ class SubprocessLlmProvider:
         cleanup_paths: list[Path] = []
         try:
             command, stdin, cleanup_paths = _subprocess_invocation(self.command, request)
+            if (
+                os.environ.get("SPEC_GRAG_DEBUG_PROVIDER_INVOCATION", "").strip().lower()
+                in {"1", "true", "yes", "on"}
+                and request.stage == "related_section_selection"
+            ):
+                _dump_provider_invocation(command, stdin)
             completed = subprocess.run(
                 command,
                 input=stdin,
@@ -414,6 +420,15 @@ def _subprocess_invocation(
         codex_command.append("-")
         return codex_command, _provider_prompt(payload), [Path(schema_path)]
     if executable == "claude" and len(command_args) == 1:
+        # `--exclude-dynamic-system-prompt-sections` moves per-machine sections
+        # (cwd, env info, memory paths, git status) out of the cached system
+        # prompt. Without this flag, every spec-grag core --rebuild rewrites
+        # those sections (especially `git status`) so the Claude prompt cache
+        # entry is invalidated each run, billing the full system prompt as
+        # `cache_creation_input_tokens`. B-1 criterion A (90% cache reuse on
+        # the second run) cannot be met without this flag because spec-grag's
+        # catalog determinism alone does not stabilize Claude Code's own
+        # dynamic system prompt.
         claude_command = [
             command_args[0],
             "--print",
@@ -421,6 +436,7 @@ def _subprocess_invocation(
             request.effort or "low",
             "--no-session-persistence",
             "--disable-slash-commands",
+            "--exclude-dynamic-system-prompt-sections",
             "--tools",
             "",
             "--output-format",
@@ -433,6 +449,39 @@ def _subprocess_invocation(
         claude_command.append(_provider_prompt(payload))
         return claude_command, None, []
     return command_args, payload_json, []
+
+
+def _dump_provider_invocation(command: Sequence[str], stdin: str | None) -> None:
+    """Append the resolved subprocess command + stdin to a debug file.
+
+    Gate: `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION=1`. Used to verify byte-level
+    stability of the actual command Claude / Codex sees across consecutive
+    runs. Writes are best-effort; never raise.
+    """
+
+    path = os.environ.get("SPEC_GRAG_DEBUG_PROVIDER_INVOCATION_PATH", "").strip()
+    target = Path(path) if path else Path(".spec-grag/state/_debug_provider_invocations.jsonl")
+    record = {
+        "timestamp": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "command": list(command),
+        "stdin": stdin,
+        "command_sha256": hashlib.sha256(
+            json.dumps(list(command), ensure_ascii=False).encode("utf-8")
+        ).hexdigest(),
+        "stdin_sha256": (
+            hashlib.sha256((stdin or "").encode("utf-8")).hexdigest()
+            if stdin is not None
+            else None
+        ),
+        "stdin_len": len(stdin) if stdin else 0,
+    }
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False))
+            handle.write("\n")
+    except OSError:
+        return
 
 
 def _subprocess_env(command: Sequence[str]) -> dict[str, str]:
@@ -469,7 +518,13 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
         "You are the SPEC-grag /spec-core generation provider. "
         "Return only one JSON object. No markdown, no prose. "
         f"{output_contract}\n\n"
-        f"Request JSON:\n{json.dumps(dict(payload), ensure_ascii=False, indent=2)}"
+        # `sort_keys=True` is load-bearing: the payload contains dict fields
+        # (notably `section_hashes`) populated from set-based iteration in the
+        # caller, so dict insertion order can differ between processes due to
+        # Python hash randomization. Without sorting, the resulting prompt
+        # bytes differ between consecutive `spec-grag core --rebuild` runs and
+        # the Claude prompt cache is invalidated (B-1 criterion A).
+        f"Request JSON:\n{json.dumps(dict(payload), ensure_ascii=False, indent=2, sort_keys=True)}"
     )
 
 

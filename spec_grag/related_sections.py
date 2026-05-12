@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
@@ -1666,6 +1667,21 @@ def _build_selection_request(
         sort_keys=True,
         separators=(",", ":"),
     )
+    _log_related_prompt_debug(
+        request_kind="single_source",
+        payload=payload,
+        prompt=prompt,
+        primary_section_id=source.source_section_id,
+        batch_source_ids=[source.source_section_id],
+        involved_section_ids=[
+            source.source_section_id,
+            *(
+                str(candidate["target_section_id"])
+                for candidate in candidates
+                if str(candidate.get("target_section_id", "")) in records_by_id
+            ),
+        ],
+    )
     section_hashes = {
         source.source_section_id: source.source_hash,
         **{
@@ -1725,18 +1741,31 @@ def _build_selection_request(
     )
 
 
+_RELATED_SNIPPET_MAX_CHARS = 480
+_RELATED_IDENTIFIERS_MAX = 16
+
+
 def _selection_section_payload(
     record: _SectionRecord,
     metadata_by_id: Mapping[str, _MetadataRecord],
 ) -> dict[str, Any]:
+    """Section descriptor for the single-source LLM selection prompt.
+
+    Composed of fields that are deterministic from Source Specs alone
+    (heading path, mechanically extracted identifiers, source document id, and
+    the leading N chars of the section body). LLM-generated metadata
+    (`section_metadata` stage's summary / search_keys) is intentionally
+    excluded: those drift run-to-run and would invalidate the Claude prompt
+    cache between consecutive runs (B-1).
+    """
+
     metadata = _metadata_for(record, metadata_by_id)
     return {
         "source_section_id": record.source_section_id,
         "heading_path": record.heading_path,
-        "summary": metadata.summary,
-        "search_keys": metadata.search_keys[:16],
-        "identifiers": metadata.identifiers[:16],
-        "snippet": _short_text(record.text, 320),
+        "identifiers": metadata.identifiers[:_RELATED_IDENTIFIERS_MAX],
+        "source_document_id": record.source_document_id,
+        "snippet": _short_text(record.text, _RELATED_SNIPPET_MAX_CHARS),
     }
 
 
@@ -1746,18 +1775,19 @@ def _catalog_entry(
 ) -> dict[str, Any]:
     """Compact section descriptor used in batch LLM catalogs.
 
-    Includes heading_path / summary / search_keys / identifiers / short snippet
-    / source_document_id (per Phase D plan rule 4) so the LLM can classify
-    relation type without needing the full section text.
+    Deterministic-by-construction: every field is derived from Source Specs
+    parsing (heading path, source document id, body excerpt) or mechanical
+    identifier extraction. `section_metadata` LLM output (summary /
+    search_keys) is excluded so the catalog SHA-256 stays stable across runs
+    and the Claude prompt cache hits on consecutive `--rebuild` invocations
+    (B-1).
     """
 
     metadata = _metadata_for(record, metadata_by_id)
     return {
         "heading_path": record.heading_path,
-        "summary": metadata.summary,
-        "search_keys": metadata.search_keys[:8],
-        "identifiers": metadata.identifiers[:8],
-        "short_snippet": _short_text(record.text, 160),
+        "identifiers": metadata.identifiers[:_RELATED_IDENTIFIERS_MAX],
+        "short_snippet": _short_text(record.text, _RELATED_SNIPPET_MAX_CHARS),
         "source_document_id": record.source_document_id,
     }
 
@@ -1865,10 +1895,18 @@ def _build_batch_selection_request(
         sort_keys=True,
         separators=(",", ":"),
     )
+    _log_related_prompt_debug(
+        request_kind="batch",
+        payload=payload,
+        prompt=prompt,
+        primary_section_id=sources[0].source_section_id if sources else "",
+        batch_source_ids=[source.source_section_id for source in sources],
+        involved_section_ids=list(involved_ids),
+    )
 
     section_hashes = {
         section_id: records_by_id[section_id].source_hash
-        for section_id in involved_ids
+        for section_id in sorted(involved_ids)
         if section_id in records_by_id
     }
     source_hash = _sha256_text(
@@ -2455,6 +2493,108 @@ def _sha256_text(value: str) -> str:
 
 def _stable_json(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+_RELATED_PROMPT_DEBUG_ENV = "SPEC_GRAG_DEBUG_RELATED_PROMPT"
+_RELATED_PROMPT_DEBUG_PATH_ENV = "SPEC_GRAG_DEBUG_RELATED_PROMPT_PATH"
+_DEFAULT_RELATED_PROMPT_DEBUG_PATH = Path(".spec-grag/state/_debug_related_prompts.jsonl")
+
+
+def _related_prompt_debug_path() -> Path | None:
+    """Return the JSONL destination for the related_sections prompt debug log.
+
+    Activation rule: writing only happens when `SPEC_GRAG_DEBUG_RELATED_PROMPT`
+    is set to a truthy value ("1" / "true" / "yes"). The override path env var
+    `SPEC_GRAG_DEBUG_RELATED_PROMPT_PATH` (if set) wins; otherwise the file is
+    placed at `<cwd>/.spec-grag/state/_debug_related_prompts.jsonl`. The CLI
+    always runs `spec-grag core` from the project root, so cwd-relative is
+    consistent with the rest of the state layout (`.spec-grag/state/`).
+    """
+
+    flag = os.environ.get(_RELATED_PROMPT_DEBUG_ENV, "").strip().lower()
+    if flag not in {"1", "true", "yes", "on"}:
+        return None
+    override = os.environ.get(_RELATED_PROMPT_DEBUG_PATH_ENV, "").strip()
+    if override:
+        return Path(override)
+    return _DEFAULT_RELATED_PROMPT_DEBUG_PATH
+
+
+def _log_related_prompt_debug(
+    *,
+    request_kind: str,
+    payload: Mapping[str, Any],
+    prompt: str,
+    primary_section_id: str,
+    batch_source_ids: Sequence[str],
+    involved_section_ids: Sequence[str],
+) -> None:
+    """Append a per-prompt hash record to the related_sections debug JSONL.
+
+    No-op when `SPEC_GRAG_DEBUG_RELATED_PROMPT` is unset / falsy. Errors during
+    write are swallowed to avoid disturbing the production run that owns the
+    LLM call — the debug log is observational only and not on the success path.
+    """
+
+    target = _related_prompt_debug_path()
+    if target is None:
+        return
+    catalog_obj = payload.get("catalog")
+    evaluations_obj = payload.get("evaluations")
+    candidates_obj = payload.get("candidates")
+    source_section_obj = payload.get("source_section")
+    catalog_keys = (
+        sorted({key for entry in catalog_obj.values() if isinstance(entry, Mapping) for key in entry.keys()})
+        if isinstance(catalog_obj, Mapping)
+        else []
+    )
+    record = {
+        "timestamp": _now(),
+        "request_kind": request_kind,
+        "prompt_full_sha256": _sha256_text(prompt),
+        "prompt_len": len(prompt),
+        "primary_section_id": primary_section_id,
+        "batch_source_ids": list(batch_source_ids),
+        "involved_section_ids": sorted(set(involved_section_ids)),
+        "catalog_size": (
+            len(catalog_obj) if isinstance(catalog_obj, Mapping) else None
+        ),
+        "catalog_entry_keys": catalog_keys,
+        "catalog_sha256": (
+            _sha256_text(_stable_json(catalog_obj))
+            if isinstance(catalog_obj, Mapping)
+            else None
+        ),
+        "evaluations_sha256": (
+            _sha256_text(
+                _stable_json({"evaluations": list(evaluations_obj)})
+            )
+            if isinstance(evaluations_obj, Sequence)
+            and not isinstance(evaluations_obj, (str, bytes))
+            else None
+        ),
+        "candidates_sha256": (
+            _sha256_text(
+                _stable_json({"candidates": list(candidates_obj)})
+            )
+            if isinstance(candidates_obj, Sequence)
+            and not isinstance(candidates_obj, (str, bytes))
+            else None
+        ),
+        "source_section_sha256": (
+            _sha256_text(_stable_json(source_section_obj))
+            if isinstance(source_section_obj, Mapping)
+            else None
+        ),
+    }
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True))
+            handle.write("\n")
+    except OSError:
+        # Debug instrumentation must never block the run.
+        return
 
 
 def _now() -> str:
