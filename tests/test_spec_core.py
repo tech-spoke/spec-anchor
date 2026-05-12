@@ -242,10 +242,7 @@ def _write_real_provider_project(
     collection: str,
     qdrant_url: str,
 ) -> None:
-    command = os.environ.get(
-        "SPEC_GRAG_REAL_PROVIDER_COMMAND",
-        os.environ.get("SPEC_GRAG_REAL_PROVIDER_COMMAND", "codex"),
-    )
+    command = "codex"
     (project_root / ".spec-grag").mkdir(parents=True)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
@@ -1192,9 +1189,7 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
         )
     )
     core_module = _core_module()
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
     calls: list[Any] = []
 
     def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -1224,9 +1219,7 @@ def test_t_r12_configured_real_provider_is_default_without_smoke_env(
 ) -> None:
     from spec_grag.llm_provider import build_spec_core_llm_provider
 
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
 
     provider = build_spec_core_llm_provider(
         {
@@ -1349,8 +1342,7 @@ def test_t_r12_standard_qdrant_retrieval_is_default_without_smoke_env(
             },
         }
 
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
     monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
     core_module = _core_module()
     monkeypatch.setattr(
@@ -1402,7 +1394,7 @@ def test_t_r15_retrieval_failure_diagnostics_distinguish_required_categories(
             '[vector_store]\nprovider = "qdrant"\nurl = "http://127.0.0.1:65535"\ncollection = "spec_grag_failure"\n',
         )
     )
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
 
     core_module = _core_module()
 
@@ -1495,9 +1487,8 @@ def test_t_r12_production_core_uses_real_provider_and_retrieval_without_smoke_en
     from spec_grag.realign import run_spec_realign
     from spec_grag.retrieval_index import qdrant_hybrid_retrieve
 
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
     monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
 
     project_root = tmp_path / "production-core-provider"

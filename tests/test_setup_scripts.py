@@ -10,7 +10,6 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
-import os
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -19,14 +18,6 @@ import pytest
 
 
 COMMAND_NAMES = ("spec-core.md", "spec-inject.md", "spec-realign.md")
-
-
-@pytest.fixture(autouse=True)
-def isolated_codex_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(
-        "CODEX_HOME",
-        str(tmp_path.parent / f"{tmp_path.name}-codex-home"),
-    )
 
 
 def _call_flexible(func: Any, **kwargs: Any) -> Any:
@@ -70,7 +61,6 @@ def _run_project_setup(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
-    codex_install: str = "user",
 ) -> Any:
     for module_name in ("spec_grag.setup", "spec_grag.cli"):
         try:
@@ -92,8 +82,6 @@ def _run_project_setup(
                     str(target),
                     "--agent",
                     agent,
-                    "--codex-install",
-                    codex_install,
                 ]
                 if dry_run:
                     argv.append("--dry-run")
@@ -113,7 +101,6 @@ def _run_project_setup(
                 force=force,
                 no_init_core_files=no_init_core_files,
                 init_core_files=not no_init_core_files,
-                codex_install=codex_install,
             )
     pytest.fail("Project setup public API is required")
 
@@ -178,33 +165,25 @@ def _config_core_paths(root: Path) -> tuple[Path, Path]:
     return root / core["purpose_file"], root / core["concept_file"]
 
 
-def _codex_user_skill_path() -> Path:
-    return Path(os.environ["CODEX_HOME"]) / "skills" / "spec-grag" / "SKILL.md"
-
-
 def _codex_project_skill_path(root: Path) -> Path:
     return root / ".codex" / "skills" / "spec-grag" / "SKILL.md"
 
 
 @pytest.mark.parametrize(
-    ("agent", "codex_install", "expect_claude", "expect_user_skill", "expect_project_skill"),
+    ("agent", "expect_claude", "expect_codex_skill"),
     (
-        ("codex", "user", False, True, False),
-        ("codex", "project", False, False, True),
-        ("claude", "user", True, False, False),
-        ("both", "user", True, True, False),
-        ("both", "project", True, False, True),
+        ("codex", False, True),
+        ("claude", True, False),
+        ("both", True, True),
     ),
 )
 def test_t_s01_project_setup_creates_agent_specific_files(
     tmp_path: Path,
     agent: str,
-    codex_install: str,
     expect_claude: bool,
-    expect_user_skill: bool,
-    expect_project_skill: bool,
+    expect_codex_skill: bool,
 ) -> None:
-    result = _run_project_setup(tmp_path, agent=agent, codex_install=codex_install)
+    result = _run_project_setup(tmp_path, agent=agent)
 
     _assert_success(result)
     assert (tmp_path / ".spec-grag" / "config.toml").is_file()
@@ -212,8 +191,7 @@ def test_t_s01_project_setup_creates_agent_specific_files(
     for command_name in COMMAND_NAMES:
         assert (tmp_path / ".claude" / "commands" / command_name).is_file() is expect_claude
 
-    assert _codex_user_skill_path().is_file() is expect_user_skill
-    assert _codex_project_skill_path(tmp_path).is_file() is expect_project_skill
+    assert _codex_project_skill_path(tmp_path).is_file() is expect_codex_skill
     assert not (tmp_path / ".codex" / "commands").exists()
 
 
@@ -274,8 +252,8 @@ def test_t_s01_dry_run_does_not_modify_target(tmp_path: Path) -> None:
 
     _assert_success(result)
     assert _project_files(tmp_path) == before
-    assert "$CODEX_HOME/skills/spec-grag/SKILL.md" in set(result.get("created", ()))
-    assert result.get("codex_install_path") == "$CODEX_HOME"
+    assert ".codex/skills/spec-grag/SKILL.md" in set(result.get("created", ()))
+    assert result.get("codex_skill_path") == ".codex/skills/spec-grag/SKILL.md"
 
 
 def test_t_s01_project_setup_rejects_missing_target(tmp_path: Path) -> None:
@@ -381,12 +359,12 @@ def test_t_s01_project_gitignore_contains_runtime_state_paths(tmp_path: Path) ->
     _assert_success(_run_project_setup(tmp_path))
 
     ignore_text = (tmp_path / ".spec-grag" / ".gitignore").read_text()
-    for ignored in ("context/", "pending/", "cache/", "state/", "tmp/", "runs/"):
+    for ignored in ("context/", "cache/", "state/"):
         assert ignored in ignore_text
 
 
 def test_t_c01_spec_inject_template_matches_agent_cli_boundary(tmp_path: Path) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     for text in (
         (tmp_path / ".claude" / "commands" / "spec-inject.md").read_text(),
@@ -491,7 +469,7 @@ def _constraints_json_block(text: str) -> str:
 def test_t_c01_inject_templates_define_agent_generated_constraints_workflow(
     tmp_path: Path,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     for text in (
         (tmp_path / ".claude" / "commands" / "spec-inject.md").read_text(),
@@ -504,7 +482,7 @@ def test_t_c01_inject_templates_define_agent_generated_constraints_workflow(
 def test_t_c01_realign_templates_define_answer_generation_and_validation_workflow(
     tmp_path: Path,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     for text in (
         (tmp_path / ".claude" / "commands" / "spec-realign.md").read_text(),
@@ -518,7 +496,7 @@ def test_t_c01_realign_templates_define_answer_generation_and_validation_workflo
 def test_t_c01_command_and_skill_templates_are_japanese_prose(
     tmp_path: Path,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     paths = [
         tmp_path / ".claude" / "commands" / "spec-core.md",
@@ -539,7 +517,7 @@ def test_t_c01_command_and_skill_templates_are_japanese_prose(
 def test_t_c01_agent_core_entrypoints_select_their_own_llm_provider(
     tmp_path: Path,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     claude_core = (tmp_path / ".claude" / "commands" / "spec-core.md").read_text()
     codex_skill = _codex_project_skill_path(tmp_path).read_text()
@@ -553,7 +531,7 @@ def test_t_c01_agent_core_entrypoints_select_their_own_llm_provider(
 def test_t_c01_constraints_json_block_is_shared_across_agent_templates(
     tmp_path: Path,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     skill_block = _constraints_json_block(_codex_project_skill_path(tmp_path).read_text())
     inject_block = _constraints_json_block(
@@ -603,7 +581,7 @@ def test_t_c01_inject_and_realign_metadata_do_not_allow_spec_core(
     tmp_path: Path,
     command_name: str,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="both", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="both"))
 
     text = (tmp_path / ".claude" / "commands" / command_name).read_text()
     metadata = _front_matter(text)
@@ -618,7 +596,7 @@ def test_t_c01_inject_and_realign_metadata_do_not_allow_spec_core(
 def test_t_c01_codex_skill_has_required_frontmatter_and_no_command_dir(
     tmp_path: Path,
 ) -> None:
-    _assert_success(_run_project_setup(tmp_path, agent="codex", codex_install="project"))
+    _assert_success(_run_project_setup(tmp_path, agent="codex"))
 
     skill_path = _codex_project_skill_path(tmp_path)
     text = skill_path.read_text()
@@ -637,47 +615,6 @@ def test_t_c01_codex_skill_has_required_frontmatter_and_no_command_dir(
     assert "related sections" in lower
     assert "sole evidence" in lower
     assert not (tmp_path / ".codex" / "commands").exists()
-
-
-def test_t_s01_codex_user_install_requires_force_for_existing_skill(
-    tmp_path: Path,
-) -> None:
-    skill_path = _codex_user_skill_path()
-    skill_path.parent.mkdir(parents=True)
-    skill_path.write_text("human-owned skill\n")
-
-    result = _run_project_setup(
-        tmp_path,
-        agent="codex",
-        codex_install="user",
-        force=False,
-    )
-
-    assert _result_code(result) != 0
-    assert result["status"] == "conflict"
-    assert skill_path.read_text() == "human-owned skill\n"
-    assert "would_overwrite_existing_codex_user_skill" in json.dumps(result)
-
-
-def test_t_s01_codex_user_install_force_updates_existing_skill(
-    tmp_path: Path,
-) -> None:
-    skill_path = _codex_user_skill_path()
-    skill_path.parent.mkdir(parents=True)
-    skill_path.write_text("human-owned skill\n")
-
-    result = _run_project_setup(
-        tmp_path,
-        agent="codex",
-        codex_install="user",
-        force=True,
-    )
-
-    _assert_success(result)
-    assert "name: spec-grag" in skill_path.read_text()
-    diagnostics = json.dumps(result.get("diagnostics", []))
-    assert "codex_user_skill_overwrite" in diagnostics
-    assert "$CODEX_HOME/skills/spec-grag/SKILL.md" in diagnostics
 
 
 def test_t_s01_no_init_core_files_with_existing_core_files_has_no_misleading_warning(
@@ -865,9 +802,8 @@ def test_t_r11_setup_system_reports_production_readiness_dependencies_without_en
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
     monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
 
     payload = _run_system_setup(check_only=True, run_smoke=False)
@@ -922,9 +858,8 @@ def test_t_r11_setup_system_does_not_require_real_operation_gate_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
 
     payload = _run_system_setup(check_only=True, run_smoke=False)
 

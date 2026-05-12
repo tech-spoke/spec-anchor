@@ -1,14 +1,8 @@
 /context/
-/pending/
 /cache/
 /state/
-/tmp/
-/runs/
 
 # Equivalent root .gitignore patterns:
 .spec-grag/context/
-.spec-grag/pending/
 .spec-grag/cache/
 .spec-grag/state/
-.spec-grag/tmp/
-.spec-grag/runs/

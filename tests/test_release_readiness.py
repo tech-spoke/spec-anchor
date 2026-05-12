@@ -171,15 +171,15 @@ def test_t_r01_root_source_tests_and_docs_do_not_depend_on_archive_or_doc_new() 
         assert "doc-new" not in doc_file.read_text(encoding="utf-8").lower()
 
 
-def test_t_r02_setup_generated_config_excludes_archive(tmp_path: Path) -> None:
+def test_t_r02_setup_generated_config_excludes_drafts(tmp_path: Path) -> None:
     from spec_grag.project_setup import setup_project
 
-    result = setup_project(tmp_path, agent="codex", codex_install="project")
+    result = setup_project(tmp_path, agent="codex")
 
     assert result["status"] == "ok"
     generated_config = tomllib.loads((tmp_path / ".spec-grag" / "config.toml").read_text(encoding="utf-8"))
     excludes = generated_config["sources"]["exclude"]
-    assert "archive/**" in excludes
+    assert excludes == ["**/drafts/**"]
 
 
 def test_t_r03_external_dependency_tests_are_skipped_only_by_pytest_option() -> None:
@@ -215,7 +215,7 @@ def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -
     assert help_result.returncode == 0, help_result.stderr or help_result.stdout
     assert "usage" in help_result.stdout.lower()
 
-    setup_result = setup_project(tmp_path, agent="codex", codex_install="project")
+    setup_result = setup_project(tmp_path, agent="codex")
     assert setup_result["status"] == "ok"
     config_path = tmp_path / ".spec-grag" / "config.toml"
     real_llm_block = """\

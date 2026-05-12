@@ -19,7 +19,6 @@ def setup_project(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
-    codex_install: str = "user",
 ) -> dict[str, Any]:
     return _setup_project(
         target,
@@ -27,7 +26,6 @@ def setup_project(
         dry_run=dry_run,
         force=force,
         no_init_core_files=no_init_core_files,
-        codex_install=codex_install,
     )
 
 
@@ -38,7 +36,6 @@ def run_setup_project(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
-    codex_install: str = "user",
 ) -> dict[str, Any]:
     return setup_project(
         target,
@@ -46,7 +43,6 @@ def run_setup_project(
         dry_run=dry_run,
         force=force,
         no_init_core_files=no_init_core_files,
-        codex_install=codex_install,
     )
 
 

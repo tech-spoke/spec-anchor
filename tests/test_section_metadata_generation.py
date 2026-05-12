@@ -257,9 +257,7 @@ def test_section_metadata_configured_provider_runs_without_env_gate_and_reports_
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = importlib.import_module("spec_grag.section_metadata")
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:

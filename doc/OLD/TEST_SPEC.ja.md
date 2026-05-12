@@ -651,9 +651,8 @@ Decision payload の異常系:
 | 8 | [x] | 外部依存 test の timeout 未指定 | 5 秒固定にせず、通常 `[llm.providers.<id>].timeout_sec` と同等の 120 秒を既定にする |
 | 9 | [x] | `[llm.providers.codex]` / `[llm.providers.claude]` を持つ config で `--llm-provider claude` を指定 | Claude provider 定義を使い、Codex provider を使わない |
 | 10 | [x] | `--llm-provider` 未指定かつ `[llm.stage_routing]` も未指定 | `[llm.providers.<id>]` の先頭定義を使う |
-| 11 | [x] | `SPEC_GRAG_LLM_PROVIDER=claude` | explicit CLI 指定が無い場合に Claude provider 定義を使う |
-| 12 | [x] | 未定義 provider id を指定 | エラー diagnostics を返し、別 provider へ silent fallback しない |
-| 13 | [x] | `max_retries = 1` | 初回失敗後の追加 retry 回数として扱い、最大 attempt 数は 2 になる |
+| 11 | [x] | 未定義 provider id を指定 | エラー diagnostics を返し、別 provider へ silent fallback しない |
+| 12 | [x] | `max_retries = 1` | 初回失敗後の追加 retry 回数として扱い、最大 attempt 数は 2 になる |
 
 ## 4. Integration テスト
 
@@ -1097,7 +1096,7 @@ Decision payload の異常系:
 
 ### T-S01: Project Setup Script
 
-根拠: 外部設計 §5.1、§5.2.1、§11
+根拠: 外部設計 §5.1、§5.2.2、§11
 
 - 状態: [x]
 
@@ -1123,7 +1122,7 @@ Decision payload の異常系:
 
 ### T-S02: System Setup Script
 
-根拠: 外部設計 §5.2.2、§11
+根拠: 外部設計 §5.2.1、§11
 
 - 状態: [x]
 
@@ -1141,7 +1140,7 @@ Decision payload の異常系:
 
 ### T-C01: Agent 別 入口（command / skill）配置と内容
 
-根拠: 外部設計 §5.1、§5.2.1、§10.2
+根拠: 外部設計 §5.1、§5.2.2
 
 - 状態: [x]
 
@@ -1338,7 +1337,7 @@ Codex 用 skill の配置と内容:
 
 ### T-R06: Real Qdrant / BGE-M3 roundtrip
 
-根拠: 実装計画 §5.17、外部設計 §10.3、内部設計 §4
+根拠: 実装計画 §5.17、外部設計 §10.2、内部設計 §4
 
 - 状態: [x]
 
@@ -1613,8 +1612,9 @@ tests/fixtures/
 | §5 コマンド表 — 回答生成しない/する | T-U17, T-E04 |
 | §5.1 Agent 別 command / skill 入口（形式と配置先） | T-S01, T-C01, T-A01 |
 | §5.1 command / skill template の手順契約 | T-I18, T-C01, T-A01 |
-| §5.2.1 Project Setup Script | T-S01, T-A02 |
-| §5.2.2 System Setup Script | T-S02, T-A01 (#9) |
+| §5.2.1 System Setup Script | T-S02, T-A01 (#9) |
+| §5.2.2 Project Setup Script | T-S01, T-A02 |
+| §5.2.2 配置例（Agent 別非対称配置） | T-S01, T-C01 |
 | §6.1 設定ファイル配置 | T-U05, T-U06 |
 | §6.2 Context Freshness — status/blocking_reasons | T-U03, T-U04 |
 | §6.2 Context Freshness — gate 動作 | T-U04, T-U18 |
@@ -1641,7 +1641,6 @@ tests/fixtures/
 | §10.1 設定項目 — 必須キー | T-U05 |
 | §10.1 設定項目 — limits | T-U19 |
 | §10.1 設定項目 — デフォルト値 | T-U05 (#8-14) |
-| §10.2 配置例（Agent 別非対称配置） | T-S01, T-C01 |
 | §10.3 .gitignore 推奨設定 | T-S01 (#15) |
 | §11 エラー契約 | T-U04, T-U06, T-I07, T-I09, T-I10, T-S01, T-S02, T-A01 (#9) |
 | §11 watcher CLI オプション | T-I11 |

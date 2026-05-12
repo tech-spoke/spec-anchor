@@ -244,12 +244,6 @@ def build_setup_project_parser() -> argparse.ArgumentParser:
         default="both",
         help="Agent entrypoint target",
     )
-    parser.add_argument(
-        "--codex-install",
-        choices=("user", "project"),
-        default="user",
-        help="Codex skill install location: user uses CODEX_HOME or ~/.codex, project uses <target>/.codex",
-    )
     parser.add_argument("--dry-run", action="store_true", help="show changes only")
     parser.add_argument("--force", action="store_true", help="overwrite managed files")
     parser.add_argument(
@@ -659,7 +653,6 @@ def setup_project_main(argv: Sequence[str] | None = None) -> int:
         dry_run=args.dry_run,
         force=args.force,
         no_init_core_files=args.no_init_core_files,
-        codex_install=args.codex_install,
     )
     print(dumps_result(result))
     return result_exit_code(result)

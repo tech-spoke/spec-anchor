@@ -197,9 +197,9 @@ status / warning words
 
 ### 3.4 LLM Generation Policy
 
-`/spec-core` は `[llm.providers.<id>]` 設定の command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、Chapter Key Anchor、conflict 判定を生成・実行する。`SPEC_GRAG_FAKE_PROVIDER` env var が truthy のときは provider 設定を無視して in-process FakeLlmProvider を使う (test / smoke 専用)。
+`/spec-core` は `[llm.providers.<id>]` 設定の command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、Chapter Key Anchor、conflict 判定を生成・実行する。`SPEC_GRAG_FAKE_LLM` env var が truthy のときは provider 設定を無視して in-process FakeLlmProvider を使う (test / smoke 専用)。`SPEC_GRAG_FAKE_RETRIEVAL` が truthy のときは Qdrant + FlagEmbedding の実構築を block する (`allow_real_provider=True` 経路を除く)。
 
-Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[llm.stage_routing]` に従って stage 別に provider を選ばせる。direct CLI / watcher / 手動実行も同様で、`--llm-provider` 未指定なら `[llm.stage_routing]` が、`stage_routing` 未指定の stage は `[llm.providers.<id>]` の先頭定義が選ばれる。`--llm-provider` を明示するとその id が全 stage を上書きする。`max_retries` は初回失敗後の追加 retry 回数であり、`max_retries = 1` は最大 2 attempt を意味する。
+Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[llm.stage_routing]` に従って stage 別に provider を選ばせる。direct CLI / watcher / 手動実行も同様で、`--llm-provider` 未指定なら `[llm.stage_routing]` が、`stage_routing` 未指定の stage は `[llm.providers.<id>]` の先頭定義が選ばれる。`--llm-provider` を明示するとその id が全 stage を上書きする。`max_retries` は CLI subprocess 1 stage 呼び出しが失敗したときの追加 retry 回数で、`max_retries = 1` は最大 attempt 数 2 (初回 + retry) を意味する。
 
 `[llm]` は `/spec-core` 用である。`/spec-inject` / `/spec-realign` の会話区間解釈、Agentic Search、制約生成、回答生成を担う Agent / LLM はこの設定の対象外である。
 

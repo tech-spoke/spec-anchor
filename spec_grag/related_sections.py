@@ -616,7 +616,7 @@ def select_related_sections_result(
         )
         return batch_sources, batch_candidates_by_source, result
 
-    concurrency = max(1, int(getattr(limits_config, "llm_batch_concurrency", 1) or 1))
+    concurrency = max(1, int(getattr(limits_config, "llm_batch_concurrency", 4) or 4))
     if concurrency > 1 and len(batches) > 1:
         with ThreadPoolExecutor(max_workers=concurrency) as ex:
             batch_outputs = list(ex.map(_run_related_batch, batches))
@@ -2361,7 +2361,7 @@ def _limits(value: Any | None) -> LimitsConfig:
         ),
         llm_batch_concurrency=max(
             1,
-            int(_config_value(value, "llm_batch_concurrency", 1)),
+            int(_config_value(value, "llm_batch_concurrency", 4)),
         ),
     )
 

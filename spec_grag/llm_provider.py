@@ -15,10 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 
-REAL_PROVIDER_ENV = "SPEC_GRAG_REAL_PROVIDER"
-REAL_SMOKE_ENV = "SPEC_GRAG_REAL_SMOKE"
-LLM_PROVIDER_ENV = "SPEC_GRAG_LLM_PROVIDER"
-FAKE_PROVIDER_ENV = "SPEC_GRAG_FAKE_PROVIDER"
+FAKE_LLM_ENV = "SPEC_GRAG_FAKE_LLM"
 SPEC_CORE_SCOPE = "/spec-core"
 TRUE_VALUES = {"1", "true", "yes", "on"}
 DEFAULT_METADATA_VERSION = 1
@@ -297,14 +294,14 @@ def build_spec_core_llm_provider(
     routing in `[llm.stage_routing]` selects the model / effort tuned for that
     stage. Explicit `provider_id` overrides the routing.
 
-    If the env var `SPEC_GRAG_FAKE_PROVIDER` is truthy (1 / true / yes / on),
+    If the env var `SPEC_GRAG_FAKE_LLM` is truthy (1 / true / yes / on),
     return the in-process FakeLlmProvider regardless of `[llm.providers]`
     contents. Used for tests / smoke runs that must not spawn real CLIs.
     """
 
     validate_llm_usage_scope(usage_scope)
     source = os.environ if env is None else env
-    if source.get(FAKE_PROVIDER_ENV, "").lower() in TRUE_VALUES:
+    if source.get(FAKE_LLM_ENV, "").lower() in TRUE_VALUES:
         return FakeLlmProvider()
 
     selected_config = select_llm_provider_config(
@@ -334,7 +331,7 @@ def select_llm_provider_config(
 ) -> Any:
     """Select one configured `/spec-core` LLM provider.
 
-    Resolution priority: explicit `provider_id` > `SPEC_GRAG_LLM_PROVIDER` env >
+    Resolution priority: explicit `provider_id` (CLI `--llm-provider`) >
     `[llm.stage_routing].<stage>` > first entry of `[llm.providers]`.
 
     If `llm_config` has no `providers` key (already a single-provider mapping,
@@ -342,8 +339,8 @@ def select_llm_provider_config(
     it is returned as-is.
     """
 
-    source = os.environ if env is None else env
-    requested = _first_non_empty(provider_id, source.get(LLM_PROVIDER_ENV))
+    del env  # env-based provider id override removed; CLI --llm-provider is the only override
+    requested = provider_id
     providers = _config_value(llm_config, "providers")
     if not isinstance(providers, Mapping) or not providers:
         return llm_config
@@ -374,18 +371,6 @@ def validate_llm_usage_scope(scope: str) -> str:
         f"[llm] is only for {SPEC_CORE_SCOPE}; Agent-side LLM work for "
         f"/spec-inject and /spec-realign must use the external Agent environment, "
         f"not the /spec-core provider. got: {scope}"
-    )
-
-
-def real_smoke_opt_in_enabled(env: Mapping[str, str] | None = None) -> bool:
-    return real_provider_enabled(env)
-
-
-def real_provider_enabled(env: Mapping[str, str] | None = None) -> bool:
-    source = os.environ if env is None else env
-    return any(
-        source.get(name, "").strip().lower() in TRUE_VALUES
-        for name in (REAL_PROVIDER_ENV, REAL_SMOKE_ENV)
     )
 
 
@@ -1155,13 +1140,6 @@ def _config_value(config: Any, key: str) -> Any:
     if isinstance(config, Mapping):
         return config.get(key)
     return getattr(config, key, None)
-
-
-def _first_non_empty(*values: Any) -> str | None:
-    for value in values:
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return None
 
 
 def _command_args(command: Any) -> list[str]:

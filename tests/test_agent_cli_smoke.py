@@ -87,14 +87,12 @@ def _setup_project(
     project_root: Path,
     *,
     agent: str,
-    codex_install: str = "project",
 ) -> dict[str, Any]:
     from spec_grag.project_setup import setup_project
 
     result = setup_project(
         project_root,
         agent=agent,
-        codex_install=codex_install,
         force=True,
         no_init_core_files=False,
     )
@@ -158,28 +156,6 @@ def _first_section_id(project_root: Path) -> str:
 
 
 @pytest.mark.external
-def test_t_a01_codex_user_skill_is_visible_in_prompt_input(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    codex = _command_from_env("SPEC_GRAG_AGENT_CLI_CODEX_COMMAND", "codex")
-    codex_home = tmp_path / "codex-home"
-    project_root = tmp_path / "project"
-    project_root.mkdir()
-    monkeypatch.setenv("CODEX_HOME", codex_home.as_posix())
-    _setup_project(project_root, agent="codex", codex_install="user")
-
-    skill_path = codex_home / "skills" / "spec-grag" / "SKILL.md"
-    assert skill_path.is_file()
-    env = _project_env({"CODEX_HOME": codex_home.as_posix()})
-    prompt_input = _codex_prompt_input(codex=codex, cwd=project_root, env=env)
-
-    assert "- spec-grag:" in prompt_input
-    assert _has_spec_grag_skill_description(prompt_input)
-    assert skill_path.as_posix() in prompt_input
-
-
-@pytest.mark.external
 def test_t_a01_codex_project_skill_is_visible_in_prompt_input(
     tmp_path: Path,
 ) -> None:
@@ -187,7 +163,7 @@ def test_t_a01_codex_project_skill_is_visible_in_prompt_input(
     codex_home = tmp_path / "empty-codex-home"
     project_root = tmp_path / "project"
     project_root.mkdir()
-    _setup_project(project_root, agent="codex", codex_install="project")
+    _setup_project(project_root, agent="codex")
 
     skill_path = project_root / ".codex" / "skills" / "spec-grag" / "SKILL.md"
     assert skill_path.is_file()
@@ -239,7 +215,7 @@ def test_t_a02_real_setup_core_inject_realign_watch_roundtrip_with_agent_entrypo
     project_root = tmp_path / "project"
     project_root.mkdir()
     _copy_source_fixture(project_root)
-    _setup_project(project_root, agent="both", codex_install="project")
+    _setup_project(project_root, agent="both")
     collection = _patch_collection(project_root)
     codex_home.mkdir(parents=True)
 

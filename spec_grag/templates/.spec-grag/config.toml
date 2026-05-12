@@ -1,6 +1,6 @@
 [sources]
 include = ["docs/spec/**/*.md"]
-exclude = ["archive/**", "**/drafts/**"]
+exclude = ["**/drafts/**"]
 
 [core]
 purpose_file = "docs/core/purpose.md"
@@ -78,7 +78,7 @@ related_selected_max_per_section = 8
 conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
-llm_batch_concurrency = 1
+llm_batch_concurrency = 4   # 1 = 逐次。Pro 5x / Max 5x なら 4-8 推奨
 
 [watcher]
 enabled = true

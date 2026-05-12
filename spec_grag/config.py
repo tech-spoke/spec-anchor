@@ -98,12 +98,7 @@ class LimitsConfig:
     conflict_pair_max_per_section: int = 8
     llm_batch_max_sections: int = 8
     llm_batch_max_chars: int = 12000
-    # Phase H follow-up: parallel LLM batch execution for section_metadata and
-    # related_sections. Default 1 = strictly sequential. Higher values reduce
-    # wall time for large corpora at the cost of subscription quota burn-down.
-    # Empirically Codex Plus tolerates ~4, Codex Pro 5x / Claude Max 5x tolerate
-    # 8-16. Tune per project.
-    llm_batch_concurrency: int = 1
+    llm_batch_concurrency: int = 4
 
 
 @dataclass(frozen=True)
@@ -477,7 +472,7 @@ def _load_limits(raw_value: Any) -> LimitsConfig:
         llm_batch_max_chars=_int(table, "limits", "llm_batch_max_chars", 12000),
         llm_batch_concurrency=max(
             1,
-            _int(table, "limits", "llm_batch_concurrency", 1),
+            _int(table, "limits", "llm_batch_concurrency", 4),
         ),
     )
 

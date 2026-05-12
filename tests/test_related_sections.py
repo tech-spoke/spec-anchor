@@ -500,9 +500,7 @@ def test_related_sections_configured_provider_runs_without_env_gate_and_reports_
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = importlib.import_module("spec_grag.related_sections")
-    monkeypatch.delenv("SPEC_GRAG_REAL_PROVIDER", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_REAL_SMOKE", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:
@@ -805,9 +803,9 @@ def test_llm_batch_concurrency_runs_batches_in_parallel() -> None:
     assert elapsed < 0.9, f"parallel batches must finish under 0.9s (got {elapsed:.3f}s)"
 
 
-def test_llm_batch_concurrency_default_is_sequential() -> None:
-    """Default concurrency=1 keeps the sequential code path so existing tests
-    and conservative subscriptions keep their behavior."""
+def test_llm_batch_concurrency_default_is_parallel() -> None:
+    """Default concurrency=4 enables the parallel code path. Smoke test with
+    empty inputs verifies the default-fallback path still terminates cleanly."""
     import importlib
 
     rs_module = importlib.import_module("spec_grag.related_sections")
@@ -821,11 +819,9 @@ def test_llm_batch_concurrency_default_is_sequential() -> None:
             conflict_pair_max_per_section=8,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
-            # No llm_batch_concurrency override: getattr default = 1
+            # No llm_batch_concurrency override: getattr default = 4
         ),
     )
-    # Smoke test: select with empty inputs returns empty result and sets up
-    # llm_calls=0 (no batches to run).
     result = rs_module.select_related_sections_result(
         [],
         section_metadata={"sections": []},

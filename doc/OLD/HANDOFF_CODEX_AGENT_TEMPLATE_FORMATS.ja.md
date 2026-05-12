@@ -34,8 +34,8 @@
 **`doc/EXTERNAL_DESIGN.ja.md` の改訂後の決定事項**:
 
 - §5.1: Agent 環境ごとに入口形式を固定（Claude Code = command、Codex = skill）。「環境が選ぶ」の解釈は撤回済み
-- §5.2.1: `spec-grag-setup-project` のオプションに `--codex-install user|project` を追加し、user (`~/.codex/`) を既定とする
-- §10.2: 配置例は Agent 別非対称
+- §5.2.2: `spec-grag-setup-project` のオプションに `--codex-install user|project` を追加し、user (`~/.codex/`) を既定とする
+- §5.2.2: 配置例は Agent 別非対称（旧 §10.2 を §5.2.2 Project Setup Script に統合）
 - §11 エラー契約: `--codex-install user` で既存 `~/.codex/skills/spec-grag/` を上書きする場合は `--force` 必須
 
 **`doc/TEST_SPEC.ja.md` の改訂後の決定事項**:
@@ -240,7 +240,7 @@ claude
 
 ## 9. 参考資料
 
-- `doc/EXTERNAL_DESIGN.ja.md` §5.1 / §5.2.1 / §5.2.2 / §10.2 / §10.3 / §11
+- `doc/EXTERNAL_DESIGN.ja.md` §5.1 / §5.2.1 / §5.2.2 / §11
 - `doc/TEST_SPEC.ja.md` §0.2 / §0.3 / T-S01 / T-S02 / T-C01 / T-A01 / T-A02 / §9 / §10
 - `doc/IMPLEMENTATION_PLAN.ja.md` §5.15 / §5.19 / §6 / §6.1 (CA-16) / §7
 - `~/.codex/skills/.system/skill-creator/SKILL.md`（Codex skill 公式仕様の一次資料）

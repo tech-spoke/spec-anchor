@@ -44,13 +44,16 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _default_fake_provider(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tests default to the in-process FakeLlmProvider so that fixtures do not
-    spawn real `codex` / `claude` subprocesses. Real-provider integration tests
-    opt out via ``monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)``.
+def _default_fake_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests default to in-process fake LLM + fake retrieval so that fixtures
+    do not spawn real `codex` / `claude` subprocesses or download FlagEmbedding
+    BGE-M3 weights. Real-mode integration tests opt out per concern via
+    ``monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)`` and / or
+    ``monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)``.
     """
 
-    monkeypatch.setenv("SPEC_GRAG_FAKE_PROVIDER", "1")
+    monkeypatch.setenv("SPEC_GRAG_FAKE_LLM", "1")
+    monkeypatch.setenv("SPEC_GRAG_FAKE_RETRIEVAL", "1")
 
 
 def _prepend_venv_to_path() -> None:

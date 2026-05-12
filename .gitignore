@@ -2,6 +2,7 @@
 .DS_Store
 *.swp
 .envrc
+.env
 
 # Python build / cache
 __pycache__/
@@ -30,12 +31,7 @@ dist/
 .spec-grag.pytest-stash-*/
 .spec-grag/context/
 .spec-grag/cache/
-.spec-grag/graph/
-.spec-grag/logs/
-.spec-grag/pending/
-.spec-grag/runs/
 .spec-grag/state/
-.spec-grag/tmp/
 
 # Claude Code runtime locks
 .claude/scheduled_tasks.lock
@@ -51,9 +47,4 @@ archive/**/*.egg-info/
 archive/**/__pycache__/
 archive/**/spike_storage/
 archive/**/.spec-grag/cache/
-archive/**/.spec-grag/graph/
-archive/**/.spec-grag/logs/
-archive/**/.spec-grag/pending/
-archive/**/.spec-grag/runs/
 archive/**/.spec-grag/state/
-archive/**/.spec-grag/tmp/

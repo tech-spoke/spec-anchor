@@ -112,7 +112,7 @@ qdrant --disable-telemetry
 
 ### 5.3 本運用実行条件
 
-本運用では、生成 config の `codex_cli` / `claude_cli`、FlagEmbedding BGE-M3、Qdrant を既定で使う。`SPEC_GRAG_REAL_PROVIDER` / `SPEC_GRAG_REAL_RETRIEVAL` は不要である。
+本運用では、生成 config の `codex` / `claude` CLI、FlagEmbedding BGE-M3、Qdrant を既定で使う。`SPEC_GRAG_FAKE_LLM` / `SPEC_GRAG_FAKE_RETRIEVAL` は本運用では設定しない (test / smoke 用)。
 
 Qdrant 接続先は project 設定である。通常運用では `.spec-grag/config.toml` の `[vector_store].url` を正とし、環境変数ではなく設定ファイルで管理する。`SPEC_GRAG_QDRANT_URL` は smoke / test / system readiness probe の接続先差し替え用に限る。
 

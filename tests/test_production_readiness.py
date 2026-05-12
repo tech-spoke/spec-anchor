@@ -179,8 +179,8 @@ def test_t_r15_runbook_contains_production_readiness_details() -> None:
     _assert_contains_any(runbook, "verify", "確認")
     _assert_contains_any(runbook, "restart", "再起動")
     _assert_contains_any(runbook, "troubleshoot", "トラブルシュート")
-    assert "spec_grag_real_provider" in runbook
-    assert "spec_grag_real_retrieval" in runbook
+    assert "spec_grag_fake_llm" in runbook
+    assert "spec_grag_fake_retrieval" in runbook
 
 
 def test_t_r15_runbook_fixes_production_readiness_report_sections() -> None:

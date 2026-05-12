@@ -158,7 +158,7 @@ def test_t_u26_configured_real_provider_is_enabled_by_default(
 ) -> None:
     from spec_grag.llm_provider import build_spec_core_llm_provider
 
-    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
     provider = build_spec_core_llm_provider(
         {
             "providers": {
@@ -315,7 +315,7 @@ def test_t_u26_claude_provider_uses_print_and_structured_output(
 
 @pytest.mark.external
 def test_t_u26_real_provider_uses_configured_agent_cli() -> None:
-    command_name = os.environ.get("SPEC_GRAG_REAL_PROVIDER_COMMAND", "codex")
+    command_name = "codex"
     executable = shutil.which(command_name)
     if executable is None:
         pytest.skip(f"{command_name} is not installed on PATH")
@@ -323,9 +323,9 @@ def test_t_u26_real_provider_uses_configured_agent_cli() -> None:
     provider = SubprocessLlmProvider([executable], real_smoke_enabled=True)
     result = generate_with_retries(
         provider,
-        _request(model=os.environ.get("SPEC_GRAG_REAL_PROVIDER_MODEL", "real-smoke")),
+        _request(model="real-smoke"),
         required_fields=("summary", "search_keys"),
-        timeout_sec=int(os.environ.get("SPEC_GRAG_REAL_PROVIDER_TIMEOUT_SEC", "120")),
+        timeout_sec=120,
         max_retries=0,
     )
 
@@ -425,7 +425,7 @@ def test_t_u26_llm_config_scope_is_spec_core_only() -> None:
 def test_t_u26_multi_llm_config_selects_explicit_agent_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("SPEC_GRAG_FAKE_PROVIDER", raising=False)
+    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
     config = {
         "providers": {
             "codex": {
@@ -448,9 +448,7 @@ def test_t_u26_multi_llm_config_selects_explicit_agent_provider(
     assert getattr(provider, "command") == ["claude"]
 
 
-def test_t_u26_multi_llm_config_uses_first_or_env_provider(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_t_u26_multi_llm_config_falls_back_to_first_provider() -> None:
     config = {
         "providers": {
             "codex": {"command": "codex"},
@@ -458,11 +456,11 @@ def test_t_u26_multi_llm_config_uses_first_or_env_provider(
         },
     }
 
-    # No CLI / env / stage_routing -> first defined provider (codex).
+    # No CLI / stage_routing -> first defined provider (codex).
     assert select_llm_provider_config(config)["command"] == "codex"
-    monkeypatch.setenv("SPEC_GRAG_LLM_PROVIDER", "claude")
-
-    assert select_llm_provider_config(config)["command"] == "claude"
+    # Explicit provider_id (CLI --llm-provider) selects the named provider.
+    assert select_llm_provider_config(config, provider_id="claude")["command"] == "claude"
+    # Unknown provider id raises.
     with pytest.raises(Exception) as exc_info:
         select_llm_provider_config(config, provider_id="missing")
     assert "configured providers" in str(exc_info.value)

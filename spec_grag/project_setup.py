@@ -46,7 +46,6 @@ def setup_project(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
-    codex_install: str = "user",
 ) -> dict[str, Any]:
     """Create or update SPEC-grag project files under an existing project root."""
 
@@ -57,17 +56,10 @@ def setup_project(
         dry_run,
         force,
         no_init_core_files,
-        codex_install,
     )
 
     if agent not in {"codex", "claude", "both"}:
         return _error_result(result, "invalid_agent", f"unsupported agent: {agent}")
-    if codex_install not in {"user", "project"}:
-        return _error_result(
-            result,
-            "invalid_codex_install",
-            f"unsupported codex install target: {codex_install}",
-        )
     if not target_path.exists():
         return _error_result(
             result,
@@ -79,20 +71,15 @@ def setup_project(
 
     root = target_path.resolve()
     result["target"] = str(root)
-    result["codex_install_path"] = _path_label(
-        root,
-        _codex_install_root(root, codex_install),
-    )
     result["codex_skill_path"] = _path_label(
         root,
-        _codex_skill_destination(root, codex_install),
+        _codex_skill_destination(root),
     )
 
     entries = _project_file_entries(
         agent,
         root=root,
         init_core_files=not no_init_core_files,
-        codex_install=codex_install,
     )
     protected_core_paths = (
         _protected_core_paths(root)
@@ -147,15 +134,6 @@ def setup_project(
 
         if force:
             result["updated"].append(rel_name)
-            if _is_codex_user_skill_path(root, destination, codex_install):
-                result["diagnostics"].append(
-                    {
-                        "code": "codex_user_skill_overwrite",
-                        "severity": "warning",
-                        "message": "overwriting existing Codex user skill because --force was specified",
-                        "path": rel_name,
-                    }
-                )
             operations.append(
                 {
                     "action": "update",
@@ -169,17 +147,8 @@ def setup_project(
         result["conflicts"].append(
             {
                 "path": rel_name,
-                "reason": (
-                    "would_overwrite_existing_codex_user_skill"
-                    if _is_codex_user_skill_path(root, destination, codex_install)
-                    else "would_overwrite_existing_file"
-                ),
+                "reason": "would_overwrite_existing_file",
                 "diff": _unified_diff(existing, content, rel_name),
-                "force_required": _is_codex_user_skill_path(
-                    root,
-                    destination,
-                    codex_install,
-                ),
             }
         )
 
@@ -220,7 +189,6 @@ def run_setup_project(
     dry_run: bool = False,
     force: bool = False,
     no_init_core_files: bool = False,
-    codex_install: str = "user",
 ) -> dict[str, Any]:
     """Compatibility alias for callers that prefer an action-style name."""
 
@@ -230,7 +198,6 @@ def run_setup_project(
         dry_run=dry_run,
         force=force,
         no_init_core_files=no_init_core_files,
-        codex_install=codex_install,
     )
 
 
@@ -346,7 +313,6 @@ def run_smoke_checks() -> dict[str, Any]:
         project_result = setup_project(
             tmp,
             agent="codex",
-            codex_install="project",
             dry_run=False,
             force=False,
             no_init_core_files=True,
@@ -382,7 +348,6 @@ def _base_project_result(
     dry_run: bool,
     force: bool,
     no_init_core_files: bool,
-    codex_install: str,
 ) -> dict[str, Any]:
     return {
         "status": "pending",
@@ -391,8 +356,6 @@ def _base_project_result(
         "dry_run": dry_run,
         "force": force,
         "no_init_core_files": no_init_core_files,
-        "codex_install": codex_install,
-        "codex_install_path": None,
         "codex_skill_path": None,
         "applied": False,
         "exit_code": 0,
@@ -425,7 +388,6 @@ def _project_file_entries(
     *,
     root: Path,
     init_core_files: bool,
-    codex_install: str,
 ) -> list[tuple[Path, str]]:
     entries = [
         (Path(".spec-grag/config.toml"), _template_text(".spec-grag/config.toml")),
@@ -444,7 +406,7 @@ def _project_file_entries(
     if agent in {"codex", "both"}:
         entries.append(
             (
-                _codex_skill_destination(root, codex_install),
+                _codex_skill_destination(root),
                 _template_text(".codex/skills/spec-grag/SKILL.md"),
             )
         )
@@ -467,15 +429,8 @@ def _selected_agents(agent: str) -> Iterable[str]:
     return (agent,)
 
 
-def _codex_install_root(root: Path, codex_install: str) -> Path:
-    if codex_install == "project":
-        return root / ".codex"
-    value = os.environ.get("CODEX_HOME")
-    return Path(value).expanduser() if value else Path.home() / ".codex"
-
-
-def _codex_skill_destination(root: Path, codex_install: str) -> Path:
-    return _codex_install_root(root, codex_install) / "skills" / "spec-grag" / "SKILL.md"
+def _codex_skill_destination(root: Path) -> Path:
+    return root / ".codex" / "skills" / "spec-grag" / "SKILL.md"
 
 
 def _path_label(root: Path, path: Path) -> str:
@@ -483,27 +438,7 @@ def _path_label(root: Path, path: Path) -> str:
     try:
         return destination.resolve(strict=False).relative_to(root).as_posix()
     except ValueError:
-        pass
-    codex_home = os.environ.get("CODEX_HOME")
-    if codex_home:
-        home = Path(codex_home).expanduser().resolve(strict=False)
-        try:
-            suffix = destination.resolve(strict=False).relative_to(home).as_posix()
-            return "$CODEX_HOME" if suffix == "." else f"$CODEX_HOME/{suffix}"
-        except ValueError:
-            pass
-    home = Path.home().resolve(strict=False)
-    try:
-        suffix = destination.resolve(strict=False).relative_to(home).as_posix()
-        return "~" if suffix == "." else f"~/{suffix}"
-    except ValueError:
         return destination.as_posix()
-
-
-def _is_codex_user_skill_path(root: Path, path: Path, codex_install: str) -> bool:
-    if codex_install != "user":
-        return False
-    return path.resolve(strict=False) == _codex_skill_destination(root, codex_install).resolve(strict=False)
 
 
 def _template_text(relative_path: str) -> str:
@@ -687,15 +622,10 @@ def _check_packaged_templates() -> list[dict[str, Any]]:
 
 
 def _agent_cli_entry_checks() -> dict[str, Any]:
-    codex_root = _codex_install_root(Path.cwd().resolve(), "user")
-    codex_skill_path = codex_root / "skills" / "spec-grag" / "SKILL.md"
     return {
         "codex": {
             "cli": _command_check("codex", "agent_cli", required=False),
-            "user_skill_path": codex_skill_path.as_posix(),
-            "user_skill_exists": codex_skill_path.is_file(),
             "project_skill_path": "<project>/.codex/skills/spec-grag/SKILL.md",
-            "project_skill_support": "verify with Codex CLI for the target version",
         },
         "claude": {
             "cli": _command_check("claude", "agent_cli", required=False),
@@ -930,13 +860,10 @@ def _add_agent_cli_entry_diagnostics(result: dict[str, Any]) -> None:
                 "code": "codex_skill_entrypoint",
                 "severity": "info",
                 "message": (
-                    "Codex uses skill entrypoints under CODEX_HOME/skills or ~/.codex/skills; "
+                    "Codex uses skill entrypoints under <project>/.codex/skills/spec-grag; "
                     "SPEC-grag does not install .codex/commands for Codex."
                 ),
-                "user_skill_path": codex.get("user_skill_path"),
-                "user_skill_exists": codex.get("user_skill_exists"),
                 "project_skill_path": codex.get("project_skill_path"),
-                "project_skill_support": codex.get("project_skill_support"),
             }
         )
     claude = entries.get("claude")

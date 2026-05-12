@@ -1,40 +1,18 @@
 """Source Retrieval Index primitives for lightweight SPEC-grag.
 
-The standard retrieval stack is Qdrant + BGE-M3 dense/sparse vectors + RRF.
-This module keeps provider and service imports lazy so unit tests can exercise
-chunking, sparse normalization, schema metadata, and fusion without starting
-FlagEmbedding or Qdrant.
+The retrieval stack is Qdrant + BGE-M3 dense/sparse vectors + RRF, operating
+at section-level (1 Section = 1 vector). This module keeps provider and
+service imports lazy so unit tests can exercise sparse normalization, schema
+metadata, and fusion without starting FlagEmbedding or Qdrant.
 
-============================================================================
-Phase R-5 (`doc/STORAGE_REDESIGN.ja.md` §7.4 / case C-1) — DORMANT FUNCTIONS
-============================================================================
-The following chunk-level helpers are COMMENTED OUT. Their function
-signatures still exist so import sites don't break, but the bodies are
-preserved as `#`-prefixed comments and each function raises
-`NotImplementedError("Phase R-5: ...")` if called. To restore the
-chunk-level path, remove the raise + uncomment the body block + reverse
-the test skip marks.
-
-Dormant functions:
-* `build_source_chunks`
-* `build_source_chunks_artifact`
-* `compute_chunk_diff`
-* `upsert_qdrant_bge_m3_index`
-* `upsert_qdrant_bge_m3_index_incremental`
-
-Live (case C-1) section-level helpers:
+Section-level helpers:
 * `build_section_payloads`
 * `upsert_qdrant_section_collection`
 * `update_section_collection_related_sections`
 * `build_section_embeddings_artifact`
 * `section_hybrid_candidates`
-* `HybridRetrievalIndex` (used for both legacy chunk and live section)
+* `HybridRetrievalIndex`
 * `BgeM3EmbeddingProvider` / `FlagEmbeddingBgeM3Provider`
-
-`SourceChunk` dataclass and `_coerce_chunk_payload` helper are still
-defined because the dormant function signatures reference them; they are
-inert otherwise.
-============================================================================
 """
 
 from __future__ import annotations
@@ -67,8 +45,6 @@ QDRANT_COLLECTION_SCHEMA_VERSION = "qdrant-bge-m3-hybrid-v2-stable-ids"
 # collections with int ids will be recreated on next run (schema mismatch).
 QDRANT_POINT_ID_NAMESPACE = uuid.UUID("00000000-0000-0000-0000-5e1c61a9da41")
 PAYLOAD_SCHEMA_VERSION = 1
-SOURCE_CHUNKS_ARTIFACT_VERSION = 1
-RETRIEVAL_INDEX_REVISION_ARTIFACT_VERSION = 1
 SECTION_EMBEDDINGS_ARTIFACT_VERSION = 1
 DEFAULT_SECTION_COLLECTION = "spec_grag_section"
 
@@ -213,11 +189,11 @@ class FlagEmbeddingBgeM3Provider:
     """Real BGE-M3 provider backed by FlagEmbedding.
 
     Real provider initialization can be expensive and may download model
-    weights. Direct construction is guarded unless ``allow_real_provider=True``
-    is passed, ``SPEC_GRAG_REAL_RETRIEVAL`` is set for a test probe, or an
-    explicit real-smoke test is enabled. The standard `/spec-core` Qdrant /
-    BGE-M3 path passes ``allow_real_provider=True`` when project config selects
-    the production retrieval stack.
+    weights. When the env var ``SPEC_GRAG_FAKE_RETRIEVAL`` is truthy
+    (typical for test runs), direct construction is blocked unless
+    ``allow_real_provider=True`` is passed. The standard `/spec-core`
+    Qdrant / BGE-M3 path passes ``allow_real_provider=True`` so production
+    code is never gated.
     """
 
     provider_id = STANDARD_EMBEDDING_PROVIDER
@@ -231,12 +207,12 @@ class FlagEmbeddingBgeM3Provider:
         allow_real_provider: bool = False,
         **model_kwargs: Any,
     ) -> None:
-        if not allow_real_provider and not _real_retrieval_provider_enabled():
+        if _fake_retrieval_enabled() and not allow_real_provider:
             raise RuntimeError(
-                "FlagEmbedding BGE-M3 direct construction is guarded. "
-                "Pass allow_real_provider=True for the standard /spec-core path, "
-                "or set SPEC_GRAG_REAL_RETRIEVAL=1 / SPEC_GRAG_REAL_SMOKE=1 "
-                "for explicit tests."
+                "FlagEmbedding BGE-M3 direct construction is blocked because "
+                "SPEC_GRAG_FAKE_RETRIEVAL is set. Pass allow_real_provider=True "
+                "for the standard /spec-core path, or unset SPEC_GRAG_FAKE_RETRIEVAL "
+                "for explicit real-retrieval tests."
             )
         from FlagEmbedding import BGEM3FlagModel  # type: ignore[import-not-found]
 
@@ -1715,15 +1691,8 @@ def _dense_batch(value: Any, expected_count: int) -> list[list[float] | None]:
     return dense
 
 
-def _real_smoke_enabled() -> bool:
-    return os.environ.get("SPEC_GRAG_REAL_SMOKE", "").lower() in _TRUE_VALUES
-
-
-def _real_retrieval_provider_enabled() -> bool:
-    return (
-        os.environ.get("SPEC_GRAG_REAL_RETRIEVAL", "").lower() in _TRUE_VALUES
-        or _real_smoke_enabled()
-    )
+def _fake_retrieval_enabled() -> bool:
+    return os.environ.get("SPEC_GRAG_FAKE_RETRIEVAL", "").lower() in _TRUE_VALUES
 
 
 def _coerce_chunk_payload(chunk: SourceChunk | Mapping[str, Any]) -> dict[str, Any]:
