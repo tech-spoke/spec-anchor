@@ -1,15 +1,14 @@
-"""Phase H-4: model / effort calibration scaffolding.
+"""Model / effort calibration scaffolding.
 
 These tests exercise the actual `claude` CLI against representative
 SPEC-grag prompts to measure schema validation pass rate, required-field
 fill rate, and per-call latency for each (stage, model, effort) cell of
-the calibration matrix documented in
-`doc/CALIBRATION_MODEL_EFFORT.ja.md`.
+the calibration matrix defined below.
 
 The tests are gated behind `SPEC_GRAG_LOCAL_SERVICE=1` because they
 incur real LLM cost and require the `claude` console script on PATH.
-Run them when calibrating; their results feed the doc tables that drive
-the production model / effort selection.
+Run them when calibrating; their results feed the production model /
+effort selection.
 
 The current scaffolding skips by default and only documents the matrix
 shape. Implementing the real measurement loop is left to the operator
@@ -86,12 +85,8 @@ def test_calibrate_stage_model_effort(stage: str, model: str, effort: str) -> No
     #    tests/test_related_sections.py).
     # 2. Invoke `claude --print --model <model> --effort <effort> ...`.
     # 3. Validate the resulting JSON against the stage's expected fields.
-    # 4. Record the latency / pass-rate in
-    #    doc/CALIBRATION_MODEL_EFFORT.ja.md.
-    pytest.skip(
-        "calibration measurement loop not implemented; see "
-        "doc/CALIBRATION_MODEL_EFFORT.ja.md for the procedure"
-    )
+    # 4. Record the latency / pass-rate alongside the calibration run.
+    pytest.skip("calibration measurement loop not implemented")
 
 
 def test_calibration_matrix_is_complete() -> None:

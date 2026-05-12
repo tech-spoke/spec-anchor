@@ -891,7 +891,7 @@ def test_t_r12_setup_project_config_is_production_stack_ready(
     assert parsed["llm"]["providers"]["codex"]["command"] == "codex"
     assert parsed["llm"]["providers"]["codex"]["model"] == "gpt-5.4-mini"
     assert parsed["llm"]["providers"]["codex"]["effort"] == "low"
-    # H-4 calibration (doc/CALIBRATION_MODEL_EFFORT.ja.md) で確定した stage 別 provider
+    # Calibration-derived stage 別 provider:
     # related_sections と conflict_review は claude-sonnet-4-6 × low (recall 重視)
     assert parsed["llm"]["providers"]["claude_typing"]["command"] == "claude"
     assert parsed["llm"]["providers"]["claude_typing"]["model"] == "claude-sonnet-4-6"

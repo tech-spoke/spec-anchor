@@ -358,9 +358,9 @@ Delta requirement body.
 class IdentifierLikeSearchKeyProvider:
     """LLM stub that emits a mix of identifier-shaped and natural-language keys.
 
-    Used to verify that the search_keys post-process filter (role separation
-    declared in `doc/EXTERNAL_DESIGN.ja.md` §2.6 / §2.6.1) drops code-shaped
-    tokens before the entry is materialized.
+    Used to verify that the search_keys post-process filter (search_keys and
+    identifiers must remain disjoint) drops code-shaped tokens before the
+    entry is materialized.
     """
 
     def __post_init__(self) -> None:

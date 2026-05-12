@@ -1,7 +1,6 @@
-"""Phase R-6 tests for the inject CLI extensions.
+"""Tests for the inject CLI extensions.
 
-`doc/EXTERNAL_DESIGN.ja.md` §8.4 specifies five new helper subcommands
-on the `spec-grag` CLI:
+The `spec-grag` CLI ships five helper subcommands:
 
 * `inject-search "<query>"`
 * `inject-section "<id>" [<id>...]`

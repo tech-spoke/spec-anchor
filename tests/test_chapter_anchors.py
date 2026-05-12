@@ -1,9 +1,8 @@
-"""Phase R-7 tests for LLM-driven Chapter Key Anchor generation.
+"""Tests for LLM-driven Chapter Key Anchor generation.
 
-`doc/EXTERNAL_DESIGN.ja.md` §2.9 and `doc/STORAGE_REDESIGN.ja.md` §7.4 R-7
-specify that Chapter Key Anchor must be LLM-generated per chapter:
+Chapter Key Anchor is LLM-generated per chapter with fields:
 `chapter_id` / `summary` / `key_topics` / `important_sections` / `notes`
-/ `source_section_ids` / `generated_at`. These tests cover the new
+/ `source_section_ids` / `generated_at`. These tests cover the
 `spec_grag.chapter_anchors.generate_chapter_anchors` entry point and its
 cache.
 """
