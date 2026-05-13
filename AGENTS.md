@@ -24,6 +24,8 @@
 
 `sidecar` という語は、技術用語としては成立するが、このリポジトリでは単独で使ってはいけない。現時点で `sidecar` と呼びうる状態記録ファイルは少なくとも次の 2 種類があり、`sidecar` だけでは読者がどちらを指すか判別できないためである。
 
+この禁止は、設計書、報告書、TODO、最終報告、進捗報告のすべてに適用する。`.spec-grag/state/retrieval_index_state.json` または `.spec-grag/state/related_sections_state.json` を参照する場合は、毎回 file path、保存する fingerprint の内容、参照する stage / 経路、一致時の挙動、不一致時の fallback 条件を明示する。
+
 - `.spec-grag/state/retrieval_index_state.json` (Source Retrieval Index の冪等判定用)
 - `.spec-grag/state/related_sections_state.json` (Related Sections の冪等判定用)
 
