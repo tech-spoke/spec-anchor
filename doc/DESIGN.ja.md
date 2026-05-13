@@ -107,6 +107,8 @@ stable_section_uid:
 
 `target_section_id` は target 側の `source_section_id` を指す。
 
+Qdrant section collection の point id は、`stable_section_point_id(source_section_id)` で生成する。実装は `_SECTION_POINT_ID_NAMESPACE = UUID("b1d5535d-3e52-5430-af3e-ddd879e6cb19")` と `source_section_id` から UUID5 文字列を返す。`uuid.uuid5(...)` を直接呼ぶ場所はこの関数だけにし、Qdrant upsert や test はこの関数を経由する。
+
 ### 2.2 Context Artifacts
 
 `.spec-grag/context/` 配下に次の artifact を置く。
@@ -305,6 +307,8 @@ section embedding text は短い (~700 文字程度)。本文の searchable surf
 
 Source Specs 本文を直接読みたい場合は、Agent が `sources.include` で指定された Markdown ファイルを Read tool で開く。
 
+Qdrant point id は payload の `source_section_id` から `stable_section_point_id(...)` で生成した UUID5 文字列とする。`upsert_qdrant_section_collection` は `PointStruct(id=stable_section_point_id(payload["source_section_id"]), ...)` を使う。これにより、Section の並び替えがあっても point id と payload の対応が崩れない。
+
 ### 4.4 Fusion
 
 標準 fusion は RRF とする。
@@ -343,6 +347,9 @@ fusion:
 
 rrf_k:
   60
+
+point_id_scheme:
+  point_id_v1_uuid5_source_section_id
 
 tie_break:
   source_section_id
@@ -387,24 +394,32 @@ fast path に入る条件 (すべて満たす場合のみ):
    - 追加された section_id がない
    - 削除された section_id がない
    - 各 section について `source_hash` と `semantic_hash` の両方が前回 manifest 値と一致 (`semantic_hash` だけの一致では fast path に入らない。`source_hash` 変化は section_metadata cache miss を引き起こし LLM 非決定性で metadata が揺れる可能性があるため)
-3. `.spec-grag/state/retrieval_index_state.json` (sidecar) が存在し、次の指紋がすべて現在値と一致する:
+3. Source Retrieval Index の冪等判定用の状態記録ファイル `.spec-grag/state/retrieval_index_state.json` が存在し、次の指紋がすべて現在値と一致する:
    - `section_hash_fingerprint` (sorted(source_hash|semantic_hash) の集約 SHA-256)
    - `embedding_provider`, `embedding_model` (config の `[embedding]`)
    - `dense_enabled`, `sparse_enabled` (BGE-M3 dense/sparse の有効化フラグ)
-   - `retrieval_schema_pin_fingerprint` (Qdrant collection schema 版 + BGE-M3 dense サイズ + sparse ベクトル設定)
+   - `retrieval_schema_pin_fingerprint` (Qdrant collection schema 版 + BGE-M3 dense サイズ + sparse ベクトル設定 + `point_id_v1_uuid5_source_section_id`)
    - `artifact_schema_version`
 4. Qdrant collection が実在する (`QdrantClient(url).collection_exists(collection_name=...)` が True)。`collection_exists` のみで足り、scroll で全 payload を読む必要はない (`collection_exists` は Qdrant の軽量 RPC)。
 
 通常経路への fallback 条件 (いずれか 1 つでも該当する場合):
 
 - 入力フラグが `--all` / `--rebuild`
-- sidecar `retrieval_index_state.json` が存在しない / JSON parse 失敗 / 指紋不一致
+- Source Retrieval Index の冪等判定用の状態記録ファイル `.spec-grag/state/retrieval_index_state.json` が存在しない / JSON parse 失敗 / 指紋不一致
 - Qdrant collection が存在しない
 - 上流の `section_metadata` stage で再生成が走り、section_metadata の指紋 (`manifest.generation`) が変わった
 
-通常経路に fallback した場合は `retrieval_index_status = "success"` または `"failed"` を返し、`core_progress.json` の `stages.section_collection_upsert.action = "fallback_rebuilt"`、`reason` に fallback の具体的根拠 (`sidecar_missing` / `fingerprint_mismatch` / `collection_missing` 等) を記録する。
+通常経路に fallback した場合は `retrieval_index_status = "success"` または `"failed"` を返し、`core_progress.json` の `stages.section_collection_upsert.action = "fallback_rebuilt"`、`reason` に fallback の具体的根拠 (`sidecar_missing` は `.spec-grag/state/retrieval_index_state.json` がない場合、`fingerprint_mismatch` は指紋不一致、`collection_missing` は Qdrant collection 不在) を記録する。
 
 Qdrant payload と manifest の section 単位 hash 整合性チェック (= 全件 scroll) は通常 fast path では行わない。large spec で持続不能になるため。明示的な検証経路 (例: `spec-grag core --verify-index` 等の将来追加) は別 task で具体化する。
+
+### 4.8 ordinal point id collection の自動 migration
+
+`upsert_qdrant_section_collection` は `recreate=False` で既存 Qdrant collection を更新する前に、`client.scroll(..., with_payload=False, with_vectors=False, limit=1)` で sample point id を 1 件読む。`uuid.UUID(str(sample.id))` が `ValueError` になる場合、その collection は旧 ordinal point id 形式と判定する。
+
+旧 ordinal point id 形式を検出した実行では、`upsert_qdrant_section_collection` はその場で `recreate=True` に切り替え、collection を再作成して全 Section を UUID5 point id で upsert する。戻り値の diagnostics には `reason = "migration_required_from_ordinal_point_id"`、`migration_required_from_ordinal_point_id = true`、`recreate = true` を入れる。`_upsert_section_collection_if_enabled` はこの diagnostics を `.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.diagnostics` に記録する。
+
+`recreate=False` で既存 collection が UUID point id 形式の場合、`upsert_qdrant_section_collection` は upsert 前に `client.scroll(..., with_payload=False, with_vectors=False, limit=1024)` を offset 付きで最後まで実行し、既存 point id 集合を取得する。現在の Section 集合から `stable_section_point_id(source_section_id)` で期待 point id 集合を作り、差分を `client.delete(collection_name=..., points_selector=PointIdsList(points=[...]))` で削除する。削除数は diagnostics の `stale_points_deleted` に記録する。
 
 ## 5. Related Sections 生成
 
@@ -654,7 +669,7 @@ fast path に入る条件 (すべて満たす場合):
 
 1. 入力フラグが incremental (`run_full == False`)
 2. §4.7 と同じ section 集合 unchanged 条件 (source_hash + semantic_hash 両方一致、追加・削除なし)
-3. `.spec-grag/state/related_sections_state.json` (sidecar) が存在し、次の指紋が現在値と一致:
+3. Related Sections の冪等判定用の状態記録ファイル `.spec-grag/state/related_sections_state.json` が存在し、次の指紋が現在値と一致:
    - `section_list_fingerprint` (sorted(source_section_id) の集約 SHA-256)
    - `section_hash_fingerprint` (sorted(source_hash|semantic_hash) の集約 SHA-256)
    - `candidate_generation_config_fingerprint` (`MVP_CANDIDATE_CHANNELS`、`[retrieval]` の `section_candidate_top_k` / `section_final_top_n` / `section_dense_threshold`、`[limits]` の関連 fields の集約)
@@ -666,7 +681,7 @@ fast path に入る条件 (すべて満たす場合):
 通常経路への fallback 条件 (いずれか 1 つでも該当):
 
 - §4.7 fast path から外れる原因がある (section 集合変更、設定指紋不一致、`--all` / `--rebuild` 指定)
-- sidecar `related_sections_state.json` が存在しない / JSON parse 失敗 / 指紋不一致
+- Related Sections の冪等判定用の状態記録ファイル `.spec-grag/state/related_sections_state.json` が存在しない / JSON parse 失敗 / 指紋不一致
 - 上流 `section_metadata` の指紋変化 (LLM 再生成が起きて identifiers / heading_path 派生 fingerprint が変わった等)
 - retrieval index 側が `failed` または `skipped` (in-memory retrieval 経路になる場合は決定論性が落ちるので safety 寄りに通常経路で再生成する)
 

@@ -1397,6 +1397,7 @@ def _retrieval_schema_pin_fingerprint() -> str:
         "dense_vector_name": retrieval_index_api.DENSE_VECTOR_NAME,
         "sparse_vector_name": retrieval_index_api.SPARSE_VECTOR_NAME,
         "fusion_method": retrieval_index_api.FUSION_METHOD,
+        "point_id_scheme": "point_id_v1_uuid5_source_section_id",
     }
     return _hash_text(_stable_json(payload))
 
@@ -1552,7 +1553,7 @@ def _upsert_section_collection_if_enabled(
         url, section_collection
     )
     try:
-        retrieval_index_api.upsert_qdrant_section_collection(
+        artifact = retrieval_index_api.upsert_qdrant_section_collection(
             sections,
             metadata_by_id,
             url=url,
@@ -1560,18 +1561,29 @@ def _upsert_section_collection_if_enabled(
             recreate=recreate,
             generated_at=str(section_metadata.get("generated_at") or ""),
         )
+        diagnostics = artifact.get("diagnostics", {}) if isinstance(artifact, Mapping) else {}
+        state_write_error: str | None = None
         if store is not None:
             try:
                 store.write("retrieval_index_state", expected_state)
-            except Exception:
-                pass
+            except Exception as exc:
+                state_write_error = str(exc)
         action = "upserted" if run_full or force_full_recreate else "fallback_rebuilt"
+        reason = str(
+            diagnostics.get("reason")
+            or fast_path.get("reason")
+            or "normal_upsert"
+        )
+        progress_diagnostics = dict(diagnostics)
+        if state_write_error is not None:
+            progress_diagnostics["state_write_error"] = state_write_error
         _progress_action(
             progress_tracker,
             "section_collection_upsert",
             action=action,
-            reason=str(fast_path.get("reason") or "normal_upsert"),
-            recreate=recreate,
+            reason=reason,
+            recreate=bool(diagnostics.get("recreate", recreate)),
+            diagnostics=progress_diagnostics,
         )
         return "success"
     except Exception:

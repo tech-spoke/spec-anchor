@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
+import logging
 import math
 import os
 import re
@@ -43,10 +44,11 @@ SPARSE_VECTOR_KIND = "bge-m3 lexical weights"
 FUSION_METHOD = "rrf"
 DEFAULT_RRF_K = 60
 QDRANT_COLLECTION_SCHEMA_VERSION = "qdrant-bge-m3-hybrid-v2-stable-ids"
-QDRANT_POINT_ID_NAMESPACE = uuid.UUID("00000000-0000-0000-0000-5e1c61a9da41")
+_SECTION_POINT_ID_NAMESPACE: uuid.UUID = uuid.UUID("b1d5535d-3e52-5430-af3e-ddd879e6cb19")
 PAYLOAD_SCHEMA_VERSION = 1
 SECTION_EMBEDDINGS_ARTIFACT_VERSION = 1
 DEFAULT_SECTION_COLLECTION = "spec_grag_section"
+QDRANT_SCROLL_PAGE_LIMIT = 1024
 
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 _TOKEN_RE = re.compile(
@@ -55,6 +57,11 @@ _TOKEN_RE = re.compile(
     r"|[0-9]+"
     r"|[一-龯ぁ-んァ-ンー]{2,}"
 )
+_LOGGER = logging.getLogger(__name__)
+
+
+def stable_section_point_id(source_section_id: str) -> str:
+    return str(uuid.uuid5(_SECTION_POINT_ID_NAMESPACE, source_section_id))
 
 
 @dataclass(frozen=True)
@@ -830,6 +837,63 @@ def build_section_embeddings_artifact(
     }
 
 
+def _qdrant_collection_exists_for_client(client: Any, collection: str) -> bool:
+    checker = getattr(client, "collection_exists", None)
+    if checker is None:
+        return True
+    return bool(checker(collection_name=collection))
+
+
+def _unpack_scroll_result(result: Any) -> tuple[list[Any], Any | None]:
+    if isinstance(result, tuple):
+        points = list(result[0] or [])
+        offset = result[1] if len(result) > 1 else None
+        return points, offset
+    points = list(getattr(result, "points", []) or [])
+    offset = getattr(result, "next_page_offset", None)
+    return points, offset
+
+
+def _qdrant_point_id(point: Any) -> Any:
+    if isinstance(point, Mapping):
+        return point.get("id")
+    return getattr(point, "id", None)
+
+
+def _scroll_qdrant_point_ids(
+    client: Any,
+    collection: str,
+    *,
+    limit: int = QDRANT_SCROLL_PAGE_LIMIT,
+    paginate: bool = True,
+) -> list[Any]:
+    point_ids: list[Any] = []
+    offset: Any | None = None
+    while True:
+        kwargs = {
+            "collection_name": collection,
+            "with_payload": False,
+            "with_vectors": False,
+            "limit": limit,
+        }
+        if offset is not None:
+            kwargs["offset"] = offset
+        points, next_offset = _unpack_scroll_result(client.scroll(**kwargs))
+        point_ids.extend(_qdrant_point_id(point) for point in points)
+        if next_offset is None or not paginate:
+            break
+        offset = next_offset
+    return point_ids
+
+
+def _qdrant_point_id_is_uuid(point_id: Any) -> bool:
+    try:
+        uuid.UUID(str(point_id))
+    except ValueError:
+        return False
+    return True
+
+
 def upsert_qdrant_section_collection(
     sections: Sequence[Mapping[str, Any]],
     metadata_by_section_id: Mapping[str, Mapping[str, Any]] | None = None,
@@ -848,6 +912,29 @@ def upsert_qdrant_section_collection(
     payloads = build_section_payloads(sections, metadata_by_section_id)
     client = QdrantClient(url)
     server_version = _qdrant_server_version(client)
+    collection_exists = False
+    migration_reason: str | None = None
+    if not recreate:
+        collection_exists = _qdrant_collection_exists_for_client(client, collection)
+        if collection_exists:
+            sample_point_ids = _scroll_qdrant_point_ids(
+                client,
+                collection,
+                limit=1,
+                paginate=False,
+            )
+            sample_point_id = next(
+                (point_id for point_id in sample_point_ids if point_id is not None),
+                None,
+            )
+            if sample_point_id is not None and not _qdrant_point_id_is_uuid(sample_point_id):
+                migration_reason = "migration_required_from_ordinal_point_id"
+                recreate = True
+                _LOGGER.warning(
+                    "%s: recreating Qdrant section collection %s",
+                    migration_reason,
+                    collection,
+                )
     provider = embedding_provider or FlagEmbeddingBgeM3Provider(
         allow_real_provider=True,
         use_fp16=False,
@@ -866,12 +953,32 @@ def upsert_qdrant_section_collection(
             sparse_vectors_config={SPARSE_VECTOR_NAME: qdrant_models.SparseVectorParams()},
         )
 
+    stale_points_deleted = 0
+    if not recreate and collection_exists:
+        existing_point_ids = _scroll_qdrant_point_ids(client, collection)
+        existing_by_id = {str(point_id): point_id for point_id in existing_point_ids}
+        expected_point_ids = {
+            stable_section_point_id(str(payload["source_section_id"]))
+            for payload in payloads
+        }
+        stale_point_ids = [
+            point_id
+            for point_id_key, point_id in sorted(existing_by_id.items())
+            if point_id_key not in expected_point_ids
+        ]
+        if stale_point_ids:
+            client.delete(
+                collection_name=collection,
+                points_selector=qdrant_models.PointIdsList(points=stale_point_ids),
+            )
+            stale_points_deleted = len(stale_point_ids)
+
     points = []
-    for index, (payload, embedding) in enumerate(zip(payloads, batch.embeddings, strict=True)):
+    for payload, embedding in zip(payloads, batch.embeddings, strict=True):
         sparse = embedding.sparse or SparseVector()
         points.append(
             qdrant_models.PointStruct(
-                id=index,
+                id=stable_section_point_id(str(payload["source_section_id"])),
                 vector={
                     DENSE_VECTOR_NAME: [float(value) for value in (embedding.dense or [])],
                     SPARSE_VECTOR_NAME: qdrant_models.SparseVector(
@@ -901,7 +1008,13 @@ def upsert_qdrant_section_collection(
         "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
         "embedding_model": STANDARD_EMBEDDING_MODEL,
         "embedding_device": _provider_device(provider),
+        "recreate": recreate,
+        "stale_points_deleted": stale_points_deleted,
     }
+    if migration_reason is not None:
+        artifact["diagnostics"]["reason"] = migration_reason
+        artifact["diagnostics"]["warnings"] = [migration_reason]
+        artifact["diagnostics"]["migration_required_from_ordinal_point_id"] = True
     return artifact
 
 

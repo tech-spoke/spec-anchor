@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+import types
 import uuid
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -156,6 +157,323 @@ def _normalize_sparse(encoded: Mapping[str, Any]) -> list[Any]:
     )
     vectors = normalize(encoded)
     return list(vectors)
+
+
+class _FakePoint:
+    def __init__(self, point_id: Any) -> None:
+        self.id = point_id
+
+
+class _FakePointStruct:
+    def __init__(self, *, id: Any, vector: Mapping[str, Any], payload: Mapping[str, Any]) -> None:
+        self.id = id
+        self.vector = dict(vector)
+        self.payload = dict(payload)
+
+
+class _FakePointIdsList:
+    def __init__(self, *, points: Iterable[Any]) -> None:
+        self.points = list(points)
+
+
+class _FakeVectorParams:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = dict(kwargs)
+
+
+class _FakeSparseVectorParams:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = dict(kwargs)
+
+
+class _FakeSparseVectorPayload:
+    def __init__(self, *, indices: Iterable[int], values: Iterable[float]) -> None:
+        self.indices = list(indices)
+        self.values = list(values)
+
+
+class _FakeQdrantModels(types.SimpleNamespace):
+    def __init__(self) -> None:
+        super().__init__(
+            PointStruct=_FakePointStruct,
+            PointIdsList=_FakePointIdsList,
+            VectorParams=_FakeVectorParams,
+            SparseVectorParams=_FakeSparseVectorParams,
+            SparseVector=_FakeSparseVectorPayload,
+            Distance=types.SimpleNamespace(COSINE="cosine"),
+        )
+
+
+class _FakeQdrantClient:
+    def __init__(self, point_ids: Iterable[Any]) -> None:
+        self.point_ids = list(point_ids)
+        self.deleted_point_ids: list[Any] = []
+        self.upserted_points: list[Any] = []
+        self.recreate_calls: list[Mapping[str, Any]] = []
+        self.scroll_calls: list[Mapping[str, Any]] = []
+        self.delete_calls: list[Mapping[str, Any]] = []
+
+    def info(self) -> Mapping[str, str]:
+        return {"version": "fake-qdrant"}
+
+    def collection_exists(self, *, collection_name: str) -> bool:
+        return True
+
+    def scroll(
+        self,
+        *,
+        collection_name: str,
+        with_payload: bool,
+        with_vectors: bool,
+        limit: int,
+        offset: int | None = None,
+    ) -> tuple[list[_FakePoint], int | None]:
+        start = int(offset or 0)
+        end = start + int(limit)
+        self.scroll_calls.append(
+            {
+                "collection_name": collection_name,
+                "with_payload": with_payload,
+                "with_vectors": with_vectors,
+                "limit": limit,
+                "offset": offset,
+            }
+        )
+        points = [_FakePoint(point_id) for point_id in self.point_ids[start:end]]
+        next_offset = end if end < len(self.point_ids) else None
+        return points, next_offset
+
+    def recreate_collection(self, **kwargs: Any) -> None:
+        self.recreate_calls.append(dict(kwargs))
+        self.point_ids = []
+
+    def delete(self, *, collection_name: str, points_selector: Any) -> None:
+        points = list(points_selector.points)
+        self.delete_calls.append(
+            {"collection_name": collection_name, "points_selector": points_selector}
+        )
+        self.deleted_point_ids.extend(points)
+        self.point_ids = [point_id for point_id in self.point_ids if point_id not in points]
+
+    def upsert(self, *, collection_name: str, points: Iterable[Any]) -> None:
+        self.upserted_points = list(points)
+        by_id = {str(point_id): point_id for point_id in self.point_ids}
+        for point in self.upserted_points:
+            by_id[str(point.id)] = point.id
+        self.point_ids = list(by_id.values())
+
+
+def _install_fake_qdrant(
+    monkeypatch: pytest.MonkeyPatch,
+    client: _FakeQdrantClient,
+) -> None:
+    fake_models = _FakeQdrantModels()
+    fake_qdrant_client = types.SimpleNamespace(
+        QdrantClient=lambda _url: client,
+        models=fake_models,
+    )
+    monkeypatch.setitem(sys.modules, "qdrant_client", fake_qdrant_client)
+    monkeypatch.setitem(sys.modules, "qdrant_client.models", fake_models)
+
+
+class _FakeEmbeddingProvider:
+    provider_id = "fake-embedding"
+    model = "fake-model"
+    dense_enabled = True
+    sparse_enabled = True
+
+    def embed_documents(self, texts: Iterable[str]) -> Any:
+        module = _retrieval_module()
+        embeddings = [
+            module.BgeM3Embedding(
+                dense=[float(index + 1)],
+                sparse=module.SparseVector(indices=[index + 1], values=[1.0]),
+            )
+            for index, _text in enumerate(texts)
+        ]
+        return module.BgeM3EmbeddingBatch(embeddings=embeddings)
+
+    def embed_query(self, text: str) -> Any:
+        module = _retrieval_module()
+        return module.BgeM3Embedding(dense=[1.0], sparse=module.SparseVector())
+
+
+def _b3a_sections(section_ids: Iterable[str]) -> list[dict[str, Any]]:
+    return [
+        {
+            "source_section_id": section_id,
+            "source_document_id": section_id.split("#", 1)[0],
+            "stable_section_uid": f"uid-{index}",
+            "heading_path": ["Doc", section_id],
+            "source_hash": f"h{index}",
+            "semantic_hash": f"s{index}",
+        }
+        for index, section_id in enumerate(section_ids)
+    ]
+
+
+def test_stable_section_point_id_deterministic() -> None:
+    module = _retrieval_module()
+    source_section_id = "docs/spec/sample.md#0001-sample-specification"
+
+    first = module.stable_section_point_id(source_section_id)
+    second = module.stable_section_point_id(source_section_id)
+
+    assert first == second
+    assert first == "dcfbeee8-791f-5fdb-8726-d81c4063f255"
+
+
+def test_stable_section_point_id_no_collision() -> None:
+    module = _retrieval_module()
+    point_ids = {
+        module.stable_section_point_id(f"docs/spec/{index:02d}.md#section-{index:02d}")
+        for index in range(50)
+    }
+
+    assert len(point_ids) == 50
+    for point_id in point_ids:
+        uuid.UUID(point_id)
+
+
+def test_upsert_stale_delete_recreate_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _retrieval_module()
+    section_ids = ["doc.md#a", "doc.md#b", "doc.md#c"]
+    stale_point_id = module.stable_section_point_id("doc.md#deleted")
+    existing_point_ids = [
+        *(module.stable_section_point_id(section_id) for section_id in section_ids),
+        stale_point_id,
+    ]
+    fake_client = _FakeQdrantClient(existing_point_ids)
+    _install_fake_qdrant(monkeypatch, fake_client)
+
+    artifact = module.upsert_qdrant_section_collection(
+        _b3a_sections(section_ids),
+        {},
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=_FakeEmbeddingProvider(),
+        recreate=False,
+    )
+
+    assert fake_client.recreate_calls == []
+    assert fake_client.deleted_point_ids == [stale_point_id]
+    assert stale_point_id not in fake_client.point_ids
+    assert artifact["diagnostics"]["stale_points_deleted"] == 1
+    assert artifact["diagnostics"]["recreate"] is False
+    assert {point.id for point in fake_client.upserted_points} == {
+        module.stable_section_point_id(section_id)
+        for section_id in section_ids
+    }
+    assert fake_client.scroll_calls[0]["limit"] == 1
+    assert fake_client.scroll_calls[0]["with_payload"] is False
+    assert fake_client.scroll_calls[0]["with_vectors"] is False
+
+
+def test_stable_section_point_id_reorder_invariance() -> None:
+    module = _retrieval_module()
+    sections = _b3a_sections(["doc.md#a", "doc.md#b", "doc.md#c", "doc.md#d"])
+    original = {
+        section["source_section_id"]: module.stable_section_point_id(section["source_section_id"])
+        for section in sections
+    }
+    reordered = {
+        section["source_section_id"]: module.stable_section_point_id(section["source_section_id"])
+        for section in reversed(sections)
+    }
+
+    assert reordered == original
+
+
+def test_upsert_migration_from_ordinal(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    module = _retrieval_module()
+    section_ids = ["doc.md#a", "doc.md#b", "doc.md#c"]
+    fake_client = _FakeQdrantClient([0, 1, 2, 3])
+    _install_fake_qdrant(monkeypatch, fake_client)
+    caplog.set_level("WARNING", logger="spec_grag.retrieval_index")
+
+    artifact = module.upsert_qdrant_section_collection(
+        _b3a_sections(section_ids),
+        {},
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=_FakeEmbeddingProvider(),
+        recreate=False,
+    )
+
+    assert fake_client.recreate_calls
+    assert fake_client.deleted_point_ids == []
+    assert {point.id for point in fake_client.upserted_points} == {
+        module.stable_section_point_id(section_id)
+        for section_id in section_ids
+    }
+    assert artifact["diagnostics"]["recreate"] is True
+    assert artifact["diagnostics"]["reason"] == "migration_required_from_ordinal_point_id"
+    assert artifact["diagnostics"]["migration_required_from_ordinal_point_id"] is True
+    assert "migration_required_from_ordinal_point_id" in caplog.text
+
+
+def test_fast_path_consistency_with_new_fingerprint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_grag.artifacts import ContextArtifactStore
+    from spec_grag import core as core_module
+
+    sections = _b3a_sections(["doc.md#a", "doc.md#b"])
+    config = {
+        "embedding": {
+            "provider": "flagembedding",
+            "model": "BAAI/bge-m3",
+            "dense_enabled": True,
+            "sparse_enabled": True,
+        }
+    }
+    store = ContextArtifactStore(tmp_path / ".spec-grag" / "context")
+    expected = core_module._build_retrieval_index_state(
+        sections,
+        config=config,
+        collection="spec_grag_section",
+        generated_at="2026-05-13T00:00:00Z",
+    )
+    monkeypatch.setattr(core_module, "_section_collection_exists", lambda *_args: True)
+    unchanged_sections = {
+        "unchanged": True,
+        "reason": core_module.UNCHANGED_SECTION_REASON,
+    }
+
+    store.write("retrieval_index_state", expected)
+    assert store.path_for("retrieval_index_state").is_file()
+    decision = core_module._retrieval_index_fast_path_decision(
+        expected,
+        store=store,
+        url="http://localhost:6333",
+        collection="spec_grag_section",
+        run_full=False,
+        force_full_recreate=False,
+        unchanged_sections=unchanged_sections,
+    )
+    assert decision == {"can_skip": True, "reason": core_module.UNCHANGED_SECTION_REASON}
+
+    old_state = dict(expected)
+    old_state["retrieval_schema_pin_fingerprint"] = "old-fingerprint-before-b3a"
+    store.write("retrieval_index_state", old_state)
+    decision = core_module._retrieval_index_fast_path_decision(
+        expected,
+        store=store,
+        url="http://localhost:6333",
+        collection="spec_grag_section",
+        run_full=False,
+        force_full_recreate=False,
+        unchanged_sections=unchanged_sections,
+    )
+    assert decision == {
+        "can_skip": False,
+        "reason": "fingerprint_mismatch",
+        "field": "retrieval_schema_pin_fingerprint",
+    }
 
 
 def test_t_u12_sparse_vecs_matrix_like_output_is_normalized() -> None:
@@ -320,6 +638,7 @@ def test_t_i05_embedding_to_qdrant_roundtrip_uses_real_local_service() -> None:
     flagembedding = pytest.importorskip("FlagEmbedding")
     qdrant_client = pytest.importorskip("qdrant_client")
     qdrant_models = pytest.importorskip("qdrant_client.models")
+    module = _retrieval_module()
 
     model = flagembedding.BGEM3FlagModel("BAAI/bge-m3", use_fp16=False)
     texts = ["refund policy source chunk", "invoice due date source chunk"]
@@ -341,11 +660,12 @@ def test_t_i05_embedding_to_qdrant_roundtrip_uses_real_local_service() -> None:
     )
 
     try:
-        client.upsert(
-            collection_name=collection,
-            points=[
+        points = []
+        for index in range(len(texts)):
+            source_section_id = f"S-0{index + 1}"
+            points.append(
                 qdrant_models.PointStruct(
-                    id=index,
+                    id=module.stable_section_point_id(source_section_id),
                     vector={
                         "dense": list(map(float, dense_vectors[index])),
                         "sparse": qdrant_models.SparseVector(
@@ -353,13 +673,12 @@ def test_t_i05_embedding_to_qdrant_roundtrip_uses_real_local_service() -> None:
                             values=_values(sparse_vectors[index]),
                         ),
                     },
-                    payload=_hit(f"chunk-{index}", f"S-0{index + 1}", 1.0, texts[index])[
+                    payload=_hit(f"chunk-{index}", source_section_id, 1.0, texts[index])[
                         "payload"
                     ],
                 )
-                for index in range(len(texts))
-            ],
-        )
+            )
+        client.upsert(collection_name=collection, points=points)
 
         dense_result = client.query_points(
             collection_name=collection,
