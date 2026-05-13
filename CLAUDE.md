@@ -540,6 +540,55 @@ worktree を使う動機の多くは「main を汚さずに作業したい」「
 - Agent 内では Phase / step 単位で **そのまま main repo に commit する** (ルール 8「失敗を計画へ反映」+ コミット境界を切る)
 - subagent をコンテキスト消費削減目的で使う場合、`isolation` 未指定 (= main repo 上で動作) で起動する
 
+### ルール 19: Codex subagent 呼び出しの完了判定と粒度
+
+Claude main agent が `codex:codex-rescue` subagent 経由で Codex CLI に作業を委譲する場合、forwarder の `completed` 通知を Codex 本体の実装完了と取り違えてはいけない。完了判定は output file の Final report を確認するまで行わない。
+
+#### 完了ステータスは 4 区分で扱う
+
+Codex 呼び出し後の状態は次の 4 つに分けて報告する。3 つ以下に丸めない。
+
+- **Forwarded**: `Agent` tool で `codex:codex-rescue` に依頼を投げた段階。forwarder subagent が起動した直後。Codex 本体はまだ動いていない可能性がある
+- **Running**: Codex 子 process が残っている、または output file (`/tmp/claude-1001/.../tasks/<bg-id>.output`) が更新中
+- **Completed**: 子 process が終了し、output file に Final report が存在し、依頼した checklist 全項目と `pytest -q --skip-external` 結果と `git grep` 検証が揃った状態
+- **Interrupted / Incomplete**: output file が途中で終わっている、Final report が不在、checklist の一部が未実行。working tree が静止していてもこの状態でありうる
+
+#### Codex 呼び出し後の必須確認手順
+
+forwarder subagent の `task-notification status=completed` を受け取った直後に、次を順に実施する。
+
+1. forwarder transcript (`/home/kazuki/.claude/projects/.../subagents/agent-<id>.jsonl`) を `python -c "import json; ..."` で解析し、最後の `assistant` text content と最後の `tool_result` を確認する。`Codex Task started in the background as task-...` / `Command running in background with ID: ...` は **完了通知ではない**。前者は Codex 起動通知、後者は Claude Code Bash tool の自動 background 切替通知である
+2. forwarder が起動した Bash bg ID の output file (`/tmp/claude-1001/.../tasks/<bg-id>.output`) を最後まで読む。行数だけでなく末尾内容を確認する
+3. Codex / `codex-companion.mjs` の running process を `ps -eo pid,etime,cmd | grep -iE 'codex|companion' | grep -v grep` で確認する。残っていれば Running、消えていれば output file の Final report 有無を確認する
+4. Final report 10 項目 (依頼 prompt の Final report structure 節) が output に揃っているか、checklist と `git grep` / `pytest -q --skip-external` 結果でクロス確認する
+5. 上記が揃わない場合、status は Interrupted / Incomplete。**working tree 監査へ進まず**、未完了範囲を報告する
+
+#### Codex 依頼の粒度ルール
+
+1 回の Codex task は **10 分以内に終わる単位** に分割する。Claude Code の Bash tool は前景タイムアウト (~10 分) を超えると自動的に background 切替を行い、その時点で forwarder の Bash 子プロセスが脱落するため、Codex 子プロセスが kill / orphan 化されて中断する。
+
+- 1 task = 1 修正テーマ + 関連 unit test + 関連 grep 検証 + その task の Final report までを含む粒度に絞る
+- 複数 CDX / R6 系の full pytest / R7 系の reversion verification / Final report 10 項目をすべて 1 task に詰め込まない
+- R6 final pytest と R7 reversion verification は **Claude main agent が実行する**。Codex には実装と関連 pytest までを任せる。Claude が監督・検収役に回る分業を維持する
+
+#### 禁止する具体的操作
+
+- forwarder `completed` を Codex 本体 `completed` と短絡して working tree 監査へ進む
+- output file (`/tmp/claude-1001/.../tasks/<bg-id>.output`) を最後まで読まずに完了判定する
+- Final report 不在のまま「CODEX が手抜きした」と推論する。中断と手抜きは別物として扱う
+- 10 分超を見込む bundle を 1 task で投げる (粒度過大)
+- `agents.job_max_runtime_seconds` を増やせば打ち切りが防げると仮定する。これは Codex の subagent worker 用設定で、Claude Code Bash tool の前景タイムアウトとは別系統
+
+#### なぜこのルールが必要か
+
+2026-05-14 session で次の事故が起きた。
+
+Claude main agent が CDX-001/003/004/006/007 + R6 final pytest + R7 reversion verification + Final report 10 項目を 1 つの bundle prompt で `codex:codex-rescue` に依頼した。forwarder が約 11 分後に `completed` を返し、その時点で working tree は CDX-001/003/004/006 まで実装が入った状態で静止していた。Claude は forwarder completed = Codex completed と判断し、`tests/test_retrieval_index.py` が未編集なのを見て「CODEX が CDX-003 / CDX-007 を手抜きした」と推論した。
+
+実際は forwarder が起動した `codex-companion.mjs task` が 10 分以上 block した結果、Claude Code Bash tool の自動 background 化が発動し、forwarder の Bash 子プロセスが脱落、Codex 子プロセスが kill された。output file (`bb3cnpwvm.output`, 183 行) は Final report 直前の CDX-006 pytest pass 行で終わっており、CDX-007 / R6 / R7 / Final report は実行されていなかった。
+
+GPT (ChatGPT) からの指摘で初めて output file を最後まで読み、Claude が「完了判定誤認」と「手抜き誤推論」の両方を起こしていたことが判明した。詳細は `feedback_codex_invocation_protocol.md` に保存。
+
 ## 退避資料
 
 旧 full GRAG 版は次に退避している。
