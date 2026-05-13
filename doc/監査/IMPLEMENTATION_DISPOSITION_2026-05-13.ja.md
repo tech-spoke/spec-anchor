@@ -155,3 +155,73 @@
 - `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external`: 350 passed, 16 skipped
 - `SPEC_GRAG_QDRANT_URL=http://localhost:6333 .venv/bin/python -m pytest -q tests/test_retrieval_index.py::test_t_i05_embedding_to_qdrant_roundtrip_uses_real_local_service`: 1 passed
 - 実 Qdrant / BGE-M3 と fake LLM provider の一時 project smoke: first run 17.754 秒、second run 0.072 秒、2 回目は `retrieval_index_status == "skipped_unchanged"` / `related_sections_status == "skipped_unchanged"`
+
+## R-001: Related Sections の collection fallback が core / inject と一致していない
+
+指摘 ID: R-001
+
+指摘要約: `spec_grag/related_sections.py` の collection 名解決が `[retrieval].section_collection` → `[vector_store].section_collection` → `spec_grag_section` の 2-step fallback になっており、`spec_grag/core.py` と `spec_grag/inject.py` が使う `[vector_store].collection` fallback と一致していなかった。
+
+判定: 採用。
+
+理由: Source Retrieval Index、inject-search、Related Sections の Qdrant section collection は同じ設定優先順で解決される必要がある。Related Sections だけ `[vector_store].collection` を無視すると、既存 project 設定で core / inject と異なる collection を参照する可能性がある。
+
+対応:
+
+- `spec_grag/related_sections.py:361` で collection 名解決を `[retrieval].section_collection` → `[vector_store].section_collection` → `[vector_store].collection` → `spec_grag_section` に変更した。
+- `tests/test_related_sections.py:655` に `test_qdrant_section_hybrid_uses_vector_store_collection_fallback` を追加し、`[vector_store].collection` が Related Sections の Qdrant retriever へ渡ることを確認した。
+
+証跡:
+
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external tests/test_related_sections.py::test_qdrant_section_hybrid_uses_vector_store_collection_fallback`: 1 passed
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external`: 353 passed, 16 skipped
+- 確認箇所: `spec_grag/related_sections.py:361`、`tests/test_related_sections.py:655`
+
+残 TODO: なし。
+
+## R-002: inject-search path で `[retrieval].section_collection` 優先を確認する test がない
+
+指摘 ID: R-002
+
+指摘要約: inject-search の collection 名解決について、`[vector_store].collection` と `[retrieval].section_collection` が同時に存在する場合に `[retrieval].section_collection` を優先する regression test がなかった。
+
+判定: 採用。
+
+理由: inject-search は Agentic Search の主経路であり、core が upsert した collection と同じ collection を検索する必要がある。設定優先順の regression test がないと、将来の refactor で `[vector_store].collection` が誤って使われても検出できない。
+
+対応:
+
+- `tests/test_inject_cli_extension.py:310` に `test_inject_search_prefers_retrieval_section_collection_over_vector_store_collection` を追加した。
+- test 内で `_build_hybrid_retriever` を monkeypatch し、`run_inject_search()` が渡す collection 引数が `right_collection` であり、`wrong_collection` ではないことを確認した。
+- production code の `spec_grag/inject.py:963` は既に `[retrieval].section_collection` → `[vector_store].section_collection` → `[vector_store].collection` → `spec_grag_section` の優先順になっているため、R-002 では test を追加した。
+
+証跡:
+
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external tests/test_inject_cli_extension.py::test_inject_search_prefers_retrieval_section_collection_over_vector_store_collection`: 1 passed
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external`: 353 passed, 16 skipped
+- 確認箇所: `tests/test_inject_cli_extension.py:310`、`spec_grag/inject.py:963`
+
+残 TODO: なし。
+
+## R-004: `_source_span_payload()` が欠落・不正 field を 0 埋めしている
+
+指摘 ID: R-004
+
+指摘要約: `spec_grag/retrieval_index.py` の `_source_span_payload()` が `start_line` / `end_line` / `start_offset` / `end_offset` の欠落または不正値を 0 に置き換え、実在しない source span を payload に入れる可能性があった。
+
+判定: 採用。
+
+理由: `source_span` は Agent が Source Specs 本文へ戻るための provenance であり、欠落・不正 field を 0 埋めすると誤った本文範囲を示す。`spec_grag/section_payload.py` の metadata entry と同様に、source span が有効でない場合は空 dict として扱う。
+
+対応:
+
+- `spec_grag/retrieval_index.py:1176` の `_source_span_payload()` を変更し、4 field のいずれかが欠落または整数化不可の場合は `{}` を返すようにした。
+- `tests/test_retrieval_index.py:442` に `test_section_payloads_use_empty_source_span_for_incomplete_or_invalid_fields` を追加した。
+
+証跡:
+
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external tests/test_retrieval_index.py::test_section_payloads_one_per_section tests/test_retrieval_index.py::test_section_payloads_use_empty_source_span_for_incomplete_or_invalid_fields`: 2 passed
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external`: 353 passed, 16 skipped
+- 確認箇所: `spec_grag/retrieval_index.py:1176`、`tests/test_retrieval_index.py:442`
+
+残 TODO: なし。

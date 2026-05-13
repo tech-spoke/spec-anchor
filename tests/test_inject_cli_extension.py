@@ -307,6 +307,60 @@ def test_inject_search_returns_source_provenance_for_agentic_search(
     assert result["hits"][0]["source_span"]["start_line"] == 3
 
 
+def test_inject_search_prefers_retrieval_section_collection_over_vector_store_collection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = _write_project(
+        tmp_path,
+        config_overrides=dedent(
+            """\
+            collection = "wrong_collection"
+
+            [retrieval]
+            section_collection = "right_collection"
+            """
+        ),
+    )
+
+    import spec_grag.inject as inject_module
+    import spec_grag.retrieval_index as retrieval_module
+
+    class _Provider:
+        pass
+
+    class _Result:
+        hits: list[Any] = []
+
+    class _Retriever:
+        def search(self, query: str, *, limit: int) -> _Result:
+            assert query == "alpha"
+            assert limit == 1
+            return _Result()
+
+    captured: dict[str, str] = {}
+
+    def _build(url: str, collection: str, provider: Any) -> _Retriever:
+        captured["url"] = url
+        captured["collection"] = collection
+        captured["provider"] = type(provider).__name__
+        return _Retriever()
+
+    monkeypatch.setattr(
+        retrieval_module,
+        "FlagEmbeddingBgeM3Provider",
+        lambda **_kwargs: _Provider(),
+    )
+    monkeypatch.setattr(inject_module, "_build_hybrid_retriever", _build)
+
+    result = run_inject_search(project_root=project, query="alpha", top_k=1)
+
+    assert result["warnings"] == []
+    assert result["collection"] == "right_collection"
+    assert captured["collection"] == "right_collection"
+    assert captured["collection"] != "wrong_collection"
+
+
 def test_build_hybrid_retriever_constructs_qdrant_hybrid_retriever() -> None:
     """Regression guard: `_build_hybrid_retriever` must construct the
     real `QdrantHybridRetriever` class, not the non-existent

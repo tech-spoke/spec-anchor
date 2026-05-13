@@ -439,6 +439,35 @@ def test_section_payloads_one_per_section() -> None:
     assert by_id["spec.md#beta"]["summary"] == ""
 
 
+def test_section_payloads_use_empty_source_span_for_incomplete_or_invalid_fields() -> None:
+    module = _retrieval_module()
+    sections = [
+        {
+            "source_section_id": "spec.md#missing",
+            "source_document_id": "spec.md",
+            "source_span": {"start_line": 3, "end_line": 5},
+            "source_hash": "hm",
+        },
+        {
+            "source_section_id": "spec.md#invalid",
+            "source_document_id": "spec.md",
+            "source_span": {
+                "start_line": 3,
+                "end_line": "not-int",
+                "start_offset": 20,
+                "end_offset": 90,
+            },
+            "source_hash": "hi",
+        },
+    ]
+
+    payloads = module.build_section_payloads(sections, {})
+
+    by_id = {p["source_section_id"]: p for p in payloads}
+    assert by_id["spec.md#missing"]["source_span"] == {}
+    assert by_id["spec.md#invalid"]["source_span"] == {}
+
+
 def test_section_payloads_include_related_sections_when_metadata_has_it() -> None:
     """Phase R-3: related_sections must round-trip through build_section_payloads."""
 

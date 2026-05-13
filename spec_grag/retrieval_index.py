@@ -1184,12 +1184,15 @@ def _source_span_payload(value: Any) -> dict[str, int]:
             for key in ("start_line", "end_line", "start_offset", "end_offset")
             if hasattr(value, key)
         }
+    required_keys = ("start_line", "end_line", "start_offset", "end_offset")
     result: dict[str, int] = {}
-    for key in ("start_line", "end_line", "start_offset", "end_offset"):
+    for key in required_keys:
+        if key not in raw:
+            return {}
         try:
-            result[key] = int(raw.get(key, 0))  # type: ignore[union-attr]
+            result[key] = int(raw[key])
         except (TypeError, ValueError):
-            result[key] = 0
+            return {}
     return result
 
 

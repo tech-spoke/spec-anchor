@@ -652,6 +652,43 @@ def test_qdrant_section_hybrid_channel_is_present_in_candidate_set() -> None:
     assert module.QDRANT_SECTION_HYBRID == "qdrant_section_hybrid"
 
 
+def test_qdrant_section_hybrid_uses_vector_store_collection_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = importlib.import_module("spec_grag.related_sections")
+    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    sections = _fixture_sections()
+    metadata = _metadata_for(sections)
+    captured: dict[str, str] = {}
+
+    class _Retriever:
+        def __init__(self, *, url: str, collection: str) -> None:
+            captured["url"] = url
+            captured["collection"] = collection
+
+        def search(self, *_args: Any, **_kwargs: Any) -> SimpleNamespace:
+            return SimpleNamespace(hits=[])
+
+    monkeypatch.setattr(retrieval_module, "QdrantHybridRetriever", _Retriever)
+
+    module.generate_related_section_candidates(
+        sections,
+        section_metadata=metadata,
+        config={
+            "vector_store": {
+                "provider": "qdrant",
+                "url": "http://localhost:6333",
+                "collection": "right_vector_store_collection",
+            },
+            "embedding": {"provider": "flagembedding"},
+            "retrieval": {"section_candidate_top_k": 1},
+        },
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    assert captured["collection"] == "right_vector_store_collection"
+
+
 def test_legacy_channels_are_removed_from_module() -> None:
     """T-Phase-C: regression guard for the deleted pattern-matching channels."""
     module = importlib.import_module("spec_grag.related_sections")
