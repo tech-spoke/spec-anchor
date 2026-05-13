@@ -33,11 +33,20 @@ ARTIFACT_FILENAMES = {
     "conflict_review_items": "conflict_review_items.json",
     "chapter_anchors": "chapter_anchors.json",
     "freshness": "freshness.json",
+    "retrieval_index_state": "retrieval_index_state.json",
+    "related_sections_state": "related_sections_state.json",
 }
 
 # Artifact names that live in `.spec-grag/state/` rather than
 # `.spec-grag/context/`.
-STATE_ARTIFACTS = frozenset({"section_manifest", "freshness"})
+STATE_ARTIFACTS = frozenset(
+    {
+        "section_manifest",
+        "freshness",
+        "retrieval_index_state",
+        "related_sections_state",
+    }
+)
 
 CORE_ARTIFACT_ORDER = (
     "section_manifest",

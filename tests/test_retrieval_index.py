@@ -404,6 +404,12 @@ def test_section_payloads_one_per_section() -> None:
             "source_document_id": "spec.md",
             "stable_section_uid": "uid-alpha",
             "heading_path": ["Spec", "Alpha"],
+            "source_span": {
+                "start_line": 3,
+                "end_line": 5,
+                "start_offset": 20,
+                "end_offset": 90,
+            },
             "source_hash": "ha",
             "semantic_hash": "sa",
         },
@@ -426,6 +432,8 @@ def test_section_payloads_one_per_section() -> None:
     assert len(payloads) == 2
     by_id = {p["source_section_id"]: p for p in payloads}
     assert by_id["spec.md#alpha"]["summary"] == "Alpha covers authentication."
+    assert by_id["spec.md#alpha"]["source_span"]["start_line"] == 3
+    assert by_id["spec.md#alpha"]["source_span"]["end_line"] == 5
     assert "Alpha" in by_id["spec.md#alpha"]["text"]
     assert "auth" in by_id["spec.md#alpha"]["text"].lower()
     assert by_id["spec.md#beta"]["summary"] == ""

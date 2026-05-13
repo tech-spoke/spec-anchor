@@ -42,6 +42,10 @@ REQUIRE_TERMS = ("requires", "required", "requirement", "必須")
 FORBID_TERMS = ("forbids", "forbidden", "must not", "cannot", "prohibited", "should not", "禁止")
 OPTIONAL_TERMS = ("optional", "任意")
 CONFLICT_CANDIDATE_CHANNELS = {"markdown_link", "shared_identifier", "search_key_match"}
+RETRIEVAL_INDEX_STATE_SCHEMA_VERSION = 1
+RELATED_SECTIONS_STATE_SCHEMA_VERSION = 1
+RELATED_SECTIONS_ARTIFACT_SCHEMA_VERSION = 1
+UNCHANGED_SECTION_REASON = "section_hashes_match"
 
 
 def run_spec_core(
@@ -258,6 +262,7 @@ def _run_spec_core_unlocked(
     context_dir = root / _config_get(config, ("context", "storage"), ".spec-grag/context")
     cache_dir = root / ".spec-grag/cache"
     store = ContextArtifactStore(context_dir)
+    previous_section_manifest = _read_artifact(store, "section_manifest")
     previous_conflicts = _read_artifact(store, "conflict_review_items")
     previous_metadata = _read_previous_section_metadata(config, store)
 
@@ -350,6 +355,11 @@ def _run_spec_core_unlocked(
         source_snapshot or snapshot or watcher_snapshot,
     ) if source_snapshot or snapshot or watcher_snapshot else _load_sections(root, config)
     emit("core_sections_loaded")
+    unchanged_sections = _section_unchanged_decision(
+        sections,
+        previous_section_manifest,
+        run_full=run_full,
+    )
     old_entries = {
         str(entry.get("section_id") or entry.get("source_section_id")): entry
         for entry in previous_metadata.get("sections", [])
@@ -427,6 +437,11 @@ def _run_spec_core_unlocked(
         section_metadata=section_metadata,
         force_full_recreate=rebuild_embeddings,
         emit=emit,
+        store=store,
+        run_full=run_full,
+        unchanged_sections=unchanged_sections,
+        generated_at=generated_at,
+        progress_tracker=progress_tracker,
     )
     emit("core_section_collection_upsert_done")
     emit("core_related_sections_start")
@@ -438,7 +453,13 @@ def _run_spec_core_unlocked(
         config=related_llm_config,
         generated_at=generated_at,
         cache_dir=related_pair_cache_dir,
+        store=store,
+        run_full=run_full,
+        unchanged_sections=unchanged_sections,
+        retrieval_index_status=retrieval_index_status,
+        progress_tracker=progress_tracker,
     )
+    related_sections_status = _related_sections_status(related_generation)
     related_section_candidates = _related_section_candidates(related_generation)
     selected_related_sections = _merge_related_sections_by_source(
         _related_sections_by_source(related_generation),
@@ -453,11 +474,12 @@ def _run_spec_core_unlocked(
         section_metadata,
         {"related_sections": selected_related_sections},
     )
-    _update_section_collection_related_sections_if_enabled(
-        config=config,
-        section_metadata=section_metadata,
-        emit=emit,
-    )
+    if related_sections_status != "skipped_unchanged":
+        _update_section_collection_related_sections_if_enabled(
+            config=config,
+            section_metadata=section_metadata,
+            emit=emit,
+        )
     if progress_tracker is not None:
         related_llm_results = getattr(
             getattr(related_generation, "selection", None), "llm_results", []
@@ -559,13 +581,21 @@ def _run_spec_core_unlocked(
             failed_section_ids=failed_section_ids,
         )
     generation_status = str(metadata_generation_summary.get("freshness_status") or "fresh")
-    failed_required_artifacts = (
-        ["section_metadata"] if generation_status == "failed" else []
-    )
-    degraded_optional_artifacts = (
-        ["section_metadata"] if generation_status == "degraded" else []
-    )
+    failed_required_artifacts = []
+    if generation_status == "failed":
+        failed_required_artifacts.append("section_metadata")
+    if retrieval_index_status == "failed":
+        failed_required_artifacts.append("retrieval_index")
+    degraded_optional_artifacts = []
+    if generation_status == "degraded":
+        degraded_optional_artifacts.append("section_metadata")
+    if related_sections_status == "failed":
+        degraded_optional_artifacts.append("related_sections")
     generation_warnings = list(metadata_generation_summary.get("warnings") or [])
+    if retrieval_index_status == "failed":
+        generation_warnings.append("Source Retrieval Index update failed")
+    if related_sections_status == "failed":
+        generation_warnings.append("Related Sections generation failed")
     generation_diagnostics = {
         "section_metadata_generation": {
             **metadata_generation_summary,
@@ -578,7 +608,13 @@ def _run_spec_core_unlocked(
                 section_id: list(metadata_diagnostics_by_section.get(section_id) or [])
                 for section_id in sorted(failed_section_ids)
             },
-        }
+        },
+        "retrieval_index": {
+            "status": retrieval_index_status,
+        },
+        "related_sections": {
+            "status": related_sections_status,
+        },
     }
 
     section_manifest_audit_by_id = _section_manifest_audit_by_id(
@@ -677,6 +713,7 @@ def _run_spec_core_unlocked(
         "skipped_sections": skipped_sections,
         "regenerated_chapter_anchors": sorted({section["chapter_id"] for section in sections if section["section_id"] in changed_ids}),
         "retrieval_index_status": retrieval_index_status,
+        "related_sections_status": related_sections_status,
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
@@ -900,6 +937,7 @@ def _blocked_core_result(
         "skipped_sections": [],
         "regenerated_chapter_anchors": [],
         "retrieval_index_status": "blocked",
+        "related_sections_status": "blocked",
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -945,6 +983,7 @@ def _config_error_core_result(
         "skipped_sections": [],
         "regenerated_chapter_anchors": [],
         "retrieval_index_status": "failed",
+        "related_sections_status": "blocked",
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1068,9 +1107,7 @@ def _read_section_payloads_from_qdrant(config: Mapping[str, Any]) -> list[dict[s
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
         return []
     url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-    section_collection = str(
-        _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
-    )
+    section_collection = _section_collection_name(config)
     try:
         from qdrant_client import QdrantClient  # type: ignore[import-not-found]
     except ImportError:
@@ -1132,6 +1169,282 @@ def _read_section_manifest_generation(
     return dict(generation)
 
 
+def _section_collection_name(config: Mapping[str, Any]) -> str:
+    value = (
+        _config_get(config, ("retrieval", "section_collection"))
+        or _config_get(config, ("vector_store", "section_collection"))
+        or _config_get(config, ("vector_store", "collection"))
+        or "spec_grag_section"
+    )
+    return str(value)
+
+
+def _section_unchanged_decision(
+    sections: Sequence[Mapping[str, Any]],
+    previous_manifest: Mapping[str, Any] | None,
+    *,
+    run_full: bool,
+) -> dict[str, Any]:
+    if run_full:
+        return {"unchanged": False, "reason": "full_rebuild"}
+    if not isinstance(previous_manifest, Mapping) or not previous_manifest.get("sections"):
+        return {"unchanged": False, "reason": "manifest_missing"}
+    previous_entries = {
+        str(entry.get("source_section_id") or entry.get("section_id") or ""): entry
+        for entry in previous_manifest.get("sections", [])
+        if isinstance(entry, Mapping)
+    }
+    previous_entries.pop("", None)
+    current_ids = {
+        str(section.get("source_section_id") or section.get("section_id") or "")
+        for section in sections
+    }
+    current_ids.discard("")
+    previous_ids = set(previous_entries)
+    added = sorted(current_ids - previous_ids)
+    deleted = sorted(previous_ids - current_ids)
+    if added:
+        return {"unchanged": False, "reason": "section_added", "section_ids": added}
+    if deleted:
+        return {"unchanged": False, "reason": "section_deleted", "section_ids": deleted}
+    for section in sections:
+        section_id = str(section.get("source_section_id") or section.get("section_id") or "")
+        previous = previous_entries.get(section_id)
+        if previous is None:
+            return {"unchanged": False, "reason": "section_added", "section_ids": [section_id]}
+        if previous.get("source_hash") != section.get("source_hash"):
+            return {"unchanged": False, "reason": "source_hash_changed", "section_ids": [section_id]}
+        if previous.get("semantic_hash") != section.get("semantic_hash"):
+            return {"unchanged": False, "reason": "semantic_hash_changed", "section_ids": [section_id]}
+    return {"unchanged": True, "reason": UNCHANGED_SECTION_REASON}
+
+
+def _build_retrieval_index_state(
+    sections: Sequence[Mapping[str, Any]],
+    *,
+    config: Mapping[str, Any],
+    collection: str,
+    generated_at: str | None,
+) -> dict[str, Any]:
+    return {
+        "schema_version": RETRIEVAL_INDEX_STATE_SCHEMA_VERSION,
+        "generated_at": generated_at,
+        "collection_name": collection,
+        "section_count": len(sections),
+        "section_hash_fingerprint": _section_hash_fingerprint(sections),
+        "embedding_provider": str(_config_get(config, ("embedding", "provider"), "")),
+        "embedding_model": str(_config_get(config, ("embedding", "model"), "")),
+        "dense_enabled": _config_bool(config, ("embedding", "dense_enabled"), True),
+        "sparse_enabled": _config_bool(config, ("embedding", "sparse_enabled"), True),
+        "retrieval_schema_pin_fingerprint": _retrieval_schema_pin_fingerprint(),
+        "artifact_schema_version": retrieval_index_api.SECTION_EMBEDDINGS_ARTIFACT_VERSION,
+    }
+
+
+def _build_related_sections_state(
+    sections: Sequence[Mapping[str, Any]],
+    *,
+    config: Mapping[str, Any],
+    provider: Any,
+    generated_at: str | None,
+) -> dict[str, Any]:
+    llm_config = _config_get(config, ("llm",), {})
+    provider_id = str(getattr(provider, "provider_id", "") or _config_get(llm_config, ("command",), ""))
+    model = str(_config_get(llm_config, ("model",), "") or provider_id or "fake")
+    effort = str(_config_get(llm_config, ("effort",), "") or "")
+    return {
+        "schema_version": RELATED_SECTIONS_STATE_SCHEMA_VERSION,
+        "generated_at": generated_at,
+        "section_list_fingerprint": _section_list_fingerprint(sections),
+        "section_hash_fingerprint": _section_hash_fingerprint(sections),
+        "candidate_generation_config_fingerprint": _related_candidate_generation_config_fingerprint(config),
+        "selection_prompt_version": related_sections_api.RELATED_SECTIONS_PROMPT_VERSION,
+        "selection_model": model,
+        "selection_provider": provider_id,
+        "selection_effort": effort,
+        "artifact_schema_version": RELATED_SECTIONS_ARTIFACT_SCHEMA_VERSION,
+    }
+
+
+def _retrieval_index_fast_path_decision(
+    expected_state: Mapping[str, Any],
+    *,
+    store: ContextArtifactStore | None,
+    url: str,
+    collection: str,
+    run_full: bool,
+    force_full_recreate: bool,
+    unchanged_sections: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if run_full or force_full_recreate:
+        return {"can_skip": False, "reason": "full_rebuild"}
+    if not unchanged_sections or not unchanged_sections.get("unchanged"):
+        return {"can_skip": False, "reason": str((unchanged_sections or {}).get("reason") or "section_changed")}
+    actual_state = _read_optional_artifact(store, "retrieval_index_state")
+    if actual_state is None:
+        return {"can_skip": False, "reason": "sidecar_missing"}
+    mismatch = _state_mismatch(
+        actual_state,
+        expected_state,
+        keys=(
+            "schema_version",
+            "collection_name",
+            "section_count",
+            "section_hash_fingerprint",
+            "embedding_provider",
+            "embedding_model",
+            "dense_enabled",
+            "sparse_enabled",
+            "retrieval_schema_pin_fingerprint",
+            "artifact_schema_version",
+        ),
+    )
+    if mismatch:
+        return {"can_skip": False, "reason": "fingerprint_mismatch", "field": mismatch}
+    if not _section_collection_exists(url, collection):
+        return {"can_skip": False, "reason": "collection_missing"}
+    return {"can_skip": True, "reason": UNCHANGED_SECTION_REASON}
+
+
+def _related_sections_fast_path_decision(
+    expected_state: Mapping[str, Any],
+    *,
+    store: ContextArtifactStore | None,
+    run_full: bool,
+    unchanged_sections: Mapping[str, Any] | None,
+    retrieval_index_status: str,
+) -> dict[str, Any]:
+    if run_full:
+        return {"can_skip": False, "reason": "full_rebuild"}
+    if retrieval_index_status not in {"success", "skipped_unchanged"}:
+        return {"can_skip": False, "reason": f"retrieval_index_{retrieval_index_status or 'unknown'}"}
+    if not unchanged_sections or not unchanged_sections.get("unchanged"):
+        return {"can_skip": False, "reason": str((unchanged_sections or {}).get("reason") or "section_changed")}
+    actual_state = _read_optional_artifact(store, "related_sections_state")
+    if actual_state is None:
+        return {"can_skip": False, "reason": "sidecar_missing"}
+    mismatch = _state_mismatch(
+        actual_state,
+        expected_state,
+        keys=(
+            "schema_version",
+            "section_list_fingerprint",
+            "section_hash_fingerprint",
+            "candidate_generation_config_fingerprint",
+            "selection_prompt_version",
+            "selection_model",
+            "selection_provider",
+            "selection_effort",
+            "artifact_schema_version",
+        ),
+    )
+    if mismatch:
+        return {"can_skip": False, "reason": "fingerprint_mismatch", "field": mismatch}
+    return {"can_skip": True, "reason": UNCHANGED_SECTION_REASON}
+
+
+def _read_optional_artifact(
+    store: ContextArtifactStore | None,
+    artifact_name: str,
+) -> dict[str, Any] | None:
+    if store is None:
+        return None
+    try:
+        return store.read(artifact_name)
+    except Exception:
+        return None
+
+
+def _state_mismatch(
+    actual: Mapping[str, Any],
+    expected: Mapping[str, Any],
+    *,
+    keys: Sequence[str],
+) -> str | None:
+    for key in keys:
+        if actual.get(key) != expected.get(key):
+            return key
+    return None
+
+
+def _section_hash_fingerprint(sections: Sequence[Mapping[str, Any]]) -> str:
+    parts = [
+        "|".join(
+            (
+                str(section.get("source_section_id") or section.get("section_id") or ""),
+                str(section.get("source_hash") or ""),
+                str(section.get("semantic_hash") or ""),
+            )
+        )
+        for section in sections
+    ]
+    return _hash_text("\n".join(sorted(parts)))
+
+
+def _section_list_fingerprint(sections: Sequence[Mapping[str, Any]]) -> str:
+    values = [
+        str(section.get("source_section_id") or section.get("section_id") or "")
+        for section in sections
+    ]
+    return _hash_text("\n".join(sorted(value for value in values if value)))
+
+
+def _retrieval_schema_pin_fingerprint() -> str:
+    payload = {
+        "collection_schema_version": retrieval_index_api.QDRANT_COLLECTION_SCHEMA_VERSION,
+        "collection_config": retrieval_index_api.qdrant_collection_config_metadata(),
+        "dense_size": retrieval_index_api.BGE_M3_DENSE_SIZE,
+        "dense_vector_name": retrieval_index_api.DENSE_VECTOR_NAME,
+        "sparse_vector_name": retrieval_index_api.SPARSE_VECTOR_NAME,
+        "fusion_method": retrieval_index_api.FUSION_METHOD,
+    }
+    return _hash_text(_stable_json(payload))
+
+
+def _related_candidate_generation_config_fingerprint(config: Mapping[str, Any]) -> str:
+    payload = {
+        "candidate_channels": list(related_sections_api.MVP_CANDIDATE_CHANNELS),
+        "retrieval": {
+            "section_candidate_top_k": _config_get(config, ("retrieval", "section_candidate_top_k"), 16),
+            "section_final_top_n": _config_get(config, ("retrieval", "section_final_top_n"), 8),
+            "section_dense_threshold": _config_get(config, ("retrieval", "section_dense_threshold"), 0.55),
+        },
+        "limits": {
+            "related_candidate_max_per_section": _config_get(config, ("limits", "related_candidate_max_per_section"), 32),
+            "related_selected_max_per_section": _config_get(config, ("limits", "related_selected_max_per_section"), 8),
+            "llm_batch_max_sections": _config_get(config, ("limits", "llm_batch_max_sections"), 8),
+            "llm_batch_max_chars": _config_get(config, ("limits", "llm_batch_max_chars"), 12000),
+        },
+    }
+    return _hash_text(_stable_json(payload))
+
+
+def _config_bool(config: Mapping[str, Any], path: tuple[str, ...], default: bool) -> bool:
+    value = _config_get(config, path, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
+def _stable_json(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _progress_action(
+    progress_tracker: CoreProgressTracker | None,
+    stage: str,
+    *,
+    action: str,
+    reason: str,
+    **fields: Any,
+) -> None:
+    if progress_tracker is None:
+        return
+    progress_tracker.update(stage, action=action, reason=reason, **fields)
+
+
 def _section_collection_exists(url: str, collection: str) -> bool:
     """Return True when the Qdrant section-level collection already exists.
 
@@ -1158,6 +1471,11 @@ def _upsert_section_collection_if_enabled(
     section_metadata: Mapping[str, Any],
     force_full_recreate: bool,
     emit: Any,
+    store: ContextArtifactStore | None = None,
+    run_full: bool = False,
+    unchanged_sections: Mapping[str, Any] | None = None,
+    generated_at: str | None = None,
+    progress_tracker: CoreProgressTracker | None = None,
 ) -> str:
     """Build / refresh the section-level Qdrant collection.
 
@@ -1165,19 +1483,49 @@ def _upsert_section_collection_if_enabled(
 
     * ``"success"``     — section collection upsert completed against Qdrant.
     * ``"skipped"``     — fake / offline retrieval (e.g. `embedding.provider != flagembedding`).
+    * ``"skipped_unchanged"`` — prior Qdrant collection state is still valid.
     * ``"failed"``      — Qdrant exception swallowed so `/spec-core` is not blocked,
       but the section collection is unreliable. The candidate generator falls
       back to in-memory retrieval; surface this via the result diagnostics.
     """
 
+    del emit  # kept for backward-compatible call sites and tests
     embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
     vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+        _progress_action(
+            progress_tracker,
+            "section_collection_upsert",
+            action="skipped",
+            reason="retrieval_disabled",
+        )
         return "skipped"
     url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-    section_collection = str(
-        _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
+    section_collection = _section_collection_name(config)
+    expected_state = _build_retrieval_index_state(
+        sections,
+        config=config,
+        collection=section_collection,
+        generated_at=generated_at,
     )
+    fast_path = _retrieval_index_fast_path_decision(
+        expected_state,
+        store=store,
+        url=url,
+        collection=section_collection,
+        run_full=run_full,
+        force_full_recreate=force_full_recreate,
+        unchanged_sections=unchanged_sections,
+    )
+    if fast_path["can_skip"]:
+        _progress_action(
+            progress_tracker,
+            "section_collection_upsert",
+            action="skipped_unchanged",
+            reason="input_and_config_fingerprint_match_and_collection_exists",
+        )
+        return "skipped_unchanged"
+
     metadata_by_id: dict[str, Mapping[str, Any]] = {}
     for entry in section_metadata.get("sections") or ():
         if not isinstance(entry, Mapping):
@@ -1212,11 +1560,30 @@ def _upsert_section_collection_if_enabled(
             recreate=recreate,
             generated_at=str(section_metadata.get("generated_at") or ""),
         )
+        if store is not None:
+            try:
+                store.write("retrieval_index_state", expected_state)
+            except Exception:
+                pass
+        action = "upserted" if run_full or force_full_recreate else "fallback_rebuilt"
+        _progress_action(
+            progress_tracker,
+            "section_collection_upsert",
+            action=action,
+            reason=str(fast_path.get("reason") or "normal_upsert"),
+            recreate=recreate,
+        )
         return "success"
     except Exception:
         # Section collection upsert failures must not block /spec-core.
         # The candidate generator will fall back to in-memory retrieval and
         # surface the failure via diagnostics in the next aggregation step.
+        _progress_action(
+            progress_tracker,
+            "section_collection_upsert",
+            action="failed",
+            reason=str(fast_path.get("reason") or "upsert_failed"),
+        )
         return "failed"
 
 
@@ -1240,9 +1607,7 @@ def _update_section_collection_related_sections_if_enabled(
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
         return
     url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-    section_collection = str(
-        _config_get(config, ("vector_store", "section_collection"), "spec_grag_section")
-    )
+    section_collection = _section_collection_name(config)
     related_sections_by_id: dict[str, list[Mapping[str, Any]]] = {}
     for entry in section_metadata.get("sections") or ():
         if not isinstance(entry, Mapping):
@@ -1554,9 +1919,43 @@ def _generate_related_sections(
     config: Mapping[str, Any],
     generated_at: str,
     cache_dir: Any | None = None,
+    store: ContextArtifactStore | None = None,
+    run_full: bool = False,
+    unchanged_sections: Mapping[str, Any] | None = None,
+    retrieval_index_status: str = "",
+    progress_tracker: CoreProgressTracker | None = None,
 ) -> Any:
+    expected_state = _build_related_sections_state(
+        sections,
+        config=config,
+        provider=provider,
+        generated_at=generated_at,
+    )
+    fast_path = _related_sections_fast_path_decision(
+        expected_state,
+        store=store,
+        run_full=run_full,
+        unchanged_sections=unchanged_sections,
+        retrieval_index_status=retrieval_index_status,
+    )
+    if fast_path["can_skip"]:
+        _progress_action(
+            progress_tracker,
+            "related_sections",
+            action="skipped_unchanged",
+            reason="input_and_config_fingerprint_match",
+        )
+        return {
+            "status": "skipped_unchanged",
+            "related_section_candidates": [],
+            "related_sections": _related_sections_from_metadata(section_metadata),
+            "sections": _related_section_payloads_from_metadata(section_metadata),
+            "diagnostics": [],
+            "generated_at": generated_at,
+        }
+
     try:
-        return related_sections_api.generate_related_sections_result(
+        result = related_sections_api.generate_related_sections_result(
             sections,
             section_metadata=section_metadata,
             provider=provider,
@@ -1564,8 +1963,27 @@ def _generate_related_sections(
             generated_at=generated_at,
             cache_dir=cache_dir,
         )
+        if store is not None and retrieval_index_status in {"success", "skipped_unchanged"}:
+            try:
+                store.write("related_sections_state", expected_state)
+            except Exception:
+                pass
+        _progress_action(
+            progress_tracker,
+            "related_sections",
+            action="generated" if run_full else "fallback_regenerated",
+            reason=str(fast_path.get("reason") or "normal_generation"),
+        )
+        return result
     except Exception as exc:
+        _progress_action(
+            progress_tracker,
+            "related_sections",
+            action="failed",
+            reason=str(fast_path.get("reason") or "generation_failed"),
+        )
         return {
+            "status": "failed",
             "related_section_candidates": [],
             "related_sections": {},
             "sections": [],
@@ -1578,6 +1996,44 @@ def _generate_related_sections(
             ],
             "generated_at": generated_at,
         }
+
+
+def _related_sections_status(payload: Any) -> str:
+    if isinstance(payload, Mapping):
+        status = payload.get("status")
+        if isinstance(status, str) and status:
+            return status
+        diagnostics = payload.get("diagnostics")
+        if diagnostics:
+            return "failed"
+    return "success"
+
+
+def _related_sections_from_metadata(
+    section_metadata: Mapping[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
+    related_by_source: dict[str, list[dict[str, Any]]] = {}
+    for entry in section_metadata.get("sections", []):
+        if not isinstance(entry, Mapping):
+            continue
+        section_id = str(entry.get("source_section_id") or entry.get("section_id") or "")
+        if not section_id:
+            continue
+        related_by_source[section_id] = _mapping_list(entry.get("related_sections"))
+    return related_by_source
+
+
+def _related_section_payloads_from_metadata(
+    section_metadata: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "source_section_id": source_id,
+            "section_id": source_id,
+            "related_sections": related,
+        }
+        for source_id, related in _related_sections_from_metadata(section_metadata).items()
+    ]
 
 
 def _related_sections_by_source(payload: Any) -> dict[str, list[dict[str, Any]]]:

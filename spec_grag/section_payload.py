@@ -99,8 +99,8 @@ def section_payload_to_metadata_entry(
 
     Fields absent from the payload are filled with empty defaults. The returned
     shape includes section_id, source_section_id, stable_section_uid,
-    source_document_id, heading_path, summary, search_keys, identifiers,
-    related_sections, source_hash, semantic_hash.
+    source_document_id, heading_path, source_span, summary, search_keys,
+    identifiers, related_sections, source_hash, semantic_hash.
     """
 
     section_id = str(payload.get("source_section_id") or payload.get("section_id") or "")
@@ -110,6 +110,7 @@ def section_payload_to_metadata_entry(
         "stable_section_uid": str(payload.get("stable_section_uid") or section_id),
         "source_document_id": str(payload.get("source_document_id") or ""),
         "heading_path": list(payload.get("heading_path") or []),
+        "source_span": dict(payload.get("source_span") or {}),
         "summary": str(payload.get("summary") or ""),
         "search_keys": list(payload.get("search_keys") or []),
         "identifiers": list(payload.get("identifiers") or []),

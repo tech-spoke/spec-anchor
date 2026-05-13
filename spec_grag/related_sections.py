@@ -358,10 +358,13 @@ def generate_related_section_candidates_result(
         if vector_store_config is not None
         else ""
     )
-    section_collection = (
-        str(_config_value(vector_store_config, "section_collection", "spec_grag_section") or "spec_grag_section")
-        if vector_store_config is not None
-        else "spec_grag_section"
+    section_collection = str(
+        _config_value(
+            retrieval_config,
+            "section_collection",
+            _config_value(vector_store_config, "section_collection", "spec_grag_section"),
+        )
+        or "spec_grag_section"
     )
     embedding_provider_id = (
         str(_config_value(embedding_config, "provider", "") or "")

@@ -788,6 +788,7 @@ def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
         "updated_sections",
         "regenerated_chapter_anchors",
         "retrieval_index_status",
+        "related_sections_status",
         "potential_conflicts",
         "conflict_review_items",
         "pending_conflict_count",
@@ -799,6 +800,145 @@ def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
     assert result["mode"] in {"incremental", "full"}
     assert isinstance(result["pending_conflict_count"], int)
     assert isinstance(result["stale_resolution_count"], int)
+
+
+def test_b2_incremental_no_change_skips_retrieval_and_related_heavy_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_grag.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_real_provider_project(
+        project_root,
+        collection="wrong_vector_store_collection",
+        qdrant_url="http://localhost:6333",
+    )
+    config_path = project_root / ".spec-grag/config.toml"
+    config_path.write_text(
+        config_path.read_text()
+        + """\
+
+[retrieval]
+dense_top_k = 12
+sparse_top_k = 20
+rank_fusion = "rrf"
+section_collection = "right_retrieval_collection"
+section_dense_threshold = 0.55
+section_candidate_top_k = 16
+section_final_top_n = 8
+"""
+    )
+    core_module = _core_module()
+    collection_state = {"exists": True}
+    monkeypatch.setattr(
+        core_module,
+        "_section_collection_exists",
+        lambda *_args, **_kwargs: collection_state["exists"],
+    )
+
+    upsert_calls: list[dict[str, Any]] = []
+    related_calls: list[dict[str, Any]] = []
+
+    def fake_upsert(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        upsert_calls.append({"args": args, "kwargs": kwargs})
+        return {"status": "success"}
+
+    def fake_related(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        related_calls.append({"args": args, "kwargs": kwargs})
+        return {
+            "related_section_candidates": [],
+            "related_sections": {},
+            "sections": [],
+            "diagnostics": [],
+            "generated_at": kwargs.get("generated_at"),
+        }
+
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "upsert_qdrant_section_collection",
+        fake_upsert,
+    )
+    monkeypatch.setattr(
+        core_module.related_sections_api,
+        "generate_related_sections_result",
+        fake_related,
+    )
+
+    first = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+    second = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+    collection_state["exists"] = False
+    third = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+
+    assert first["retrieval_index_status"] == "success"
+    assert first["related_sections_status"] == "success"
+    assert second["retrieval_index_status"] == "skipped_unchanged"
+    assert second["related_sections_status"] == "skipped_unchanged"
+    assert third["retrieval_index_status"] == "success"
+    assert len(upsert_calls) == 2
+    assert upsert_calls[0]["kwargs"]["collection"] == "right_retrieval_collection"
+    assert upsert_calls[1]["kwargs"]["recreate"] is True
+    assert len(related_calls) == 1
+    assert _artifact(project_root, "retrieval_index_state")["collection_name"] == "right_retrieval_collection"
+    assert _artifact(project_root, "related_sections_state")["selection_provider"].startswith("fake-spec-core")
+
+    progress = read_progress(project_root)
+    assert progress is not None
+    assert progress["stages"]["section_collection_upsert"]["action"] == "fallback_rebuilt"
+    assert progress["stages"]["section_collection_upsert"]["reason"] == "collection_missing"
+    assert progress["stages"]["related_sections"]["action"] == "skipped_unchanged"
+
+
+def test_aud002_retrieval_index_failure_marks_freshness_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_real_provider_project(
+        project_root,
+        collection="aud002_collection",
+        qdrant_url="http://localhost:6333",
+    )
+    core_module = _core_module()
+    monkeypatch.setattr(
+        core_module,
+        "_section_collection_exists",
+        lambda *_args, **_kwargs: True,
+    )
+
+    def failing_upsert(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("qdrant upsert failed")
+
+    def fake_related(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "related_section_candidates": [],
+            "related_sections": {},
+            "sections": [],
+            "diagnostics": [],
+            "generated_at": kwargs.get("generated_at"),
+        }
+
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "upsert_qdrant_section_collection",
+        failing_upsert,
+    )
+    monkeypatch.setattr(
+        core_module.related_sections_api,
+        "generate_related_sections_result",
+        fake_related,
+    )
+
+    result = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+    freshness = _freshness(result)
+
+    assert result["retrieval_index_status"] == "failed"
+    assert result["related_sections_status"] == "success"
+    assert result["status"] == "failed"
+    assert freshness["status"] == "failed"
+    assert "failed_required_artifact" in freshness.get("blocking_reasons", [])
+    assert "retrieval_index" in freshness["diagnostics"]["failed_required_artifacts"]
+    assert "Source Retrieval Index update failed" in result["warnings"]
 
 
 def test_spec_core_does_not_modify_human_owned_purpose_or_concept(

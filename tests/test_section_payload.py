@@ -96,6 +96,12 @@ def _payload(section_id: str, **overrides: Any) -> dict[str, Any]:
         "stable_section_uid": f"uid-{section_id}",
         "stable_chunk_uid": f"uid-{section_id}",
         "heading_path": ["Chapter", section_id],
+        "source_span": {
+            "start_line": 10,
+            "end_line": 12,
+            "start_offset": 100,
+            "end_offset": 180,
+        },
         "source_hash": f"hash-{section_id}",
         "semantic_hash": f"hash-{section_id}",
         "summary": f"summary for {section_id}",
@@ -176,6 +182,7 @@ def test_section_payload_to_metadata_entry_matches_legacy_shape() -> None:
         "stable_section_uid",
         "source_document_id",
         "heading_path",
+        "source_span",
         "summary",
         "search_keys",
         "identifiers",
@@ -186,6 +193,7 @@ def test_section_payload_to_metadata_entry_matches_legacy_shape() -> None:
     assert expected_keys.issubset(entry.keys())
     assert entry["section_id"] == "alpha"
     assert entry["heading_path"] == ["Chapter", "alpha"]
+    assert entry["source_span"]["start_line"] == 10
     assert entry["related_sections"][0]["target_section_id"] == "beta"
     # search_keys / identifiers must be copied as lists (not the payload reference).
     assert entry["search_keys"] is not payload["search_keys"]
@@ -203,6 +211,7 @@ def test_section_payload_to_metadata_entry_fills_empty_defaults() -> None:
     assert entry["identifiers"] == []
     assert entry["related_sections"] == []
     assert entry["heading_path"] == []
+    assert entry["source_span"] == {}
 
 
 def test_section_payload_to_metadata_entry_supports_extras() -> None:

@@ -878,8 +878,9 @@ def run_inject_search(
     """Phase R-6: section-level hybrid retrieval against the Qdrant section collection.
 
     `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-search). Returns the top-K
-    section payloads (heading / summary / search_keys / identifiers /
-    related_sections / source_section_id / score) ranked by RRF over
+    section payloads (source_document_id / source_section_id / source_span /
+    heading / summary / search_keys / identifiers / related_sections / score)
+    ranked by RRF over
     BGE-M3 dense + sparse vectors. When Qdrant or FlagEmbedding is
     unavailable, the call returns a structured warning instead of
     raising so the Agent can fall back to other paths (§8.3 path ②/③/④).
@@ -938,7 +939,9 @@ def run_inject_search(
         payload = dict(getattr(hit, "payload", None) or {})
         hits_payload.append(
             {
+                "source_document_id": payload.get("source_document_id"),
                 "source_section_id": payload.get("source_section_id"),
+                "source_span": payload.get("source_span") or {},
                 "heading_path": payload.get("heading_path") or [],
                 "summary": payload.get("summary") or "",
                 "search_keys": payload.get("search_keys") or [],
@@ -954,10 +957,14 @@ def run_inject_search(
 def _qdrant_section_config(project: Path) -> dict[str, str]:
     config = _read_project_config(project)
     vector_store = config.get("vector_store") if isinstance(config.get("vector_store"), Mapping) else {}
+    retrieval = config.get("retrieval") if isinstance(config.get("retrieval"), Mapping) else {}
     return {
         "url": str(vector_store.get("url") or "http://localhost:6333"),
         "section_collection": str(
-            vector_store.get("section_collection") or "spec_grag_section"
+            retrieval.get("section_collection")
+            or vector_store.get("section_collection")
+            or vector_store.get("collection")
+            or "spec_grag_section"
         ),
     }
 

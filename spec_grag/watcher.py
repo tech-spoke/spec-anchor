@@ -851,6 +851,7 @@ def _core_result_summary(core_result: Mapping[str, Any] | Any) -> dict[str, Any]
         "updated_sections",
         "failed_sections",
         "retrieval_index_status",
+        "related_sections_status",
         "retrieval_index_artifact_revision",
         "source_update_diff",
         "pending_conflict_count",

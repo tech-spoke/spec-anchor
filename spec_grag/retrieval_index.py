@@ -711,6 +711,7 @@ def build_section_payloads(
                 "stable_section_uid": stable_section_uid,
                 "stable_chunk_uid": stable_section_uid,
                 "heading_path": _heading_path_list(section.get("heading_path", [])),
+                "source_span": _source_span_payload(section.get("source_span")),
                 "source_hash": str(section.get("source_hash", "")),
                 "semantic_hash": str(section.get("semantic_hash", section.get("source_hash", ""))),
                 "summary": str(metadata.get("summary") or ""),
@@ -1170,6 +1171,26 @@ def _heading_path_list(value: Any) -> list[str]:
     if isinstance(value, Sequence):
         return [str(item) for item in value]
     return []
+
+
+def _source_span_payload(value: Any) -> dict[str, int]:
+    if is_dataclass(value):
+        raw = asdict(value)
+    elif isinstance(value, Mapping):
+        raw = dict(value)
+    else:
+        raw = {
+            key: getattr(value, key)
+            for key in ("start_line", "end_line", "start_offset", "end_offset")
+            if hasattr(value, key)
+        }
+    result: dict[str, int] = {}
+    for key in ("start_line", "end_line", "start_offset", "end_offset"):
+        try:
+            result[key] = int(raw.get(key, 0))  # type: ignore[union-attr]
+        except (TypeError, ValueError):
+            result[key] = 0
+    return result
 
 
 def _hash_text(text: str) -> str:
