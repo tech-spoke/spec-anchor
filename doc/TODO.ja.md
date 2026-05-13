@@ -25,7 +25,7 @@
 | --- | --- | --- |
 | AUD-001 | 採用 / 修正済み | 残 TODO なし。詳細は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` を参照 |
 | AUD-002 | 採用 / 修正済み | 残 TODO なし。詳細は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` を参照 |
-| AUD-003 | 保留 / 未修正 | 「開放中」に残 TODO として詳細を保持 |
+| AUD-003 | 採用 / B-3a で解消予定 | 「開放中」の B-3a に統合。AUD-003 単独 entry は廃止 |
 | AUD-004 | 採用 / 修正済み | 残 TODO なし。詳細は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` を参照 |
 | AUD-005 | 既対応 / 方針確定 | 本文 chunking / 本文 embedding は行わない。`search_keys` / `identifiers` と Agentic Search で補う方針として B-2 の scope 外に明記 |
 | AUD-006 | 保留 / 未修正 | 「開放中」に残 TODO として詳細を保持 |
@@ -33,35 +33,14 @@
 
 ## 開放中
 
-### AUD-003: Qdrant point id / stale point 削除の整合
+優先順位 (上から順に着手):
 
-#### 背景
-
-`doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-003 で、Qdrant point id が ordinal index に依存し、incremental upsert 時に削除済み section の stale point が残る risk が指摘された。
-
-#### 真因 / 仮説
-
-確定。`upsert_qdrant_section_collection()` は current payloads の upsert を行うが、現 source から消えた section に対応する既存 point を削除しない。
-
-#### 目的
-
-Source Specs の section 削除・挿入・並べ替え後も、Qdrant collection が現在の source corpus と一致する状態を保つ。
-
-#### 実装方針
-
-- Qdrant point id を `source_section_id` / stable source identity 由来の deterministic id にする
-- collection 内の既存 payload と現 section set を比較し、現 source に存在しない point を削除する
-- 既存 collection の旧 ordinal point からの移行条件を定義する
-
-#### 検証条件
-
-- section 削除後の incremental run で、削除 section が `spec-grag inject-search` の hit に残らない
-- section 並べ替え後の incremental run で、hit の `source_section_id` と payload が別 section に入れ替わらない
-- 旧 ordinal point を含む collection でも migration または rebuild が明示的に行われる
-
-#### 依存 / scope 外
-
-既存 Qdrant collection の migration / rebuild 方針が必要。B-2 では collection 不存在時の fallback rebuild までを扱い、stale point deletion は未実装。
+1. **B-3a**: Qdrant point id deterministic 化 + stale delete (= AUD-003 解消)
+2. **B-3b**: partial change での embed/upsert 削減 (B-3a 完了後)
+3. **B-4**: `--verify-index` 明示検証 flag (B-3a 完了後、B-3b と並行可)
+4. **B-5**: section_metadata / related_typing cache の現状確認 (調査のみ。B-3 と独立に実施可)
+5. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+6. **AUD-006 / AUD-007**: Chapter Anchors / Related Sections fallback の freshness 反映 (外部契約上の freshness 表現確定が必要、判断要)
 
 ### AUD-006: Chapter Anchors fallback の freshness degraded 反映
 
@@ -122,81 +101,194 @@ Related Sections candidate generation が実 Qdrant ではなく InMemory fallba
 
 Related Sections は evidence ではなく retrieval auxiliary のため、freshness を failed にするか degraded にするかは AUD-006 と同じく表現を揃える必要がある。
 
-### B-3: partial change での embedding 全件再計算の削減
+### B-3a: Qdrant point id deterministic 化 + stale point 削除 (AUD-003 解消)
 
 #### 背景
 
-B-2 (commit `400b409`) で「全 section unchanged」かつ「指紋一致」の no-change incremental は `section_collection_upsert` と `related_sections` を `skipped_unchanged` で抜けるようになった。一方、1 section でも `source_hash` または `semantic_hash` が変わると fast path に入らず通常経路へ落ちる。通常経路は `_upsert_section_collection_if_enabled` ([spec_grag/core.py:1467](spec_grag/core.py#L1467)) から `upsert_qdrant_section_collection` ([spec_grag/retrieval_index.py:833](spec_grag/retrieval_index.py#L833)) を呼び、`build_section_payloads(sections, ...)` で **全 section の payload** を作って `provider.embed_documents(...)` で **全 section を再 embed** する。
+`doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-003 で、Qdrant point id が ordinal index に依存し、incremental upsert 時に削除済み section の stale point が残る risk が指摘された。
 
-実 spec (数十〜数百 section) で 1 section だけ変更した場合、変更されていない section も全件 BGE-M3 で dense+sparse を再計算する。BGE-M3 model load + 全 section embed が partial change のたびに走るのは、B-2 で削減した no-change ケースに次いで大きな固定費。
+実コード確認: `upsert_qdrant_section_collection` ([spec_grag/retrieval_index.py:874](spec_grag/retrieval_index.py#L874)) は `PointStruct(id=index, ...)` で **enumerate の連番 ordinal** を point id に使う。recreate=False の incremental upsert では、現 source から消えた section に対応する旧 point が残り続け、section 並べ替え時には `source_section_id` と payload の対応が崩れる risk もある。
+
+本 task は B-3b (partial embed/upsert) の前提条件として、point id 規約を一度確定する。partial upsert の bug と stale point の bug の切り分けを容易にするため、B-3a と B-3b を別 commit で出す。
 
 #### 真因 / 仮説
 
 確定 (実コードで確認済):
 
-- `upsert_qdrant_section_collection` の signature は `sections: Sequence[Mapping[str, Any]]` を取り、内部で全件を `embed_documents` に渡す。partial section list を受け付ける引数はない
-- Qdrant point id は `index` (ordinal) で振られている ([spec_grag/retrieval_index.py:874](spec_grag/retrieval_index.py#L874))。AUD-003 と同じ stale point 問題を抱えているため、partial upsert を入れる場合は deterministic id 化が前提
-
-仮説 (未確認、計測で確定する):
-
-- BGE-M3 model load 自体は 1 回 (provider 単位) で済むが、`embed_documents([payload["text"] for payload in payloads])` の長さに対し線形にコストが増える
-- 100 section 中 1 section 変更時、partial 経路で 1 section だけ embed すれば全件 embed と比べて 1/100 近くまで削減できる (測定要)
+- Qdrant point id が ordinal (`PointStruct(id=index, ...)`)
+- 削除 section の point を消す経路がない
+- 並べ替えで ordinal の対応が崩れる
 
 #### 目的
 
-partial change incremental で、`source_hash` または `semantic_hash` が変わった section だけを BGE-M3 で embed して Qdrant に upsert する経路を追加し、large spec の partial change wall time を no-change 並みに圧縮する。
+Source Specs の section 削除・挿入・並べ替え後も、Qdrant collection が現在の source corpus と一致する状態を保つ。本 task では partial embedding 最適化は **入れない** (全件 embed のまま、point id 規約と stale delete のみ変える)。
 
-合格基準 (定量): 50 section 規模の合成 fixture で 1 section だけ変更した incremental run の wall time が、no-change incremental の wall time + 5 秒以内に収まる。
+#### 確定規約: deterministic point id
+
+- 方式: UUID5 of `source_section_id` (= `uuid.uuid5(NAMESPACE, source_section_id)`, UUID5 string)
+- 採用理由: `source_section_id` は file path + heading slug 形式 (例: `docs/spec/sample.md#0001-sample-specification`) で project 全体で global unique。doc_id を含める必要なし
+- 含む: 同じ `source_section_id` に対し常に同じ point id を返す関数、namespace UUID の module-level 固定、id 衝突回避
+- 含まない: payload 内 `source_section_id` 文字列の変更 (これは既存通り string で保持)、point id を user が直接参照する API (CLI 出力では `source_section_id` を使い、point id は内部のみ)
+- 既存概念との差分: 現状の ordinal id は collection 再構築時のみ stable。deterministic id は cross-run で stable
+- 未決: namespace UUID の具体値 (実装着手時に B-3a で 1 個確定する。一度確定したら以降変更しない)
 
 #### 実装方針
 
-1. `upsert_qdrant_section_collection` に `changed_section_ids: Set[str] | None` と `prior_collection_state: ... | None` を追加し、`None` の場合は従来通り全件 upsert、指定された場合は changed のみ embed して point を差し替える
-2. Qdrant point id を `source_section_id` (または `hash(source_document_id, source_section_id)`) ベースの deterministic UUID にする (AUD-003 を本 task で同時に解消する)
-3. `_upsert_section_collection_if_enabled` で `changed_ids` (現在 fast path 判定に使っているもの) を `upsert_qdrant_section_collection` に渡す
-4. 削除された section_id は `client.delete(...)` で point を消す (AUD-003 の合格条件と一致)
-5. `recreate=True` (= `--rebuild` / collection 不存在) の場合は従来通り全件再構築
-6. partial upsert 時の `retrieval_index_state.json` の `section_hash_fingerprint` は全 section の現値で再計算する (changed と unchanged を区別しない)
+1. point id 生成関数を **1 箇所に集約** する:
+   - 関数 signature: `stable_section_point_id(source_section_id: str) -> str` を [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py) 内に **唯一の入口** として定義
+   - 他箇所 (`spec_grag/core.py`, tests, etc.) からは `stable_section_point_id(...)` のみを呼ぶ。`uuid.uuid5(...)` を直接呼ぶ箇所を作らない (CLAUDE.md ルール 16: 既存責務との整合)
+   - namespace UUID は **module-level の定数として固定**: `_SECTION_POINT_ID_NAMESPACE: uuid.UUID = uuid.UUID('xxxxxxxx-xxxx-5xxx-xxxx-xxxxxxxxxxxx')` の形で定義 (xxxxxxxx 部分は B-3a 実装時に `uuid.uuid5(uuid.NAMESPACE_URL, 'spec-grag.section-collection.v1')` 等で 1 度だけ生成して定数化、以降変更しない)
+   - namespace の具体値と「以降変更しない」契約を `doc/EXTERNAL_DESIGN.ja.md` §4.1 に明記する
+2. `source_section_id` の global unique 性を doc に明記:
+   - `doc/EXTERNAL_DESIGN.ja.md` の用語定義 (§2 用語と範囲) または §4.1 (保持物の物理配置) に「`source_section_id` は file path + heading slug 形式で、`[sources].include` が指す Source Specs 全体で global unique」と明記
+   - 現在の実装 ([spec_grag/section_payload.py](spec_grag/section_payload.py) 等) がこの契約を満たすことを B-3a で確認 (実装着手時に grep で生成箇所を点検)
+   - 仮に file path 重複 (例: シンボリックリンクで同一 section に異なる path 表記が付くケース) が発生し得るなら、本 task で `source_section_id` の生成側を正規化する経路を追加する
+3. `upsert_qdrant_section_collection` を deterministic id 化:
+   - `PointStruct(id=stable_section_point_id(section["source_section_id"]), ...)` に変更
+   - `recreate=False` 時に、現 source section_id 集合に存在しない既存 point を `client.delete(points_selector=qdrant_models.PointIdsList(points=[...]))` で削除する
+   - 既存 collection scroll で現 point id 集合を取得し、現 source の `source_section_id` 集合から計算した期待 point id 集合と比較して stale point を抽出
+4. 旧 ordinal point id を持つ既存 collection の扱い:
+   - 検出: collection scroll で 1 件以上の point の id が UUID 文字列形式でない (= int 型または UUID として parse 不能) ことを判定するヘルパーを追加
+   - 動作: 検出時は **明示的 warning ログ** (`migration_required_from_ordinal_point_id`) を `core_progress.json` の `section_collection_upsert` stage `diagnostics` に残し、`recreate=True` で **全件再構築** する (= 自動 migration)
+   - user が明示的に migration をトリガーしたい場合の手動操作 (`curl -X DELETE http://localhost:6333/collections/spec_grag_section` でも `spec-grag core --rebuild` でも同じ結果) を `doc/EXTERNAL_DESIGN.ja.md` に user 向け説明として記載
+   - 自動 migration は B-3a 本 task で必須。後続セッションへ持ち越さない
+5. partial section list は **本 task では受け付けない** (B-3b で追加)。本 task の `upsert_qdrant_section_collection` は依然として全 section を受け取り全件 embed する
+6. `retrieval_index_state.json` への影響: `retrieval_schema_pin_fingerprint` に point id 規約 version 文字列 (例: `"point_id_v1_uuid5_source_section_id"`) を含める。これにより既存 sidecar を持つ collection が B-3a 後の core 実行で必ず 1 度 fast path miss し、通常経路で migration が走る
 
 #### 検証条件 (合格基準)
 
-A. **partial change の wall time (定量)**
-- 50 section の合成 fixture を作り、1 section だけ本文を 1 文字変更した incremental run の wall time を測定
-- no-change incremental の wall time + 5 秒以内に収まること
+A. **deterministic id の決定性**
+- 同じ `source_section_id` を 2 回渡すと同じ point id が返ること (unit test)
+- 異なる `source_section_id` で衝突しないこと (unit test、現実的なサンプル数で)
 
-B. **embedding 呼び出し回数 (定性)**
-- partial change 時に `FlagEmbeddingBgeM3Provider.embed_documents` の引数長が変更 section 数と一致すること
-- 全 section unchanged 時は B-2 通り呼び出し回数 0
-
-C. **削除 / 並べ替え後の payload 一致 (AUD-003 と同時に検証)**
+B. **stale point 削除 (AUD-003 合格条件)**
 - section 削除後の incremental run で、削除 section の point が Qdrant collection に残らないこと
-- section 並べ替え後の incremental run で、`source_section_id` と payload の対応が崩れないこと
+- section 削除後の `spec-grag inject-search` の hit に、削除 section の payload が出ないこと
 
-D. **旧 ordinal point からの migration**
-- 旧 ordinal point id を持つ既存 collection を検出した場合、明示的 rebuild (`recreate=True`) または migration を行うこと
-- migration 条件は本 task 内で確定し、`doc/EXTERNAL_DESIGN.ja.md` に追記する
+C. **並べ替え後の payload 一致**
+- section 並べ替え後の incremental run で、各 point の `source_section_id` と payload の対応が崩れないこと
+- payload の `source_section_id` を key とした dict と現 source section の semantic_hash が一致
 
-E. **既存 pytest の合格**
+D. **旧 ordinal collection からの migration**
+- 旧 ordinal point id (int 連番) を含む既存 collection に対して core を実行 → 検出 + `recreate=True` で全件再構築 + warning ログ
+- migration 後の point id 集合がすべて deterministic id 規約に従うこと
+
+E. **B-2 fast path との整合**
+- migration 直後の core 実行で `retrieval_index_state.json` の `retrieval_schema_pin_fingerprint` が新規約値で書かれる
+- 2 回目の no-change incremental で B-2 fast path に入る (skipped_unchanged)
+
+F. **既存 pytest の合格**
 - `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external` で全 pass 維持
-- partial upsert / 削除 / 並べ替えを fake / real env でカバーする新規 unit test を追加
+- deterministic id / stale delete / 並べ替え / migration を fake / real env でカバーする新規 unit test を追加
 
 #### 触れる主なファイル
 
-- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): `upsert_qdrant_section_collection` の signature と内部経路、point id の deterministic 化
-- [spec_grag/core.py](spec_grag/core.py): `_upsert_section_collection_if_enabled` で `changed_ids` / deleted ids を渡す経路、partial 時の state sidecar 書き込み
-- [doc/EXTERNAL_DESIGN.ja.md](doc/EXTERNAL_DESIGN.ja.md): point id 規約と migration 条件を §4.1 (or §7.4) に追記
-- `tests/test_retrieval_index.py` (新規 or 既存拡張): partial upsert / 削除 / 並べ替え / migration
+- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): `upsert_qdrant_section_collection` の point id 変更、stale delete 経路、migration 検出
+- [spec_grag/core.py](spec_grag/core.py): migration 検出時の log / warning 経路、state sidecar への影響
+- [doc/EXTERNAL_DESIGN.ja.md](doc/EXTERNAL_DESIGN.ja.md): point id 規約、migration 条件、collection 移行の user 向け動作を §4.1 or §7.4 に追記
+- `tests/test_retrieval_index.py`: deterministic id / stale delete / 並べ替え / migration の unit test
+
+#### 完了条件
+
+- (A)〜(F) すべて満たす
+- 計測コマンドと結果を commit message に書く
+- 本項を `doc/TODO.ja.md` から削除し、AUD-003 の状態欄を「採用 / 修正済み」に更新
+
+#### 依存 / scope 外
+
+- **依存**: B-2 完了済み (commit `400b409`)
+- **scope 外**:
+  - partial section list の embedding 削減 (= B-3b)
+  - chapter_anchors / related_sections cache の point id 連動: 本 task は section collection に限る
+  - 旧 ordinal collection の data 保存 / export: migration は再構築のみ。既存 payload の content は source spec から再生成可能
+
+### B-3b: partial change での embed/upsert 削減
+
+#### 背景
+
+B-3a で point id を deterministic 化した上で、changed/added section だけ BGE-M3 で embed して Qdrant に upsert する経路を追加する。現状 (B-3a 完了後でも `partial section list` 引数は未実装) では、1 section でも `source_hash` または `semantic_hash` が変わると `upsert_qdrant_section_collection` が全 section を `embed_documents` に渡し、全件 dense+sparse を再計算する。
+
+実 spec (数十〜数百 section) で 1 section だけ変更した場合、変更されていない section も全件 BGE-M3 で再計算する。B-2 で削減した no-change ケースに次いで大きな固定費。
+
+#### 真因 / 仮説
+
+確定 (実コードで確認済): `upsert_qdrant_section_collection` ([spec_grag/retrieval_index.py:833](spec_grag/retrieval_index.py#L833)) は `provider.embed_documents([payload["text"] for payload in payloads])` で全 section を embed する。partial section list を受け付ける引数がない。
+
+仮説 (未確認、計測で確定する):
+
+- BGE-M3 embedding コストは section 数に対し線形
+- 100 section 中 1 section 変更時、partial 経路で 1 section だけ embed すれば全件 embed 比 1/100 程度
+
+#### 目的
+
+partial change incremental で、`source_hash` / `semantic_hash` / payload metadata / vector input のいずれかが変わった section だけを BGE-M3 で embed して Qdrant に upsert する経路を追加し、partial change の **embedding/upsert stage の wall time** を圧縮する。
+
+合格基準 (定量、GPT 指摘 AUD-GPT-03 に従い stage 単位):
+- 50 section 規模の合成 fixture で 1 section だけ本文を 1 文字変更した incremental run の **`section_collection_upsert` stage の wall time** が、B-2 no-change 時の同 stage wall time + 5 秒以内に収まる
+- 全体 wall time を合格基準にしない (related_sections の partial 再生成は本 task の scope 外で、wall total では責任範囲外の時間も含まれる)
+
+#### 実装方針
+
+1. section 集合の diff を 3 種類に分離する (GPT 指摘 AUD-GPT-04):
+   - `added_section_ids`: 前回 manifest に存在せず今回新規追加された section_id
+   - `changed_section_ids`: 両方に存在するが `source_hash` / `semantic_hash` / payload metadata / vector input fingerprint のいずれかが変わった section_id
+   - `removed_section_ids`: 前回 manifest に存在し今回消えた section_id
+2. fingerprint 比較対象 (GPT 指摘 AUD-GPT-05):
+   - `source_hash`: source 本文の hash
+   - `semantic_hash`: section_metadata の hash (実コードで何を含むか実装着手前に確認)
+   - `vector_input_fingerprint`: BGE-M3 に渡す `payload["text"]` の hash (= `build_section_payloads` が組み立てる text の hash)
+   - `payload_fingerprint`: Qdrant に書く payload dict 全体の hash
+   - 上記のうち実装可能な範囲で entry 単位の change 検出に使う。最低限 `vector_input_fingerprint` は必須 (metadata 変更による vector text の変化を取り逃がさないため)
+3. `upsert_qdrant_section_collection` に optional 引数を追加:
+   - `sections_to_upsert: Sequence[Mapping[str, Any]] | None = None`: 指定時は added + changed のみ
+   - `sections_to_delete: Iterable[str] | None = None`: 指定時は removed の point を delete
+   - `prior_state: dict | None = None`: 既存 collection 状態 (point id 集合 + fingerprint)
+   - 引数すべて None の場合は従来通り全件 upsert (互換性維持)
+4. `_upsert_section_collection_if_enabled` ([spec_grag/core.py:1467](spec_grag/core.py#L1467)) で added / changed / removed を計算して渡す
+5. `retrieval_index_state.json` の `section_hash_fingerprint` は全 section の現値で再計算する (partial upsert 後も collection 全体の fingerprint を維持)
+
+#### 検証条件 (合格基準)
+
+A. **embedding 呼び出し回数 (定性)** (GPT 指摘 AUD-GPT-03)
+- partial change 時に `FlagEmbeddingBgeM3Provider.embed_documents` の引数長が `added + changed` の section 数と一致すること
+- 全 section unchanged 時は B-2 通り呼び出し回数 0 (fast path)
+
+B. **stage 単位の wall time (定量)** (GPT 指摘 AUD-GPT-03)
+- 50 section fixture で 1 section 変更時の `section_collection_upsert` stage wall time が、B-2 no-change の同 stage + 5 秒以内
+- 全体 wall time は **合格基準にしない** (scope 外の related_sections 時間を含むため)
+
+C. **added / changed / removed の正しさ** (GPT 指摘 AUD-GPT-04)
+- added: 新規 section_id の point が collection に追加されること
+- changed: 既存 point の vector / payload が更新されること (point id 変わらず)
+- removed: 削除 section_id の point が collection から消えること (= B-3a 完了済みの stale delete 経路を使う)
+
+D. **payload / vector input 変更の検出** (GPT 指摘 AUD-GPT-05)
+- source 本文を変えずに section_metadata だけ変えた場合 (例: `metadata_version` bump で summary 再生成)、`vector_input_fingerprint` の変化で changed として検出されること
+- `source_hash` 一致 + `semantic_hash` 一致 + `vector_input_fingerprint` 不一致のケースを unit test で再現
+
+E. **既存 pytest の合格**
+- `PATH="$PWD/.venv/bin:$PATH" PYTHONPATH="$PWD" .venv/bin/python -m pytest -q --skip-external` で全 pass 維持
+- partial upsert / 部分削除 / added-only / changed-only / removed-only / 混合 を fake / real env でカバーする新規 unit test
+
+#### 触れる主なファイル
+
+- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): `upsert_qdrant_section_collection` の partial 引数追加、fingerprint helper
+- [spec_grag/core.py](spec_grag/core.py): `_upsert_section_collection_if_enabled` での added/changed/removed 計算と引数渡し
+- [spec_grag/section_payload.py](spec_grag/section_payload.py) または同等: `vector_input_fingerprint` / `payload_fingerprint` の生成
+- `tests/test_retrieval_index.py`: partial upsert の各種 unit test
 
 #### 完了条件
 
 - (A)〜(E) すべて満たす
-- 50 section 合成 fixture と計測コマンド、計測結果を commit message に書く
-- 本項を `doc/TODO.ja.md` から削除し、AUD-003 の状態欄も「採用 / 修正済み」に更新する
+- 50 section fixture と計測コマンド、stage 単位 wall time を commit message に書く
+- 本項を `doc/TODO.ja.md` から削除
 
 #### 依存 / scope 外
 
-- **依存**: B-2 完了済み (commit `400b409`)。AUD-003 (Qdrant point id / stale point 削除) を本 task で同時解消する
-- **scope 外**:
-  - related_sections の partial 再生成 (changed section に隣接する section だけ再評価する経路): B-2 fast path は全 section unchanged の場合のみ skip。partial 時の選択的再生成は別 task
+- **依存**: B-3a 完了 (deterministic point id + stale delete が前提)
+- **scope 外** (GPT 指摘 AUD-GPT-03 を反映):
+  - related_sections の partial 再生成 (changed section に隣接する section の Related Sections だけ再評価する経路): 別 task として独立化
+  - 全体 wall time の数値目標: stage 単位の合格基準のみとし、wall total は B-3b の責任範囲ではない
   - Section Summary / Search Keys / Identifiers の partial 再生成: 既に `SectionMetadataCache` がエントリ単位 cache を持つ ([spec_grag/section_metadata.py:170](spec_grag/section_metadata.py#L170)) ため、B-5 の確認結果に依存
   - BGE-M3 model load 自体の常駐化 / cross-run reuse: 1 run 内では既に 1 回。cross-run の reuse は本 task と直交
 
@@ -426,13 +518,27 @@ C. **既存 pytest の合格**
   - chapter_anchors / related_sections 用の scroll 経路: 本 task では section collection の payload scroll のみ
   - Qdrant client の connection pool / 永続化: spec-grag 外の Qdrant 運用に属する
 
-## 実装済み / 完了確認中
+## 完了確認済み
 
 ### B-2: incremental no-change の固定費削減
 
 #### 状態
 
-実装済み。実装差分は `400b409 feat: add incremental retrieval fast path` でコミット済み。
+完了確認済み。実装差分は `400b409 feat: add incremental retrieval fast path` でコミット済み。実機検証は session 2026-05-13 で完了。
+
+#### 完了確認結果 (実機 2026-05-13)
+
+GPT 監査指摘の 7 項目を実 Qdrant (localhost:6333) / BGE-M3 環境で再現確認した。
+
+- `retrieval_index_status == "skipped_unchanged"` ✓ (`freshness.json.diagnostics.retrieval_index.status` で確認)
+- `related_sections_status == "skipped_unchanged"` ✓ (同 `related_sections.status`)
+- `FlagEmbeddingBgeM3Provider` がインスタンス化されない ✓ (BGE-M3 model ロード回数 0 件、stderr の `Loading weights` 出現 0)
+- Qdrant upsert が呼ばれない ✓ (`core_progress.stages.section_collection_upsert.action == "skipped_unchanged"` + 既存 unit test)
+- Related Sections generation が呼ばれない ✓ (`core_progress.stages.related_sections.action == "skipped_unchanged"` + 既存 unit test)
+- 実 Qdrant / BGE-M3 環境で 2 回目 wall time が 5 秒以下 ✓ (実測 1.182 秒、smoke fixture `docs/spec/sample.md` の 4 section)
+- Qdrant collection が無い場合は `recreate=True` で fallback rebuild ✓ (`400b409` unit test `collection_missing falls back with recreate=True`)
+
+追加観測: `section_metadata_generation.cache_hits == 4` / `llm_calls == 0`。entry 単位 cache (`SectionMetadataCache`) も正常動作 (B-5 の予備観測)。
 
 #### 背景
 
