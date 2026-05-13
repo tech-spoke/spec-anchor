@@ -591,11 +591,11 @@ CoreResult
 - `failed` — retrieval index の upsert / 接続で例外が発生し、index が古い、もしくは壊れている可能性がある。`/spec-core --rebuild` で復旧する。
 - `blocked` — 上流の理由 (pending conflict、freshness 停止、入力読み込み失敗) で `/spec-core` 自体が処理を中断したため、retrieval index 経路に到達しなかった。
 
-Qdrant collection が手動で削除されている等の理由で `skipped_unchanged` の前提条件 (`.spec-grag/state/retrieval_index_state.json` の指紋一致 + collection 存在) が崩れている場合、`/spec-core` は通常の upsert 経路に自動的にフォールバックする。フォールバックが起きた場合の最終 status は `success` または `failed` であり、フォールバックしたという事実そのものは `core_progress.json` の `stages.section_collection_upsert` 配下の診断情報として記録する (外部契約の status 値ではなく、内部 telemetry 側の責務)。
+Qdrant collection が手動で削除されている等の理由で `skipped_unchanged` の前提条件 (`.spec-grag/state/retrieval_index_state.json` の指紋一致 + collection 存在) が崩れている場合、`/spec-core` は Source Retrieval Index の upsert を自動的に実行する。この場合の最終 status は `success` または `failed` であり、全 Section を登録し直した実行は `core_progress.json` の `stages.section_collection_upsert.action = "upserted_full"` として記録する。更新が必要になった理由は、同じ stage の `reason` と `diagnostics` で確認できる。
 
-古い version の SPEC-grag が作成した Qdrant collection では、Section の並び順に基づく数値の point id が残っている場合がある。`/spec-core` はこの形式を検出すると、その実行内で Source Retrieval Index の Qdrant collection を再作成し、現在の Source Specs から UUID5 形式の point id で登録し直す。ユーザーが `--rebuild` を指定する必要はない。この自動移行が起きた場合、`.spec-grag/state/core_progress.json` の `stages.section_collection_upsert` に `migration_required_from_ordinal_point_id` という warning が記録される。
+古い version の SPEC-grag が作成した Qdrant collection では、Section の並び順に基づく数値の point id が残っている場合がある。`/spec-core` はこの形式を検出すると、その実行内で Source Retrieval Index の Qdrant collection を再作成し、現在の Source Specs から UUID5 形式の point id で登録し直す。ユーザーが `--rebuild` を指定する必要はない。この自動移行が起きた場合、`.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.action` は `upserted_full` になり、同じ stage に `migration_required_from_ordinal_point_id` という warning が記録される。
 
-Source Specs の一部 Section だけが変わった incremental 実行では、`/spec-core` は Source Retrieval Index の更新対象を変更・追加された Section に絞り、削除された Section は Qdrant collection から取り除く。ユーザーは `.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.diagnostics` で、`sections_upserted_count`、`sections_deleted_count`、`embed_documents_input_size`、`stale_points_deleted` を確認できる。1 Section だけを変更した場合、この stage の時間は、全 Section を再登録する時間ではなく、変更された Section 数に近い時間として観測される。
+Source Specs の一部 Section だけが変わった incremental 実行では、`/spec-core` は Source Retrieval Index の更新対象を変更・追加された Section に絞り、削除された Section は Qdrant collection から取り除く。この差分更新が使われた場合、`.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.action` は `upserted_partial` になる。ユーザーは同じ stage の `diagnostics` で、`sections_upserted_count`、`sections_deleted_count`、`embed_documents_input_size`、`stale_points_deleted` を確認できる。1 Section だけを変更した場合、この stage の時間は、全 Section を再登録する時間ではなく、変更された Section 数に近い時間として観測される。
 
 `related_sections_status` は Related Sections 生成の最終状態を示す。次のいずれかの値を取る。
 

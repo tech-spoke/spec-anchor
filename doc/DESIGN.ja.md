@@ -409,7 +409,7 @@ fast path に入る条件 (すべて満たす場合のみ):
 - Qdrant collection が存在しない
 - 上流の `section_metadata` stage で再生成が走り、section_metadata の指紋 (`manifest.generation`) が変わった
 
-通常経路に fallback した場合は `retrieval_index_status = "success"` または `"failed"` を返し、`core_progress.json` の `stages.section_collection_upsert.action = "fallback_rebuilt"`、`reason` に fallback の具体的根拠 (`sidecar_missing` は `.spec-grag/state/retrieval_index_state.json` がない場合、`fingerprint_mismatch` は指紋不一致、`collection_missing` は Qdrant collection 不在) を記録する。
+fast path に入れず Source Retrieval Index の更新を実行した場合は、`retrieval_index_status = "success"` または `"failed"` を返す。`core_progress.json` の `stages.section_collection_upsert.action` には、全 Section を embed / upsert した場合は `upserted_full`、`recreate=False` で差分 Section だけを embed / upsert した場合は `upserted_partial` を記録する。`reason` には更新が必要になった具体的根拠 (`sidecar_missing` は `.spec-grag/state/retrieval_index_state.json` がない場合、`fingerprint_mismatch` は指紋不一致、`collection_missing` は Qdrant collection 不在) を記録する。
 
 Qdrant payload と manifest の section 単位 hash 整合性チェック (= 全件 scroll) は通常 fast path では行わない。large spec で持続不能になるため。明示的な検証経路 (例: `spec-grag core --verify-index` 等の将来追加) は別 task で具体化する。
 
@@ -417,7 +417,7 @@ Qdrant payload と manifest の section 単位 hash 整合性チェック (= 全
 
 `upsert_qdrant_section_collection` は `recreate=False` で既存 Qdrant collection を更新する前に、`client.scroll(..., with_payload=False, with_vectors=False, limit=1)` で sample point id を 1 件読む。`uuid.UUID(str(sample.id))` が `ValueError` になる場合、その collection は旧 ordinal point id 形式と判定する。
 
-旧 ordinal point id 形式を検出した実行では、`upsert_qdrant_section_collection` はその場で `recreate=True` に切り替え、collection を再作成して全 Section を UUID5 point id で upsert する。戻り値の diagnostics には `reason = "migration_required_from_ordinal_point_id"`、`migration_required_from_ordinal_point_id = true`、`recreate = true` を入れる。`_upsert_section_collection_if_enabled` はこの diagnostics を `.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.diagnostics` に記録する。
+旧 ordinal point id 形式を検出した実行では、`upsert_qdrant_section_collection` はその場で `recreate=True` に切り替え、collection を再作成して全 Section を UUID5 point id で upsert する。戻り値の diagnostics には `reason = "migration_required_from_ordinal_point_id"`、`migration_required_from_ordinal_point_id = true`、`recreate = true` を入れる。`_upsert_section_collection_if_enabled` はこの diagnostics を `.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.diagnostics` に記録し、`stages.section_collection_upsert.action` は `upserted_full` にする。
 
 `recreate=False` で既存 collection が UUID point id 形式の場合、`upsert_qdrant_section_collection` は upsert 前に `client.scroll(..., with_payload=False, with_vectors=False, limit=1024)` を offset 付きで最後まで実行し、既存 point id 集合を取得する。現在の Section 集合から `stable_section_point_id(source_section_id)` で期待 point id 集合を作り、差分を `client.delete(collection_name=..., points_selector=PointIdsList(points=[...]))` で削除する。削除数は diagnostics の `stale_points_deleted` に記録する。
 
@@ -447,7 +447,9 @@ partial upsert 分岐:
 - incremental で collection が存在し、migration も不要: `sections_to_upsert = added_section_ids + changed_section_ids` に対応する Section だけを `provider.embed_documents([...])` に渡し、同じ `stable_section_point_id(source_section_id)` の point を上書きする。`removed_section_ids` は `stable_section_point_id(...)` に変換して `PointIdsList(points=[...])` で delete する。他の point は触らない。
 - caller が `sections_to_delete` を渡さない場合: B-3a の stale delete 経路を維持し、既存 point id 全体を scroll して current Section 集合に無い point を削除する。caller が空 list を含めて `sections_to_delete` を渡した場合は、明示された削除集合だけを扱う。
 
-`upsert_qdrant_section_collection` の optional keyword は additive contract とする。`sections_to_upsert=None`, `sections_to_delete=None`, `prior_state=None` の場合は、従来と同じ full-batch upsert と stale delete 判定を行う。`prior_state` は将来、Qdrant 側状態の追加情報を渡すために予約し、B-3b では opaque dict として受け取るだけで分岐に使わない。
+インクリメンタル部分実行では sections_to_delete が明示集合として渡るため、B-3a の collection-wide stale delete (collection 全 scroll → current にない point を削除) は走らない。manifest が信頼できる前提で stale 検出は manifest diff だけに依存する。manifest が壊れた場合は --rebuild で復旧する。将来 --verify-index (B-4) が導入されたら独立検証経路として使える。
+
+`upsert_qdrant_section_collection` の optional keyword は additive contract とする。`sections_to_upsert=None`, `sections_to_delete=None` の場合は、従来と同じ full-batch upsert と stale delete 判定を行う。incremental 実行で partial diff を使い、`recreate=False` のまま差分 Section だけを登録した場合、`core_progress.json` の `stages.section_collection_upsert.action` は `upserted_partial` になる。
 
 `.spec-grag/state/section_manifest.json` には、最終的に Qdrant payload として観測される Section ごとの `vector_input_fingerprint` と `payload_fingerprint` を保存する。次回 incremental 実行では、この manifest entry と current payload fingerprint を比較して partial diff を作る。`.spec-grag/state/retrieval_index_state.json` は collection 全体の冪等判定用に、section hash 集約指紋と embedding / retrieval 設定指紋を保存し続ける。fingerprint が一致し、Qdrant collection も存在し、3 つの diff 集合がすべて空の場合だけ、`section_collection_upsert` stage は `skipped_unchanged` で終了する。
 

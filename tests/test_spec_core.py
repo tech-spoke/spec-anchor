@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import types
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -135,6 +136,75 @@ class FakeSpecCoreProvider:
             "warning": "Core Concept priority resolves this potential conflict.",
             "why_not_pending": "Existing evidence is enough.",
         }
+
+
+class RelatedSectionsSpecCoreProvider(FakeSpecCoreProvider):
+    @property
+    def provider_id(self) -> str:
+        return "fake-spec-core-related-sections"
+
+    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+        self.calls.append(request)
+        stage = str(getattr(request, "stage", ""))
+        section_hashes = getattr(request, "section_hashes", None)
+        if (
+            stage == "section_metadata"
+            and isinstance(section_hashes, dict)
+            and section_hashes
+        ):
+            return {
+                "sections": [
+                    {
+                        "section_id": str(section_id),
+                        "summary": f"summary:{section_id}",
+                        "search_keys": ["shared-related-key", f"key:{section_id}"],
+                        "identifiers": [],
+                        "related_sections": [],
+                    }
+                    for section_id in section_hashes
+                ]
+            }
+        if stage == "related_section_selection":
+            try:
+                payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
+            except json.JSONDecodeError:
+                payload = {}
+            sections: list[dict[str, Any]] = []
+            related_by_source: dict[str, list[dict[str, Any]]] = {}
+            for evaluation in payload.get("evaluations", []):
+                if not isinstance(evaluation, dict):
+                    continue
+                source_id = str(evaluation.get("source_section_id") or "")
+                candidates = [
+                    candidate
+                    for candidate in evaluation.get("candidates", [])
+                    if isinstance(candidate, dict)
+                    and isinstance(candidate.get("target_section_id"), str)
+                ]
+                related: list[dict[str, Any]] = []
+                if source_id and candidates:
+                    candidate = candidates[0]
+                    related.append(
+                        {
+                            "target_section_id": candidate["target_section_id"],
+                            "relation_hint": "see_also",
+                            "confidence": "high",
+                            "reason": "shared-related-key links these fixture sections.",
+                            "evidence_terms": [],
+                            "channels": list(candidate.get("channels") or []),
+                            "possible_conflict": False,
+                        }
+                    )
+                if source_id:
+                    related_by_source[source_id] = related
+                    sections.append(
+                        {
+                            "source_section_id": source_id,
+                            "related_sections": related,
+                        }
+                    )
+            return {"sections": sections, "related_sections": related_by_source}
+        return super().generate(request, timeout_sec=timeout_sec)
 
 
 def _core_module() -> Any:
@@ -339,6 +409,225 @@ search_keys_max = 32
             f"Feature {index:02d} defines a stable requirement for batch generation.\n"
         )
     (project_root / "docs/spec/large.md").write_text("\n".join(sections))
+
+
+def _write_cdx006_project(project_root: Path, *, collection: str) -> None:
+    (project_root / ".spec-grag").mkdir(parents=True)
+    (project_root / "docs/core").mkdir(parents=True)
+    (project_root / "docs/spec").mkdir(parents=True)
+    (project_root / ".spec-grag/config.toml").write_text(
+        f"""\
+[sources]
+include = ["docs/spec/**/*.md"]
+exclude = []
+
+[core]
+purpose_file = "docs/core/purpose.md"
+concept_file = "docs/core/concept.md"
+
+[context]
+storage = ".spec-grag/context"
+
+[section]
+max_heading_level = 4
+
+[llm.providers.fake]
+command = "fake-noop"
+model = "fake-spec-core"
+timeout_sec = 5
+max_retries = 0
+
+[embedding]
+provider = "flagembedding"
+model = "BAAI/bge-m3"
+dense_enabled = true
+sparse_enabled = true
+
+[vector_store]
+provider = "qdrant"
+url = "http://fake-qdrant:6333"
+collection = "{collection}"
+
+[retrieval]
+section_candidate_top_k = 0
+section_final_top_n = 8
+
+[limits]
+related_selected_max_per_section = 4
+"""
+    )
+    (project_root / "docs/core/purpose.md").write_text("# Purpose\nVerify partial retrieval updates.\n")
+    (project_root / "docs/core/concept.md").write_text("# Core Concept\nRelated Sections are retrieval aids.\n")
+    (project_root / "docs/spec/sample.md").write_text(
+        (REPO_ROOT / "docs/spec/sample.md").read_text()
+    )
+
+
+class _CoreFakePoint:
+    def __init__(self, point_id: Any) -> None:
+        self.id = point_id
+
+
+class _CoreFakePointStruct:
+    def __init__(self, *, id: Any, vector: dict[str, Any], payload: dict[str, Any]) -> None:
+        self.id = id
+        self.vector = dict(vector)
+        self.payload = dict(payload)
+
+
+class _CoreFakePointIdsList:
+    def __init__(self, *, points: Any) -> None:
+        self.points = list(points)
+
+
+class _CoreFakeVectorParams:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = dict(kwargs)
+
+
+class _CoreFakeSparseVectorParams:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = dict(kwargs)
+
+
+class _CoreFakeSparseVector:
+    def __init__(self, *, indices: Any, values: Any) -> None:
+        self.indices = list(indices)
+        self.values = list(values)
+
+
+class _CoreFakeMatchValue:
+    def __init__(self, *, value: Any) -> None:
+        self.value = value
+
+
+class _CoreFakeFieldCondition:
+    def __init__(self, *, key: str, match: Any) -> None:
+        self.key = key
+        self.match = match
+
+
+class _CoreFakeFilter:
+    def __init__(self, *, must: Any) -> None:
+        self.must = list(must)
+
+
+class _CoreFakeQdrantModels(types.SimpleNamespace):
+    def __init__(self) -> None:
+        super().__init__(
+            PointStruct=_CoreFakePointStruct,
+            PointIdsList=_CoreFakePointIdsList,
+            VectorParams=_CoreFakeVectorParams,
+            SparseVectorParams=_CoreFakeSparseVectorParams,
+            SparseVector=_CoreFakeSparseVector,
+            Filter=_CoreFakeFilter,
+            FieldCondition=_CoreFakeFieldCondition,
+            MatchValue=_CoreFakeMatchValue,
+            Distance=types.SimpleNamespace(COSINE="cosine"),
+        )
+
+
+class _CoreFakeQdrantClient:
+    def __init__(self) -> None:
+        self.collection_created = False
+        self.point_ids: list[Any] = []
+        self.upserted_points: list[Any] = []
+        self.deleted_point_ids: list[Any] = []
+        self.payload_patches: list[dict[str, Any]] = []
+
+    def info(self) -> dict[str, str]:
+        return {"version": "fake-qdrant"}
+
+    def collection_exists(self, *, collection_name: str) -> bool:
+        return self.collection_created
+
+    def scroll(
+        self,
+        *,
+        collection_name: str,
+        with_payload: bool,
+        with_vectors: bool,
+        limit: int,
+        offset: int | None = None,
+    ) -> tuple[list[_CoreFakePoint], int | None]:
+        start = int(offset or 0)
+        end = start + int(limit)
+        points = [_CoreFakePoint(point_id) for point_id in self.point_ids[start:end]]
+        next_offset = end if end < len(self.point_ids) else None
+        return points, next_offset
+
+    def recreate_collection(self, **kwargs: Any) -> None:
+        self.collection_created = True
+        self.point_ids = []
+
+    def delete(self, *, collection_name: str, points_selector: Any) -> None:
+        points = list(points_selector.points)
+        self.deleted_point_ids.extend(points)
+        self.point_ids = [point_id for point_id in self.point_ids if point_id not in points]
+
+    def upsert(self, *, collection_name: str, points: Any) -> None:
+        self.collection_created = True
+        self.upserted_points = list(points)
+        by_id = {str(point_id): point_id for point_id in self.point_ids}
+        for point in self.upserted_points:
+            by_id[str(point.id)] = point.id
+        self.point_ids = list(by_id.values())
+
+    def set_payload(
+        self,
+        *,
+        collection_name: str,
+        payload: dict[str, Any],
+        points: Any,
+    ) -> None:
+        self.payload_patches.append(
+            {
+                "collection_name": collection_name,
+                "payload": dict(payload),
+                "points": points,
+            }
+        )
+
+
+class _CoreFakeEmbeddingProvider:
+    provider_id = "fake-embedding"
+    model = "fake-model"
+    dense_enabled = True
+    sparse_enabled = True
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    def embed_documents(self, texts: Any) -> Any:
+        texts = list(texts)
+        self.calls.append(texts)
+        module = importlib.import_module("spec_grag.retrieval_index")
+        return module.BgeM3EmbeddingBatch(
+            embeddings=[
+                module.BgeM3Embedding(
+                    dense=[float(index + 1)],
+                    sparse=module.SparseVector(indices=[index + 1], values=[1.0]),
+                )
+                for index, _text in enumerate(texts)
+            ]
+        )
+
+    def embed_query(self, text: str) -> Any:
+        module = importlib.import_module("spec_grag.retrieval_index")
+        return module.BgeM3Embedding(dense=[1.0], sparse=module.SparseVector())
+
+
+def _install_core_fake_qdrant(
+    monkeypatch: pytest.MonkeyPatch,
+    client: _CoreFakeQdrantClient,
+) -> None:
+    fake_models = _CoreFakeQdrantModels()
+    fake_qdrant_client = types.SimpleNamespace(
+        QdrantClient=lambda _url: client,
+        models=fake_models,
+    )
+    monkeypatch.setitem(sys.modules, "qdrant_client", fake_qdrant_client)
+    monkeypatch.setitem(sys.modules, "qdrant_client.models", fake_models)
 
 
 def _value(value: Any, *path: str, default: Any = None) -> Any:
@@ -884,7 +1173,7 @@ section_final_top_n = 8
 
     progress = read_progress(project_root)
     assert progress is not None
-    assert progress["stages"]["section_collection_upsert"]["action"] == "fallback_rebuilt"
+    assert progress["stages"]["section_collection_upsert"]["action"] == "upserted_full"
     assert progress["stages"]["section_collection_upsert"]["reason"] == "collection_missing"
     assert progress["stages"]["related_sections"]["action"] == "skipped_unchanged"
 
@@ -964,11 +1253,54 @@ def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
     assert partial_kwargs["sections_to_delete"] == []
     progress = read_progress(project_root)
     assert progress is not None
+    assert progress["stages"]["section_collection_upsert"]["action"] == "upserted_partial"
     diagnostics = progress["stages"]["section_collection_upsert"]["diagnostics"]
     assert diagnostics["sections_upserted_count"] == 1
     assert diagnostics["sections_deleted_count"] == 0
     assert diagnostics["embed_documents_input_size"] == 1
     assert diagnostics["stale_points_deleted"] == 0
+
+
+def test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """without non-empty related_sections this test cannot detect CDX-002-style timing divergence (FakeLLM hid the bug originally)."""
+
+    from spec_grag.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_cdx006_project(project_root, collection="cdx006_collection")
+    core_module = _core_module()
+    fake_qdrant = _CoreFakeQdrantClient()
+    fake_embedding = _CoreFakeEmbeddingProvider()
+    _install_core_fake_qdrant(monkeypatch, fake_qdrant)
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "FlagEmbeddingBgeM3Provider",
+        lambda **_kwargs: fake_embedding,
+    )
+
+    _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+    assert any(
+        call["payload"].get("related_sections")
+        for call in fake_qdrant.payload_patches
+    )
+
+    spec_path = project_root / "docs/spec/sample.md"
+    spec_path.write_text(
+        spec_path.read_text().replace(
+            "Regular users may read and update only resources they own.",
+            "Regular users may read and update only resources they own!",
+        )
+    )
+    _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+
+    progress = read_progress(project_root)
+    assert progress is not None
+    diagnostics = progress["stages"]["section_collection_upsert"]["diagnostics"]
+    assert diagnostics["sections_upserted_count"] == 1
+    assert diagnostics["embed_documents_input_size"] == 1
 
 
 def test_aud002_retrieval_index_failure_marks_freshness_failed(

@@ -1684,7 +1684,6 @@ def _upsert_section_collection_if_enabled(
             generated_at=str(section_metadata.get("generated_at") or ""),
             sections_to_upsert=partial_sections_to_upsert if use_partial_args else None,
             sections_to_delete=partial_sections_to_delete if use_explicit_delete_set else None,
-            prior_state=_read_optional_artifact(store, "retrieval_index_state"),
         )
         diagnostics = artifact.get("diagnostics", {}) if isinstance(artifact, Mapping) else {}
         state_write_error: str | None = None
@@ -1693,7 +1692,12 @@ def _upsert_section_collection_if_enabled(
                 store.write("retrieval_index_state", expected_state)
             except Exception as exc:
                 state_write_error = str(exc)
-        action = "upserted" if run_full or force_full_recreate else "fallback_rebuilt"
+        actual_recreate = bool(diagnostics.get("recreate", recreate))
+        action = (
+            "upserted_full"
+            if run_full or force_full_recreate or actual_recreate or not use_partial_args
+            else "upserted_partial"
+        )
         reason = str(
             diagnostics.get("reason")
             or fast_path.get("reason")
@@ -1707,7 +1711,7 @@ def _upsert_section_collection_if_enabled(
             "section_collection_upsert",
             action=action,
             reason=reason,
-            recreate=bool(diagnostics.get("recreate", recreate)),
+            recreate=actual_recreate,
             diagnostics=progress_diagnostics,
         )
         return "success"

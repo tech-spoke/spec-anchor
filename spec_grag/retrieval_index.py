@@ -951,11 +951,8 @@ def upsert_qdrant_section_collection(
     generated_at: str | None = None,
     sections_to_upsert: Sequence[Mapping[str, Any]] | None = None,
     sections_to_delete: Iterable[str] | None = None,
-    prior_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Upsert one BGE-M3 dense+sparse vector per section into a Qdrant collection."""
-
-    del prior_state  # Reserved for future diff-aware Qdrant state reuse.
 
     from qdrant_client import QdrantClient  # type: ignore[import-not-found]
     from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
@@ -1085,7 +1082,7 @@ def upsert_qdrant_section_collection(
         "qdrant_url": url,
         "collection": collection,
         "qdrant_server_version": server_version,
-        "section_count": len(full_payloads),
+        "total_section_input_count": len(full_payloads),
         "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
         "embedding_model": STANDARD_EMBEDDING_MODEL,
         "embedding_device": _provider_device(provider) if provider is not None else None,
