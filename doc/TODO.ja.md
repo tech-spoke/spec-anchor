@@ -13,6 +13,15 @@
 - 完了条件
 - 依存 / scope 外
 
+## 完了処理ルール
+
+完了した task は次のように扱う。**block ごと削除してはいけない**。情報落ちと将来の参照不能を防ぐためである。
+
+- task block は「## 開放中」配下から **「## 完了確認済み」配下へ移動** する。中身は背景・真因・修正内容・検証条件・実機/真機計測結果を保持し、後続セッションが「何をどう確認して完了と判定したか」を読めるようにする
+- 「監査指摘の追跡」配下の表 (AUD 監査 / CDX 監査) には、完了 task の disposition (採用判定 + 修正概要 + 検証コマンド + commit 参照) を **要約として** 残す。表は索引、「完了確認済み」配下の block は詳細
+- 各 task block の「完了条件」内に「本項を `doc/TODO.ja.md` から削除」と書かれていても、**そのまま消すのではなく「完了確認済み」へ移動する** と読み替える (過去の常套句であるため、新規 task では「『完了確認済み』へ移動」と書き直してよい)
+- 実例: B-2 (commit `400b409`) と B-3a (commit `202af3d`) は「完了確認済み」配下に block ごと残されている。CDX-001 から CDX-007 (commit `bbb843e` で確定) も同様に扱う
+
 ---
 
 ## 監査指摘の追跡
@@ -123,30 +132,6 @@ Related Sections candidate generation が実 Qdrant ではなく InMemory fallba
 #### 依存 / scope 外
 
 Related Sections は evidence ではなく retrieval auxiliary のため、freshness を failed にするか degraded にするかは AUD-006 と同じく表現を揃える必要がある。
-
-### CDX-005 disposition (採用 / 許容、2026-05-14 確定)
-
-CODEX が B-3b 実装中に [AGENTS.md](AGENTS.md) (line 26 付近) に +2 行追記した内容を、今回は **保持** する判断を採った (commit `d01b334`)。
-
-追記された文言:
-
-```text
-この禁止は、設計書、報告書、TODO、最終報告、進捗報告のすべてに適用する。
-`.spec-grag/state/retrieval_index_state.json` または
-`.spec-grag/state/related_sections_state.json` を参照する場合は、
-毎回 file path、保存する fingerprint の内容、参照する stage / 経路、
-一致時の挙動、不一致時の fallback 条件を明示する。
-```
-
-判断理由:
-
-- 文言として有害な内容ではなく、commit `54b6397` で人間が新設した「`sidecar` 単独使用禁止」ルールの整合的な範囲拡大に相当する
-- 適用先を「設計書、報告書、TODO、最終報告、進捗報告」と明示することで、後続セッションでの曖昧運用を抑える効果がある
-- 必須記述項目 5 点 (file path、fingerprint 内容、参照 stage、一致時挙動、不一致時 fallback) は既存ルール本体の良い例に書かれている要素と一致する
-
-注記 (将来の判断材料):
-
-- CODEX prompt R6 は「Codex 自身が書く文章で `sidecar` を単独で使うな」という Codex 自身への制約を述べていたが、CODEX は「AGENTS.md にこの条文を追記すべき」と短絡解釈し、ルールブック本体に追記した。今回は内容が許容範囲だったため保持したが、Agent がルールブック本体を独断で拡張する経路は引き続き **個別 case-by-case で人間判断** とする。次回以降に同種の Agent 独断追記が出た場合、本 disposition を例として「内容が既存ルールと整合するか」「Agent prompt が rule book 改訂を明示指示していたか」を確認する。
 
 ### B-3b: partial change での embed/upsert 削減
 
@@ -544,3 +529,174 @@ session 2026-05-13 計測で `spec-grag core` (no-change incremental) が `llm_c
 - `pytest -q --skip-external`: 359 passed, 16 skipped (B-2 baseline 353 から +6、6 軸 unit test 分が増加) ✓
 
 詳細な disposition は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` の AUD-003 を参照。
+
+### CDX-001: `prior_state` dead 引数の削除
+
+#### 状態
+
+採用 / 修正済み。実装差分は `bbb843e fix: CDX-001/003/004/006/007 audit follow-ups + CDX-005 disposition` でコミット済み (CODEX rescue 実装、Claude 監査)。
+
+#### 完了確認結果 (2026-05-14)
+
+CODEX が B-3b 実装で `upsert_qdrant_section_collection` に追加した `prior_state` キーワード引数は、関数 body 内で `del prior_state` で即捨てられる完全な dead 引数だった。`spec_grag/core.py` の `_upsert_section_collection_if_enabled` 側でも `prior_state=_read_optional_artifact(store, "retrieval_index_state")` の disk I/O が無駄に走っていた。
+
+修正内容:
+
+- `spec_grag/retrieval_index.py` の `upsert_qdrant_section_collection` シグネチャから `prior_state: dict[str, Any] | None = None` を削除。関数 body 内の `del prior_state` 行も削除
+- `spec_grag/core.py` の `_upsert_section_collection_if_enabled` から `prior_state=_read_optional_artifact(...)` 引数を削除。fast path 判定 (`_retrieval_index_fast_path_decision` での `_read_optional_artifact` 呼び出し) は別経路で必要なため残置
+
+検証:
+
+- `git grep "prior_state" spec_grag/ tests/` で 0 件 ✓
+- `pytest -q --skip-external` で 368 passed / 16 skipped (baseline 359 から +9) ✓
+
+### CDX-002: B-3b real LLM 環境で partial 化が機能しない設計バグ修正 (B 案)
+
+#### 状態
+
+採用 / 修正済み。実装差分は `e66eb1f feat: B-3b partial section_collection upsert + CDX-002 fix` でコミット済み (Claude 実装)。
+
+#### 完了確認結果 (2026-05-13 〜 2026-05-14)
+
+session 2026-05-13 で CODEX rescue subagent (taskId `task-mp3jdpna-e6dn3g`, agentId `a93efb4871f84de91`) に B-3b 実装を依頼し、unit test (`tests/test_retrieval_index.py` axis A〜F + `tests/test_spec_core.py` core 経路) が全 pass する状態を受け取った。しかし real codex / claude を使う環境で再現確認したところ、1 section の本文を 1 文字変更しただけで全 section が再 embed・再 upsert される現象が実測された。
+
+実測 (`/tmp/spec_grag_cdx002_real`, 4 section fixture `docs/spec/sample.md`):
+
+- Run 1 (real LLM 初回 build): 4 section 全件 embed。manifest には `related_sections` 3 件入り payload に対する `payload_fingerprint` が記録された
+- Run 2 修正前 (Authentication section 本文 1 文字変更後 incremental): `section_collection_upsert.action = "fallback_rebuilt"`, `recreate = false`, `partial_requested = true`, `sections_upserted_count = 4`, `embed_documents_input_size = 4`, `reason = "payload_fingerprint"`, `elapsed_sec = 13.064`
+- Run 2 修正後: `sections_upserted_count = 1`, `embed_documents_input_size = 1`, `reason = "source_hash"`, `elapsed_sec = 9.243` ✓
+
+真因: `_upsert_section_collection_if_enabled` は `related_sections` apply 前の `section_metadata` で fingerprint を計算 (diff 判定用) し、その後 `core.py:501-507` で apply 後の `section_metadata` で fingerprint を再計算して manifest に書いていた。結果、今回 diff 計算 (apply 前 fingerprint) と前回 manifest (apply 後 fingerprint) が乖離し、real LLM 環境では `related_sections` が non-empty で書かれるため全 section が `changed` と判定 → partial 化の効果ゼロ。`SPEC_GRAG_FAKE_LLM=1` 環境では `related_sections` が常に空で apply 前後の payload が同じになり、設計バグが完全に隠蔽されていた。
+
+修正内容 (B 案):
+
+- `spec_grag/retrieval_index.py` に `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset({"related_sections"})` と `_payload_fingerprint_input(payload)` を追加し、`payload_fingerprint` 計算時に `related_sections` フィールドを除外
+- `spec_grag/core.py:501-507` の apply 後 `build_section_payload_fingerprints` 再計算と上書き処理を削除
+- `doc/DESIGN.ja.md` §4.9 の fingerprint 説明を「`related_sections` を除外したサブセットの SHA-256」に更新、除外理由 (set_payload による別経路 patch、apply 前後 timing の整合) を明記
+- `tests/test_retrieval_index.py` の axis D test を反転し「`related_sections` だけの変化は `payload_fingerprint` を変えない」を assert する形に変更 (test 名: `test_b3b_axis_d_related_sections_only_change_does_not_invalidate_payload_fingerprint`)
+
+検証 (real LLM): 修正後 Run 2 で `sections_upserted_count = 1` を実機確認 ✓
+
+### CDX-003: partial 成功時の `action="fallback_rebuilt"` 名称誤誘導の修正
+
+#### 状態
+
+採用 / 修正済み。実装差分は `bbb843e` でコミット済み (CODEX rescue 実装、Claude 監査)。
+
+#### 完了確認結果 (2026-05-14)
+
+`_upsert_section_collection_if_enabled` の二値分岐 (`upserted` / `fallback_rebuilt`) は recreate=False で partial path が成功した場合も `"fallback_rebuilt"` を emit し、CLAUDE.md ルール 12 が禁じる「`fallback` 単独使用」に該当した。`core_progress.json` はユーザーが運用判断に使う外部 surface のため誤誘導の害が大きい。
+
+修正内容:
+
+- `spec_grag/core.py` の二値分岐を意味的 3 値に置換 (`skipped_unchanged` は既存):
+  - `"upserted_full"`: `recreate=True` で全 section を embed・upsert したケース (run_full / force_full_recreate / 初回 / B-3a ordinal-id auto-migration)
+  - `"upserted_partial"`: `recreate=False` で added + changed section だけを embed・upsert したケース (B-3b partial path)
+- B-3a auto-migration 経路の `diagnostics.reason = "migration_required_from_ordinal_point_id"` は変更せず保持 (test / doc が参照しているため)
+- `doc/DESIGN.ja.md` §4.7/§4.9 と `doc/EXTERNAL_DESIGN.ja.md` §7.4 の action 値説明を更新
+- 既存 test 2 件 (`test_aud002_retrieval_index_failure_marks_freshness_failed`, `test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics`) の expected 値を新 action 値に更新
+
+検証:
+
+- `git grep "fallback_rebuilt" spec_grag/ tests/ doc/DESIGN.ja.md doc/EXTERNAL_DESIGN.ja.md` で 0 件 ✓
+- `git grep` で `upserted_full` / `upserted_partial` が `spec_grag/core.py:1697/1699` と `tests/test_spec_core.py:1176/1256` に存在 ✓
+- `pytest -q --skip-external` で 368 passed / 16 skipped ✓
+
+### CDX-004: `sections_to_delete=[]` で B-3a stale delete が黙って無効化される件の文書化
+
+#### 状態
+
+採用 / 修正済み (文書化のみ、実装は変更せず)。実装差分は `bbb843e` でコミット済み (CODEX rescue 実装)。
+
+#### 完了確認結果 (2026-05-14)
+
+B-3b partial path で `sections_to_delete` が明示集合として渡る前提のため、B-3a の collection-wide stale delete (collection 全 scroll → current にない point を削除) は走らない。manifest が壊れた / 部分欠落した / 別 process が collection を汚した場合に stale point が永久に検出されない trade-off が `doc/DESIGN.ja.md` `doc/EXTERNAL_DESIGN.ja.md` に書かれていなかった。
+
+修正内容 ((a) 案 文書化のみ):
+
+- `doc/DESIGN.ja.md` §4.9 に「インクリメンタル部分実行では `sections_to_delete` が明示集合として渡るため B-3a の collection-wide stale delete は走らない。manifest が信頼できる前提で stale 検出は manifest diff だけに依存する。manifest が壊れた場合は `--rebuild` で復旧する。将来 `--verify-index` (B-4) が導入されたら独立検証経路として使える」を追記
+- 実装 (`spec_grag/retrieval_index.py` の `sections_to_delete` 分岐) は変更せず
+
+(b) 案 (設計戻し) は採らず、`--verify-index` (B-4) で独立検証経路を持つ方針とした。
+
+### CDX-005: AGENTS.md +2 行の Agent 由来追記の保持判定
+
+#### 状態
+
+採用 / 許容。判断確定は 2026-05-14 (人間判断)。
+
+#### 完了確認結果 (2026-05-14)
+
+CODEX が B-3b 実装中に `AGENTS.md` (line 26 付近) に +2 行追記した内容を、今回は **保持** する判断を採った (commit `d01b334`)。
+
+追記された文言:
+
+```text
+この禁止は、設計書、報告書、TODO、最終報告、進捗報告のすべてに適用する。
+`.spec-grag/state/retrieval_index_state.json` または
+`.spec-grag/state/related_sections_state.json` を参照する場合は、
+毎回 file path、保存する fingerprint の内容、参照する stage / 経路、
+一致時の挙動、不一致時の fallback 条件を明示する。
+```
+
+判断理由:
+
+- 文言として有害な内容ではなく、commit `54b6397` で人間が新設した「`sidecar` 単独使用禁止」ルールの整合的な範囲拡大に相当する
+- 適用先を「設計書、報告書、TODO、最終報告、進捗報告」と明示することで、後続セッションでの曖昧運用を抑える効果がある
+- 必須記述項目 5 点 (file path、fingerprint 内容、参照 stage、一致時挙動、不一致時 fallback) は既存ルール本体の良い例に書かれている要素と一致する
+
+注記 (将来の判断材料):
+
+- CODEX prompt R6 は「Codex 自身が書く文章で `sidecar` を単独で使うな」という Codex 自身への制約を述べていたが、CODEX は「AGENTS.md にこの条文を追記すべき」と短絡解釈し、ルールブック本体に追記した。今回は内容が許容範囲だったため保持したが、Agent がルールブック本体を独断で拡張する経路は引き続き **個別 case-by-case で人間判断** とする。次回以降に同種の Agent 独断追記が出た場合、本 disposition を例として「内容が既存ルールと整合するか」「Agent prompt が rule book 改訂を明示指示していたか」を確認する。
+
+### CDX-006: apply 前後 fingerprint 乖離を再現する end-to-end test の追加
+
+#### 状態
+
+採用 / 修正済み。実装差分は `bbb843e` でコミット済み (CODEX rescue 実装、Claude が監査 + R7 reversion verification)。
+
+#### 完了確認結果 (2026-05-14)
+
+CDX-002 が CODEX 提供の unit test 軸 A〜F のいずれでも検出できなかった構造的問題への防御 test を追加した。axis D ([tests/test_retrieval_index.py:616-673](tests/test_retrieval_index.py#L616-L673)) は「同一タイミングで生成した 2 つの fingerprints を比較」する形で、生成タイミングが apply 前と apply 後で食い違うバグを構造的に検出できなかった。
+
+追加 test: `tests/test_spec_core.py::test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert`
+
+設計:
+
+- `RelatedSectionsSpecCoreProvider` を新設し、`related_section_selection` stage 応答で各 section に 1 件の non-empty `related_sections` を返す。docstring に「without non-empty related_sections this test cannot detect CDX-002-style timing divergence (FakeLLM hid the bug originally)」と明示
+- `_CoreFakeQdrantClient` と `_CoreFakeEmbeddingProvider` を導入。SUT (`upsert_qdrant_section_collection`) は **mock せず real のまま** 動かし、`qdrant_client` モジュールだけ mock。前 test (`test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics`) が SUT を monkey patch していて CDX-002 を catch できなかった反省を反映
+- 2 回連続 `_run_spec_core` を回し、Run 1 で `related_sections` が実際に Qdrant `set_payload` で書き込まれたことを `assert any(call["payload"].get("related_sections") for call in fake_qdrant.payload_patches)` で確認。1 section の本文を 1 文字変更後の Run 2 で `sections_upserted_count == 1` / `embed_documents_input_size == 1` を assert
+
+R7 reversion verification (Claude 実施、commit message に詳細):
+
+- step 1 (現状): test PASS ✓
+- step 2 (`_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` を `frozenset()` に revert): test PASS。これは CDX-002 fix が (1) fingerprint 除外と (2) apply 後再計算削除の二重防御で、(1) のみ revert では (2) が残るため未発火
+- step 3 ((1) を戻し、(2) の apply 後再計算を `core.py` で復活): test FAIL ✓ (`sections_upserted_count == 4`、CDX-002 完全再現)
+- step 4 (両方 restore): test PASS ✓
+
+副次発見 (CDX-006 limitation): CDX-002 fix の (1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` と (2) `core.py:501-507` の apply 後再計算削除は、いずれか単独でも CDX-002 を防ぐ二重防御。CDX-006 test は **(1) + (2) 両方同時消失** だけ catch し、片方だけ削除した regression は catch しない。両方の不変条件を保つ責務は将来の編集者にある。
+
+### CDX-007: `section_count` field の partial 時誤誘導の修正
+
+#### 状態
+
+採用 / 修正済み。実装差分は `bbb843e` でコミット済み (Claude 実装。CODEX が forwarder 自動 bg 切替で kill された後の補完)。
+
+#### 完了確認結果 (2026-05-14)
+
+`upsert_qdrant_section_collection` の `artifact["diagnostics"]["section_count"] = len(full_payloads)` は B-3b 以前は「全 section の input 数 (context info)」の意味だったが、partial run で `sections_upserted_count` と並ぶと「51 件処理した」と誤読される。
+
+修正内容 ((a) 案 rename):
+
+- `spec_grag/retrieval_index.py:1085` の field 名を `section_count` → `total_section_input_count` に rename
+- 別 context (CODEX prompt R5 末尾「unrelated contexts は leave alone」指示通り) は touch せず:
+  - `spec_grag/retrieval_index.py:809` / `:847`: `update_section_collection_related_sections` の diagnostics field (別 stage)
+  - `spec_grag/retrieval_index.py:880`: `build_section_embeddings_artifact` の artifact 出力 field (別 artifact)
+  - `tests/test_retrieval_index.py:1237` / `:1269` / `:1302`: 上記別関数の test
+  - `tests/test_retrieval_index.py:1324`: `build_section_embeddings_artifact` の test
+  - `tests/test_spec_core.py:388` / `:406`: ヘルパ関数の引数名
+
+検証:
+
+- `git grep "total_section_input_count" spec_grag/` で `spec_grag/retrieval_index.py:1085` に存在 ✓
+- `pytest -q --skip-external` で 368 passed / 16 skipped ✓
