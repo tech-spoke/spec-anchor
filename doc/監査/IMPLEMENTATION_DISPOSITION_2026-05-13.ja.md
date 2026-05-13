@@ -48,25 +48,37 @@
 
 ## AUD-003: Qdrant point id が ordinal index で、incremental upsert 時に stale point が残る設計
 
-判定: 保留。
+判定: 採用。B-3a (commit `202af3d feat: B-3a deterministic Qdrant point id + stale delete + ordinal migration`) で修正済み。
 
-理由: 今回の B-2 実装は no-change incremental の skip と collection missing 時の fallback rebuild を対象にした。point id の deterministic 化と stale point deletion は、既存 Qdrant collection の migration / rebuild 方針を伴うため、独立した変更として扱う。
+理由: index / query / payload lookup は同一 point id 空間で安定して同じ Section に解決される必要がある。ordinal id は collection 再作成時のみ stable で、section の追加・削除・並べ替えで対応関係が崩れる。
 
 対応:
 
-- 今回は未修正。
-- `doc/TODO.ja.md` に AUD-003 の残 TODO を追加した。
+- `spec_grag/retrieval_index.py` に `stable_section_point_id(source_section_id) -> str` を追加し、Qdrant section collection の point id を `source_section_id` の UUID5 に統一した。固定 namespace UUID は `_SECTION_POINT_ID_NAMESPACE = uuid.UUID("b1d5535d-3e52-5430-af3e-ddd879e6cb19")` で、`uuid.uuid5(uuid.NAMESPACE_URL, "spec-grag.section-collection.v1")` の結果値を literal として埋め込んだ。
+- `upsert_qdrant_section_collection` の `recreate=False` 経路で、`client.scroll(...)` の既存 point id 集合と `stable_section_point_id` の期待集合の差分を `client.delete(..., points_selector=PointIdsList(...))` で削除する経路を追加した。
+- `upsert_qdrant_section_collection` は `recreate=False` で `client.scroll(..., limit=1)` の sample point id が UUID として parse できない場合、ordinal id collection と判定して `recreate=True` に切り替える。`core_progress.json` の `stages.section_collection_upsert.diagnostics` に `reason = "migration_required_from_ordinal_point_id"` と `warnings = ["migration_required_from_ordinal_point_id"]` を記録する。
+- `spec_grag/core.py` の `_retrieval_schema_pin_fingerprint()` 入力に `"point_id_scheme": "point_id_v1_uuid5_source_section_id"` を追加した。B-3a 以前に書かれた `.spec-grag/state/retrieval_index_state.json` は B-3a 後の初回実行で必ず fingerprint 不一致になり、通常経路に落ちて auto-migration が走る。
+- `doc/EXTERNAL_DESIGN.ja.md` §2.4 で `source_section_id` の global unique 性 (`<file_path>#<heading_slug>` 形式、`[sources].include` 全体で一意) を明記した。
+- `doc/EXTERNAL_DESIGN.ja.md` §4.1 で Qdrant point id の UUID5 規約と固定 namespace UUID 値を明記した。§7.4 に旧 ordinal collection 検出時の auto-migration の user 向け動作を追記した。
+- `doc/DESIGN.ja.md` §4.7 で `retrieval_schema_pin_fingerprint` 計算式に `point_id_v1_uuid5_source_section_id` を追記し、§4.8 で auto-migration アルゴリズムと stale-delete アルゴリズムを内部実装の用語で記述した。
 
 証跡:
 
-- B-2 の collection missing fallback は `tests/test_spec_core.py::test_b2_incremental_no_change_skips_retrieval_and_related_heavy_paths` で確認済み。
-- stale point deletion は未検証。
+- `tests/test_retrieval_index.py` に 6 軸の独立 unit test を追加した:
+  - `test_stable_section_point_id_deterministic` (A 同一 `source_section_id` で同一 point id)
+  - `test_stable_section_point_id_no_collision` (B 50 個の異なる `source_section_id` で衝突なし)
+  - `test_upsert_stale_delete_recreate_false` (C `recreate=False` で削除 section の point が `client.delete` 経由で消える)
+  - `test_stable_section_point_id_reorder_invariance` (D Section の並べ替えで point id と payload の対応が崩れない)
+  - `test_upsert_migration_from_ordinal` (E 旧 ordinal point id 検出時の `recreate=True` 切り替えと diagnostics)
+  - `test_fast_path_consistency_with_new_fingerprint` (F 新 fingerprint 形式で fast path が正常動作)
+- `git grep "uuid.uuid5" spec_grag/` は `retrieval_index.py:64` の `stable_section_point_id` 関数本体 1 件のみで、他に直接呼出しは存在しない。
+- 実 Qdrant (localhost:6333) と実 BGE-M3 を使った smoke 検証 (smoke fixture `docs/spec/sample.md` の 4 section):
+  - B-3a commit 前の旧 ordinal collection (point id = 整数 `0`, `1`, `2`, `3`) に対して `spec-grag core` を実行 → auto-migration が発火し、`stages.section_collection_upsert.action = "fallback_rebuilt"`、`diagnostics.warnings = ["migration_required_from_ordinal_point_id"]`、wall time 17.860s。
+  - migration 直後の Qdrant collection sample point id は `2f38b869-45ae-5a63-91cf-8163aaab637f` 等の UUID5 文字列。Python で `uuid.uuid5(b1d5535d-..., "docs/spec/sample.md#0003-authorization")` を計算した結果と一致を確認。
+  - 2 回目 `spec-grag core` で wall time 1.254s、BGE-M3 model load 0 回、`stages.section_collection_upsert.action = "skipped_unchanged"`、`stages.related_sections.action = "skipped_unchanged"`。B-2 fast path が回帰なく動作することを確認した。
+- `pytest -q --skip-external`: 359 passed, 16 skipped (B-3a 前の baseline 353 から +6、上記 6 軸 unit test 分が増加)。
 
-残 TODO:
-
-- Qdrant point id を source identity 由来の deterministic id にする。
-- 現 source set に存在しない point を削除する。
-- 旧 ordinal point を含む collection の migration / rebuild 条件を固定する。
+残 TODO: なし。
 
 ## AUD-004: retrieval result が Source Specs 本文 / span に直接接続されていない
 
