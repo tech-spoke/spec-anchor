@@ -421,6 +421,36 @@ Qdrant payload と manifest の section 単位 hash 整合性チェック (= 全
 
 `recreate=False` で既存 collection が UUID point id 形式の場合、`upsert_qdrant_section_collection` は upsert 前に `client.scroll(..., with_payload=False, with_vectors=False, limit=1024)` を offset 付きで最後まで実行し、既存 point id 集合を取得する。現在の Section 集合から `stable_section_point_id(source_section_id)` で期待 point id 集合を作り、差分を `client.delete(collection_name=..., points_selector=PointIdsList(points=[...]))` で削除する。削除数は diagnostics の `stale_points_deleted` に記録する。
 
+### 4.9 partial-change section collection upsert
+
+`_upsert_section_collection_if_enabled` は、`section_collection_upsert` stage に入る時点で current Section 集合と前回の `.spec-grag/state/section_manifest.json` を比較し、次の 3 集合を作る。
+
+- `added_section_ids`: current input に存在し、前回 manifest に存在しない `source_section_id`
+- `changed_section_ids`: 両方に存在するが、比較対象 fingerprint のいずれかが変わった `source_section_id`
+- `removed_section_ids`: 前回 manifest に存在し、current input に存在しない `source_section_id`
+
+`changed_section_ids` の比較対象は次の 4 つである。
+
+- `source_hash`: Source Specs の Section 本文 hash
+- `semantic_hash`: whitespace 正規化後の Section hash
+- `vector_input_fingerprint`: `build_section_payloads` が作る `payload["text"]` の SHA-256
+- `payload_fingerprint`: Qdrant に保存する payload dict から `related_sections` field を除外したサブセットを `_stable_json(...)` で canonical JSON 化した文字列の SHA-256
+
+`vector_input_fingerprint` は、Source Specs 本文が同じでも `summary` / `search_keys` / `identifiers` の変化で BGE-M3 入力 text が変わる場合を検出する。`payload_fingerprint` は、BGE-M3 入力 text には入らない payload field、たとえば `heading_path` / `chapter_id` / `source_document_id` の変化を検出する。
+
+`related_sections` field を `payload_fingerprint` の対象から **除外する** のは、`update_section_collection_related_sections` ([spec_grag/retrieval_index.py](spec_grag/retrieval_index.py)) が `related_sections` を Qdrant `set_payload` で別経路で patch し、BGE-M3 embedding を変えない責務分割になっているためである。`section_collection_upsert` stage の diff 計算は、Section が変わったとき **embedding / upsert を再実行する必要があるか** を判定するためのものなので、embedding を変えない `related_sections` の変化は対象に含めない。これを含めると、`_upsert_section_collection_if_enabled` が diff 計算する apply-before タイミングの payload (`related_sections=[]`) と、Section Manifest に最終記録される apply-after タイミングの payload (`related_sections=[...]`) で `payload_fingerprint` が乖離し、次回 incremental 実行で全 Section が `changed` と誤判定される。
+
+partial upsert 分岐:
+
+- `--rebuild` または `recreate=True`: partial diff は使わず、全 Section を embed + upsert し、Qdrant collection を recreate する。
+- B-3a migration: 既存 collection に旧 ordinal point id が見つかった場合、`upsert_qdrant_section_collection` は `recreate=True` に切り替え、partial diff は使わず全 Section を UUID5 point id で再登録する。
+- incremental で collection が存在し、migration も不要: `sections_to_upsert = added_section_ids + changed_section_ids` に対応する Section だけを `provider.embed_documents([...])` に渡し、同じ `stable_section_point_id(source_section_id)` の point を上書きする。`removed_section_ids` は `stable_section_point_id(...)` に変換して `PointIdsList(points=[...])` で delete する。他の point は触らない。
+- caller が `sections_to_delete` を渡さない場合: B-3a の stale delete 経路を維持し、既存 point id 全体を scroll して current Section 集合に無い point を削除する。caller が空 list を含めて `sections_to_delete` を渡した場合は、明示された削除集合だけを扱う。
+
+`upsert_qdrant_section_collection` の optional keyword は additive contract とする。`sections_to_upsert=None`, `sections_to_delete=None`, `prior_state=None` の場合は、従来と同じ full-batch upsert と stale delete 判定を行う。`prior_state` は将来、Qdrant 側状態の追加情報を渡すために予約し、B-3b では opaque dict として受け取るだけで分岐に使わない。
+
+`.spec-grag/state/section_manifest.json` には、最終的に Qdrant payload として観測される Section ごとの `vector_input_fingerprint` と `payload_fingerprint` を保存する。次回 incremental 実行では、この manifest entry と current payload fingerprint を比較して partial diff を作る。`.spec-grag/state/retrieval_index_state.json` は collection 全体の冪等判定用に、section hash 集約指紋と embedding / retrieval 設定指紋を保存し続ける。fingerprint が一致し、Qdrant collection も存在し、3 つの diff 集合がすべて空の場合だけ、`section_collection_upsert` stage は `skipped_unchanged` で終了する。
+
 ## 5. Related Sections 生成
 
 Related Sections は、最終根拠ではないが、Agentic Search の入口として使う参照補助リンクである。

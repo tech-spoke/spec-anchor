@@ -22,12 +22,13 @@ from __future__ import annotations
 
 import hashlib
 import importlib.metadata
+import json
 import logging
 import math
 import os
 import re
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -731,6 +732,51 @@ def build_section_payloads(
     return payloads
 
 
+_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset({"related_sections"})
+
+
+def _payload_fingerprint_input(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the payload subset used to compute `payload_fingerprint`.
+
+    `related_sections` is excluded because it is patched via
+    `update_section_collection_related_sections` (a `set_payload` that does
+    not change the BGE-M3 embedding). Including it would make the fingerprint
+    differ between the apply-before and apply-after timing windows in
+    `_run_spec_core_unlocked`, which breaks partial-change detection in real
+    LLM environments.
+    """
+
+    return {
+        key: value
+        for key, value in payload.items()
+        if key not in _PAYLOAD_FINGERPRINT_EXCLUDE_KEYS
+    }
+
+
+def section_payload_fingerprints(payload: Mapping[str, Any]) -> dict[str, str]:
+    """Return manifest fingerprints for one Qdrant section payload."""
+
+    return {
+        "vector_input_fingerprint": _hash_text(str(payload.get("text") or "")),
+        "payload_fingerprint": _hash_text(_stable_json(_payload_fingerprint_input(payload))),
+    }
+
+
+def build_section_payload_fingerprints(
+    sections: Sequence[Mapping[str, Any]],
+    metadata_by_section_id: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, dict[str, str]]:
+    """Return `{source_section_id: fingerprints}` for section payloads."""
+
+    payloads = build_section_payloads(sections, metadata_by_section_id)
+    fingerprints: dict[str, dict[str, str]] = {}
+    for payload in payloads:
+        section_id = str(payload.get("source_section_id") or "")
+        if section_id:
+            fingerprints[section_id] = section_payload_fingerprints(payload)
+    return fingerprints
+
+
 def update_section_collection_related_sections(
     related_sections_by_id: Mapping[str, Sequence[Mapping[str, Any]]],
     *,
@@ -903,13 +949,18 @@ def upsert_qdrant_section_collection(
     embedding_provider: BgeM3EmbeddingProvider | None = None,
     recreate: bool = True,
     generated_at: str | None = None,
+    sections_to_upsert: Sequence[Mapping[str, Any]] | None = None,
+    sections_to_delete: Iterable[str] | None = None,
+    prior_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Upsert one BGE-M3 dense+sparse vector per section into a Qdrant collection."""
+
+    del prior_state  # Reserved for future diff-aware Qdrant state reuse.
 
     from qdrant_client import QdrantClient  # type: ignore[import-not-found]
     from qdrant_client import models as qdrant_models  # type: ignore[import-not-found]
 
-    payloads = build_section_payloads(sections, metadata_by_section_id)
+    full_payloads = build_section_payloads(sections, metadata_by_section_id)
     client = QdrantClient(url)
     server_version = _qdrant_server_version(client)
     collection_exists = False
@@ -935,11 +986,31 @@ def upsert_qdrant_section_collection(
                     migration_reason,
                     collection,
                 )
-    provider = embedding_provider or FlagEmbeddingBgeM3Provider(
-        allow_real_provider=True,
-        use_fp16=False,
-    )
-    batch = provider.embed_documents([payload["text"] for payload in payloads])
+    partial_requested = sections_to_upsert is not None or sections_to_delete is not None
+    if recreate:
+        payloads_to_upsert = full_payloads
+        section_ids_to_delete: list[str] = []
+    else:
+        payloads_to_upsert = (
+            build_section_payloads(sections_to_upsert, metadata_by_section_id)
+            if sections_to_upsert is not None
+            else full_payloads
+        )
+        section_ids_to_delete = (
+            sorted({str(section_id) for section_id in sections_to_delete if str(section_id)})
+            if sections_to_delete is not None
+            else []
+        )
+    embedding_inputs = [str(payload["text"]) for payload in payloads_to_upsert]
+    provider = embedding_provider
+    if embedding_inputs:
+        provider = provider or FlagEmbeddingBgeM3Provider(
+            allow_real_provider=True,
+            use_fp16=False,
+        )
+        batch_embeddings = provider.embed_documents(embedding_inputs).embeddings
+    else:
+        batch_embeddings = []
 
     if recreate:
         client.recreate_collection(
@@ -954,12 +1025,22 @@ def upsert_qdrant_section_collection(
         )
 
     stale_points_deleted = 0
-    if not recreate and collection_exists:
+    if not recreate and sections_to_delete is not None:
+        if section_ids_to_delete:
+            point_ids_to_delete = [
+                stable_section_point_id(section_id) for section_id in section_ids_to_delete
+            ]
+            client.delete(
+                collection_name=collection,
+                points_selector=qdrant_models.PointIdsList(points=point_ids_to_delete),
+            )
+            stale_points_deleted = len(point_ids_to_delete)
+    elif not recreate and collection_exists:
         existing_point_ids = _scroll_qdrant_point_ids(client, collection)
         existing_by_id = {str(point_id): point_id for point_id in existing_point_ids}
         expected_point_ids = {
             stable_section_point_id(str(payload["source_section_id"]))
-            for payload in payloads
+            for payload in full_payloads
         }
         stale_point_ids = [
             point_id
@@ -974,7 +1055,7 @@ def upsert_qdrant_section_collection(
             stale_points_deleted = len(stale_point_ids)
 
     points = []
-    for payload, embedding in zip(payloads, batch.embeddings, strict=True):
+    for payload, embedding in zip(payloads_to_upsert, batch_embeddings, strict=True):
         sparse = embedding.sparse or SparseVector()
         points.append(
             qdrant_models.PointStruct(
@@ -1004,12 +1085,16 @@ def upsert_qdrant_section_collection(
         "qdrant_url": url,
         "collection": collection,
         "qdrant_server_version": server_version,
-        "section_count": len(payloads),
+        "section_count": len(full_payloads),
         "embedding_provider": STANDARD_EMBEDDING_PROVIDER,
         "embedding_model": STANDARD_EMBEDDING_MODEL,
-        "embedding_device": _provider_device(provider),
+        "embedding_device": _provider_device(provider) if provider is not None else None,
         "recreate": recreate,
         "stale_points_deleted": stale_points_deleted,
+        "sections_upserted_count": len(payloads_to_upsert),
+        "sections_deleted_count": len(section_ids_to_delete),
+        "embed_documents_input_size": len(embedding_inputs),
+        "partial_requested": partial_requested,
     }
     if migration_reason is not None:
         artifact["diagnostics"]["reason"] = migration_reason
@@ -1311,6 +1396,10 @@ def _source_span_payload(value: Any) -> dict[str, int]:
 
 def _hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _stable_json(payload: Mapping[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _sparse_batch_length(output: Any) -> int:

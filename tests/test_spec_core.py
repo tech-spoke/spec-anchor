@@ -889,6 +889,88 @@ section_final_top_n = 8
     assert progress["stages"]["related_sections"]["action"] == "skipped_unchanged"
 
 
+def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_grag.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_real_provider_project(
+        project_root,
+        collection="b3b_partial_collection",
+        qdrant_url="http://localhost:6333",
+    )
+    core_module = _core_module()
+    monkeypatch.setattr(
+        core_module,
+        "_section_collection_exists",
+        lambda *_args, **_kwargs: True,
+    )
+
+    upsert_calls: list[dict[str, Any]] = []
+
+    def fake_upsert(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        sections_to_upsert = kwargs.get("sections_to_upsert")
+        sections_to_delete = kwargs.get("sections_to_delete")
+        upsert_calls.append({"args": args, "kwargs": kwargs})
+        return {
+            "status": "success",
+            "diagnostics": {
+                "recreate": bool(kwargs.get("recreate")),
+                "sections_upserted_count": len(sections_to_upsert or []),
+                "sections_deleted_count": len(sections_to_delete or []),
+                "embed_documents_input_size": len(sections_to_upsert or []),
+                "stale_points_deleted": len(sections_to_delete or []),
+            },
+        }
+
+    def fake_related(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "related_section_candidates": [],
+            "related_sections": {},
+            "sections": [],
+            "diagnostics": [],
+            "generated_at": kwargs.get("generated_at"),
+        }
+
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "upsert_qdrant_section_collection",
+        fake_upsert,
+    )
+    monkeypatch.setattr(
+        core_module.related_sections_api,
+        "generate_related_sections_result",
+        fake_related,
+    )
+
+    _run_spec_core(project_root, provider=FakeSpecCoreProvider())
+    _run_spec_core(project_root, provider=FakeSpecCoreProvider())
+    spec_path = project_root / "docs/spec/main.md"
+    spec_path.write_text(
+        spec_path.read_text().replace("build a real index.", "build a real index!")
+    )
+    result = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+
+    assert result["retrieval_index_status"] == "success"
+    assert len(upsert_calls) == 2
+    partial_kwargs = upsert_calls[-1]["kwargs"]
+    partial_upsert_ids = {
+        section["source_section_id"]
+        for section in partial_kwargs["sections_to_upsert"]
+    }
+    assert partial_upsert_ids == {"docs/spec/main.md#0002-provider-path"}
+    assert partial_kwargs["sections_to_delete"] == []
+    progress = read_progress(project_root)
+    assert progress is not None
+    diagnostics = progress["stages"]["section_collection_upsert"]["diagnostics"]
+    assert diagnostics["sections_upserted_count"] == 1
+    assert diagnostics["sections_deleted_count"] == 0
+    assert diagnostics["embed_documents_input_size"] == 1
+    assert diagnostics["stale_points_deleted"] == 0
+
+
 def test_aud002_retrieval_index_failure_marks_freshness_failed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

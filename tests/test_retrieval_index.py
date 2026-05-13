@@ -282,7 +282,12 @@ class _FakeEmbeddingProvider:
     dense_enabled = True
     sparse_enabled = True
 
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
     def embed_documents(self, texts: Iterable[str]) -> Any:
+        texts = list(texts)
+        self.calls.append(texts)
         module = _retrieval_module()
         embeddings = [
             module.BgeM3Embedding(
@@ -413,6 +418,348 @@ def test_upsert_migration_from_ordinal(
     assert artifact["diagnostics"]["reason"] == "migration_required_from_ordinal_point_id"
     assert artifact["diagnostics"]["migration_required_from_ordinal_point_id"] is True
     assert "migration_required_from_ordinal_point_id" in caplog.text
+
+
+def test_b3b_axis_a_embed_input_size_matches_sections_to_upsert_and_zero_skips(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _retrieval_module()
+    section_ids = ["doc.md#a", "doc.md#b", "doc.md#c"]
+    sections = _b3a_sections(section_ids)
+    metadata = {
+        section_id: {
+            "summary": f"Summary for {section_id}",
+            "search_keys": [f"key-{index}"],
+            "identifiers": [f"Identifier{index}"],
+        }
+        for index, section_id in enumerate(section_ids)
+    }
+    fake_client = _FakeQdrantClient(
+        [module.stable_section_point_id(section_id) for section_id in section_ids]
+    )
+    _install_fake_qdrant(monkeypatch, fake_client)
+    provider = _FakeEmbeddingProvider()
+
+    artifact = module.upsert_qdrant_section_collection(
+        sections,
+        metadata,
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=provider,
+        recreate=False,
+        sections_to_upsert=[sections[1], sections[2]],
+        sections_to_delete=[],
+    )
+
+    assert [len(call) for call in provider.calls] == [2]
+    assert artifact["diagnostics"]["embed_documents_input_size"] == 2
+    assert artifact["diagnostics"]["sections_upserted_count"] == 2
+
+    zero_client = _FakeQdrantClient(
+        [module.stable_section_point_id(section_id) for section_id in section_ids]
+    )
+    _install_fake_qdrant(monkeypatch, zero_client)
+    zero_provider = _FakeEmbeddingProvider()
+
+    zero_artifact = module.upsert_qdrant_section_collection(
+        sections,
+        metadata,
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=zero_provider,
+        recreate=False,
+        sections_to_upsert=[],
+        sections_to_delete=[],
+    )
+
+    assert zero_provider.calls == []
+    assert zero_client.upserted_points == []
+    assert zero_artifact["diagnostics"]["embed_documents_input_size"] == 0
+    assert zero_artifact["diagnostics"]["sections_upserted_count"] == 0
+
+
+def test_b3b_axis_b_added_changed_removed_upserts_only_diff(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _retrieval_module()
+    from spec_grag import core as core_module
+
+    existing_ids = ["doc.md#a", "doc.md#b", "doc.md#c", "doc.md#d"]
+    current_ids = ["doc.md#a", "doc.md#b", "doc.md#c", "doc.md#e"]
+    previous_sections = _b3a_sections(existing_ids)
+    sections = _b3a_sections(current_ids)
+    sections_by_id = {section["source_section_id"]: section for section in sections}
+    sections_by_id["doc.md#b"]["source_hash"] = "changed-source-b"
+    sections_by_id["doc.md#b"]["semantic_hash"] = "changed-semantic-b"
+    metadata = {
+        section_id: {
+            "summary": f"Summary for {section_id}",
+            "search_keys": [f"search-{section_id[-1]}"],
+            "identifiers": [f"Identifier{section_id[-1].upper()}"],
+        }
+        for section_id in current_ids
+    }
+    previous_metadata = {
+        section_id: dict(
+            metadata.get(
+                section_id,
+                {
+                    "summary": f"Summary for {section_id}",
+                    "search_keys": [f"search-{section_id[-1]}"],
+                    "identifiers": [f"Identifier{section_id[-1].upper()}"],
+                },
+            )
+        )
+        for section_id in existing_ids
+    }
+    previous_fingerprints = module.build_section_payload_fingerprints(
+        previous_sections,
+        previous_metadata,
+    )
+    current_fingerprints = module.build_section_payload_fingerprints(
+        sections,
+        metadata,
+    )
+    previous_manifest = {
+        "sections": [
+            {
+                "source_section_id": section["source_section_id"],
+                "source_hash": section["source_hash"],
+                "semantic_hash": section["semantic_hash"],
+                **previous_fingerprints[section["source_section_id"]],
+            }
+            for section in previous_sections
+        ]
+    }
+    diff = core_module._section_collection_diff_sets(
+        sections,
+        previous_manifest,
+        current_fingerprints,
+    )
+    assert diff["added_section_ids"] == ["doc.md#e"]
+    assert diff["changed_section_ids"] == ["doc.md#b"]
+    assert diff["removed_section_ids"] == ["doc.md#d"]
+
+    fake_client = _FakeQdrantClient(
+        [module.stable_section_point_id(section_id) for section_id in existing_ids]
+    )
+    _install_fake_qdrant(monkeypatch, fake_client)
+    provider = _FakeEmbeddingProvider()
+    upsert_ids = set(diff["added_section_ids"]) | set(diff["changed_section_ids"])
+
+    artifact = module.upsert_qdrant_section_collection(
+        sections,
+        metadata,
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=provider,
+        recreate=False,
+        sections_to_upsert=[sections_by_id[section_id] for section_id in sorted(upsert_ids)],
+        sections_to_delete=diff["removed_section_ids"],
+    )
+
+    assert len(provider.calls) == 1
+    embedded_text = "\n".join(provider.calls[0])
+    assert "Summary for doc.md#b" in embedded_text
+    assert "Summary for doc.md#e" in embedded_text
+    assert "Summary for doc.md#a" not in embedded_text
+    assert "Summary for doc.md#c" not in embedded_text
+    assert {point.id for point in fake_client.upserted_points} == {
+        module.stable_section_point_id("doc.md#b"),
+        module.stable_section_point_id("doc.md#e"),
+    }
+    assert fake_client.deleted_point_ids == [
+        module.stable_section_point_id("doc.md#d")
+    ]
+    assert module.stable_section_point_id("doc.md#a") in fake_client.point_ids
+    assert artifact["diagnostics"]["sections_upserted_count"] == 2
+    assert artifact["diagnostics"]["sections_deleted_count"] == 1
+    assert artifact["diagnostics"]["stale_points_deleted"] == 1
+
+
+def test_b3b_axis_c_vector_input_fingerprint_detects_summary_change() -> None:
+    module = _retrieval_module()
+    from spec_grag import core as core_module
+
+    section = _b3a_sections(["doc.md#a"])[0]
+    previous_fingerprints = module.build_section_payload_fingerprints(
+        [section],
+        {"doc.md#a": {"summary": "Old summary", "search_keys": [], "identifiers": []}},
+    )
+    current_fingerprints = module.build_section_payload_fingerprints(
+        [section],
+        {"doc.md#a": {"summary": "New summary", "search_keys": [], "identifiers": []}},
+    )
+    previous_manifest = {
+        "sections": [
+            {
+                "source_section_id": "doc.md#a",
+                "source_hash": section["source_hash"],
+                "semantic_hash": section["semantic_hash"],
+                **previous_fingerprints["doc.md#a"],
+            }
+        ]
+    }
+
+    diff = core_module._section_collection_diff_sets(
+        [section],
+        previous_manifest,
+        current_fingerprints,
+    )
+
+    assert diff["added_section_ids"] == []
+    assert diff["changed_section_ids"] == ["doc.md#a"]
+    assert diff["removed_section_ids"] == []
+    assert diff["changed_reasons"]["doc.md#a"] == "vector_input_fingerprint"
+
+
+def test_b3b_axis_d_related_sections_only_change_does_not_invalidate_payload_fingerprint() -> None:
+    # CDX-002 修正: payload_fingerprint は related_sections を除外する。
+    # related_sections は update_section_collection_related_sections の
+    # set_payload で別経路 patch され BGE-M3 embedding を変えない。
+    # apply-before タイミング ([]) と apply-after タイミング ([{...}]) で
+    # fingerprint が乖離すると partial 化が real LLM で破綻するため、
+    # この test は related_sections だけの変更が diff に上がらないことを固定する。
+    module = _retrieval_module()
+    from spec_grag import core as core_module
+
+    section = _b3a_sections(["doc.md#a"])[0]
+    metadata_without_related = {
+        "doc.md#a": {
+            "summary": "Stable summary",
+            "search_keys": ["stable"],
+            "identifiers": ["StableIdentifier"],
+            "related_sections": [],
+        }
+    }
+    metadata_with_related = {
+        "doc.md#a": {
+            "summary": "Stable summary",
+            "search_keys": ["stable"],
+            "identifiers": ["StableIdentifier"],
+            "related_sections": [
+                {"target_section_id": "doc.md#b", "relation_hint": "see_also"}
+            ],
+        }
+    }
+    previous_fingerprints = module.build_section_payload_fingerprints(
+        [section],
+        metadata_without_related,
+    )
+    current_fingerprints = module.build_section_payload_fingerprints(
+        [section],
+        metadata_with_related,
+    )
+    assert (
+        previous_fingerprints["doc.md#a"]["vector_input_fingerprint"]
+        == current_fingerprints["doc.md#a"]["vector_input_fingerprint"]
+    )
+    assert (
+        previous_fingerprints["doc.md#a"]["payload_fingerprint"]
+        == current_fingerprints["doc.md#a"]["payload_fingerprint"]
+    )
+    previous_manifest = {
+        "sections": [
+            {
+                "source_section_id": "doc.md#a",
+                "source_hash": section["source_hash"],
+                "semantic_hash": section["semantic_hash"],
+                **previous_fingerprints["doc.md#a"],
+            }
+        ]
+    }
+
+    diff = core_module._section_collection_diff_sets(
+        [section],
+        previous_manifest,
+        current_fingerprints,
+    )
+
+    assert diff["changed_section_ids"] == []
+    assert diff["unchanged"] is True
+
+
+def test_b3b_axis_e_recreate_ignores_partial_arguments_and_rebuilds_full(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _retrieval_module()
+    section_ids = ["doc.md#a", "doc.md#b", "doc.md#c"]
+    sections = _b3a_sections(section_ids)
+    fake_client = _FakeQdrantClient(
+        [module.stable_section_point_id(section_id) for section_id in section_ids]
+    )
+    _install_fake_qdrant(monkeypatch, fake_client)
+    provider = _FakeEmbeddingProvider()
+
+    artifact = module.upsert_qdrant_section_collection(
+        sections,
+        {},
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=provider,
+        recreate=True,
+        sections_to_upsert=[sections[1]],
+        sections_to_delete=["doc.md#c"],
+    )
+
+    assert fake_client.recreate_calls
+    assert fake_client.deleted_point_ids == []
+    assert len(provider.calls) == 1
+    assert len(provider.calls[0]) == 3
+    assert {point.id for point in fake_client.upserted_points} == {
+        module.stable_section_point_id(section_id)
+        for section_id in section_ids
+    }
+    assert artifact["diagnostics"]["sections_upserted_count"] == 3
+    assert artifact["diagnostics"]["sections_deleted_count"] == 0
+
+
+def test_b3b_axis_f_new_args_none_preserves_full_upsert_migration_and_stale_delete(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _retrieval_module()
+    section_ids = ["doc.md#a", "doc.md#b"]
+    sections = _b3a_sections(section_ids)
+    stale_point_id = module.stable_section_point_id("doc.md#stale")
+    stale_client = _FakeQdrantClient(
+        [
+            module.stable_section_point_id("doc.md#a"),
+            stale_point_id,
+        ]
+    )
+    _install_fake_qdrant(monkeypatch, stale_client)
+    stale_provider = _FakeEmbeddingProvider()
+
+    stale_artifact = module.upsert_qdrant_section_collection(
+        sections,
+        {},
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=stale_provider,
+        recreate=False,
+    )
+
+    assert [len(call) for call in stale_provider.calls] == [2]
+    assert stale_client.deleted_point_ids == [stale_point_id]
+    assert stale_artifact["diagnostics"]["stale_points_deleted"] == 1
+
+    migration_client = _FakeQdrantClient([0, 1])
+    _install_fake_qdrant(monkeypatch, migration_client)
+    migration_provider = _FakeEmbeddingProvider()
+
+    migration_artifact = module.upsert_qdrant_section_collection(
+        sections,
+        {},
+        url="http://fake-qdrant:6333",
+        collection="spec_grag_section",
+        embedding_provider=migration_provider,
+        recreate=False,
+    )
+
+    assert [len(call) for call in migration_provider.calls] == [2]
+    assert migration_client.recreate_calls
+    assert migration_artifact["diagnostics"]["reason"] == "migration_required_from_ordinal_point_id"
+    assert migration_artifact["diagnostics"]["migration_required_from_ordinal_point_id"] is True
 
 
 def test_fast_path_consistency_with_new_fingerprint(

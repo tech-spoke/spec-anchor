@@ -138,6 +138,21 @@ def test_section_manifest_entry_includes_audit_when_provided() -> None:
     assert entry["last_prompt_version"] == "section-metadata-v2"
 
 
+def test_section_manifest_entry_includes_retrieval_fingerprints_when_provided() -> None:
+    section = _section("alpha")
+
+    entry = _section_manifest_entry(
+        section,
+        fingerprints={
+            "vector_input_fingerprint": "v" * 64,
+            "payload_fingerprint": "p" * 64,
+        },
+    )
+
+    assert entry["vector_input_fingerprint"] == "v" * 64
+    assert entry["payload_fingerprint"] == "p" * 64
+
+
 def test_section_manifest_entry_without_audit_is_unchanged() -> None:
     section = _section("alpha")
 

@@ -7,7 +7,7 @@ import json
 import re
 import time
 import uuid
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -430,6 +430,7 @@ def _run_spec_core_unlocked(
             metadata_generation.llm_results,
         )
     emit("core_section_metadata_done")
+    section_collection_fingerprints_by_id: dict[str, Mapping[str, str]] = {}
     emit("core_section_collection_upsert_start")
     retrieval_index_status = _upsert_section_collection_if_enabled(
         config=config,
@@ -442,6 +443,8 @@ def _run_spec_core_unlocked(
         unchanged_sections=unchanged_sections,
         generated_at=generated_at,
         progress_tracker=progress_tracker,
+        previous_section_manifest=previous_section_manifest,
+        section_payload_fingerprints_out=section_collection_fingerprints_by_id,
     )
     emit("core_section_collection_upsert_done")
     emit("core_related_sections_start")
@@ -495,6 +498,10 @@ def _run_spec_core_unlocked(
         for entry in section_metadata.get("sections", [])
         if isinstance(entry, Mapping)
     ]
+    # payload_fingerprint must be stable across the related_sections apply
+    # boundary so the manifest value matches the value computed on the next
+    # run's diff. retrieval_index._payload_fingerprint_input excludes
+    # `related_sections` for this reason; recomputing here is unnecessary.
 
     updated_sources = _source_refs_for_sections(updated_sections)
     skipped_sources = [
@@ -626,6 +633,9 @@ def _run_spec_core_unlocked(
             _section_manifest_entry(
                 section,
                 audit=section_manifest_audit_by_id.get(
+                    str(section.get("section_id") or section.get("source_section_id") or ""),
+                ),
+                fingerprints=section_collection_fingerprints_by_id.get(
                     str(section.get("section_id") or section.get("source_section_id") or ""),
                 ),
             )
@@ -1219,6 +1229,75 @@ def _section_unchanged_decision(
     return {"unchanged": True, "reason": UNCHANGED_SECTION_REASON}
 
 
+_SECTION_COLLECTION_DIFF_KEYS = (
+    "source_hash",
+    "semantic_hash",
+    "vector_input_fingerprint",
+    "payload_fingerprint",
+)
+
+
+def _section_collection_diff_sets(
+    sections: Sequence[Mapping[str, Any]],
+    previous_manifest: Mapping[str, Any] | None,
+    current_payload_fingerprints: Mapping[str, Mapping[str, str]],
+) -> dict[str, Any]:
+    manifest_sections = (
+        previous_manifest.get("sections", [])
+        if isinstance(previous_manifest, Mapping)
+        else []
+    )
+    previous_entries = {
+        str(entry.get("source_section_id") or entry.get("section_id") or ""): entry
+        for entry in manifest_sections
+        if isinstance(entry, Mapping)
+    }
+    previous_entries.pop("", None)
+    current_entries: dict[str, dict[str, str]] = {}
+    for section in sections:
+        section_id = str(section.get("source_section_id") or section.get("section_id") or "")
+        if not section_id:
+            continue
+        fingerprints = current_payload_fingerprints.get(section_id, {})
+        current_entries[section_id] = {
+            "source_hash": str(section.get("source_hash") or ""),
+            "semantic_hash": str(section.get("semantic_hash") or ""),
+            "vector_input_fingerprint": str(fingerprints.get("vector_input_fingerprint") or ""),
+            "payload_fingerprint": str(fingerprints.get("payload_fingerprint") or ""),
+        }
+
+    current_ids = set(current_entries)
+    previous_ids = set(previous_entries)
+    added = sorted(current_ids - previous_ids)
+    removed = sorted(previous_ids - current_ids)
+    changed: list[str] = []
+    changed_reasons: dict[str, str] = {}
+    for section_id in sorted(current_ids & previous_ids):
+        previous = previous_entries[section_id]
+        current = current_entries[section_id]
+        for key in _SECTION_COLLECTION_DIFF_KEYS:
+            if str(previous.get(key) or "") != str(current.get(key) or ""):
+                changed.append(section_id)
+                changed_reasons[section_id] = key
+                break
+    unchanged = not added and not changed and not removed
+    reason = UNCHANGED_SECTION_REASON
+    if added:
+        reason = "section_added"
+    elif removed:
+        reason = "section_deleted"
+    elif changed:
+        reason = str(changed_reasons.get(changed[0]) or "section_changed")
+    return {
+        "unchanged": unchanged,
+        "reason": reason,
+        "added_section_ids": added,
+        "changed_section_ids": changed,
+        "removed_section_ids": removed,
+        "changed_reasons": changed_reasons,
+    }
+
+
 def _build_retrieval_index_state(
     sections: Sequence[Mapping[str, Any]],
     *,
@@ -1465,6 +1544,27 @@ def _section_collection_exists(url: str, collection: str) -> bool:
         return False
 
 
+def _section_metadata_by_id(
+    section_metadata: Mapping[str, Any],
+) -> dict[str, Mapping[str, Any]]:
+    metadata_by_id: dict[str, Mapping[str, Any]] = {}
+    for entry in section_metadata.get("sections") or ():
+        if not isinstance(entry, Mapping):
+            continue
+        section_id = str(
+            entry.get("source_section_id") or entry.get("section_id") or ""
+        )
+        if not section_id:
+            continue
+        metadata_by_id[section_id] = {
+            "summary": entry.get("summary"),
+            "search_keys": entry.get("search_keys") or [],
+            "identifiers": entry.get("identifiers") or [],
+            "related_sections": entry.get("related_sections") or [],
+        }
+    return metadata_by_id
+
+
 def _upsert_section_collection_if_enabled(
     *,
     config: Mapping[str, Any],
@@ -1477,6 +1577,8 @@ def _upsert_section_collection_if_enabled(
     unchanged_sections: Mapping[str, Any] | None = None,
     generated_at: str | None = None,
     progress_tracker: CoreProgressTracker | None = None,
+    previous_section_manifest: Mapping[str, Any] | None = None,
+    section_payload_fingerprints_out: MutableMapping[str, Mapping[str, str]] | None = None,
 ) -> str:
     """Build / refresh the section-level Qdrant collection.
 
@@ -1509,6 +1611,19 @@ def _upsert_section_collection_if_enabled(
         collection=section_collection,
         generated_at=generated_at,
     )
+    metadata_by_id = _section_metadata_by_id(section_metadata)
+    current_payload_fingerprints = retrieval_index_api.build_section_payload_fingerprints(
+        sections,
+        metadata_by_id,
+    )
+    if section_payload_fingerprints_out is not None:
+        section_payload_fingerprints_out.clear()
+        section_payload_fingerprints_out.update(current_payload_fingerprints)
+    section_diff = _section_collection_diff_sets(
+        sections,
+        previous_section_manifest,
+        current_payload_fingerprints,
+    )
     fast_path = _retrieval_index_fast_path_decision(
         expected_state,
         store=store,
@@ -1516,7 +1631,7 @@ def _upsert_section_collection_if_enabled(
         collection=section_collection,
         run_full=run_full,
         force_full_recreate=force_full_recreate,
-        unchanged_sections=unchanged_sections,
+        unchanged_sections=section_diff,
     )
     if fast_path["can_skip"]:
         _progress_action(
@@ -1524,24 +1639,15 @@ def _upsert_section_collection_if_enabled(
             "section_collection_upsert",
             action="skipped_unchanged",
             reason="input_and_config_fingerprint_match_and_collection_exists",
+            diagnostics={
+                "sections_upserted_count": 0,
+                "sections_deleted_count": 0,
+                "embed_documents_input_size": 0,
+                "stale_points_deleted": 0,
+            },
         )
         return "skipped_unchanged"
 
-    metadata_by_id: dict[str, Mapping[str, Any]] = {}
-    for entry in section_metadata.get("sections") or ():
-        if not isinstance(entry, Mapping):
-            continue
-        section_id = str(
-            entry.get("source_section_id") or entry.get("section_id") or ""
-        )
-        if not section_id:
-            continue
-        metadata_by_id[section_id] = {
-            "summary": entry.get("summary"),
-            "search_keys": entry.get("search_keys") or [],
-            "identifiers": entry.get("identifiers") or [],
-            "related_sections": entry.get("related_sections") or [],
-        }
     # When the section collection has not been created yet (first run that
     # exercises section-level retrieval, or the operator deleted it
     # manually), the incremental upsert path would fail silently. Force
@@ -1552,6 +1658,22 @@ def _upsert_section_collection_if_enabled(
     recreate = bool(force_full_recreate) or not _section_collection_exists(
         url, section_collection
     )
+    sections_by_id = {
+        str(section.get("source_section_id") or section.get("section_id") or ""): section
+        for section in sections
+    }
+    sections_by_id.pop("", None)
+    upsert_section_ids = set(section_diff["added_section_ids"]) | set(
+        section_diff["changed_section_ids"]
+    )
+    partial_sections_to_upsert = [
+        sections_by_id[section_id]
+        for section_id in sorted(upsert_section_ids)
+        if section_id in sections_by_id
+    ]
+    partial_sections_to_delete = list(section_diff["removed_section_ids"])
+    use_partial_args = not run_full and not force_full_recreate
+    use_explicit_delete_set = use_partial_args and isinstance(previous_section_manifest, Mapping)
     try:
         artifact = retrieval_index_api.upsert_qdrant_section_collection(
             sections,
@@ -1560,6 +1682,9 @@ def _upsert_section_collection_if_enabled(
             collection=section_collection,
             recreate=recreate,
             generated_at=str(section_metadata.get("generated_at") or ""),
+            sections_to_upsert=partial_sections_to_upsert if use_partial_args else None,
+            sections_to_delete=partial_sections_to_delete if use_explicit_delete_set else None,
+            prior_state=_read_optional_artifact(store, "retrieval_index_state"),
         )
         diagnostics = artifact.get("diagnostics", {}) if isinstance(artifact, Mapping) else {}
         state_write_error: str | None = None
@@ -2628,6 +2753,7 @@ def _section_manifest_entry(
     section: Mapping[str, Any],
     *,
     audit: Mapping[str, Any] | None = None,
+    fingerprints: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Return one ``section_manifest.json`` entry.
 
@@ -2639,6 +2765,8 @@ def _section_manifest_entry(
         heading_path        — 見出し親子チェーン list[str]
         chapter_id          — 章 ID
         source_span         — {start_line, end_line, start_offset, end_offset}
+        vector_input_fingerprint — BGE-M3 入力 text の SHA-256
+        payload_fingerprint — Qdrant payload dict の canonical JSON SHA-256
         llm_provider        — 監査用 (audit, optional)
         llm_generation_status — success / failed / skipped (audit, optional)
         last_prompt_version — cache 整合確認用 (audit, optional)
@@ -2660,6 +2788,11 @@ def _section_manifest_entry(
             "source_span",
         )
     }
+    if fingerprints:
+        for key in ("vector_input_fingerprint", "payload_fingerprint"):
+            value = fingerprints.get(key)
+            if value:
+                entry[key] = str(value)
     if audit:
         for key in (
             "llm_provider",
