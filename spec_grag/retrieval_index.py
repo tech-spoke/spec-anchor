@@ -732,7 +732,7 @@ def build_section_payloads(
     return payloads
 
 
-_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset({"related_sections"})
+_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset({"related_sections", "source_span"})
 
 
 def _payload_fingerprint_input(payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -744,6 +744,12 @@ def _payload_fingerprint_input(payload: Mapping[str, Any]) -> dict[str, Any]:
     differ between the apply-before and apply-after timing windows in
     `_run_spec_core_unlocked`, which breaks partial-change detection in real
     LLM environments.
+
+    `source_span` is excluded because it stores byte offsets, so editing an
+    earlier section can shift unchanged later sections without changing their
+    actual content. Including those offsets would create false cache misses;
+    actual content changes are still detected by `source_hash` and
+    `semantic_hash`.
     """
 
     return {

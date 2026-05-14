@@ -68,102 +68,18 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-5a (最優先 / 高インパクト)**: B-3b partial path が「partial = ほぼ全件」状態になっている真因調査と修正。1 section 変更で `embed_documents_input_size=50` (51 section 中) になり、incremental 全体 wall を initial build とほぼ同等にしている直接原因
-2. **B-7 (高優先)**: partial change 時の related_sections 増分再生成。現状は incremental でも `action=fallback_regenerated` で全 section 再 typing。S2/S3 で 51〜54s かかり、incremental の利用者価値を損なう主犯
-3. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-4. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
-5. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+1. **B-7 (最優先 / 高インパクト)**: partial change 時の related_sections 増分再生成。B-5a 完了後、S2 wall は 94.6s → 63.9s に短縮されたが、`related_sections.elapsed_sec=52.6s` は不変で残主因。current 実装には partial 経路がなく `fallback_regenerated` で全 section 再 typing
+2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+3. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+4. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
 
-B-5 (section_metadata / related_typing cache の現状確認) は 2026-05-14 に Claude main agent が直接計測して結論 (a) (既存実装で satisfied) を確定。計測結果は `doc/監査/B-5_cache_measurement_2026-05-14.md`、cache 経路の現実装は `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。**ただし B-5 計測の副次発見として、1 section 変更でも core 全体 wall が initial build とほぼ同等 (S2 94.6s vs S0 96.0s) という重大な incremental 性能問題が判明した**。主因は B-5a (section_collection_upsert の partial が機能していない) と B-7 (related_sections の incremental 経路に partial 化が無い) で、これらが上記優先順位の 1, 2 位として独立 task となる。
+B-5 (cache の現状確認) は 2026-05-14 に Claude main 計測で (a) 既存実装で satisfied を確定、`doc/監査/B-5_cache_measurement_2026-05-14.md` と `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。
+
+B-5a (B-3b partial path で 50 section embed 問題) は 2026-05-14 に Claude main の field-level diff で **`source_span` byte offset シフトが `payload_fingerprint` に伝播** していることを真因確定 (5 候補のうち (i) を絞り込み)、CODEX rescue が `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` に `"source_span"` を追加する 1 行修正 + regression test を実装、Claude main が監査 + 実機 S2 で `embed_documents_input_size=1, section_collection_upsert.elapsed=9.2s` を確認して完了。「完了確認済み」配下に移動済。
 
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
-### B-5a: B-3b partial path で「partial = ほぼ全件 embed」になる真因調査と修正
-
-#### 背景
-
-B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.1) で、50 section fixture / 1 section 本文 1 文字変更の incremental 実行 (S2) において、`section_collection_upsert` stage が次の挙動を示すことが観測された。
-
-```text
-action                       = upserted_partial   ← partial 経路に乗っている
-reason                       = source_hash
-partial_requested            = true
-embed_documents_input_size   = 50                ← 51 section 中 50 件 BGE-M3 embedding
-sections_upserted_count      = 50                ← 50 件 Qdrant upsert
-total_section_input_count    = 51
-elapsed_sec                  = 40.795s
-```
-
-つまり action は `upserted_partial`、partial_requested=true で B-3b partial path には乗っているが、実際の embed 対象が 50 件 (= 51 中 1 件だけ skip)。これは B-3b の意図 (changed/added section だけ embed) と乖離している。
-
-B-3b 完了確認 (`doc/TODO.ja.md` 完了確認済み配下 B-3b block、commit `b42b309`) の同条件計測では `embed_documents_input_size=1, sections_upserted_count=1, elapsed=8.465s` で合格していた。完了確認時の fixture (`/tmp/spec_grag_b3b_measure/`) は本セッションで揮発済のため、B-3b 完了確認時の数値が「正しい partial 挙動」だったか、それとも「測定時に偶然 1 件 embed だった」だけかが現時点で確定していない。
-
-S3 (heading 変更) も同様に `embed_documents_input_size=50, sections_upserted_count=50, stale_points_deleted=1`。
-
-#### 真因 / 仮説
-
-未確定。次のいずれかが原因と推測される。
-
-- (i) `payload_fingerprint` の計算で、Section 01 の変更が他 49 section の payload にも影響して fingerprint を変えている (例: `related_sections` 以外の field で他 section 参照を持つ field が存在し、CDX-002 修正で除外されていない)
-- (ii) `section_manifest.json` の前回 entry と current entry の比較で何かの key が一致しない (例: `vector_input_fingerprint` の計算式が前回 run と current で微妙に異なる、`build_section_embedding_text` 内の何か)
-- (iii) `_section_collection_diff_sets` ([spec_grag/core.py](spec_grag/core.py)) の判定で、`changed_section_ids` 集合計算が想定より広く出る経路がある
-- (iv) B-3b 完了確認以降の commit (`bbb843e` CDX follow-up、`345fff1` B-4) のいずれかで partial 判定が回帰した
-- (v) B-3b 完了確認時の数値が partial path の正しい挙動を反映しておらず (= 別の理由で 1 件 embed になっていた)、現在の 50 件 embed が常態
-
-#### 目的
-
-B-5 計測で S2 が `embed_documents_input_size=50` になる経路の真因を突き止め、changed section 数 (S2 では 1) に対応する embed/upsert に絞る。これにより 1 section 変更時の `section_collection_upsert.elapsed_sec` を ~1s (= 1 section の BGE-M3 embedding + Qdrant upsert + model load 9〜10s の固定費を引いた値) に圧縮し、incremental 利用者価値の最大の主因を解消する。
-
-#### 実装方針
-
-調査と修正:
-
-1. `/tmp/spec_grag_b5_measure/` を再構築 (cache / state / Qdrant collection を clean)、S0 → S2 を再実行
-2. S2 実行直前と直後で `.spec-grag/state/section_manifest.json` を snapshot して diff を取り、どの section の entry に差分が出るかを正確に列挙
-3. `_section_collection_diff_sets` の `added/changed/removed_section_ids` 集合の中身を debug log で吐かせ、changed が 1 件 (= Section 01) なのか 50 件なのかを確定
-4. changed が 50 件と判定されているなら、その 50 件で **どの fingerprint** が前回と一致しないかを field 単位で出して原因を絞る (`source_hash` / `semantic_hash` / `vector_input_fingerprint` / `payload_fingerprint`)
-5. 原因が `payload_fingerprint` 計算なら、CDX-002 修正と同じ系統で除外対象 field を追加する。`vector_input_fingerprint` なら `build_section_embedding_text` の入力 metadata の安定性を見直す
-6. B-3b 完了確認時 (commit `b42b309` 時点) の partial path が正しく 1 件 embed していたかを git checkout または `git show b42b309:spec_grag/core.py` で照合
-7. 修正後、S2 で `embed_documents_input_size=1, sections_upserted_count=1, elapsed ≤ 15s (model load 9〜10s 含む)` になることを再計測で確認
-
-#### 検証条件
-
-A. **真因の確定**
-- S2 で changed_section_ids 集合の正確な内訳を `core_progress.json` または debug log から取得
-- どの fingerprint が前回と乖離しているかを field 単位で同定
-
-B. **修正後の挙動**
-- 50 section fixture / 1 section 本文 1 文字変更で `embed_documents_input_size=1, sections_upserted_count=1`
-- `section_collection_upsert.elapsed_sec ≤ 15s` (= B-3b 完了確認時の合格条件 T_partial - T_nochange ≤ 15s と整合)
-
-C. **B-3b 完了確認との整合**
-- 修正後の挙動が B-3b 完了確認時の数値 (`embed_documents_input_size=1, elapsed=8.465s`) と一致するか、または B-3b 完了確認の数値そのものが誤計測だった場合はその根拠を明示
-
-D. **既存 pytest の合格**
-- `pytest -q --skip-external` で全 pass 維持
-- partial path の判定経路に unit test を追加 (`payload_fingerprint` 計算の安定性、`_section_collection_diff_sets` の expected 集合)
-
-E. **regression 防止**
-- B-3b 完了確認時の数値が正しかった場合: `tests/test_spec_core.py` に「S2 相当の 1 section 変更で `embed_documents_input_size=1`」を assertion する test を追加し、将来の partial path 回帰を catch する
-
-#### 触れる主なファイル
-
-- [spec_grag/core.py](spec_grag/core.py): `_section_collection_diff_sets` の判定経路、`_upsert_section_collection_if_enabled` の partial 引数渡し
-- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): `_payload_fingerprint_input`、`section_payload_fingerprints`、`build_section_payloads`、`build_section_embedding_text` の入力安定性
-- `tests/test_spec_core.py` (新規 test 追加)
-
-#### 完了条件
-
-- 検証条件 (A)〜(E) すべて満たす
-- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
-
-#### 依存 / scope 外
-
-- **依存**: 本 task は B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) の副次発見が起点。B-3b の partial path 仕様を再確認する必要があり、B-3b 完了確認時の fixture (`/tmp/spec_grag_b3b_measure/`) は揮発済のため、現 session で fixture を再構築する
-- **scope 外**:
-  - related_sections の partial 化は別 task (B-7) として独立
-  - B-3b の機能本体 (partial path の存在) は前提とする。本 task は「partial path が正しく動いているか」の調査と修正に限る
-  - 50 section 超の大規模 spec での挙動は B-6 scope
+B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
 ### B-7: partial change 時の related_sections 増分再生成
 
@@ -904,6 +820,160 @@ E. **既存 pytest の合格**
   - source spec 本文の content hash 検証: manifest 経由で間接的にしか見ない
 
 実装の事後変遷 (完了確認済み時点): B-3a + B-3b が先行完了したため、`--verify-index` は「ガード兼検出」役として機能する。stale point は通常 manifest diff で削除されるが、外部要因 (別 process upsert、Qdrant 側 corruption) で manifest と乖離した場合に本 flag が能動検出する。
+
+### B-5a: B-3b partial path で「partial = ほぼ全件 embed」になる真因調査と修正
+
+#### 状態
+
+採用 / 修正済み (2026-05-14)。実装差分は次のコミットで確定する予定 (本 commit 着手前は session working tree に保持):
+
+- `spec_grag/retrieval_index.py:735`: `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset({"related_sections", "source_span"})` に変更 (1 行修正)。`_payload_fingerprint_input` の docstring に `source_span` 除外理由を追記 (CDX-002 の `related_sections` 除外と並列構造)
+- `tests/test_spec_core.py`: 新規 test `test_b5a_partial_upsert_ignores_source_span_shift` を追加 (50 section fixture / Section 01 を 1 文字編集 → `cache_hits=50, llm_calls=1, generated_section_ids=["docs/spec/spec.md#0002-section-01-authentication-window"], embed_documents_input_size=1, sections_upserted_count=1, total_section_input_count=51` を assertion)
+
+#### 完了確認結果 (2026-05-14, Claude main 調査 + CODEX 実装 + Claude main 監査・実機計測)
+
+調査 (Claude main):
+
+- `/tmp/spec_grag_b5_measure/` を clean state (cache / state / context / Qdrant collection 全削除) + spec.md を `tests/fixtures/spec_50sections/spec.md` original で置換、その上で S0 → S2 を再現
+- S0 と S2 の `section_manifest.json` を 51 entry × 4 fingerprint field (`source_hash` / `semantic_hash` / `vector_input_fingerprint` / `payload_fingerprint`) で diff
+- 結果: Section 01 (`spec.md#0002-section-01-authentication-window`) のみ `source_hash` / `semantic_hash` / `payload_fingerprint` / `source_span` が変化 (期待通り)、**残り 50 section は `payload_fingerprint` のみ変化、`source_hash` / `semantic_hash` / `vector_input_fingerprint` は不変**
+- 50 section すべての `source_span.start_offset` / `source_span.end_offset` が **+3 文字シフト** (Section 01 の本文長変更 `ten minutes` → `eleven minutes` で +3 文字、後続 byte offset が全部押し下げ)。`start_line` / `end_line` は不変
+- 真因確定: `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` に `source_span` が含まれていなかったため、`_payload_fingerprint_input(payload)` の出力に `source_span` が含まれ、後続 50 section の `payload_fingerprint` が「他 section の本文長変更」だけで変動。これが 5 候補のうち (i) `payload_fingerprint` 計算で他 49 section に変化が波及 の具体経路
+
+修正実装 (CODEX rescue subagent、~4.5 分):
+
+- `spec_grag/retrieval_index.py:735` を 1 行修正 + docstring に `source_span` 除外理由を追記
+- `tests/test_spec_core.py` に regression test を追加
+- scope 通り (2 files / 98 insertions / 1 deletion)。`spec_grag/core.py`、`spec_grag/section_payload.py`、外部・内部設計書、TODO は触らない
+- target unit test (`test_b5a_partial_upsert_ignores_source_span_shift` + `test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert`): 2 passed
+- CODEX Final report 10 項目すべて埋め (forwarder summary は Codex Final report の正本と整合)
+
+監査 (Claude main):
+
+- `git diff --stat`: 2 files の scope 外修正なし、`B5_TELEMETRY` / `SPEC_GRAG_B5_TELEMETRY` の hit 0 (production code 残骸なし)
+- `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` と `_payload_fingerprint_input` の修正内容は意図通り、CDX-002 fix `related_sections` 除外と並列構造で文書化
+- 新 regression test の assertion 内容が真因と整合 (`embed_documents_input_size==1` を 50 section fixture / 1 section 1 文字編集で確認)
+- 実機 S2 再計測: `/tmp/spec_grag_b5_measure/` を再 clean → S0 (initial) → Section 01 1 文字編集 → S2 を実行し、`core_progress.json` の `section_collection_upsert.diagnostics` を確認
+
+実機計測表 (`/tmp/spec_grag_b5_measure/`、50 section / fake LLM / real BGE-M3 / real Qdrant):
+
+| metric | 修正前 (commit `ac05813` 時点 B-5 計測) | 修正後 (本 task 完了時点) |
+|---|---|---|
+| wall (Section 01 1 文字編集) | 94.6s | **63.9s** |
+| `section_collection_upsert.action` | `upserted_partial` | `upserted_partial` |
+| `embed_documents_input_size` | 50 | **1** ✓ |
+| `sections_upserted_count` | 50 | **1** ✓ |
+| `sections_deleted_count` | 0 | 0 |
+| `total_section_input_count` | 51 | 51 |
+| `section_collection_upsert.elapsed_sec` | 40.795s | **9.211s** (B-3b 完了確認時の 8.465s に近い値に復帰) |
+| `cache_hits` | 50 | 50 (不変) |
+| `llm_calls` | 1 | 1 (不変) |
+| `related_sections.elapsed_sec` | 51.725s | 52.626s (B-7 scope、不変) |
+
+検証条件別の達成状況:
+
+- **A (真因の確定)**: ✓ S2 で `changed_section_ids` 集合は実質 51 件 (51 section 中 50 件 + Section 01 自身) と判定されていた事実を section_manifest.json の field-level diff で同定。乖離 fingerprint は `payload_fingerprint`、原因は `source_span` byte offset シフト
+- **B (修正後の挙動)**: ✓ 50 section fixture / 1 section 本文 1 文字変更で `embed_documents_input_size=1, sections_upserted_count=1, section_collection_upsert.elapsed_sec=9.211s ≤ 15s`
+- **C (B-3b 完了確認との整合)**: ✓ 修正後の `elapsed=9.211s` が B-3b 完了確認時の `8.465s` に近い値で復帰。差分は計測時の Qdrant / BGE-M3 noise 範囲内
+- **D (既存 pytest の合格)**: ✓ `pytest -q --skip-external` で 376 passed / 16 skipped (B-5 commit 時点の 375 + 本 task の test 1 = 376)
+- **E (regression 防止)**: ✓ `tests/test_spec_core.py::test_b5a_partial_upsert_ignores_source_span_shift` で「Section 01 1 文字編集 → `embed_documents_input_size==1, cache_hits==50, llm_calls==1`」を assertion。fake provider 経路で常時検証され、将来の `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` 回帰を catch
+
+副作用 (受容、`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.1.1 にも記録):
+
+- Section 01 だけ変更時、後続 50 section の Qdrant collection 上 `source_span` が古いまま残る (`set_payload` partial patch 経路が無い)。`source_section_id` で source 本文に直接アクセスできるため実用上問題なし。Qdrant payload 上の `source_span` を最新化したい場合は別 task (B-5b 候補) として将来切り出す
+
+#### 背景 (開放中時代の原文を保持)
+
+B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.1) で、50 section fixture / 1 section 本文 1 文字変更の incremental 実行 (S2) において、`section_collection_upsert` stage が次の挙動を示すことが観測された。
+
+```text
+action                       = upserted_partial   ← partial 経路に乗っている
+reason                       = source_hash
+partial_requested            = true
+embed_documents_input_size   = 50                ← 51 section 中 50 件 BGE-M3 embedding
+sections_upserted_count      = 50                ← 50 件 Qdrant upsert
+total_section_input_count    = 51
+elapsed_sec                  = 40.795s
+```
+
+つまり action は `upserted_partial`、partial_requested=true で B-3b partial path には乗っているが、実際の embed 対象が 50 件 (= 51 中 1 件だけ skip)。これは B-3b の意図 (changed/added section だけ embed) と乖離している。
+
+B-3b 完了確認 (`doc/TODO.ja.md` 完了確認済み配下 B-3b block、commit `b42b309`) の同条件計測では `embed_documents_input_size=1, sections_upserted_count=1, elapsed=8.465s` で合格していた。完了確認時の fixture (`/tmp/spec_grag_b3b_measure/`) は本セッションで揮発済のため、B-3b 完了確認時の数値が「正しい partial 挙動」だったか、それとも「測定時に偶然 1 件 embed だった」だけかが現時点で確定していない。
+
+S3 (heading 変更) も同様に `embed_documents_input_size=50, sections_upserted_count=50, stale_points_deleted=1`。
+
+#### 真因 / 仮説 (開放中時代の原文を保持)
+
+未確定。次のいずれかが原因と推測される。
+
+- (i) `payload_fingerprint` の計算で、Section 01 の変更が他 49 section の payload にも影響して fingerprint を変えている (例: `related_sections` 以外の field で他 section 参照を持つ field が存在し、CDX-002 修正で除外されていない)
+- (ii) `section_manifest.json` の前回 entry と current entry の比較で何かの key が一致しない (例: `vector_input_fingerprint` の計算式が前回 run と current で微妙に異なる、`build_section_embedding_text` 内の何か)
+- (iii) `_section_collection_diff_sets` ([spec_grag/core.py](spec_grag/core.py)) の判定で、`changed_section_ids` 集合計算が想定より広く出る経路がある
+- (iv) B-3b 完了確認以降の commit (`bbb843e` CDX follow-up、`345fff1` B-4) のいずれかで partial 判定が回帰した
+- (v) B-3b 完了確認時の数値が partial path の正しい挙動を反映しておらず (= 別の理由で 1 件 embed になっていた)、現在の 50 件 embed が常態
+
+実装の事後変遷 (完了確認済み時点): 真因は (i) で確定 (`source_span` byte offset シフトが `payload_fingerprint` に伝播)。(iv) は本 session で `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` と core.py:501-507 apply 後再計算削除の現状確認で除外済。(v) は B-3b 完了確認時の数値 8.465s が、修正後 9.211s に近い値で復帰したことから「B-3b 完了確認時にも `source_span` を伴わない change pattern で偶発的に 1 件 embed になっていた」可能性が高い (B-3b 完了確認時の fixture が揮発済のため厳密確定はできないが、修正後挙動は B-3b の意図と整合)。
+
+#### 目的 (開放中時代の原文を保持)
+
+B-5 計測で S2 が `embed_documents_input_size=50` になる経路の真因を突き止め、changed section 数 (S2 では 1) に対応する embed/upsert に絞る。これにより 1 section 変更時の `section_collection_upsert.elapsed_sec` を ~1s (= 1 section の BGE-M3 embedding + Qdrant upsert + model load 9〜10s の固定費を引いた値) に圧縮し、incremental 利用者価値の最大の主因を解消する。
+
+#### 実装方針 (開放中時代の原文を保持)
+
+調査と修正:
+
+1. `/tmp/spec_grag_b5_measure/` を再構築 (cache / state / Qdrant collection を clean)、S0 → S2 を再実行
+2. S2 実行直前と直後で `.spec-grag/state/section_manifest.json` を snapshot して diff を取り、どの section の entry に差分が出るかを正確に列挙
+3. `_section_collection_diff_sets` の `added/changed/removed_section_ids` 集合の中身を debug log で吐かせ、changed が 1 件 (= Section 01) なのか 50 件なのかを確定
+4. changed が 50 件と判定されているなら、その 50 件で **どの fingerprint** が前回と一致しないかを field 単位で出して原因を絞る (`source_hash` / `semantic_hash` / `vector_input_fingerprint` / `payload_fingerprint`)
+5. 原因が `payload_fingerprint` 計算なら、CDX-002 修正と同じ系統で除外対象 field を追加する。`vector_input_fingerprint` なら `build_section_embedding_text` の入力 metadata の安定性を見直す
+6. B-3b 完了確認時 (commit `b42b309` 時点) の partial path が正しく 1 件 embed していたかを git checkout または `git show b42b309:spec_grag/core.py` で照合
+7. 修正後、S2 で `embed_documents_input_size=1, sections_upserted_count=1, elapsed ≤ 15s (model load 9〜10s 含む)` になることを再計測で確認
+
+実装の事後変遷 (完了確認済み時点): (3) は debug log を追加せず、`.spec-grag/state/section_manifest.json` の前後 snapshot を Python で field-level diff することで「50 section が `payload_fingerprint` 変化」を直接同定できた。(5) の `payload_fingerprint` 原因が確定したため、`_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS` に `source_span` を追加する 1 行修正で完結。(6) の git checkout 照合は実施せず、修正後の挙動が B-3b 完了確認時の数値と近いことから (v) 仮説で説明可能と判断。
+
+#### 検証条件 (開放中時代の原文を保持)
+
+A. **真因の確定**
+- S2 で changed_section_ids 集合の正確な内訳を `core_progress.json` または debug log から取得
+- どの fingerprint が前回と乖離しているかを field 単位で同定
+
+B. **修正後の挙動**
+- 50 section fixture / 1 section 本文 1 文字変更で `embed_documents_input_size=1, sections_upserted_count=1`
+- `section_collection_upsert.elapsed_sec ≤ 15s` (= B-3b 完了確認時の合格条件 T_partial - T_nochange ≤ 15s と整合)
+
+C. **B-3b 完了確認との整合**
+- 修正後の挙動が B-3b 完了確認時の数値 (`embed_documents_input_size=1, elapsed=8.465s`) と一致するか、または B-3b 完了確認の数値そのものが誤計測だった場合はその根拠を明示
+
+D. **既存 pytest の合格**
+- `pytest -q --skip-external` で全 pass 維持
+- partial path の判定経路に unit test を追加 (`payload_fingerprint` 計算の安定性、`_section_collection_diff_sets` の expected 集合)
+
+E. **regression 防止**
+- B-3b 完了確認時の数値が正しかった場合: `tests/test_spec_core.py` に「S2 相当の 1 section 変更で `embed_documents_input_size=1`」を assertion する test を追加し、将来の partial path 回帰を catch する
+
+#### 触れる主なファイル (開放中時代の原文を保持)
+
+- [spec_grag/core.py](spec_grag/core.py): `_section_collection_diff_sets` の判定経路、`_upsert_section_collection_if_enabled` の partial 引数渡し
+- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): `_payload_fingerprint_input`、`section_payload_fingerprints`、`build_section_payloads`、`build_section_embedding_text` の入力安定性
+- `tests/test_spec_core.py` (新規 test 追加)
+
+実装の事後変遷 (完了確認済み時点): 実際に変更したのは `spec_grag/retrieval_index.py:735` の 1 行 + docstring と `tests/test_spec_core.py` の新規 test 1 関数のみ。`spec_grag/core.py` は触らなかった (`_section_collection_diff_sets` は `_SECTION_COLLECTION_DIFF_KEYS` で `payload_fingerprint` を参照しており、`_payload_fingerprint_input` の修正だけで効く)。
+
+#### 完了条件 (開放中時代の原文を保持)
+
+- 検証条件 (A)〜(E) すべて満たす
+- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
+
+#### 依存 / scope 外 (開放中時代の原文を保持)
+
+- **依存**: 本 task は B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) の副次発見が起点。B-3b の partial path 仕様を再確認する必要があり、B-3b 完了確認時の fixture (`/tmp/spec_grag_b3b_measure/`) は揮発済のため、現 session で fixture を再構築する
+- **scope 外**:
+  - related_sections の partial 化は別 task (B-7) として独立
+  - B-3b の機能本体 (partial path の存在) は前提とする。本 task は「partial path が正しく動いているか」の調査と修正に限る
+  - 50 section 超の大規模 spec での挙動は B-6 scope
+
+実装の事後変遷 (完了確認済み時点): Qdrant payload 上の `source_span` を最新化する `set_payload` partial patch 経路 (B-5b 候補) は本 task scope 外。需要があれば将来切り出す。
 
 ### B-5: section_metadata / related_typing cache の現状確認と追加改善余地の確定
 

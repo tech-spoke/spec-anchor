@@ -13,6 +13,7 @@ import inspect
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import types
@@ -1301,6 +1302,96 @@ def test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert(
     diagnostics = progress["stages"]["section_collection_upsert"]["diagnostics"]
     assert diagnostics["sections_upserted_count"] == 1
     assert diagnostics["embed_documents_input_size"] == 1
+
+
+def test_b5a_partial_upsert_ignores_source_span_shift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_grag.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    (project_root / ".spec-grag").mkdir(parents=True)
+    (project_root / "docs/core").mkdir(parents=True)
+    (project_root / "docs/spec").mkdir(parents=True)
+    (project_root / ".spec-grag/config.toml").write_text(
+        """\
+[sources]
+include = ["docs/spec/**/*.md"]
+exclude = []
+
+[core]
+purpose_file = "docs/core/purpose.md"
+concept_file = "docs/core/concept.md"
+
+[context]
+storage = ".spec-grag/context"
+
+[section]
+max_heading_level = 4
+
+[llm.providers.fake]
+command = "fake-noop"
+model = "fake-spec-core"
+timeout_sec = 5
+max_retries = 0
+
+[embedding]
+provider = "flagembedding"
+model = "BAAI/bge-m3"
+dense_enabled = true
+sparse_enabled = true
+
+[vector_store]
+provider = "qdrant"
+url = "http://fake-qdrant:6333"
+collection = "b5a_source_span_collection"
+
+[retrieval]
+section_candidate_top_k = 0
+section_final_top_n = 8
+"""
+    )
+    (project_root / "docs/core/purpose.md").write_text(
+        "# Purpose\nVerify source-span-stable partial retrieval updates.\n"
+    )
+    (project_root / "docs/core/concept.md").write_text(
+        "# Core Concept\nSource hashes detect content changes.\n"
+    )
+    spec_path = project_root / "docs/spec/spec.md"
+    shutil.copyfile(REPO_ROOT / "tests/fixtures/spec_50sections/spec.md", spec_path)
+
+    core_module = _core_module()
+    fake_qdrant = _CoreFakeQdrantClient()
+    fake_embedding = _CoreFakeEmbeddingProvider()
+    _install_core_fake_qdrant(monkeypatch, fake_qdrant)
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "FlagEmbeddingBgeM3Provider",
+        lambda **_kwargs: fake_embedding,
+    )
+
+    _run_spec_core(project_root, provider=FakeSpecCoreProvider())
+    spec_path.write_text(
+        spec_path.read_text().replace("ten minutes", "eleven minutes")
+    )
+    result = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+
+    metadata_generation = result["diagnostics"]["section_metadata_generation"]
+    generated_section_ids = metadata_generation["generated_section_ids"]
+    assert metadata_generation["cache_hits"] == 50
+    assert metadata_generation["llm_calls"] == 1
+    assert generated_section_ids == [
+        "docs/spec/spec.md#0002-section-01-authentication-window"
+    ]
+
+    progress = read_progress(project_root)
+    assert progress is not None
+    assert progress["stages"]["section_collection_upsert"]["action"] == "upserted_partial"
+    diagnostics = progress["stages"]["section_collection_upsert"]["diagnostics"]
+    assert diagnostics["embed_documents_input_size"] == 1
+    assert diagnostics["sections_upserted_count"] == 1
+    assert diagnostics["total_section_input_count"] == 51
 
 
 def test_aud002_retrieval_index_failure_marks_freshness_failed(
