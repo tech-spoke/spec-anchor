@@ -58,6 +58,7 @@ def run_spec_core(
     mode: str | None = None,
     use_cache: bool = False,
     rebuild_embeddings: bool = False,
+    verify_index: bool = False,
     decision_payload: Mapping[str, Any] | None = None,
     decision: Mapping[str, Any] | None = None,
     conflict_decision: Mapping[str, Any] | None = None,
@@ -162,6 +163,7 @@ def run_spec_core(
             mode=mode,
             use_cache=use_cache,
             rebuild_embeddings=rebuild_embeddings,
+            verify_index=verify_index,
             decision_payload=decision_payload,
             decision=decision,
             conflict_decision=conflict_decision,
@@ -198,6 +200,7 @@ def _run_spec_core_unlocked(
     mode: str | None = None,
     use_cache: bool = False,
     rebuild_embeddings: bool = False,
+    verify_index: bool = False,
     decision_payload: Mapping[str, Any] | None = None,
     decision: Mapping[str, Any] | None = None,
     conflict_decision: Mapping[str, Any] | None = None,
@@ -431,6 +434,7 @@ def _run_spec_core_unlocked(
         )
     emit("core_section_metadata_done")
     section_collection_fingerprints_by_id: dict[str, Mapping[str, str]] = {}
+    section_collection_upsert_info: dict[str, Any] = {}
     emit("core_section_collection_upsert_start")
     retrieval_index_status = _upsert_section_collection_if_enabled(
         config=config,
@@ -445,8 +449,29 @@ def _run_spec_core_unlocked(
         progress_tracker=progress_tracker,
         previous_section_manifest=previous_section_manifest,
         section_payload_fingerprints_out=section_collection_fingerprints_by_id,
+        section_collection_upsert_info_out=section_collection_upsert_info,
     )
     emit("core_section_collection_upsert_done")
+    verify_section_manifest = {
+        "sections": [
+            _section_manifest_entry(
+                section,
+                fingerprints=section_collection_fingerprints_by_id.get(
+                    str(section.get("section_id") or section.get("source_section_id") or ""),
+                ),
+            )
+            for section in sections
+        ]
+    }
+    retrieval_index_status, verify_index_diagnostics = _verify_section_collection_if_requested(
+        config=config,
+        section_manifest=verify_section_manifest,
+        retrieval_index_status=retrieval_index_status,
+        verify_index=verify_index,
+        force_full_recreate=rebuild_embeddings,
+        section_collection_upsert_info=section_collection_upsert_info,
+        progress_tracker=progress_tracker,
+    )
     emit("core_related_sections_start")
     related_pair_cache_dir = cache_dir
     related_generation = _generate_related_sections(
@@ -600,7 +625,12 @@ def _run_spec_core_unlocked(
         degraded_optional_artifacts.append("related_sections")
     generation_warnings = list(metadata_generation_summary.get("warnings") or [])
     if retrieval_index_status == "failed":
-        generation_warnings.append("Source Retrieval Index update failed")
+        if _verify_index_has_issues(verify_index_diagnostics):
+            generation_warnings.append(
+                "Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild"
+            )
+        else:
+            generation_warnings.append("Source Retrieval Index update failed")
     if related_sections_status == "failed":
         generation_warnings.append("Related Sections generation failed")
     generation_diagnostics = {
@@ -619,6 +649,7 @@ def _run_spec_core_unlocked(
         "retrieval_index": {
             "status": retrieval_index_status,
         },
+        "verify_index": verify_index_diagnostics,
         "related_sections": {
             "status": related_sections_status,
         },
@@ -1116,41 +1147,17 @@ def _read_section_payloads_from_qdrant(config: Mapping[str, Any]) -> list[dict[s
     vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
         return []
-    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
-    section_collection = _section_collection_name(config)
-    try:
-        from qdrant_client import QdrantClient  # type: ignore[import-not-found]
-    except ImportError:
-        return []
-    try:
-        client = QdrantClient(url)
-        if not client.collection_exists(collection_name=section_collection):
-            return []
-    except Exception:
-        return []
     from spec_grag.section_payload import section_payload_to_metadata_entry
 
     entries: list[dict[str, Any]] = []
-    offset: Any = None
     try:
-        while True:
-            points, next_offset = client.scroll(
-                collection_name=section_collection,
-                with_payload=True,
-                with_vectors=False,
-                limit=256,
-                offset=offset,
-            )
-            for point in points:
-                payload = dict(getattr(point, "payload", None) or {})
-                if not payload.get("source_section_id"):
-                    continue
-                entries.append(section_payload_to_metadata_entry(payload))
-            if not next_offset:
-                break
-            offset = next_offset
-    except Exception:
+        payloads = _scroll_section_payloads_from_qdrant(config)
+    except _SectionPayloadScrollError:
         return []
+    for payload in payloads:
+        if not payload.get("source_section_id"):
+            continue
+        entries.append(section_payload_to_metadata_entry(payload))
     return entries
 
 
@@ -1525,6 +1532,302 @@ def _progress_action(
     progress_tracker.update(stage, action=action, reason=reason, **fields)
 
 
+_VERIFY_INDEX_FIELDS = (
+    "source_hash",
+    "semantic_hash",
+    "vector_input_fingerprint",
+    "payload_fingerprint",
+)
+
+
+class _SectionPayloadScrollError(RuntimeError):
+    """Raised when Qdrant payload scroll cannot complete for explicit verify."""
+
+    def __init__(self, reason_code: str, message: str) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+def _verify_section_collection_if_requested(
+    *,
+    config: Mapping[str, Any],
+    section_manifest: Mapping[str, Any],
+    retrieval_index_status: str,
+    verify_index: bool,
+    force_full_recreate: bool = False,
+    section_collection_upsert_info: Mapping[str, Any] | None = None,
+    progress_tracker: CoreProgressTracker | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Verify Qdrant section payloads against the current manifest contract."""
+
+    if not verify_index:
+        diagnostics = {"executed": False, "reason": "not_requested"}
+        _progress_action(
+            progress_tracker,
+            "verify_index",
+            action="disabled",
+            reason="not_requested",
+            diagnostics=diagnostics,
+        )
+        return retrieval_index_status, diagnostics
+
+    embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
+    vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
+    if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+        diagnostics = {"executed": False, "reason": "disabled"}
+        _progress_action(
+            progress_tracker,
+            "verify_index",
+            action="disabled",
+            reason="disabled",
+            diagnostics=diagnostics,
+        )
+        return retrieval_index_status, diagnostics
+
+    if retrieval_index_status in {"failed", "blocked", "skipped"}:
+        diagnostics = {
+            "executed": False,
+            "reason": "skipped",
+            "retrieval_index_status": retrieval_index_status,
+        }
+        _progress_action(
+            progress_tracker,
+            "verify_index",
+            action="skipped",
+            reason=f"retrieval_index_{retrieval_index_status}",
+            diagnostics=diagnostics,
+        )
+        return retrieval_index_status, diagnostics
+
+    upsert_info = dict(section_collection_upsert_info or {})
+    already_recreated = bool(
+        force_full_recreate
+        or upsert_info.get("action") == "upserted_full"
+        or upsert_info.get("recreate") is True
+    )
+    if already_recreated:
+        diagnostics = {"executed": False, "reason": "already_recreated"}
+        _progress_action(
+            progress_tracker,
+            "verify_index",
+            action="skipped",
+            reason="already_recreated",
+            diagnostics=diagnostics,
+        )
+        return retrieval_index_status, diagnostics
+
+    try:
+        payloads = _scroll_section_payloads_from_qdrant(config)
+        diagnostics = _verify_index_payloads(section_manifest, payloads)
+    except _SectionPayloadScrollError as exc:
+        diagnostics = {
+            "executed": True,
+            "checked_count": 0,
+            "stale_point_count": 0,
+            "missing_point_count": 0,
+            "hash_mismatch_count": 0,
+            "issues": [
+                {
+                    "section_id": "<collection>",
+                    "reason_code": exc.reason_code,
+                    "fields": [],
+                    "message": str(exc),
+                }
+            ],
+        }
+
+    if _verify_index_has_issues(diagnostics):
+        reason = _dominant_verify_index_reason(diagnostics)
+        _progress_action(
+            progress_tracker,
+            "verify_index",
+            action="verified_inconsistent",
+            reason=reason,
+            diagnostics=diagnostics,
+        )
+        return "failed", diagnostics
+
+    _progress_action(
+        progress_tracker,
+        "verify_index",
+        action="verified_clean",
+        reason="clean",
+        diagnostics=diagnostics,
+    )
+    return retrieval_index_status, diagnostics
+
+
+def _verify_index_payloads(
+    section_manifest: Mapping[str, Any],
+    payloads: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    expected = _verify_index_expected_map(section_manifest)
+    actual_ids: set[str] = set()
+    issues: list[dict[str, Any]] = []
+    stale_point_count = 0
+    hash_mismatch_count = 0
+
+    for payload in payloads:
+        section_id = str(payload.get("source_section_id") or "")
+        if not section_id:
+            stale_point_count += 1
+            issues.append(
+                {
+                    "section_id": "<missing>",
+                    "reason_code": "stale_point",
+                    "fields": [],
+                }
+            )
+            continue
+        actual_ids.add(section_id)
+        expected_entry = expected.get(section_id)
+        if expected_entry is None:
+            stale_point_count += 1
+            issues.append(
+                {
+                    "section_id": section_id,
+                    "reason_code": "stale_point",
+                    "fields": [],
+                }
+            )
+            continue
+        payload_fingerprints = retrieval_index_api.section_payload_fingerprints(payload)
+        actual_entry = {
+            "source_hash": str(payload.get("source_hash") or ""),
+            "semantic_hash": str(payload.get("semantic_hash") or ""),
+            "vector_input_fingerprint": str(payload_fingerprints.get("vector_input_fingerprint") or ""),
+            "payload_fingerprint": str(payload_fingerprints.get("payload_fingerprint") or ""),
+        }
+        mismatched_fields = [
+            field
+            for field in _VERIFY_INDEX_FIELDS[:-1]
+            if actual_entry.get(field) != expected_entry.get(field)
+        ]
+        if (
+            not mismatched_fields
+            and actual_entry.get("payload_fingerprint")
+            != expected_entry.get("payload_fingerprint")
+        ):
+            mismatched_fields.append("payload_fingerprint")
+        if mismatched_fields:
+            hash_mismatch_count += 1
+            issues.append(
+                {
+                    "section_id": section_id,
+                    "reason_code": "hash_mismatch",
+                    "fields": mismatched_fields,
+                }
+            )
+
+    missing_ids = sorted(set(expected) - actual_ids)
+    for section_id in missing_ids:
+        issues.append(
+            {
+                "section_id": section_id,
+                "reason_code": "missing_point",
+                "fields": [],
+            }
+        )
+
+    return {
+        "executed": True,
+        "checked_count": len(payloads),
+        "stale_point_count": stale_point_count,
+        "missing_point_count": len(missing_ids),
+        "hash_mismatch_count": hash_mismatch_count,
+        "issues": issues,
+    }
+
+
+def _verify_index_expected_map(
+    section_manifest: Mapping[str, Any],
+) -> dict[str, dict[str, str]]:
+    expected: dict[str, dict[str, str]] = {}
+    for entry in section_manifest.get("sections") or ():
+        if not isinstance(entry, Mapping):
+            continue
+        section_id = str(entry.get("source_section_id") or entry.get("section_id") or "")
+        if not section_id:
+            continue
+        expected[section_id] = {
+            field: str(entry.get(field) or "")
+            for field in _VERIFY_INDEX_FIELDS
+        }
+    return expected
+
+
+def _verify_index_has_issues(diagnostics: Mapping[str, Any]) -> bool:
+    return bool(diagnostics.get("issues"))
+
+
+def _dominant_verify_index_reason(diagnostics: Mapping[str, Any]) -> str:
+    counts = {
+        "hash_mismatch": int(diagnostics.get("hash_mismatch_count") or 0),
+        "stale_point": int(diagnostics.get("stale_point_count") or 0),
+        "missing_point": int(diagnostics.get("missing_point_count") or 0),
+    }
+    max_count = max(counts.values(), default=0)
+    if max_count <= 0:
+        return "mixed"
+    winners = [reason for reason, count in counts.items() if count == max_count]
+    if len(winners) == 1:
+        return winners[0]
+    if "hash_mismatch" in winners:
+        return "hash_mismatch"
+    return "mixed"
+
+
+def _scroll_section_payloads_from_qdrant(config: Mapping[str, Any]) -> list[dict[str, Any]]:
+    url = str(_config_get(config, ("vector_store", "url"), "http://localhost:6333"))
+    section_collection = _section_collection_name(config)
+    try:
+        from qdrant_client import QdrantClient  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise _SectionPayloadScrollError(
+            "qdrant_client_unavailable",
+            "qdrant_client is required to verify the Source Retrieval Index",
+        ) from exc
+    try:
+        client = QdrantClient(url)
+    except Exception as exc:  # pragma: no cover - client constructor is library-defined
+        raise _SectionPayloadScrollError(
+            "qdrant_client_init_failed",
+            str(exc),
+        ) from exc
+    try:
+        collection_exists = bool(client.collection_exists(collection_name=section_collection))
+    except Exception as exc:
+        raise _SectionPayloadScrollError(
+            "collection_exists_failed",
+            str(exc),
+        ) from exc
+    if not collection_exists:
+        raise _SectionPayloadScrollError(
+            "collection_missing",
+            f"Qdrant collection does not exist: {section_collection}",
+        )
+
+    payloads: list[dict[str, Any]] = []
+    offset: Any = None
+    try:
+        while True:
+            points, next_offset = client.scroll(
+                collection_name=section_collection,
+                with_payload=True,
+                with_vectors=False,
+                limit=256,
+                offset=offset,
+            )
+            for point in points:
+                payloads.append(dict(getattr(point, "payload", None) or {}))
+            if next_offset is None:
+                break
+            offset = next_offset
+    except Exception as exc:
+        raise _SectionPayloadScrollError("scroll_failed", str(exc)) from exc
+    return payloads
+
+
 def _section_collection_exists(url: str, collection: str) -> bool:
     """Return True when the Qdrant section-level collection already exists.
 
@@ -1579,6 +1882,7 @@ def _upsert_section_collection_if_enabled(
     progress_tracker: CoreProgressTracker | None = None,
     previous_section_manifest: Mapping[str, Any] | None = None,
     section_payload_fingerprints_out: MutableMapping[str, Mapping[str, str]] | None = None,
+    section_collection_upsert_info_out: MutableMapping[str, Any] | None = None,
 ) -> str:
     """Build / refresh the section-level Qdrant collection.
 
@@ -1596,6 +1900,11 @@ def _upsert_section_collection_if_enabled(
     embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
     vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
     if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+        if section_collection_upsert_info_out is not None:
+            section_collection_upsert_info_out.clear()
+            section_collection_upsert_info_out.update(
+                {"action": "skipped", "reason": "retrieval_disabled", "recreate": False}
+            )
         _progress_action(
             progress_tracker,
             "section_collection_upsert",
@@ -1634,6 +1943,15 @@ def _upsert_section_collection_if_enabled(
         unchanged_sections=section_diff,
     )
     if fast_path["can_skip"]:
+        if section_collection_upsert_info_out is not None:
+            section_collection_upsert_info_out.clear()
+            section_collection_upsert_info_out.update(
+                {
+                    "action": "skipped_unchanged",
+                    "reason": "input_and_config_fingerprint_match_and_collection_exists",
+                    "recreate": False,
+                }
+            )
         _progress_action(
             progress_tracker,
             "section_collection_upsert",
@@ -1714,6 +2032,16 @@ def _upsert_section_collection_if_enabled(
             recreate=actual_recreate,
             diagnostics=progress_diagnostics,
         )
+        if section_collection_upsert_info_out is not None:
+            section_collection_upsert_info_out.clear()
+            section_collection_upsert_info_out.update(
+                {
+                    "action": action,
+                    "reason": reason,
+                    "recreate": actual_recreate,
+                    "diagnostics": progress_diagnostics,
+                }
+            )
         return "success"
     except Exception:
         # Section collection upsert failures must not block /spec-core.
@@ -1725,6 +2053,15 @@ def _upsert_section_collection_if_enabled(
             action="failed",
             reason=str(fast_path.get("reason") or "upsert_failed"),
         )
+        if section_collection_upsert_info_out is not None:
+            section_collection_upsert_info_out.clear()
+            section_collection_upsert_info_out.update(
+                {
+                    "action": "failed",
+                    "reason": str(fast_path.get("reason") or "upsert_failed"),
+                    "recreate": recreate,
+                }
+            )
         return "failed"
 
 

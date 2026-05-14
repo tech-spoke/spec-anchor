@@ -67,6 +67,11 @@ def build_main_parser() -> argparse.ArgumentParser:
         help="drop and recreate the Qdrant spec_grag_section collection (implies --all). Use when embeddings are suspected corrupt or the collection has stale residue.",
     )
     core.add_argument(
+        "--verify-index",
+        action="store_true",
+        help="verify that the Qdrant Source Retrieval Index payloads match the current section hashes",
+    )
+    core.add_argument(
         "--use-cache",
         action="store_true",
         help="(deprecated) keep reusable section metadata cache even with --all",
@@ -355,6 +360,7 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
             mode="full" if run_full_flag else None,
             use_cache=args.use_cache,
             rebuild_embeddings=rebuild_embeddings,
+            verify_index=args.verify_index,
             decision_payload=decision_payload,
             llm_provider_id=args.llm_provider_id,
         )

@@ -411,7 +411,7 @@ fast path に入る条件 (すべて満たす場合のみ):
 
 fast path に入れず Source Retrieval Index の更新を実行した場合は、`retrieval_index_status = "success"` または `"failed"` を返す。`core_progress.json` の `stages.section_collection_upsert.action` には、全 Section を embed / upsert した場合は `upserted_full`、`recreate=False` で差分 Section だけを embed / upsert した場合は `upserted_partial` を記録する。`reason` には更新が必要になった具体的根拠 (`sidecar_missing` は `.spec-grag/state/retrieval_index_state.json` がない場合、`fingerprint_mismatch` は指紋不一致、`collection_missing` は Qdrant collection 不在) を記録する。
 
-Qdrant payload と manifest の section 単位 hash 整合性チェック (= 全件 scroll) は通常 fast path では行わない。large spec で持続不能になるため。明示的な検証経路 (例: `spec-grag core --verify-index` 等の将来追加) は別 task で具体化する。
+Qdrant payload と manifest の section 単位 hash 整合性チェック (= 全件 scroll) は通常 fast path では行わない。large spec で持続不能になるため。明示的な検証は `spec-grag core --verify-index` を指定した場合だけ §4.10 の経路で実行する。
 
 ### 4.8 ordinal point id collection の自動 migration
 
@@ -447,11 +447,62 @@ partial upsert 分岐:
 - incremental で collection が存在し、migration も不要: `sections_to_upsert = added_section_ids + changed_section_ids` に対応する Section だけを `provider.embed_documents([...])` に渡し、同じ `stable_section_point_id(source_section_id)` の point を上書きする。`removed_section_ids` は `stable_section_point_id(...)` に変換して `PointIdsList(points=[...])` で delete する。他の point は触らない。
 - caller が `sections_to_delete` を渡さない場合: B-3a の stale delete 経路を維持し、既存 point id 全体を scroll して current Section 集合に無い point を削除する。caller が空 list を含めて `sections_to_delete` を渡した場合は、明示された削除集合だけを扱う。
 
-インクリメンタル部分実行では sections_to_delete が明示集合として渡るため、B-3a の collection-wide stale delete (collection 全 scroll → current にない point を削除) は走らない。manifest が信頼できる前提で stale 検出は manifest diff だけに依存する。manifest が壊れた場合は --rebuild で復旧する。将来 --verify-index (B-4) が導入されたら独立検証経路として使える。
+インクリメンタル部分実行では sections_to_delete が明示集合として渡るため、B-3a の collection-wide stale delete (collection 全 scroll → current にない point を削除) は走らない。manifest が信頼できる前提で stale 検出は manifest diff だけに依存する。manifest が壊れた場合は --rebuild で復旧する。`--verify-index` (B-4) を指定した実行では §4.10 の独立検証経路で Qdrant payload と manifest の乖離を検出できる。
 
 `upsert_qdrant_section_collection` の optional keyword は additive contract とする。`sections_to_upsert=None`, `sections_to_delete=None` の場合は、従来と同じ full-batch upsert と stale delete 判定を行う。incremental 実行で partial diff を使い、`recreate=False` のまま差分 Section だけを登録した場合、`core_progress.json` の `stages.section_collection_upsert.action` は `upserted_partial` になる。
 
 `.spec-grag/state/section_manifest.json` には、最終的に Qdrant payload として観測される Section ごとの `vector_input_fingerprint` と `payload_fingerprint` を保存する。次回 incremental 実行では、この manifest entry と current payload fingerprint を比較して partial diff を作る。`.spec-grag/state/retrieval_index_state.json` は collection 全体の冪等判定用に、section hash 集約指紋と embedding / retrieval 設定指紋を保存し続ける。fingerprint が一致し、Qdrant collection も存在し、3 つの diff 集合がすべて空の場合だけ、`section_collection_upsert` stage は `skipped_unchanged` で終了する。
+
+### 4.10 明示検証 (`--verify-index`)
+
+`spec-grag core --verify-index` は `_upsert_section_collection_if_enabled` の戻り値が確定した直後、`_generate_related_sections` に `retrieval_index_status` を渡す前に `_verify_section_collection_if_requested` で実行する。目的は、`.spec-grag/state/retrieval_index_state.json` に保存された Source Retrieval Index の前回状態 (section hash 指紋 + 設定指紋) と現在値が一致し、`section_collection_upsert` stage が `skipped_unchanged` になった場合でも、Qdrant collection の実 payload が現在の Section manifest と乖離していないかを operator が明示的に確認できるようにすることである。
+
+実行しない条件:
+
+- `--verify-index` が指定されていない: `stages.verify_index.action = "disabled"`, `reason = "not_requested"`。
+- `[embedding].provider != "flagembedding"` または `[vector_store].provider != "qdrant"`: `stages.verify_index.action = "disabled"`, `reason = "disabled"`。
+- `_upsert_section_collection_if_enabled` が `failed` / `blocked` / `skipped` を返した: `stages.verify_index.action = "skipped"`。上流の status を上書きしない。
+- `_upsert_section_collection_if_enabled` が `upserted_full` を記録した、または `--rebuild` により `force_full_recreate=True` になった: `stages.verify_index.action = "skipped"`, `reason = "already_recreated"`。直前に全 Section payload を書いた経路なので、追加 scroll は冗長である。
+
+実行する場合、`_verify_section_collection_if_requested` は現在書き込む予定の `section_manifest` entry から次の expected map を作る。
+
+```text
+source_section_id ->
+  source_hash
+  semantic_hash
+  vector_input_fingerprint
+  payload_fingerprint
+```
+
+Qdrant collection の実 payload は `_scroll_section_payloads_from_qdrant` が `client.scroll(collection_name=..., with_payload=True, with_vectors=False, limit=256, offset=...)` で全件取得する。各 payload の `vector_input_fingerprint` と `payload_fingerprint` は `retrieval_index.py:756 section_payload_fingerprints` を使って計算する。同じ計算式を使うため、`payload_fingerprint` は `related_sections` field を除外した `_payload_fingerprint_input` に基づく。
+
+差分分類:
+
+- `stale_point`: Qdrant payload の `source_section_id` が expected map に存在しない。payload に `source_section_id` が無い場合は `section_id = "<missing>"` として記録する。
+- `missing_point`: expected map に存在する `source_section_id` が Qdrant payload に存在しない。
+- `hash_mismatch`: `source_section_id` が両方に存在するが、`source_hash` / `semantic_hash` / `vector_input_fingerprint` / `payload_fingerprint` のいずれかが一致しない。`source_hash` 等の直接 field が不一致の場合、`payload_fingerprint` の不一致は派生差分として `fields` へ重複記録しない。
+
+`stages.verify_index` の schema:
+
+```text
+action: verified_clean | verified_inconsistent | skipped | disabled
+reason:
+  verified_clean の場合: clean
+  verified_inconsistent の場合: hash_mismatch | stale_point | missing_point | mixed
+  skipped / disabled の場合: not_requested | disabled | already_recreated | retrieval_index_<status>
+diagnostics:
+  executed: boolean
+  checked_count: int
+  stale_point_count: int
+  missing_point_count: int
+  hash_mismatch_count: int
+  issues:
+    - section_id: string
+      reason_code: stale_point | missing_point | hash_mismatch
+      fields: list[string]
+```
+
+不整合 0 件の場合、`retrieval_index_status` は変更しない。不整合が 1 件以上ある場合、`_verify_section_collection_if_requested` は `retrieval_index_status = "failed"` に降格する。この状態で `freshness_report` は `failed_required_artifacts` に `retrieval_index` を含み、`warnings` には `Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild` を追加する。自動修復はしない。復旧手段は既存契約どおり `/spec-core --rebuild` である。
 
 ## 5. Related Sections 生成
 

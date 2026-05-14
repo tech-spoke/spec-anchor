@@ -68,12 +68,11 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-4**: `--verify-index` 明示検証 flag
-2. **B-5**: section_metadata / related_typing cache の現状確認 (調査のみ)
-3. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-4. **AUD-006 / AUD-007**: Chapter Anchors / Related Sections fallback の freshness 反映 (外部契約上の freshness 表現確定が必要、判断要)
+1. **B-5**: section_metadata / related_typing cache の現状確認 (調査のみ)
+2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+3. **AUD-006 / AUD-007**: Chapter Anchors / Related Sections fallback の freshness 反映 (外部契約上の freshness 表現確定が必要、判断要)
 
-B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。
+B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
 ### AUD-006: Chapter Anchors fallback の freshness degraded 反映
 
@@ -133,82 +132,6 @@ Related Sections candidate generation が実 Qdrant ではなく InMemory fallba
 #### 依存 / scope 外
 
 Related Sections は evidence ではなく retrieval auxiliary のため、freshness を failed にするか degraded にするかは AUD-006 と同じく表現を揃える必要がある。
-
-### B-4: Source Retrieval Index の明示検証 flag
-
-#### 背景
-
-B-2 fast path は state sidecar の指紋一致 + `client.collection_exists(...)` で skip 判定する。Qdrant collection 内の各 payload が現 section と hash 整合しているかは検証しない。AUD-003 が指摘する stale point (現 source から消えた section が collection に残る) や、外部要因 (Qdrant 側 corruption, 別プロセスの誤 upsert) で payload と manifest が乖離するケースを能動的に検出する経路がない。
-
-session 2026-05-13 計測時の `_read_section_payloads_from_qdrant` ([spec_grag/core.py:1097](spec_grag/core.py#L1097)) は payload を scroll するが、`source_section_id` の有無だけ見て hash 整合性は検証していない。
-
-#### 真因 / 仮説
-
-確定。現実装には Qdrant payload と現 manifest の hash 整合性を能動的に検証する経路がない。
-
-#### 目的
-
-Agent / operator が明示的に「Qdrant collection の整合性を検証したい」と判断した場合に、`spec-grag core --verify-index` (仮称) で Qdrant payload と現 section の `source_hash` / `semantic_hash` / `source_section_id` 集合を全件比較し、不整合があれば warning または failed として CoreResult に反映する経路を追加する。
-
-通常 incremental では B-2 fast path のまま `collection_exists` だけで skip する。verify は明示 flag を指定した場合に限る。
-
-#### 仮称: `--verify-index` flag
-
-- 仮称か既存用語か: 仮称
-- 意味: Qdrant section collection の payload を全件 scroll し、現 section の hash 集合と照合する明示検証
-- 含む: payload の `source_section_id` 集合と現 section_id 集合の対称差、payload の `source_hash` / `semantic_hash` と manifest の不一致検出、stale point (現 source にない section_id の point) の検出と reporting
-- 含まない: 検出した不整合の自動修復 (これは `--rebuild` で別途処理)、Source Specs 本文の content hash 検証 (manifest 経由で間接的にしか見ない)
-- 既存概念との差分: B-2 fast path は state sidecar のみ参照。`--verify-index` は Qdrant 実体を直接参照する。`--all` / `--rebuild` は無条件で再構築するため検証は不要
-- 未決: warning にとどめるか failed にするか、検出後に自動 rebuild を促すかは本 task 内で確定する
-
-#### 実装方針
-
-1. `spec-grag core` に `--verify-index` flag を追加する
-2. flag 指定時のみ `_read_section_payloads_from_qdrant` を活用して全 point を scroll し、現 section との hash diff を取る
-3. 不整合があれば CoreResult `diagnostics` に対象 section_id と理由 (`stale_point` / `hash_mismatch` / `missing_point`) を残す
-4. freshness への反映 (degraded / failed のどちら) は AUD-006 / AUD-007 と表現を揃える
-5. fast path の `collection_exists` 軽量判定は変更しない (large spec で常時 scroll は持続不能)
-
-#### 検証条件
-
-A. **正常時の verify**
-- `--verify-index` で no-change incremental を実行 → 不整合 0 件、CoreResult の status は通常通り
-- payload 数と manifest section 数が一致
-
-B. **stale point 検出**
-- 1 section を source spec から削除した後、core を `--verify-index` なしで実行 (現状の AUD-003 で stale point が残る前提) → 通常 status
-- 続けて `--verify-index` で再実行 → 削除 section_id が `stale_point` として diagnostics に出る
-
-C. **hash mismatch 検出**
-- Qdrant payload を手動で書き換えて `source_hash` を破壊した後、`--verify-index` で実行 → `hash_mismatch` として diagnostics に出る
-
-D. **既存経路への非干渉**
-- `--verify-index` なしでは scroll が走らないこと (large spec で性能 regression がないこと)
-
-E. **既存 pytest の合格**
-- `--skip-external` 経由で全 pass 維持
-- verify 経路の unit test を追加
-
-#### 触れる主なファイル
-
-- [spec_grag/core.py](spec_grag/core.py): CLI argparser、verify 経路の実装
-- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): verify 用の payload scroll helper (既存 `_read_section_payloads_from_qdrant` の reuse / 拡張)
-- [doc/EXTERNAL_DESIGN.ja.md](doc/EXTERNAL_DESIGN.ja.md): `--verify-index` の契約、不整合判定の freshness 反映方針
-- `tests/test_core.py` または `tests/test_verify_index.py` (新規)
-
-#### 完了条件
-
-- (A)〜(E) すべて満たす
-- 不整合判定の freshness 反映方針 (warning vs failed) を `doc/EXTERNAL_DESIGN.ja.md` で確定する
-- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
-
-#### 依存 / scope 外
-
-- **依存**: AUD-003 (stale point 削除) との関係を整理する必要がある。B-3 で stale point 削除が完了している場合、`--verify-index` は「ガード兼検出」として機能。B-3 未完了で先に本 task を実装する場合、verify は検出のみで修復は user に委ねる
-- **scope 外**:
-  - 自動修復 (検出後に rebuild する経路): 修復は `--rebuild` で行う既存契約を維持
-  - chapter_anchors / related_sections の整合検証: 本 task では section collection に限る
-  - source spec 本文の content hash 検証: manifest 経由で間接的にしか見ない
 
 ### B-5: section_metadata / related_typing cache の現状確認と追加改善余地の確定
 
@@ -630,6 +553,159 @@ E. **既存 pytest の合格**
   - 全体 wall time の数値目標: stage 単位の合格基準のみとし、wall total は B-3b の責任範囲ではない
   - Section Summary / Search Keys / Identifiers の partial 再生成: 既に `SectionMetadataCache` がエントリ単位 cache を持つ ([spec_grag/section_metadata.py:170](spec_grag/section_metadata.py#L170)) ため、B-5 の確認結果に依存
   - BGE-M3 model load 自体の常駐化 / cross-run reuse: 1 run 内では既に 1 回。cross-run の reuse は本 task と直交
+
+### B-4: Source Retrieval Index の明示検証 flag
+
+#### 状態
+
+採用 / 修正済み。実装差分は次のコミットで確定する予定 (本 commit 着手前は session working tree に保持):
+
+- `spec_grag/cli.py`: `core` subparser に `--verify-index` flag 追加 + `_run_core_from_args` で `args.verify_index` を `run_spec_core` へ渡す
+- `spec_grag/core.py`:
+  - `run_spec_core` / `_run_spec_core_unlocked` の signature に `verify_index: bool = False` を kw-only で追加
+  - `_upsert_section_collection_if_enabled` の戻り値直後、`_generate_related_sections` の前に `_verify_section_collection_if_requested` を呼ぶ
+  - `_verify_section_collection_if_requested` / `_verify_index_payloads` / `_verify_index_expected_map` / `_verify_index_has_issues` / `_dominant_verify_index_reason` / `_scroll_section_payloads_from_qdrant` / `_SectionPayloadScrollError` を新規追加
+  - `_read_section_payloads_from_qdrant` は `_scroll_section_payloads_from_qdrant` を呼ぶ薄い wrapper にリファクタ (`_SectionPayloadScrollError` を catch して旧来通り `[]` を返す互換維持)
+  - `_upsert_section_collection_if_enabled` に `section_collection_upsert_info_out` kw-only 引数を追加し、`action` / `reason` / `recreate` を呼び出し側に返せるようにする (verify 経路が `upserted_full` / `--rebuild` 直後に skip を判断するため)
+  - `generation_diagnostics["verify_index"] = verify_index_diagnostics` を追加 (CoreResult の `diagnostics.verify_index` field)
+  - `generation_warnings` 分岐で、verify-index 不整合検出時は `Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild` を追加し、それ以外の `retrieval_index_status == "failed"` 経路は従来 message を維持
+- `tests/test_verify_index.py` (新規 7 テスト):
+  - `test_verify_index_clean_passes`
+  - `test_verify_index_detects_stale_point`
+  - `test_verify_index_detects_missing_point`
+  - `test_verify_index_detects_hash_mismatch`
+  - `test_verify_index_disabled_for_fake_provider`
+  - `test_verify_index_skipped_after_rebuild`
+  - `test_verify_index_skipped_when_flag_absent` (`_ExplodingQdrantClient` で verify-index 未指定時に Qdrant が触られないことを assertion)
+- `doc/EXTERNAL_DESIGN.ja.md` §7.2 CLI フラグ表に `--verify-index` 行を追加。§7.4 `retrieval_index_status` の `failed` 説明を「verify-index が不整合を検出した」を含めるよう更新し、`--verify-index` の動作と修復手順を 1 段落で追記
+- `doc/DESIGN.ja.md` §4.7 末尾の「将来追加 task」表現を「§4.10 の経路で実行する」に置換、§4.9 末尾も同様に修正。§4.10「明示検証 (`--verify-index`)」を新規 subsection として追加 (実行条件、expected map、scroll 経路、3 種 issue 分類、`stages.verify_index` の `action` / `reason` / `diagnostics` schema、`retrieval_index_status` 降格条件と warning メッセージ)
+
+#### 完了確認結果 (2026-05-14, Claude main monitored CODEX rescue)
+
+実装は CODEX rescue subagent (codex-companion) 経由で 2026-05-14 に着手された。本 session の経過:
+
+- CODEX 子プロセスは Final report 直前 (`python3 -c "from spec_grag.cli ..."` arg parse 確認の後) で Claude Code Bash tool の前景タイムアウト (~10 分) に伴う forwarder bash 子の自動 background 化 → orphan kill により Final report 未出力で **Interrupted / Incomplete** 状態で終了 (前回 CDX-001〜007 bundle と同種の事故。CLAUDE.md ルール 19 / `feedback_codex_invocation_protocol.md` 参照)
+- Claude main agent は forwarder completed を Codex completed と短絡せず、`/tmp/claude-1001/.../tasks/bm1c1h5cn.output` を最後まで読み (174 行、Final report 不在)、`ps -eo pid,etime,cmd | grep -iE 'codex|companion'` で codex CLI 本体が既に kill 済みなのを確認した上で、working tree を独自に全面監査して Codex Final report の代わりを完全に象った
+- 監査で **逸脱 2 件を検出して revert**:
+  - `spec_grag/retrieval_index.py`: `_MissingQdrantClient` shim と `_FallbackQdrantFilterModels` fallback の追加 (`QdrantHybridRetriever.__init__` / `update_section_collection_related_sections` 改変)。CODEX が pytest を venv 外で走らせて見た幻の 8 件 import エラーを「修正」した scope 外作業
+  - `spec_grag/section_payload.py`: `_FallbackPayloadLookupModels` fallback shim の追加。同様に B-4 と無関係
+  - 検証: `git stash` で 2 ファイルの差分を退避 → `.venv` activate 後の `pytest -q --skip-external` は 375 passed / 16 skipped で変化なし。`fetch_section_payloads` は `_scroll_section_payloads_from_qdrant` 経路で呼ばれないため B-4 機能に影響なし → stash drop で破棄、本機能本体に必要な差分のみ残した
+- 残った 4 ファイル (`spec_grag/cli.py`, `spec_grag/core.py`, `doc/EXTERNAL_DESIGN.ja.md`, `doc/DESIGN.ja.md`) + 新規 `tests/test_verify_index.py` の挙動・契約・silent failure 経路を Claude main が逐行レビュー (ロジック妥当、`_payload_fingerprint_input` で `related_sections` 除外する CDX-002 修正と整合、未指定経路は `_ExplodingQdrantClient` テストで Qdrant 非接触を assertion 済)
+
+検証条件別の達成状況:
+
+- **A (正常時の verify)**: `test_verify_index_clean_passes` で fake QdrantClient (manifest 一致 payload 1 件) の `_verify_section_collection_if_requested` 戻り値が `status == "skipped_unchanged"` 維持、`diagnostics == {"executed": True, "checked_count": 1, "stale_point_count": 0, "missing_point_count": 0, "hash_mismatch_count": 0, "issues": []}`、`stages.verify_index.action == "verified_clean"` を確認 ✓
+- **B (stale point 検出)**: `test_verify_index_detects_stale_point` で manifest に無い `docs/spec/main.md#stale` payload を scroll 結果に含めると `status == "failed"` に降格、`stale_point_count == 1`、`stages.verify_index.action == "verified_inconsistent"` ✓
+- **C (hash mismatch 検出)**: `test_verify_index_detects_hash_mismatch` で `source_hash="source-broken"` を持つ payload を scroll 結果に含めると `hash_mismatch_count == 1`、`issues[0].fields == ["source_hash"]`、`stages.verify_index.reason == "hash_mismatch"` ✓
+- **D (既存経路への非干渉)**: `test_verify_index_skipped_when_flag_absent` で `verify_index=False` 時に `_ExplodingQdrantClient`(`collection_exists` 呼び出しで `AssertionError`) を install しても例外が出ない → scroll が走らないことを能動 assertion。`diagnostics == {"executed": False, "reason": "not_requested"}`、`status` 不変 ✓
+- **E (既存 pytest 合格)**: venv activate 後の `pytest -q --skip-external` で 375 passed / 16 skipped (B-3b baseline 368 から +7、ぴったり test_verify_index.py の 7 件分のみ増加 → 既存 test 挙動不変) ✓。さらに既存 regression 確認として `pytest -q tests/test_retrieval_index.py tests/test_spec_core.py tests/test_inject_cli_extension.py` で 78 passed ✓
+
+副次確認:
+- `test_verify_index_disabled_for_fake_provider`: `embedding.provider != "flagembedding"` または `vector_store.provider != "qdrant"` の場合に `diagnostics == {"executed": False, "reason": "disabled"}`、`status == "skipped"` 不変 (fake / in-memory retrieval profile での挙動互換)
+- `test_verify_index_skipped_after_rebuild`: `force_full_recreate=True` または `upsert_info.action == "upserted_full"` の場合に `diagnostics == {"executed": False, "reason": "already_recreated"}`、`status == "success"` 不変。直前に全 Section payload を書いた経路で追加 scroll を冗長に実行しない
+- 不整合判定の freshness 反映方針 (未決事項 → 解決): 不整合検出時は `retrieval_index_status` を `failed` に降格し、`failed_required_artifacts` に `retrieval_index` を入れる方針で確定。`doc/EXTERNAL_DESIGN.ja.md` §7.4 で明文化済
+- `git grep -n "verify_index" -- spec_grag tests doc` で 30 hit、`git grep -n "verify-index" -- doc` で外部設計書 §7.2 / §7.4 と内部設計書 §4.7 / §4.9 / §4.10 のみ。`git grep -nE "stub|dormant|legacy|disabled|deprecated|fallback" -- spec_grag` の hit はいずれも既存の chapter_anchors fallback と `--use-cache` deprecated のみで、B-4 由来の stub / dormant / legacy 等の残骸なし (CLAUDE.md ルール 15 違反なし)
+
+#### 完了確認結果 (real Qdrant + real BGE-M3 end-to-end 実機検証, 2026-05-14)
+
+unit test (fake QdrantClient) で全 4 inconsistency シナリオを検証したのに加え、user 指示に基づき real Qdrant (localhost:6333) + real BGE-M3 (BAAI/bge-m3, `~/.cache/huggingface/hub` 既存 cache) + fake LLM (`SPEC_GRAG_FAKE_LLM=1` + `[llm.providers.fake]` `command="true"`) を組み合わせた end-to-end smoke を `/tmp/spec_grag_b4_verify/` で実施した。fixture spec は 4 section + root heading = 5 section、Qdrant collection は `spec_grag_b4_verify` (`config.toml` の `[retrieval] section_collection`)。LLM 出力に依存する hash 比較は無いため fake LLM で十分。
+
+| Scenario | 操作 | exit | `retrieval_index_status` | `stages.verify_index.action` / `reason` | `verify_index.issues` |
+|---|---|---|---|---|---|
+| 初回 build | `spec-grag core` (`--verify-index` 無し) | 0 | `success` | (stage 出現せず、後続 verify 経路 disabled) | (n/a) |
+| A (clean) | `spec-grag core --verify-index` (Qdrant 健全) | 0 | `skipped_unchanged` 不変 | `verified_clean` / `clean` | `[]` (`checked_count=5`) |
+| B (hash_mismatch) | Section 01 の `source_hash` を `qdrant_client.set_payload` で文字列 `DELIBERATELY_BROKEN_FOR_B4_HASH_MISMATCH_TEST` に書き換え後、`--verify-index` | 1 | `success`/`skipped_unchanged` から **`failed` に降格** | `verified_inconsistent` / `hash_mismatch` | `[{section_id: docs/spec/spec.md#0002-section-01-authentication-window, reason_code: hash_mismatch, fields: ["source_hash"]}]` |
+| C (stale_point) | Section 01 の `source_hash` を正値に restore 後、`source_section_id=docs/spec/spec.md#9999-rogue-ghost-section` を持つ余分 point を `qdrant_client.upsert` で挿入し `--verify-index` | 1 | **`failed` に降格** | `verified_inconsistent` / `stale_point` | `[{section_id: docs/spec/spec.md#9999-rogue-ghost-section, reason_code: stale_point, fields: []}]` (`checked_count=6`) |
+| D (missing_point) | rogue point を `qdrant_client.delete` で除去後、Section 03 の正規 point (id `c2fe0122-efe4-...`) も `delete` で抜き取り、`--verify-index` | 1 | **`failed` に降格** | `verified_inconsistent` / `missing_point` | `[{section_id: docs/spec/spec.md#0004-section-03-search-ranking, reason_code: missing_point, fields: []}]` (`checked_count=4`) |
+| E (R7 real Qdrant 版 reversion) | Scenario D 直後 (Qdrant に Section 03 が無い壊れた状態) で `--verify-index` を **付けずに** `spec-grag core` | 0 | `skipped_unchanged` 不変 | `disabled` / `not_requested` | `{executed: false, reason: not_requested}` |
+
+各 Scenario の確認ポイント:
+
+- **B / C / D で `freshness_report.status == "failed"`、`failed_required_artifacts == ["retrieval_index"]`、`warnings == ["Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild"]` を観測**。EXTERNAL_DESIGN.ja.md §7.4 で確定した `--verify-index` の不整合反映契約と一致
+- **D で `stages.section_collection_upsert.action == "skipped_unchanged"`** だった。つまり通常 fast path 判定は「変更なし」で通り抜けるところを、`--verify-index` が能動 scroll で Qdrant 実体の missing point を検出している (B-4 task 目的の実証)
+- **E で `--verify-index` 未指定経路は壊れた Qdrant 状態でも exit 0 / `skipped_unchanged` / warnings 空 / verify-index stage は `disabled`/`not_requested`**。つまり scroll は走っていない (R7 reversion 検証の real Qdrant 版に相当)
+- Scenario C で `checked_count=6` (4 正規 + 1 rogue + 1 root section payload)、D で `checked_count=4` (Section 03 削除済) のように、`scroll` で得た payload 数が観測値として diagnostics に正しく入る
+
+副作用と環境状態:
+
+- `/tmp/spec_grag_b4_verify/` (config + spec + .spec-grag/state) は session 終了まで残置。Qdrant collection `spec_grag_b4_verify` は Scenario D の壊れた状態 (4 points / Section 03 欠落) のまま放置 (Scenario E reversion 確認に使ったため、最後に `--rebuild` で復旧していない)。再使用する場合は `spec-grag core --project-root /tmp/spec_grag_b4_verify --rebuild` で復旧可能
+- Final stdout JSON は CoreResult 全体 (50KB 程度) を吐く。`/tmp/b4_run1.log` / `/tmp/b4_scenarioA.log` ~ `/tmp/b4_scenarioE.log` に保存
+
+検証条件 A〜D の完全達成: unit test (fake QdrantClient, 7 件 / `tests/test_verify_index.py`) + 上記 real Qdrant smoke 5 件で、検証条件 (A) 正常時 verify、(B) stale point 検出、(C) hash mismatch 検出、(D) 既存経路への非干渉 (scroll が走らない) のすべてを real Qdrant 経路で実証完了。
+
+#### 背景 (開放中時代の原文を保持)
+
+B-2 fast path は state sidecar の指紋一致 + `client.collection_exists(...)` で skip 判定する。Qdrant collection 内の各 payload が現 section と hash 整合しているかは検証しない。AUD-003 が指摘する stale point (現 source から消えた section が collection に残る) や、外部要因 (Qdrant 側 corruption, 別プロセスの誤 upsert) で payload と manifest が乖離するケースを能動的に検出する経路がない。
+
+session 2026-05-13 計測時の `_read_section_payloads_from_qdrant` ([spec_grag/core.py:1097](spec_grag/core.py#L1097)) は payload を scroll するが、`source_section_id` の有無だけ見て hash 整合性は検証していない。
+
+#### 真因 / 仮説 (開放中時代の原文を保持)
+
+確定。現実装には Qdrant payload と現 manifest の hash 整合性を能動的に検証する経路がない。
+
+#### 目的 (開放中時代の原文を保持)
+
+Agent / operator が明示的に「Qdrant collection の整合性を検証したい」と判断した場合に、`spec-grag core --verify-index` (仮称) で Qdrant payload と現 section の `source_hash` / `semantic_hash` / `source_section_id` 集合を全件比較し、不整合があれば warning または failed として CoreResult に反映する経路を追加する。
+
+通常 incremental では B-2 fast path のまま `collection_exists` だけで skip する。verify は明示 flag を指定した場合に限る。
+
+#### 仮称: `--verify-index` flag (開放中時代の原文を保持)
+
+- 仮称か既存用語か: 仮称
+- 意味: Qdrant section collection の payload を全件 scroll し、現 section の hash 集合と照合する明示検証
+- 含む: payload の `source_section_id` 集合と現 section_id 集合の対称差、payload の `source_hash` / `semantic_hash` と manifest の不一致検出、stale point (現 source にない section_id の point) の検出と reporting
+- 含まない: 検出した不整合の自動修復 (これは `--rebuild` で別途処理)、Source Specs 本文の content hash 検証 (manifest 経由で間接的にしか見ない)
+- 既存概念との差分: B-2 fast path は state sidecar のみ参照。`--verify-index` は Qdrant 実体を直接参照する。`--all` / `--rebuild` は無条件で再構築するため検証は不要
+- 未決 → 解決: warning にとどめるか failed にするかは「failed に降格」で確定。検出後の自動 rebuild は実装しない (既存 `--rebuild` 契約を維持し、ユーザーへ実行を促す)
+
+#### 実装方針 (開放中時代の原文を保持)
+
+1. `spec-grag core` に `--verify-index` flag を追加する
+2. flag 指定時のみ `_read_section_payloads_from_qdrant` を活用して全 point を scroll し、現 section との hash diff を取る
+3. 不整合があれば CoreResult `diagnostics` に対象 section_id と理由 (`stale_point` / `hash_mismatch` / `missing_point`) を残す
+4. freshness への反映 (degraded / failed のどちら) は AUD-006 / AUD-007 と表現を揃える
+5. fast path の `collection_exists` 軽量判定は変更しない (large spec で常時 scroll は持続不能)
+
+実装の事後変遷 (完了確認済み時点): (2) は `_read_section_payloads_from_qdrant` から `_scroll_section_payloads_from_qdrant` を切り出して reuse 経路にし、verify 専用に scroll 失敗を `_SectionPayloadScrollError` で diagnostics へ伝搬する経路を新設。`_read_section_payloads_from_qdrant` 側は同例外を catch して旧来通り `[]` を返す互換維持で `_read_previous_section_metadata` への影響を回避した。(3) は `CoreResult.generation_diagnostics["verify_index"]` field に `{executed, checked_count, stale_point_count, missing_point_count, hash_mismatch_count, issues}` を出す形で確定。(4) は AUD-006 / AUD-007 の freshness 表現確定を待たず、`retrieval_index_status == "failed"` の既存契約 (= `failed_required_artifacts` に `retrieval_index` が入る) を流用する形で先に確定 (AUD-006 / AUD-007 を後で固定するときに本 task が制約にならないよう、既存契約だけで完結)。
+
+#### 検証条件 (開放中時代の原文を保持)
+
+A. **正常時の verify**
+- `--verify-index` で no-change incremental を実行 → 不整合 0 件、CoreResult の status は通常通り
+- payload 数と manifest section 数が一致
+
+B. **stale point 検出**
+- 1 section を source spec から削除した後、core を `--verify-index` なしで実行 (現状の AUD-003 で stale point が残る前提) → 通常 status
+- 続けて `--verify-index` で再実行 → 削除 section_id が `stale_point` として diagnostics に出る
+
+C. **hash mismatch 検出**
+- Qdrant payload を手動で書き換えて `source_hash` を破壊した後、`--verify-index` で実行 → `hash_mismatch` として diagnostics に出る
+
+D. **既存経路への非干渉**
+- `--verify-index` なしでは scroll が走らないこと (large spec で性能 regression がないこと)
+
+E. **既存 pytest の合格**
+- `--skip-external` 経由で全 pass 維持
+- verify 経路の unit test を追加
+
+#### 触れる主なファイル (開放中時代の原文を保持)
+
+- [spec_grag/core.py](spec_grag/core.py): CLI argparser、verify 経路の実装
+- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): verify 用の payload scroll helper (既存 `_read_section_payloads_from_qdrant` の reuse / 拡張)
+- [doc/EXTERNAL_DESIGN.ja.md](doc/EXTERNAL_DESIGN.ja.md): `--verify-index` の契約、不整合判定の freshness 反映方針
+- `tests/test_core.py` または `tests/test_verify_index.py` (新規)
+
+実装の事後変遷 (完了確認済み時点): CLI argparser 自体は [spec_grag/cli.py](spec_grag/cli.py) 側にあるため修正対象も cli.py に拡張。`retrieval_index.py` 本体は触らず、scroll helper は core.py 内 (`_scroll_section_payloads_from_qdrant`) に置くことで `_payload_fingerprint_input` などの fingerprint 計算式と verify 経路の責務分離を維持。
+
+#### 依存 / scope 外 (開放中時代の原文を保持)
+
+- **依存**: AUD-003 (stale point 削除) との関係を整理する必要がある。B-3 で stale point 削除が完了している場合、`--verify-index` は「ガード兼検出」として機能。B-3 未完了で先に本 task を実装する場合、verify は検出のみで修復は user に委ねる
+- **scope 外**:
+  - 自動修復 (検出後に rebuild する経路): 修復は `--rebuild` で行う既存契約を維持
+  - chapter_anchors / related_sections の整合検証: 本 task では section collection に限る
+  - source spec 本文の content hash 検証: manifest 経由で間接的にしか見ない
+
+実装の事後変遷 (完了確認済み時点): B-3a + B-3b が先行完了したため、`--verify-index` は「ガード兼検出」役として機能する。stale point は通常 manifest diff で削除されるが、外部要因 (別 process upsert、Qdrant 側 corruption) で manifest と乖離した場合に本 flag が能動検出する。
 
 ### CDX-001: `prior_state` dead 引数の削除
 

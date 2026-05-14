@@ -517,6 +517,7 @@ spec-grag-watch [project_root]
 |---|---|
 | `--all` / `-a` | LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。embedding は hash 一致時に再利用 |
 | `--rebuild` | `--all` を含意し、さらに Qdrant `spec_grag_section` collection を drop + recreate する。embedding 破損や schema 移行時に使う |
+| `--verify-index` | Source Retrieval Index の Qdrant collection に保持されている内容が、現在の Section の hash と一致するかを能動検証する。不整合を見つけた場合、retrieval_index_status を failed にして停止指示を表示する。自動修復はしない。 |
 | `--project-root <path>` / `--root <path>` | 対象プロジェクトの root を指定する。既定はカレントディレクトリ |
 | `--llm-provider <id>` | `[llm.stage_routing]` を上書きし、指定した provider id を全 stage に適用する。Codex skill / Claude command は通常指定しない |
 | `--decision-json <json>` | pending Conflict Review Item に対する判断結果を JSON で渡す |
@@ -588,7 +589,7 @@ CoreResult
 - `success` — 今回 `/spec-core` が retrieval index に upsert を実行し、index は最新の section 集合と設定を反映している。
 - `skipped` — retrieval index 機能が `[embedding]` / `[vector_store]` の設定で無効化されている (例: `embedding.provider != "flagembedding"`)。Agent / LLM 側は in-memory retrieval にフォールバックする。
 - `skipped_unchanged` — 入力 (Source Specs の section 集合と内容、embedding / retrieval 設定の指紋) が前回 `/spec-core` 実行時と完全に一致したため、`/spec-core` は retrieval index への upsert を **実行しなかった**。index は前回実行時点の状態のまま正常で、Agent / LLM 側は前回 index に対して検索を行う。`skipped` とは違い、retrieval index 機能自体は有効である。
-- `failed` — retrieval index の upsert / 接続で例外が発生し、index が古い、もしくは壊れている可能性がある。`/spec-core --rebuild` で復旧する。
+- `failed` — retrieval index の upsert / 接続で例外が発生した、または `--verify-index` が不整合を検出した。index が古い、もしくは壊れている可能性がある。`/spec-core --rebuild` で復旧する。
 - `blocked` — 上流の理由 (pending conflict、freshness 停止、入力読み込み失敗) で `/spec-core` 自体が処理を中断したため、retrieval index 経路に到達しなかった。
 
 Qdrant collection が手動で削除されている等の理由で `skipped_unchanged` の前提条件 (`.spec-grag/state/retrieval_index_state.json` の指紋一致 + collection 存在) が崩れている場合、`/spec-core` は Source Retrieval Index の upsert を自動的に実行する。この場合の最終 status は `success` または `failed` であり、全 Section を登録し直した実行は `core_progress.json` の `stages.section_collection_upsert.action = "upserted_full"` として記録する。更新が必要になった理由は、同じ stage の `reason` と `diagnostics` で確認できる。
@@ -596,6 +597,8 @@ Qdrant collection が手動で削除されている等の理由で `skipped_unch
 古い version の SPEC-grag が作成した Qdrant collection では、Section の並び順に基づく数値の point id が残っている場合がある。`/spec-core` はこの形式を検出すると、その実行内で Source Retrieval Index の Qdrant collection を再作成し、現在の Source Specs から UUID5 形式の point id で登録し直す。ユーザーが `--rebuild` を指定する必要はない。この自動移行が起きた場合、`.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.action` は `upserted_full` になり、同じ stage に `migration_required_from_ordinal_point_id` という warning が記録される。
 
 Source Specs の一部 Section だけが変わった incremental 実行では、`/spec-core` は Source Retrieval Index の更新対象を変更・追加された Section に絞り、削除された Section は Qdrant collection から取り除く。この差分更新が使われた場合、`.spec-grag/state/core_progress.json` の `stages.section_collection_upsert.action` は `upserted_partial` になる。ユーザーは同じ stage の `diagnostics` で、`sections_upserted_count`、`sections_deleted_count`、`embed_documents_input_size`、`stale_points_deleted` を確認できる。1 Section だけを変更した場合、この stage の時間は、全 Section を再登録する時間ではなく、変更された Section 数に近い時間として観測される。
+
+`spec-grag core --verify-index` は、Source Retrieval Index の Qdrant collection に残っている Section 情報と現在の Source Specs から作られる Section 情報を照合する。通常の差分更新や変更なしの再実行で index 本体を読み直さない場合でも、利用者が明示したときだけ実体との乖離を検出できる。不整合が見つかった場合、`/spec-core` は Source Retrieval Index を自動修復せず、結果を failed として `/spec-core --rebuild` の実行を促す。
 
 `related_sections_status` は Related Sections 生成の最終状態を示す。次のいずれかの値を取る。
 
