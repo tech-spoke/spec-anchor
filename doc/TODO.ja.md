@@ -68,11 +68,12 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-7a (最優先 / 高インパクト)**: Related Sections candidate generation の source partial 化。B-7 Phase 1 で selection / typing は batch_count 7→1 を達成したが、`related_sections.elapsed_sec` は 52.6s → 50.4s で大幅短縮できず。主因は `generate_related_section_candidates_result(sections=all_sections)` が全 section から candidate を生成しているため (= candidate generation の partial 化が真の主因)
-2. **B-7 Phase 2**: partial 経路の外部 / 内部設計書への明文化 (`doc/EXTERNAL_DESIGN.ja.md` §7.4 と `doc/DESIGN.ja.md` §5.7 周辺)
-3. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-4. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
-5. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+1. **B-7 Phase 2**: partial 経路の外部 / 内部設計書への明文化 (`doc/EXTERNAL_DESIGN.ja.md` §7.4 と `doc/DESIGN.ja.md` §5.7 周辺)。B-7 Phase 1 と B-7a の実装挙動が固定された (`regenerated_partial` action、source 中心 partial の trade-off、stage 別 timing) ので doc 化のタイミング
+2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+3. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+4. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+
+B-7a (Related Sections candidate generation の source partial 化) は 2026-05-14 に CODEX rescue 実装 + Claude main 監査 (真の partial 化検証用 assertion 追加 + 逆方向検証で本物性確認) で完了し、`related_sections.elapsed_sec=50.4s → 4.666s` (1/10 以下達成)、stage 別 timing (candidate 4.52s / selection 0.017s) で Phase 1 推定が厳密確定。「完了確認済み」配下に移動済。
 
 B-5 (cache の現状確認) は 2026-05-14 に Claude main 計測で (a) 既存実装で satisfied を確定、`doc/監査/B-5_cache_measurement_2026-05-14.md` と `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。
 
@@ -81,97 +82,6 @@ B-5a (B-3b partial path で 50 section embed 問題) は 2026-05-14 に Claude m
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
-
-### B-7a: Related Sections candidate generation の source partial 化
-
-#### 背景
-
-B-7 Phase 1 (commit 予定の本 session 差分) で Related Sections の selection / typing は source 中心 partial 化が完了し、50 section fixture / 1 section 1 文字編集 (S2) の実機計測で `related_sections.batch_count=7→1`、`action=regenerated_partial` を達成した。`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.2.1 参照。
-
-しかし `related_sections.elapsed_sec` は 52.6s → 50.4s で約 2.2s しか短縮できず、B-7 task block の検証条件 B (initial build の 1/10 以下、例 5s 未満) に **未達**。
-
-#### 真因 / 仮説
-
-確定推定 (実装コードと計測の照合に基づく): `related_sections.elapsed_sec` の主因は **LLM typing batch ではなく candidate generation 段階**。
-
-[spec_grag/related_sections.py](spec_grag/related_sections.py) `generate_related_sections_partial_result` (B-7 Phase 1 で追加) は selection 段階だけを `changed_source_section_ids` で絞り込んでいるが、`generate_related_section_candidates_result(sections, ...)` は **依然全 section を入力として呼ばれる**。candidate generation の channel (markdown_link / shared_identifier / search_key / qdrant_hybrid) はすべて全 section を走査する。
-
-`batch_count` (= LLM typing) が 7→1 に減ったにも関わらず `elapsed_sec` がほぼ変わらないという観測事実は、candidate generation 段階が dominant time を占める強い示唆だが、stage 別 timing 内訳 (candidate_generation_elapsed_sec / selection_elapsed_sec) を観測していないため厳密確定には別計測が必要。
-
-#### 目的
-
-`generate_related_section_candidates_result` を partial 入力 (`changed_source_section_ids` ∪ `added_source_section_ids`) に絞り、`related_sections.elapsed_sec` を「変更 section 数 + 隣接候補のみ」に比例した時間に圧縮する。これにより 1 section 変更時の incremental 利用者価値を実現する。
-
-#### 仮称: `candidate_generation_source_partial`
-
-- 仮称か既存用語か: 仮称
-- 意味: candidate generation の 4 channel (markdown_link / shared_identifier / search_key / qdrant_hybrid) を、changed/added source section を起点とした候補だけに絞る partial 経路。実装は API レベル (`generate_related_section_candidates_result` の `source_section_ids` 引数追加など) か内部 builder 段階 (`_add_*_candidates` 内部 filter) のどちらか
-- 含む: changed/added source を起点とした 4 channel candidate の partial 生成、candidate diagnostics に partial mode の表明 (`candidate_partial_mode` / `candidate_source_count` 等)
-- 含まない: target 側の candidate (target が changed の pair) の partial 化 (= B-7 Phase 1 の `changed_target_relations_inherited=True` trade-off を継承)、conflicts_with の partial 化、`--all` 経路 (`generated`) と `fallback_regenerated` の挙動変更
-- 既存概念との差分: B-7 Phase 1 は selection / typing 段階のみ partial 化。本 task は candidate generation 段階の partial 化を加える
-- 未決: changed source を起点とした candidate の channel ごとの partial 入力契約 (markdown_link / shared_identifier / search_key は source 起点で絞れるが、qdrant_hybrid は target 側 vector search も必要で完全 partial が困難な可能性)
-
-#### 実装方針
-
-1. `generate_related_section_candidates_result` に `source_section_ids: Sequence[str] | None = None` 引数を追加 (None は従来全 section 経路)
-2. 各 `_add_*_candidates` helper を partial 入力で動作するように拡張:
-   - `_add_markdown_link_candidates`: source 起点なので `records` を `source_section_ids` に絞れば partial 可
-   - `_add_shared_identifier_candidates`: source 起点なので絞れる
-   - `_add_search_key_candidates`: source 起点なので絞れる
-   - `_add_qdrant_section_hybrid_candidates`: source の embedding を vector search input にする ため source 絞り込みで partial 可、ただし target 側全 section に対する hybrid retrieval は維持
-3. `generate_related_sections_partial_result` で `source_section_ids=changed_source_section_ids` を渡す
-4. CoreResult diagnostics に partial 段階別 stage timing を追加:
-   - `candidate_generation_elapsed_sec`
-   - `selection_elapsed_sec`
-   - `candidate_generation_source_count` (= partial 入力 source の数)
-   - `candidate_generation_partial_mode` (`source_changed_only` / `full`)
-5. `core_progress.json` の `related_sections` stage に上記 timing を追加 (operator が elapsed の内訳を直接確認できる)
-
-#### 検証条件 (B-7 反省を反映して厳密化)
-
-A. **partial 経路の動作 (B-7 Phase 1 と同等以上)**
-- 50 section fixture / 1 section 本文 1 文字変更で `related_sections.action == "regenerated_partial"`
-- `related_sections.batch_count == 1`
-- `related_sections.candidate_generation_source_count == 1`
-- `related_sections.candidate_generation_partial_mode == "source_changed_only"`
-
-B. **時間圧縮 (B-7 で未達の核心)**
-- `related_sections.elapsed_sec` が initial build の 1/10 以下、または少なくとも **5 秒未満** を目標。`related_sections.candidate_generation_elapsed_sec` と `related_sections.selection_elapsed_sec` の **内訳を明示計測** し、どちらが主因か事後判定可能にする
-
-C. **selected_related_sections の整合 (B-7 Phase 1 不変条件の維持)**
-- unchanged source の selected_related_sections は前回値継承
-- removed source / removed target relation は artifact に残らない
-- diagnostics の `partial_mode` / `changed_target_relations_inherited` / `requires_full_regeneration_for_complete_target_recheck` は B-7 Phase 1 と互換
-
-D. **既存 pytest の合格**
-- `pytest -q --skip-external` で全 pass 維持
-- candidate generation の partial 経路の unit test を追加
-
-E. **`fallback_regenerated` / `generated` / `skipped_unchanged` の維持**
-- `prompt_version` bump 時は引き続き `fallback_regenerated`
-- `--all` は `generated`
-- no-change は `skipped_unchanged`
-
-#### 触れる主なファイル
-
-- [spec_grag/related_sections.py](spec_grag/related_sections.py): `generate_related_section_candidates_result` への partial 引数追加、`_add_*_candidates` の partial 化、`generate_related_sections_partial_result` の渡し変更
-- [spec_grag/core.py](spec_grag/core.py): `_generate_related_sections` の stage timing 計測、`_progress_action` への candidate / selection 別 elapsed 追加
-- `tests/test_spec_core.py` / `tests/test_related_sections.py`
-
-#### 完了条件
-
-- 検証条件 (A)〜(E) すべて満たす
-- 特に (B) の elapsed 内訳計測を CoreResult / `core_progress.json` から実機確認できる
-- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
-
-#### 依存 / scope 外
-
-- **依存**: B-7 Phase 1 完了 (commit 予定)。本 task は B-7 Phase 1 の partial 経路上に candidate generation の partial 化を重ねる
-- **scope 外**:
-  - target 側 candidate の partial 化 (changed が target の pair の再 typing): B-7 Phase 1 の trade-off (`changed_target_relations_inherited=True`) を継承し、本 task でも実装しない
-  - `chapter_anchors` の partial 化: 別 task。AUD-006 で chapter_anchors fallback の扱いを確定した後に着手
-  - `conflicts_with` の partial 化: 別 task
-  - 大規模 spec (500 section 規模) での挙動: B-6 scope
 
 ### AUD-006: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする
 
@@ -1226,6 +1136,145 @@ E. **`fallback_regenerated` の維持**
   - 大規模 spec (500 section 規模) での挙動: B-6 scope に含めるか、本 task 完了後に独立計測
 
 実装の事後変遷 (完了確認済み時点): candidate generation の partial 化が当初は scope 外として明示されていなかった (= 「partial 化」を selection / typing と candidate 両方の意味で曖昧に扱っていた)。Phase 1 で selection / typing のみと scope を厳密化、candidate は B-7a へ切り出し。
+
+### B-7a: Related Sections candidate generation の source partial 化
+
+#### 状態
+
+採用 / 修正済み (2026-05-14、Phase 1 残課題の解消)。実装差分は次のコミットで確定する予定 (本 commit 着手前は session working tree に保持):
+
+- `spec_grag/related_sections.py`: `generate_related_section_candidates_result` に `source_section_ids: Sequence[str] | None = None` 引数を追加。指定時は `source_records` を絞り込んで 4 channel (`_add_markdown_link_candidates` / `_add_shared_identifier_candidates` / `_add_search_key_candidates` / `_add_qdrant_section_hybrid_candidates`) に渡す。`records_by_id` (target lookup) は全 records 維持、inverted index は全 records から構築 (`_add_index_candidates` に `source_section_ids` 引数追加で source filter)。`RelatedSectionCandidateGeneration` / `RelatedSectionSelection` に `elapsed_sec: float` field を追加し `time.perf_counter()` で計測。`related_section_candidate_generation_scope` diagnostic を新規追加 (`candidate_generation_partial_mode` / `candidate_generation_source_count` / `candidate_generation_elapsed_sec` の内部真値を表明)
+- `spec_grag/core.py`: `_generate_related_sections` の partial / fallback_regenerated 両経路で `_progress_action` に stage 別 timing (`candidate_generation_elapsed_sec` / `selection_elapsed_sec`) と partial mode 情報を追加。`core_progress.json` から operator が直接 stage 内訳を確認できる
+- `tests/test_spec_core.py`: 新規 test `test_b7a_related_sections_candidate_generation_source_partial`。`_CoreFakeEmbeddingProvider` に `query_calls` カウンタを追加 (`InMemoryHybridRetriever` の default `FakeBgeM3EmbeddingProvider` 経路には乗らないため計測指標としては無効と判明、代わりに `related_section_candidate_generation_scope` diagnostic の **内部真値** を assertion 対象として採用)
+
+#### 完了確認結果 (2026-05-14, Codex 実装 + Claude main 監査 + 真の partial 化検証用 assertion 追加 + 逆方向検証 + 実機 S2 計測)
+
+実装 (CODEX rescue、~8 分、forwarder Final report 完備):
+
+- `source_section_ids` 引数を `generate_related_section_candidates_result` に追加し、内部で `source_records = [r for r in records if r.source_section_id in source_section_id_set]` を作成 (None なら全 records)
+- 4 channel 全てを partial 化:
+  - `_add_markdown_link_candidates`: records 引数を source_records に、resolver は `records_by_id.values()` (全 section) から作成
+  - `_add_shared_identifier_candidates` / `_add_search_key_candidates`: `full_records` 引数追加で inverted index は全 records から、`source_section_ids` で source filter
+  - `_add_qdrant_section_hybrid_candidates`: `full_records` 引数追加で Qdrant payload 構築は全 section、source loop は records (= source_records) で絞る
+- `_add_index_candidates` の signature に `source_section_ids: set[str] | None = None` 追加し内部で `if source_section_ids is not None and source_id not in source_section_ids: continue` で filter
+- `RelatedSectionCandidateGeneration` / `RelatedSectionSelection` の dataclass に `elapsed_sec: float` field 追加、`generate_related_section_candidates_result` / `select_related_sections_result` 内部で `time.perf_counter()` 計測
+- `_progress_action` で partial / fallback_regenerated 両経路に `candidate_generation_elapsed_sec` / `selection_elapsed_sec` / `candidate_generation_source_count` / `candidate_generation_partial_mode` を追加
+
+Claude main 監査 + 真の partial 化検証用 assertion 追加:
+
+- Codex の test (`test_b7a_*`) は `candidate_generation_partial_mode == "source_changed_only"` / `candidate_generation_source_count == 1` を progress と partial_diagnostic から assertion していたが、両方とも core.py / `_diagnostic(...)` 呼び出し時に**固定値として直接渡されている** (`len(changed_source_section_ids)` 等) ため、`generate_related_section_candidates_result` 内部の partial 化が機能しなくても test が pass する **偽 assertion 問題** を逆方向検証で発見
+- 修正: `result["diagnostics"]["related_sections"]["diagnostics"]` の中の `related_section_candidate_generation_scope` diagnostic は `generate_related_section_candidates_result` **内部で生成** され、`source_records` の絞り込みを直接反映する。これを assertion 対象として追加 (`candidate_scope_diagnostic["candidate_generation_partial_mode"] == "source_changed_only"`, `candidate_generation_source_count == 1`)
+- 逆方向検証: `if source_section_id_set is None or True:` (partial 強制無効) で test_b7a を再実行 → `AssertionError: assert 'full' == 'source_changed_only'` で fail。test が真に内部 partial 化を検証している決定的証拠
+- `_CoreFakeEmbeddingProvider.query_calls` も追加したが、`InMemoryHybridRetriever` は default で `FakeBgeM3EmbeddingProvider` を持つため install fake には流れない (=計測指標としては無効)。test には `assert len(fake_embedding.query_calls) <= 1` を残しているが、これは将来 InMemoryHybridRetriever に embedding_provider を渡せるようになった場合の補助検証用
+- working tree 監査: `git diff --stat` で 3 ファイル限定 (spec_grag/related_sections.py +111 行、spec_grag/core.py +20 行、tests/test_spec_core.py +92 行)。doc 系への scope 外修正なし。`B5_TELEMETRY` 等の telemetry 残骸 0 hit
+- Codex が誤って作成した 0 byte file (`0`、shell redirect 副作用と推測) を Claude main で削除済
+
+実機 S2 計測 (`/tmp/spec_grag_b5_measure/` 50 section + fake LLM + real BGE-M3 + real Qdrant):
+
+| metric | B-7 Phase 1 (S2) | **B-7a 完了 (S2)** | 改善 |
+|---|---|---|---|
+| wall | 61.7s | **16.3s** | -45.4s (-74%) |
+| `section_collection_upsert.elapsed` | 9.2s | 9.2s | 不変 |
+| `related_sections.action` | regenerated_partial | regenerated_partial | 不変 |
+| `related_sections.batch_count` | 1 | 1 | 不変 |
+| **`related_sections.elapsed_sec`** | **50.4s** | **4.666s** ✓ | -45.7s (1/10 以下達成) |
+| `candidate_generation_elapsed_sec` | (n/a) | **4.52s** | (新計測、主因確定) |
+| `selection_elapsed_sec` | (n/a) | **0.017s** | (新計測、fake LLM 1 batch) |
+| `candidate_generation_partial_mode` | (n/a) | **`source_changed_only`** ✓ | |
+| `candidate_generation_source_count` | (n/a) | **1** ✓ | |
+
+検証条件別の達成状況:
+
+- **A (partial 経路の動作)**: ✓ `action=regenerated_partial`, `batch_count=1`, `candidate_generation_source_count==1`, `candidate_generation_partial_mode=="source_changed_only"`
+- **B (時間圧縮 `elapsed_sec ≤ initial の 1/10`)**: **達成** ✓ 4.666s ≤ 5s (initial S0 99s の 5% 未満)。stage 別 timing 内訳: candidate generation 4.52s (97%) + selection 0.017s (0.3%)。Phase 1 で「主因は candidate generation」と推定した仮説が **stage 別 timing で厳密確定**
+- **C (selected_related_sections の整合 = Phase 1 不変条件)**: ✓ Section 02 (unchanged source) の前回継承を実機 assertion、partial_diagnostic の `partial_mode` / `changed_target_relations_inherited` / `requires_full_regeneration_for_complete_target_recheck` 全フラグ維持
+- **D (既存 pytest)**: ✓ `pytest -q --skip-external` で **378 passed / 16 skipped** (B-7 Phase 1 の 377 + B-7a test 1)
+- **E (`fallback_regenerated` / `generated` / `skipped_unchanged` 維持)**: ✓ 既存経路の挙動は不変、新フィールド (`candidate_generation_elapsed_sec` 等) を fallback_regenerated 経路にも追加するのみ
+
+S2 wall 16.3s の段階別内訳概算:
+
+| stage | elapsed |
+|---|---|
+| start (config load + manifest 読込) | ~0.7s |
+| section_metadata (cache hit 50/51) | ~0.01s |
+| section_collection_upsert (B-3b/B-5a partial) | 9.2s |
+| related_sections (B-7a partial) | **4.666s** (内訳: candidate 4.52s + selection 0.017s + その他 0.13s) |
+| chapter_anchors | ~0.003s |
+| その他 (verify_index disabled, etc.) | ~2.4s |
+
+S0 initial 99s → S2 16.3s = **83.5% 削減**。incremental の利用者価値が完全に実現された。
+
+implementation の trade-off (Phase 1 から継承):
+
+- target 変化分の relation は前回継承 (= `source_centric_partial`、`changed_target_relations_inherited=True`)
+- 完全 target recheck が必要な場合は `--all` を使う
+- これは diagnostics に明示フラグで表明し、後の Agent / 人間が partial = 完全再評価 と誤解しないよう warning として伝える
+
+残課題:
+
+- partial 経路の **外部 / 内部設計書への明文化** は **B-7 Phase 2** として別 commit / 別 task で実施
+
+#### 背景 (開放中時代の原文を保持)
+
+B-7 Phase 1 (commit 予定の本 session 差分) で Related Sections の selection / typing は source 中心 partial 化が完了し、50 section fixture / 1 section 1 文字編集 (S2) の実機計測で `related_sections.batch_count=7→1`、`action=regenerated_partial` を達成した。`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.2.1 参照。
+
+しかし `related_sections.elapsed_sec` は 52.6s → 50.4s で約 2.2s しか短縮できず、B-7 task block の検証条件 B (initial build の 1/10 以下、例 5s 未満) に **未達**。
+
+#### 真因 / 仮説 (開放中時代の原文を保持)
+
+確定推定 (実装コードと計測の照合に基づく): `related_sections.elapsed_sec` の主因は **LLM typing batch ではなく candidate generation 段階**。
+
+[spec_grag/related_sections.py](spec_grag/related_sections.py) `generate_related_sections_partial_result` (B-7 Phase 1 で追加) は selection 段階だけを `changed_source_section_ids` で絞り込んでいるが、`generate_related_section_candidates_result(sections, ...)` は **依然全 section を入力として呼ばれる**。candidate generation の channel (markdown_link / shared_identifier / search_key / qdrant_hybrid) はすべて全 section を走査する。
+
+`batch_count` (= LLM typing) が 7→1 に減ったにも関わらず `elapsed_sec` がほぼ変わらないという観測事実は、candidate generation 段階が dominant time を占める強い示唆だが、stage 別 timing 内訳 (candidate_generation_elapsed_sec / selection_elapsed_sec) を観測していないため厳密確定には別計測が必要。
+
+実装の事後変遷 (完了確認済み時点): B-7a で stage 別 timing 計測を実装した結果、candidate generation 4.52s / selection 0.017s と判明し、上記推定が **厳密確定**。
+
+#### 検証条件 (開放中時代の原文を保持)
+
+A. **partial 経路の動作 (B-7 Phase 1 と同等以上)**
+- 50 section fixture / 1 section 本文 1 文字変更で `related_sections.action == "regenerated_partial"`
+- `related_sections.batch_count == 1`
+- `related_sections.candidate_generation_source_count == 1`
+- `related_sections.candidate_generation_partial_mode == "source_changed_only"`
+
+B. **時間圧縮 (B-7 で未達の核心)**
+- `related_sections.elapsed_sec` が initial build の 1/10 以下、または少なくとも **5 秒未満** を目標。`related_sections.candidate_generation_elapsed_sec` と `related_sections.selection_elapsed_sec` の **内訳を明示計測** し、どちらが主因か事後判定可能にする
+
+C. **selected_related_sections の整合 (B-7 Phase 1 不変条件の維持)**
+- unchanged source の selected_related_sections は前回値継承
+- removed source / removed target relation は artifact に残らない
+- diagnostics の `partial_mode` / `changed_target_relations_inherited` / `requires_full_regeneration_for_complete_target_recheck` は B-7 Phase 1 と互換
+
+D. **既存 pytest の合格**
+- `pytest -q --skip-external` で全 pass 維持
+- candidate generation の partial 経路の unit test を追加
+
+E. **`fallback_regenerated` / `generated` / `skipped_unchanged` の維持**
+- `prompt_version` bump 時は引き続き `fallback_regenerated`
+- `--all` は `generated`
+- no-change は `skipped_unchanged`
+
+実装の事後変遷 (完了確認済み時点): A-E すべて達成。特に (B) は **4.666s で 5s 未満を満たす + stage 別内訳明示で主因厳密確定** の二重達成。
+
+#### 触れる主なファイル (開放中時代の原文を保持)
+
+- [spec_grag/related_sections.py](spec_grag/related_sections.py): `generate_related_section_candidates_result` への partial 引数追加、`_add_*_candidates` の partial 化、`generate_related_sections_partial_result` の渡し変更
+- [spec_grag/core.py](spec_grag/core.py): `_generate_related_sections` の stage timing 計測、`_progress_action` への candidate / selection 別 elapsed 追加
+- `tests/test_spec_core.py` / `tests/test_related_sections.py`
+
+実装の事後変遷 (完了確認済み時点): test 追加は `tests/test_spec_core.py` のみ (= B-7 Phase 1 と同じファイル、既存 fake provider helper を reuse)。`tests/test_related_sections.py` は触らない (related_sections 単体 test ではなく core 結合 test として書く方が B-7 Phase 1 と整合)。
+
+#### 依存 / scope 外 (開放中時代の原文を保持)
+
+- **依存**: B-7 Phase 1 完了 (commit 予定)。本 task は B-7 Phase 1 の partial 経路上に candidate generation の partial 化を重ねる
+- **scope 外**:
+  - target 側 candidate の partial 化 (changed が target の pair の再 typing): B-7 Phase 1 の trade-off (`changed_target_relations_inherited=True`) を継承し、本 task でも実装しない
+  - `chapter_anchors` の partial 化: 別 task。AUD-006 で chapter_anchors fallback の扱いを確定した後に着手
+  - `conflicts_with` の partial 化: 別 task
+  - 大規模 spec (500 section 規模) での挙動: B-6 scope
+
+実装の事後変遷 (完了確認済み時点): target 側 partial 化 (`changed_target_relations_inherited=False` 化) は Phase 1/B-7a の trade-off として継承され、本 session では実装しない。AUD-006 / conflicts_with の partial 化も別 task のまま。
 
 ### CDX-001: `prior_state` dead 引数の削除
 

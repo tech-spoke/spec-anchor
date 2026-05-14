@@ -2509,6 +2509,12 @@ def _generate_related_sections(
             generated_at=generated_at,
             cache_dir=cache_dir,
         )
+        candidate_generation = getattr(result, "candidate_generation", None)
+        selection = getattr(result, "selection", None)
+        candidate_generation_elapsed_sec = float(
+            getattr(candidate_generation, "elapsed_sec", 0.0) or 0.0
+        )
+        selection_elapsed_sec = float(getattr(selection, "elapsed_sec", 0.0) or 0.0)
         if store is not None and retrieval_index_status in {"success", "skipped_unchanged"}:
             store.write("related_sections_state", expected_state)
         _progress_action(
@@ -2519,6 +2525,10 @@ def _generate_related_sections(
             diagnostics=_related_generation_diagnostics(result),
             batch_count=getattr(getattr(result, "selection", None), "llm_calls", 0),
             changed_source_section_ids=changed_source_section_ids,
+            candidate_generation_elapsed_sec=candidate_generation_elapsed_sec,
+            selection_elapsed_sec=selection_elapsed_sec,
+            candidate_generation_source_count=len(changed_source_section_ids),
+            candidate_generation_partial_mode="source_changed_only",
         )
         return result
 
@@ -2531,6 +2541,12 @@ def _generate_related_sections(
             generated_at=generated_at,
             cache_dir=cache_dir,
         )
+        candidate_generation = getattr(result, "candidate_generation", None)
+        selection = getattr(result, "selection", None)
+        candidate_generation_elapsed_sec = float(
+            getattr(candidate_generation, "elapsed_sec", 0.0) or 0.0
+        )
+        selection_elapsed_sec = float(getattr(selection, "elapsed_sec", 0.0) or 0.0)
         if store is not None and retrieval_index_status in {"success", "skipped_unchanged"}:
             try:
                 store.write("related_sections_state", expected_state)
@@ -2541,6 +2557,10 @@ def _generate_related_sections(
             "related_sections",
             action="generated" if run_full else "fallback_regenerated",
             reason=str(fast_path.get("reason") or "normal_generation"),
+            candidate_generation_elapsed_sec=candidate_generation_elapsed_sec,
+            selection_elapsed_sec=selection_elapsed_sec,
+            candidate_generation_source_count=len(sections),
+            candidate_generation_partial_mode="full",
         )
         return result
     except Exception as exc:

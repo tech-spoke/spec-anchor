@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import time
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -143,6 +144,7 @@ class RelatedSectionCandidateGeneration:
     candidate_count_by_source: dict[str, int]
     dropped_candidate_count_by_source: dict[str, int]
     generated_at: str
+    elapsed_sec: float
 
     @property
     def candidates(self) -> list[dict[str, Any]]:
@@ -167,6 +169,7 @@ class RelatedSectionCandidateGeneration:
                 self.dropped_candidate_count_by_source,
             ),
             "generated_at": self.generated_at,
+            "elapsed_sec": self.elapsed_sec,
         }
 
 
@@ -198,6 +201,7 @@ class RelatedSectionSelection:
     llm_results: list[LlmGenerationResult]
     llm_calls: int
     generated_at: str
+    elapsed_sec: float
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -217,6 +221,7 @@ class RelatedSectionSelection:
             "diagnostics": list(self.diagnostics),
             "llm_calls": self.llm_calls,
             "generated_at": self.generated_at,
+            "elapsed_sec": self.elapsed_sec,
         }
 
 
@@ -309,13 +314,30 @@ def generate_related_section_candidates_result(
     config: Any | None = None,
     project_config: Any | None = None,
     limits: Any | None = None,
+    source_section_ids: Sequence[str] | None = None,
     generated_at: str | None = None,
 ) -> RelatedSectionCandidateGeneration:
     """Build high-recall Related Section candidates from deterministic channels."""
 
+    start = time.perf_counter()
     generated_at = generated_at or _now()
     records = [_normalize_section(section) for section in sections]
     records_by_id = {record.source_section_id: record for record in records}
+    source_section_id_set = (
+        {str(section_id) for section_id in source_section_ids if str(section_id)}
+        if source_section_ids is not None
+        else None
+    )
+    if source_section_id_set is None:
+        source_records = records
+        candidate_generation_partial_mode = "full"
+    else:
+        source_records = [
+            record
+            for record in records
+            if record.source_section_id in source_section_id_set
+        ]
+        candidate_generation_partial_mode = "source_changed_only"
     metadata_by_id = _metadata_records(
         _first_not_none(section_metadata, metadata),
         records,
@@ -383,15 +405,36 @@ def generate_related_section_candidates_result(
 
     builders: dict[tuple[str, str], _CandidateBuilder] = {}
 
-    _add_markdown_link_candidates(builders, records, records_by_id, metadata_by_id, generated_at)
-    _add_shared_identifier_candidates(builders, records, metadata_by_id, generated_at)
-    _add_search_key_candidates(builders, records, metadata_by_id, generated_at)
-    _add_qdrant_section_hybrid_candidates(
+    _add_markdown_link_candidates(
         builders,
-        records,
+        source_records,
         records_by_id,
         metadata_by_id,
         generated_at,
+    )
+    _add_shared_identifier_candidates(
+        builders,
+        source_records,
+        metadata_by_id,
+        generated_at,
+        full_records=records,
+        source_section_ids=source_section_id_set,
+    )
+    _add_search_key_candidates(
+        builders,
+        source_records,
+        metadata_by_id,
+        generated_at,
+        full_records=records,
+        source_section_ids=source_section_id_set,
+    )
+    _add_qdrant_section_hybrid_candidates(
+        builders,
+        source_records,
+        records_by_id,
+        metadata_by_id,
+        generated_at,
+        full_records=records,
         top_k=section_top_k,
         dense_threshold=section_dense_threshold,
         final_top_n=section_final_top_n,
@@ -403,8 +446,20 @@ def generate_related_section_candidates_result(
     all_candidates = [builder.to_candidate() for builder in builders.values()]
     candidates, diagnostics, counts, dropped_counts = _limit_candidates_by_source(
         all_candidates,
-        records,
+        source_records,
         limits_config,
+    )
+    elapsed_sec = time.perf_counter() - start
+    diagnostics.append(
+        _diagnostic(
+            "related_section_candidate_generation_scope",
+            "Related Section candidates were generated for the selected source scope.",
+            stage=RELATED_SECTIONS_SOURCE,
+            severity="info",
+            candidate_generation_partial_mode=candidate_generation_partial_mode,
+            candidate_generation_source_count=len(source_records),
+            candidate_generation_elapsed_sec=elapsed_sec,
+        ),
     )
     return RelatedSectionCandidateGeneration(
         related_section_candidates=candidates,
@@ -412,6 +467,7 @@ def generate_related_section_candidates_result(
         candidate_count_by_source=counts,
         dropped_candidate_count_by_source=dropped_counts,
         generated_at=generated_at,
+        elapsed_sec=elapsed_sec,
     )
 
 
@@ -467,6 +523,7 @@ def select_related_sections_result(
 ) -> RelatedSectionSelection:
     """Run LLM selection over CLI-generated candidates only."""
 
+    start = time.perf_counter()
     generated_at = generated_at or _now()
     records = [_normalize_section(section) for section in sections]
     records_by_id = {record.source_section_id: record for record in records}
@@ -492,11 +549,13 @@ def select_related_sections_result(
     effort = _config_value(llm_config, "effort", None)
 
     candidate_input = _first_not_none(candidates, related_section_candidates)
+    requested_source_input = _first_not_none(source_section_ids, reevaluate_section_ids)
     if candidate_input is None:
         candidate_input = generate_related_section_candidates_result(
             records,
             section_metadata=metadata_by_id,
             limits=limits_config,
+            source_section_ids=requested_source_input,
             generated_at=generated_at,
         )
     candidate_items = _coerce_candidate_items(candidate_input)
@@ -504,7 +563,7 @@ def select_related_sections_result(
 
     requested = _requested_source_ids(
         records,
-        _first_not_none(source_section_ids, reevaluate_section_ids),
+        requested_source_input,
     )
     related_by_source: dict[str, list[dict[str, Any]]] = {}
     diagnostics: list[dict[str, Any]] = []
@@ -724,6 +783,7 @@ def select_related_sections_result(
         llm_results=llm_results,
         llm_calls=len(llm_results),
         generated_at=generated_at,
+        elapsed_sec=time.perf_counter() - start,
     )
 
 
@@ -1078,6 +1138,8 @@ def generate_related_sections_result(
         "related_candidate_limit_events": _related_candidate_limit_events(
             candidate_generation.diagnostics,
         ),
+        "candidate_generation_elapsed_sec": candidate_generation.elapsed_sec,
+        "selection_elapsed_sec": selection.elapsed_sec,
         "sections": selection.sections,
         "diagnostics": diagnostics,
         "generated_at": generated_at,
@@ -1134,6 +1196,7 @@ def generate_related_sections_partial_result(
         config=config,
         project_config=project_config,
         limits=limits,
+        source_section_ids=changed_sources_in_order,
         generated_at=generated_at,
     )
     filtered_candidates = [
@@ -1209,6 +1272,10 @@ def generate_related_sections_partial_result(
         removed_source_section_ids=removed_source_ids,
         candidate_count=len(candidate_generation.related_section_candidates),
         candidate_count_for_selection=len(filtered_candidates),
+        candidate_generation_elapsed_sec=candidate_generation.elapsed_sec,
+        candidate_generation_partial_mode="source_changed_only",
+        candidate_generation_source_count=len(changed_sources_in_order),
+        selection_elapsed_sec=selection.elapsed_sec,
         selection_source_count=len(changed_sources_in_order),
         inherited_source_count=len(inherited_source_ids),
         removed_source_count=len(removed_source_ids),
@@ -1223,6 +1290,7 @@ def generate_related_sections_partial_result(
         llm_results=selection.llm_results,
         llm_calls=selection.llm_calls,
         generated_at=generated_at,
+        elapsed_sec=selection.elapsed_sec,
     )
     diagnostics = candidate_generation.diagnostics + final_selection.diagnostics
     artifact = {
@@ -1246,6 +1314,8 @@ def generate_related_sections_partial_result(
         "related_candidate_limit_events": _related_candidate_limit_events(
             candidate_generation.diagnostics,
         ),
+        "candidate_generation_elapsed_sec": candidate_generation.elapsed_sec,
+        "selection_elapsed_sec": selection.elapsed_sec,
         "sections": final_sections,
         "diagnostics": diagnostics,
         "generated_at": generated_at,
@@ -1417,7 +1487,7 @@ def _add_markdown_link_candidates(
     metadata_by_id: Mapping[str, _MetadataRecord],
     generated_at: str,
 ) -> None:
-    resolver = _MarkdownLinkResolver(records)
+    resolver = _MarkdownLinkResolver(list(records_by_id.values()))
     for source in records:
         for link_text, target_text in _markdown_links(source.text):
             target_id = resolver.resolve(source, target_text)
@@ -1440,22 +1510,27 @@ def _add_shared_identifier_candidates(
     records: Sequence[_SectionRecord],
     metadata_by_id: Mapping[str, _MetadataRecord],
     generated_at: str,
+    *,
+    full_records: Sequence[_SectionRecord] | None = None,
+    source_section_ids: set[str] | None = None,
 ) -> None:
+    index_records = full_records if full_records is not None else records
     index = _inverted_terms(
         {
             record.source_section_id: _filter_specific_terms(
                 _metadata_for(record, metadata_by_id).identifiers
             )
-            for record in records
+            for record in index_records
         },
     )
     _add_index_candidates(
         builders,
         index,
-        records,
+        index_records,
         metadata_by_id,
         generated_at,
         channel=SHARED_IDENTIFIER,
+        source_section_ids=source_section_ids,
     )
 
 
@@ -1464,22 +1539,27 @@ def _add_search_key_candidates(
     records: Sequence[_SectionRecord],
     metadata_by_id: Mapping[str, _MetadataRecord],
     generated_at: str,
+    *,
+    full_records: Sequence[_SectionRecord] | None = None,
+    source_section_ids: set[str] | None = None,
 ) -> None:
+    index_records = full_records if full_records is not None else records
     index = _inverted_terms(
         {
             record.source_section_id: _filter_specific_terms(
                 _metadata_for(record, metadata_by_id).search_keys
             )
-            for record in records
+            for record in index_records
         },
     )
     _add_index_candidates(
         builders,
         index,
-        records,
+        index_records,
         metadata_by_id,
         generated_at,
         channel=SEARCH_KEY_MATCH,
+        source_section_ids=source_section_ids,
     )
 
 
@@ -1490,6 +1570,7 @@ def _add_qdrant_section_hybrid_candidates(
     metadata_by_id: Mapping[str, _MetadataRecord],
     generated_at: str,
     *,
+    full_records: Sequence[_SectionRecord] | None = None,
     top_k: int,
     dense_threshold: float = 0.0,
     final_top_n: int = 0,
@@ -1501,6 +1582,7 @@ def _add_qdrant_section_hybrid_candidates(
 
     if not records or top_k <= 0:
         return
+    index_records = full_records if full_records is not None else records
     try:
         from spec_grag.retrieval_index import (
             InMemoryHybridRetriever,
@@ -1518,10 +1600,10 @@ def _add_qdrant_section_hybrid_candidates(
             "source_hash": record.source_hash,
             "semantic_hash": record.semantic_hash,
         }
-        for record in records
+        for record in index_records
     ]
     metadata_for_payload: dict[str, dict[str, Any]] = {}
-    for record in records:
+    for record in index_records:
         metadata = _metadata_for(record, metadata_by_id)
         metadata_for_payload[record.source_section_id] = {
             "summary": metadata.summary,
@@ -1601,12 +1683,15 @@ def _add_index_candidates(
     generated_at: str,
     *,
     channel: str,
+    source_section_ids: set[str] | None = None,
 ) -> None:
     records_by_id = {record.source_section_id: record for record in records}
     for term, section_ids in index.items():
         if len(section_ids) <= 1:
             continue
         for source_id in section_ids:
+            if source_section_ids is not None and source_id not in source_section_ids:
+                continue
             source = records_by_id[source_id]
             for target_id in section_ids:
                 if source_id == target_id:

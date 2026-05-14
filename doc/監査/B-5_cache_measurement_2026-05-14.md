@@ -257,6 +257,56 @@ B-7 Phase 1 で固定した不変条件 (regression test `test_b7_related_sectio
 - removed source は artifact から除外、removed target を含む inherited relation は除外
 - diagnostics に partial の制限を明示 (`partial_mode=source_changed_only`、`changed_target_relations_inherited=True`、`requires_full_regeneration_for_complete_target_recheck=True`)
 
+### 4.x.2.2 B-7a 実装後の S2 計測 (2026-05-14, candidate generation の source partial 化)
+
+B-7a (CODEX rescue 実装 + Claude main 監査 + 真の partial 化検証用 assertion 追加) を `/tmp/spec_grag_b5_measure/` で実機計測:
+
+| metric | B-7 Phase 1 (S2) | **B-7a 完了 (S2)** | 改善 |
+|---|---|---|---|
+| wall | 61.7s | **16.3s** | -45.4s (-74%) |
+| `section_collection_upsert.elapsed` | 9.2s | 9.2s | 不変 |
+| `related_sections.action` | regenerated_partial | regenerated_partial | 不変 |
+| `related_sections.batch_count` | 1 | 1 | 不変 |
+| **`related_sections.elapsed_sec`** | **50.4s** | **4.666s** ✓ | -45.7s (1/10 以下達成) |
+| `candidate_generation_elapsed_sec` | (計測なし) | **4.52s** | (新計測) |
+| `selection_elapsed_sec` | (計測なし) | **0.017s** | (新計測) |
+| `candidate_generation_partial_mode` | (n/a) | **`source_changed_only`** ✓ | |
+| `candidate_generation_source_count` | (n/a) | **1** ✓ | |
+
+**検証条件 B (`elapsed_sec が initial build の 1/10 以下、5s 未満`) を達成** ✓
+
+stage 別 timing の内訳明示により、Phase 1 で間接推論した「主因は candidate generation」が厳密確定:
+
+- candidate generation: 4.52s (= related_sections elapsed の 97%)
+- selection (LLM batch typing): 0.017s (= fake LLM 1 batch、極小)
+
+Phase 1 の 50.4s から 4.7s への削減 (~46s 短縮) の **ほぼ全部** が candidate generation の partial 化に起因。Phase 1 推定 (`generate_related_section_candidates_result(sections=all_sections)` が dominant) は完全に裏付けられた。
+
+実装本物性の検証 (Claude main 監査による逆方向検証):
+
+- `_CoreFakeEmbeddingProvider.embed_query` の呼び出し回数 (`query_calls`) は `InMemoryHybridRetriever` が内部に持つ default `FakeBgeM3EmbeddingProvider` を使うため install fake には流れず検証指標として無効
+- 代わりに `generate_related_section_candidates_result` 内部で生成される `related_section_candidate_generation_scope` diagnostic を assertion 対象に追加。これは core.py や `partial_diagnostic` の固定値ではなく、`source_records` の絞り込みを直接反映する
+- `if source_section_id_set is None or True:` (= partial 強制無効) で test を再実行 → `assert 'full' == 'source_changed_only'` で fail することを確認 (= test が真に内部 partial 化を検証している決定的証拠)
+
+S2 wall 16.3s の段階別内訳概算:
+
+| stage | elapsed |
+|---|---|
+| start (config load + manifest 読込) | ~0.7s |
+| section_metadata (cache hit 50/51) | ~0.01s |
+| section_collection_upsert (B-3b/B-5a partial) | 9.2s |
+| related_sections (B-7a partial) | **4.666s** |
+| chapter_anchors | ~0.003s |
+| その他 (verify_index disabled, etc.) | ~2.4s |
+
+S0 initial 99s に対し S2 16.3s = **83.5% 削減**。incremental の利用者価値が実現された。
+
+B-7a で固定した不変条件 (regression test `test_b7a_related_sections_candidate_generation_source_partial` で常時検証):
+
+- `generate_related_section_candidates_result` の `source_section_ids` 引数が None でない場合、`source_records` を絞り込んで `_add_*_candidates` に渡す
+- `candidate_generation_partial_mode == "source_changed_only"`、`candidate_generation_source_count == 1` の表明が `related_section_candidate_generation_scope` diagnostic に出る (core.py / partial_diagnostic の固定値経由ではなく、`generate_related_section_candidates_result` 内部の真値)
+- `RelatedSectionCandidateGeneration` と `RelatedSectionSelection` の `elapsed_sec` field に stage 別計測値を持つ
+
 ## 5. 残範囲 / 未検証 / scope 外
 
 - cache GC の incremental 経路における削除条件 (S2→S3 で旧 Section 01 entry が削除された一方、S4 では旧 prompt_version entry が削除されない違い) の真因は本書では追跡していない。B-5 task scope は「entry 単位再構築の達成確認」のみ。GC 挙動の文書化が必要なら別 task として切り出す候補

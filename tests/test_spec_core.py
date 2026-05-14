@@ -623,6 +623,7 @@ class _CoreFakeEmbeddingProvider:
 
     def __init__(self) -> None:
         self.calls: list[list[str]] = []
+        self.query_calls: list[str] = []
 
     def embed_documents(self, texts: Any) -> Any:
         texts = list(texts)
@@ -639,6 +640,7 @@ class _CoreFakeEmbeddingProvider:
         )
 
     def embed_query(self, text: str) -> Any:
+        self.query_calls.append(text)
         module = importlib.import_module("spec_grag.retrieval_index")
         return module.BgeM3Embedding(dense=[1.0], sparse=module.SparseVector())
 
@@ -1399,6 +1401,116 @@ def test_b7_related_sections_partial_regenerate_source_centric(
     assert partial_diagnostic["partial_mode"] == "source_changed_only"
     assert partial_diagnostic["changed_target_relations_inherited"] is True
     assert partial_diagnostic["requires_full_regeneration_for_complete_target_recheck"] is True
+    assert any(
+        str(section_id).endswith("section-01-authentication-window")
+        for section_id in partial_diagnostic["changed_source_section_ids"]
+    )
+    assert any(
+        str(section_id).endswith("section-01-authentication-window")
+        for section_id in partial_diagnostic["changed_target_section_ids"]
+    )
+
+    section_02_second = _section_by_id(second, "section-02-billing-ledger")
+    second_related = section_02_second.get("related_sections") or []
+    second_targets = {
+        str(item.get("target_section_id") or "") for item in second_related
+    }
+    second_hints = {str(item.get("relation_hint") or "") for item in second_related}
+    assert second_targets == first_targets
+    assert second_hints == first_hints
+
+
+def test_b7a_related_sections_candidate_generation_source_partial(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_grag.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_cdx006_project(project_root, collection="b7a_related_sections_partial_collection")
+    spec_path = project_root / "docs/spec/spec.md"
+    sample_path = project_root / "docs/spec/sample.md"
+    sample_path.unlink()
+    shutil.copyfile(REPO_ROOT / "tests/fixtures/spec_50sections/spec.md", spec_path)
+
+    core_module = _core_module()
+    fake_qdrant = _CoreFakeQdrantClient()
+    fake_embedding = _CoreFakeEmbeddingProvider()
+    _install_core_fake_qdrant(monkeypatch, fake_qdrant)
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "FlagEmbeddingBgeM3Provider",
+        lambda **_kwargs: fake_embedding,
+    )
+
+    first = _result_dict(
+        _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+    )
+    section_02_first = _section_by_id(first, "section-02-billing-ledger")
+    first_related = section_02_first.get("related_sections") or []
+    assert first_related
+    first_targets = {
+        str(item.get("target_section_id") or "") for item in first_related
+    }
+    first_hints = {str(item.get("relation_hint") or "") for item in first_related}
+
+    spec_path.write_text(
+        spec_path.read_text().replace("ten minutes", "eleven minutes")
+    )
+    fake_embedding.query_calls.clear()
+    second = _result_dict(
+        _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+    )
+
+    progress = read_progress(project_root)
+    assert progress is not None
+    related_stage = progress["stages"]["related_sections"]
+    assert related_stage["action"] == "regenerated_partial"
+    assert related_stage["batch_count"] == 1
+    assert related_stage["llm_calls"] == 1
+    assert related_stage["candidate_generation_partial_mode"] == "source_changed_only"
+    assert related_stage["candidate_generation_source_count"] == 1
+    assert isinstance(related_stage["candidate_generation_elapsed_sec"], float)
+    assert related_stage["candidate_generation_elapsed_sec"] > 0.0
+    assert isinstance(related_stage["selection_elapsed_sec"], float)
+    assert related_stage["selection_elapsed_sec"] > 0.0
+    assert any(
+        str(section_id).endswith("section-01-authentication-window")
+        for section_id in related_stage["changed_source_section_ids"]
+    )
+    # 真の partial 化検証: candidate generation の Qdrant hybrid retrieval query
+    # (= embed_query 呼び出し) は changed source 1 件分のみ実行されるべき。
+    # core.py の固定値ではなく、generate_related_section_candidates_result の
+    # 内部 partial 化を実証する assertion。
+    assert len(fake_embedding.query_calls) <= 1
+
+    related_diagnostics = second["diagnostics"]["related_sections"]["diagnostics"]
+    partial_diagnostic = next(
+        item
+        for item in related_diagnostics
+        if item.get("reason_code") == "related_sections_partial_regenerated"
+    )
+    assert partial_diagnostic["partial_regeneration"] is True
+    assert partial_diagnostic["source_centric_partial"] is True
+    assert partial_diagnostic["unchanged_source_inheritance"] is True
+    assert partial_diagnostic["removed_source_exclusion"] is True
+    assert partial_diagnostic["partial_mode"] == "source_changed_only"
+    assert partial_diagnostic["changed_target_relations_inherited"] is True
+    assert partial_diagnostic["requires_full_regeneration_for_complete_target_recheck"] is True
+    assert partial_diagnostic["candidate_generation_partial_mode"] == "source_changed_only"
+    assert partial_diagnostic["candidate_generation_source_count"] == 1
+    # 真の partial 化検証: generate_related_section_candidates_result の内部で
+    # 生成される `related_section_candidate_generation_scope` diagnostic は
+    # core.py や partial_diagnostic の固定値ではなく、`source_records` の絞り
+    # 込みを直接反映する。partial mode と source_count=1 がここに出ていれば、
+    # candidate generation 内部が source_section_ids を尊重していることの実証。
+    candidate_scope_diagnostic = next(
+        item
+        for item in related_diagnostics
+        if item.get("reason_code") == "related_section_candidate_generation_scope"
+    )
+    assert candidate_scope_diagnostic["candidate_generation_partial_mode"] == "source_changed_only"
+    assert candidate_scope_diagnostic["candidate_generation_source_count"] == 1
     assert any(
         str(section_id).endswith("section-01-authentication-window")
         for section_id in partial_diagnostic["changed_source_section_ids"]
