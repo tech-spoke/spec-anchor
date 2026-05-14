@@ -39,8 +39,8 @@
 | AUD-003 | 採用 / 修正済み | 残 TODO なし。B-3a (commit `202af3d`) で修正済み。詳細は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` を参照 |
 | AUD-004 | 採用 / 修正済み | 残 TODO なし。詳細は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` を参照 |
 | AUD-005 | 既対応 / 方針確定 | 本文 chunking / 本文 embedding は行わない。`search_keys` / `identifiers` と Agentic Search で補う方針として B-2 の scope 外に明記 |
-| AUD-006 | 保留 / 未修正 | 「開放中」に残 TODO として詳細を保持 |
-| AUD-007 | 保留 / 未修正 | 「開放中」に残 TODO として詳細を保持 |
+| AUD-006 | 保留 / 方針再検討済み (2026-05-14) | 「開放中」に残 TODO として詳細を保持。当初の degraded 反映方針は破棄し、**通常モードでは mechanical fallback を failed 扱い・canonical 保存しない** 方針に切り替えた |
+| AUD-007 | 保留 / 方針再検討済み (2026-05-14) | 「開放中」に残 TODO として詳細を保持。当初の diagnostics 表出方針は弱いと判定し、**Qdrant 設定済みなのに InMemory fallback した場合は通常モードで failed 扱い** へ切り替えた |
 
 ### CDX 監査 (2026-05-13 B-3b 実装監査)
 
@@ -68,149 +68,166 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-5**: section_metadata / related_typing cache の現状確認 (調査のみ)
-2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-3. **AUD-006 / AUD-007**: Chapter Anchors / Related Sections fallback の freshness 反映 (外部契約上の freshness 表現確定が必要、判断要)
+1. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+2. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+3. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+
+B-5 (section_metadata / related_typing cache の現状確認) は 2026-05-14 に Claude main agent が直接計測して結論 (a) (既存実装で satisfied) を確定。計測結果は `doc/監査/B-5_cache_measurement_2026-05-14.md`、cache 経路の現実装は `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。
 
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
-### AUD-006: Chapter Anchors fallback の freshness degraded 反映
+### AUD-006: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする
 
 #### 背景
 
 `doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-006 で、Chapter Anchors の LLM fallback が artifact success として扱われ、freshness に degraded として反映されない risk が指摘された。
 
+当初の TODO 起票時 (2026-05-13) は「`fallback_chapter_ids` を degraded optional artifact として freshness に渡す」方針だったが、2026-05-14 の再検討で **通常モードでは mechanical fallback を failed として扱う** 方針に切り替えた。degraded で先に進める設計は「動いているように見えるが品質保証されていない」状態を許容してしまい、Purpose (章単位 key anchor を見失わない) を満たさないため。
+
 #### 真因 / 仮説
 
-確定。mechanical fallback は可用性維持として妥当だが、LLM-generated anchor と品質差がある。
+確定。mechanical fallback ([`_mechanical_anchor()`](spec_grag/chapter_anchors.py#L459-L484)) は「LLM が章を読んで統合した anchor」ではなく「section metadata を機械的に連結した placeholder」であり、LLM-generated anchor と品質差がある。
+
+具体差分:
+
+- `summary`: LLM 章俯瞰要約 → 各 section の `summary` を `" / "` で連結しただけ
+- `key_topics`: LLM 章抽出 (最大 6 件) → 各 section の `search_keys` 先頭 1 件を連結 (最大 6 件)
+- `important_sections`: LLM 選定 (最大 5 件) → 章の **先頭 3 section** を機械的に固定
+- `notes`: LLM 補足 (最大 3 件) → **空 list**
+
+これを canonical artifact として [`status: "success"`](spec_grag/chapter_anchors.py#L260-L272) で保存・参照させると、Agent は freshness が fresh の場合に「LLM 品質の章 anchor が揃っている」と誤判定する。
 
 #### 目的
 
-Chapter Anchors が mechanical fallback になった場合、Agent が品質差を見落とさないよう freshness warning / diagnostics に表出する。
+mechanical fallback を canonical な Chapter Anchors artifact として success 扱いさせない。Agent が後段の Agentic Search / `/spec-inject` で「LLM 品質の章 anchor」が存在すると誤判定するのを防ぐ。
 
 #### 実装方針
 
-- `fallback_chapter_ids` が存在する場合に degraded optional artifact として freshness に渡す
-- CoreResult の warnings / diagnostics に対象 chapter id を残す
-- fallback が発生しても source metadata generation の成功とは別に判定する
+##### 仮称定義: explicit best-effort mode
+
+ルール 6 (新規用語は範囲を先に明示) に従い、本 task で導入を検討する mode を次のように定義する。
+
+- 仮称: explicit best-effort mode
+- 意味: 利用者が CLI flag (`--allow-mechanical-anchors` 等、命名は実装時に確定) を明示指定したときのみ、mechanical fallback を degraded artifact として保存することを許可する mode
+- 含む: Chapter Anchors の mechanical fallback の degraded 保存許可
+- 含まない: 他 artifact (section_metadata / related_sections / retrieval_index) の fallback 許可、freshness の failed/degraded 全般の表現変更
+- 既存概念との差分: 既存には best-effort mode 概念は無い。導入する場合は外部契約 (`doc/EXTERNAL_DESIGN.ja.md`) への追記が必要
+- 未決: そもそも導入するか (人間判断要)。導入する場合の flag 名、CLI exit code、複数回 run 跨ぎでの cache invalidation 挙動
+
+##### 通常モード (default) の挙動
+
+1. `generate_chapter_anchors()` で `fallback_chapter_ids` が 1 件でも発生したら、artifact `status` を `"failed"` または `"partial_failed"` にする
+2. mechanical fallback の anchor 内容は canonical artifact (`.spec-grag/chapter_anchors.json`) として書き込まない
+3. 失敗した chapter id / 失敗理由 / mechanical preview は CoreResult diagnostics に残してよい (Agent / human review 用)
+4. core の最終結果も `chapter_anchors` を required artifact failure として扱い、`status: "failed"` を返す
+5. freshness 側は `failed_required_artifacts` に `chapter_anchors` を含めて failed と判定する
+
+##### explicit best-effort mode の挙動 (人間判断で採否確定)
+
+1. CLI で `--allow-mechanical-anchors` を指定した run のみ、mechanical fallback を canonical artifact として書き込む
+2. artifact `status` は `"degraded"`、`fallback_chapter_ids` を必ず含める
+3. freshness は `degraded`、`warning` に「Chapter anchors were generated mechanically because LLM generation failed.」相当を出す
 
 #### 検証条件
 
-- Chapter Anchors provider failure 時に `freshness_report.status == "degraded"` または warning が出る
-- fallback chapter id が CoreResult diagnostics から確認できる
+- LLM provider failure を fake provider で再現したとき、通常モードでは `chapter_anchors` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `chapter_anchors` が含まれる
+- 通常モードで CoreResult diagnostics に「どの chapter で fallback が起きたか / 失敗理由」が残る
+- 既存の no-change fast path (前回の正常な LLM anchor が cache hit する経路) では LLM call なしで success のまま (本変更が成功経路へ regression しない)
+- explicit best-effort mode を採用した場合、`--allow-mechanical-anchors` 指定時のみ mechanical anchor が `status: "degraded"` で書き込まれ、`fallback_chapter_ids` と warning が含まれる
+- `tests/test_chapter_anchors.py` 等で provider missing / provider failure / unparseable response の 3 ケースを通常モード (および best-effort mode を採用するならそちらも) で分けて検証
 
 #### 依存 / scope 外
 
-外部契約上、fallback を failed にするか degraded にするかの表現は既存設計の文言と揃える必要がある。
+- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Chapter Anchors / freshness 仕様に「mechanical fallback は通常モードでは canonical artifact として保存せず、Chapter Anchors を required artifact failure として freshness を failed にする」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
+- AUD-007 (Related Sections の Qdrant fallback) とは「失敗対象」が異なる: AUD-006 は **artifact の中身そのもの (semantic artifact generation failure)** の品質低下、AUD-007 は **設定された retrieval backend を使えなかった (configured retrieval backend failure)** 経路差。ただし運用上の結論は同じで、両方とも「通常モードでは failed、明示 best-effort のときだけ degraded」に揃える
+- 既存の `core` 経路で `chapter_anchors_status` を返す箇所 (`spec_grag/core.py`) と、`run_inject_search()` / Agentic Search が anchor を読む経路の両方を一貫させる
+- 人間判断要 (実装着手前に確定):
+  - explicit best-effort mode を導入するか、それとも「mechanical fallback は一切 canonical 保存しない、CLI で明示しても禁止」とするか
+  - 後者の場合、`generate_chapter_anchors()` の `_mechanical_anchor()` 自体を削除する選択肢もある (ルール 15: 機能廃止は根絶)。残す場合は「diagnostics preview 用のみ」と用途を明示する
 
-### AUD-007: Related Sections の Qdrant fallback diagnostics
+### AUD-007: Related Sections の Qdrant fallback を通常モードで failed 扱いにする
 
 #### 背景
 
 `doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-007 で、Related Sections が Qdrant retriever 初期化失敗時に InMemory fallback しても、diagnostics へ十分に表出しない risk が指摘された。
 
-#### 真因 / 仮説
+当初の TODO 起票時 (2026-05-13) は「Qdrant retriever 初期化失敗を candidate generation diagnostics に残し、core の `related_sections_status` または warnings に fallback 情報を反映する」方針だったが、2026-05-14 の再検討で **diagnostics 表出だけでは弱く、Qdrant 設定済みなのに InMemory fallback した場合は通常モードで failed として扱う** 方針に切り替えた。
 
-確定。fallback 自体は処理継続のために妥当だが、Qdrant hybrid retrieval を期待した設定との差分を Agent / operator が判別しにくい。
-
-#### 目的
-
-Related Sections candidate generation が実 Qdrant ではなく InMemory fallback を使った場合、CoreResult / artifact diagnostics から判定できるようにする。
-
-#### 実装方針
-
-- Qdrant retriever 初期化失敗を candidate generation diagnostics に残す
-- core の `related_sections_status` または warnings に fallback 情報を反映する
-- fallback path と real Qdrant path を test で分けて検証する
-
-#### 検証条件
-
-- Qdrant 接続失敗時に `related_sections` diagnostics に fallback reason が入る
-- Qdrant 正常時には fallback diagnostics が出ない
-- freshness の failed / degraded との関係を設計文書に合わせて固定する
-
-#### 依存 / scope 外
-
-Related Sections は evidence ではなく retrieval auxiliary のため、freshness を failed にするか degraded にするかは AUD-006 と同じく表現を揃える必要がある。
-
-### B-5: section_metadata / related_typing cache の現状確認と追加改善余地の確定
-
-#### 背景
-
-B-2 計画書本文で「LLM cache (section_metadata, related_typing) のエントリ単位再構築は本 task と直交」と書いた。しかし実コード確認で、`SectionMetadataCache` ([spec_grag/section_metadata.py:170](spec_grag/section_metadata.py#L170)) は `section_metadata_cache_key(...)` で section 単位、`RelatedTypingCache` ([spec_grag/related_typing_cache.py:48](spec_grag/related_typing_cache.py#L48)) は `make_related_typing_cache_key(...)` で (source, target) pair 単位の entry cache が **既に存在する** ことが分かった。
-
-つまり B-2 計画書の「直交」表現は実態と合っていない可能性があり、エントリ単位再構築は既に satisfied の可能性が高い。新規 task として独立した実装方針を書く前に、現状の cache 経路で **何が既に削減されており、何が削減できていないか** を計測で確定する必要がある。
+「動いたように見えるが、本番で期待した retrieval backend ではない」状態を success にすると、AUD-006 と同じく「動いているように見えるが品質保証されていない」設計になるため。
 
 #### 真因 / 仮説
 
-未確定。実コードで確認できているのは次まで:
+確定。fallback 自体は処理継続のために妥当だが、production 設定 (`vector_store.provider = qdrant`、`url` 設定済み、embedding provider = flagembedding) で Qdrant retriever 初期化に失敗して InMemory に落ちる場合、それは「Qdrant が使えなかったが代替で処理を続けた」のではなく production contract 的には「**設定された retrieval backend を使えなかった**」状態である。
 
-- `SectionMetadataCache` は `section_metadata_cache_key(source_section_id, source_hash, semantic_hash, metadata_version, prompt_version, enabled_fields, limits)` で entry key を作る ([spec_grag/section_metadata.py:562](spec_grag/section_metadata.py#L562))
-- `RelatedTypingCache` は (source_section_id, target_section_id) pair に対する key を持つ
-- `generate_section_metadata_result` で `cache.get(cache_key)` がヒットすれば LLM call を skip する経路がある ([spec_grag/section_metadata.py:300](spec_grag/section_metadata.py#L300) 周辺)
-
-未確認:
-
-- `--all` 実行時の cache invalidation がどの範囲で起きるか
-- section 順序変更 / chapter ファイル名変更で `source_section_id` が変わった場合に cache 全 miss するか (semantic_hash 一致でも key が変わる risk)
-- partial change で changed section の隣接 (related_sections の target になる section) の typing cache が無効化される条件
-- `metadata_version` / `prompt_version` の bump で cache が一括 invalidate される現実装の挙動が想定通りか
+ただし、Qdrant 未設定で最初から InMemory を使う構成 (dev / test 用) は failed にしない。問題は「Qdrant を期待した設定なのに黙って InMemory に変わること」のみ。
 
 #### 目的
 
-現状の section_metadata / related_typing cache が「entry 単位での再構築」を実際に達成しているかを計測で確定する。確定後に次のいずれかへ振り分ける:
-
-- (a) 既存実装で satisfied → 本 task をクローズし、B-2 計画書本文の scope 外記述を訂正する
-- (b) 一部 entry が不要に invalidate される経路がある → 該当経路の修正を新規 task として切り出す
-- (c) cache miss 時の LLM call が想定外に発生する経路がある → 該当箇所の修正を新規 task として切り出す
+Related Sections candidate generation が、Qdrant を期待した設定で実 Qdrant ではなく InMemory fallback を使った場合、production contract failure として canonical artifact / core 結果を success にしない。これにより Agent / operator が「本番で期待した経路を使えなかった」事実を見落とさないようにする。
 
 #### 実装方針
 
-本 task は「調査と確定」task。実装方針は調査後に確定する。調査手順:
+##### 状況区分と扱い
 
-1. cache hit / miss を区別する telemetry を `SectionMetadataCache` / `RelatedTypingCache` に追加 (B-2 で導入した env-gated debug log と同パターン)
-2. 50 section 合成 fixture で次のシナリオを計測:
-   - no-change incremental (B-2 fast path で skip するため cache 経路自体に入らない想定)
-   - 1 section の source 変更 (changed section のみ cache miss する想定)
-   - 1 section の章タイトル変更で `source_section_id` 変化 (cache 全 miss の risk)
-   - `metadata_version` / `prompt_version` bump (意図的に cache を全 invalidate する想定)
-   - `--all` 実行 (cache をどこまで信頼するか実装に依存)
-3. 各シナリオで cache hit 率 / LLM call 回数 / wall time を記録
-4. 想定と異なる経路があれば、その経路の真因を確定して新規 task に切り出す
-5. 想定通りなら本 task をクローズし、B-2 計画書本文の「直交」表現を「既存実装で達成済み」に訂正する
+| 状況 | 扱い |
+| --- | --- |
+| Qdrant 未設定 (`vector_store.provider` が `qdrant` でない、または `url` 未設定) で InMemory を使う | `success` のまま (本 task の対象外) |
+| dev / test 用に明示的に InMemory を指定 | `success` のまま (本 task の対象外) |
+| Qdrant 設定済みで初期化失敗 → InMemory fallback | **`failed`** (本 task の対象、通常モード default) |
+| 明示的な best-effort mode (`--allow-retrieval-fallback` または `--best-effort`、命名は AUD-006 と揃える) で fallback 許可 | `degraded` |
+| diagnostics にだけ記録して `success` | 不十分 (旧 TODO 案、破棄) |
+
+##### 通常モード (default) の挙動
+
+1. `_add_qdrant_section_hybrid_candidates()` ([spec_grag/related_sections.py:1304](spec_grag/related_sections.py#L1304)) または周辺で Qdrant retriever 初期化失敗を検知した時点で、上位 (`_generate_related_sections()` ([spec_grag/core.py:1549](spec_grag/core.py#L1549)) 側) へ「expected_backend = qdrant、actual_backend = in_memory、fallback_reason」を伝搬する。現状の例外握り潰し + `retriever = None` ([spec_grag/related_sections.py:1355-1365](spec_grag/related_sections.py#L1355-L1365)) は不十分なので戻り値または diagnostics 経由で伝搬する形に変える
+2. `related_sections` を required artifact failure として扱い、core の `status` を `"failed"` にし、`failed_required_artifacts` に `related_sections` を含める
+3. InMemory fallback で得られた candidate は canonical `related_sections` artifact として success 扱いで保存しない
+4. CoreResult diagnostics には次の構造で記録する (artifact 名 / field 名は実装時に既存契約と整合確認):
+
+   ```json
+   {
+     "related_sections": {
+       "status": "failed",
+       "expected_retrieval_backend": "qdrant",
+       "actual_retrieval_backend": "in_memory",
+       "fallback_used": true,
+       "fallback_reason": "Qdrant retriever initialization failed: <error>",
+       "qdrant_url_configured": true,
+       "embedding_provider": "flagembedding"
+     }
+   }
+   ```
+
+##### explicit best-effort mode の挙動 (人間判断で採否確定)
+
+AUD-006 で導入を検討する `explicit best-effort mode` (仮称) と同じ CLI flag (`--best-effort` または backend 別の `--allow-retrieval-fallback`) を共有する想定。指定時のみ次の挙動を許可する:
+
+1. InMemory fallback の candidate を `status: "degraded"` の artifact として保存
+2. diagnostics に通常モードと同じ field + `allowed_by: "--best-effort"` (または相当 flag 名) を残す
+3. freshness は `degraded`、warning に「Configured retrieval backend (qdrant) was not available; in-memory fallback was used.」相当を出す
 
 #### 検証条件
 
-A. **計測結果のドキュメント化**
-- 上記 5 シナリオの cache hit 率 / LLM call 回数 / wall time を表として `doc/監査/` 配下に残す
-- 結果に基づく結論 (a / b / c) を明示
-
-B. **(b) または (c) に振り分けた場合**
-- 新規 task (B-5a / B-5b など) を `doc/TODO.ja.md` に追加し、実装方針と検証条件を確定
-
-C. **(a) に振り分けた場合**
-- B-2 計画書本文の scope 外記述 (`doc/TODO.ja.md` の B-2 section 内 or DESIGN.ja.md) を訂正
-- 既存 cache 経路の動作を `doc/DESIGN.ja.md` (内部設計書) に追記し、Agent が将来同じ誤認をしないようにする
-
-#### 触れる主なファイル
-
-- [spec_grag/section_metadata.py](spec_grag/section_metadata.py): cache 経路の telemetry 追加 (調査後に元に戻す)
-- [spec_grag/related_typing_cache.py](spec_grag/related_typing_cache.py): cache 経路の telemetry 追加 (調査後に元に戻す)
-- [spec_grag/related_sections.py](spec_grag/related_sections.py): typing cache 利用箇所 ([spec_grag/related_sections.py:520](spec_grag/related_sections.py#L520) 周辺)
-- `doc/監査/` 配下に計測結果
-
-#### 完了条件
-
-- 5 シナリオの計測完了
-- 結論 (a / b / c) を確定し、それぞれの後続アクションを実施
-- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
+- Qdrant URL を設定したまま接続失敗を fake で再現したとき、通常モードでは `related_sections` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `related_sections` が含まれる
+- 同条件で CoreResult diagnostics に `expected_retrieval_backend = "qdrant"` / `actual_retrieval_backend = "in_memory"` / `fallback_reason` が記録される
+- Qdrant 未設定 (InMemory を最初から使う構成) では fallback diagnostics が出ず `success` のまま (本変更が dev / test 経路へ regression しない)
+- Qdrant 正常時には fallback diagnostics が出ず、real Qdrant retriever が使われたことが diagnostics から確認できる
+- explicit best-effort mode を採用した場合、`--best-effort` (または相当 flag) 指定時のみ InMemory fallback が `status: "degraded"` で書き込まれ、`allowed_by` が記録される
+- fallback path / real Qdrant path / Qdrant 未設定 (純 InMemory) path の 3 経路を test で分けて検証する
 
 #### 依存 / scope 外
 
-- **依存**: なし (B-2 / B-3 と独立に進められる)
-- **scope 外**:
-  - 新規 cache 機構の導入 (現状 cache で不足が確定した場合のみ別 task)
-  - cache の cross-run 永続化方針の見直し (現在は `.spec-grag/context/` に JSON で保存。これは既存契約)
+- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Related Sections / freshness 仕様に「Qdrant を期待した設定で初期化失敗時、通常モードでは Related Sections を failed として扱う。InMemory fallback は canonical production result にしない」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
+- AUD-006 と best-effort mode の CLI flag / 振る舞いを揃える: AUD-006 単独で導入するか、両者まとめて 1 つの flag (`--best-effort`) で覆うかは人間判断要。バラバラに導入すると CLI 表面が増える
+- AUD-006 との性質差:
+  - AUD-006 = semantic artifact generation failure (artifact 中身の品質低下)
+  - AUD-007 = configured retrieval backend failure (経路差: 設定 vs 実消費)
+  - 運用上の扱いは同じ (通常 = failed、明示 best-effort = degraded)
+- 既存の `core` 経路 ([spec_grag/core.py:1549](spec_grag/core.py#L1549) 以降) と `_add_qdrant_section_hybrid_candidates()` ([spec_grag/related_sections.py:1304](spec_grag/related_sections.py#L1304)) の戻り値契約を変える必要がある (現状は fallback 情報を上位に伝える戻り値経路を持たない)
+- 人間判断要 (実装着手前に確定):
+  - explicit best-effort mode を導入するか、それとも「Qdrant 設定済みなら fallback は常に failed、CLI で明示しても禁止」とするか
+  - 後者の場合、`_add_qdrant_section_hybrid_candidates()` の InMemory fallback path 自体を Qdrant 設定時には呼ばないよう削除する選択肢もある (ルール 15: 機能廃止は根絶)。残す場合は「Qdrant 未設定構成専用」と用途を明示する
+  - flag 名 (`--best-effort` 共通 / `--allow-retrieval-fallback` 個別) の選択
 
 ### B-6: core 開始時の Qdrant scroll コストの大規模 spec 計測
 
@@ -706,6 +723,123 @@ E. **既存 pytest の合格**
   - source spec 本文の content hash 検証: manifest 経由で間接的にしか見ない
 
 実装の事後変遷 (完了確認済み時点): B-3a + B-3b が先行完了したため、`--verify-index` は「ガード兼検出」役として機能する。stale point は通常 manifest diff で削除されるが、外部要因 (別 process upsert、Qdrant 側 corruption) で manifest と乖離した場合に本 flag が能動検出する。
+
+### B-5: section_metadata / related_typing cache の現状確認と追加改善余地の確定
+
+#### 状態
+
+採用 / 判定 (a) 既存実装で satisfied。実装差分は次のコミットで確定する予定 (本 commit 着手前は session working tree に保持):
+
+- `doc/監査/B-5_cache_measurement_2026-05-14.md` (新規): 5 シナリオ (S0〜S5) の実機計測結果表 + (a) 判定の根拠 + 副次観察 (cache GC 挙動、永続化 schema) + reproducer
+- `doc/DESIGN.ja.md` §3.6 (新規): `SectionMetadataCache` の entry 単位再構築と cache key 構成要素、永続化 schema (1 entry = 1 JSON file)、`--all` での全 wipe 挙動を 4 段落で記述
+- `doc/DESIGN.ja.md` §5.9 (新規): `RelatedTypingCache` の (source, target) pair 単位 entry cache と永続化 schema (1 file = 全 entry の JSON map)、計測結果から見る I/O コスト
+- `doc/TODO.ja.md` 「## 開放中」preamble の優先順位リスト更新 (B-5 を完了として除外、B-6 / AUD-006 / AUD-007 のみ残す)
+
+`spec_grag/section_metadata.py` / `spec_grag/related_typing_cache.py` / `spec_grag/related_sections.py` への production code 変更は 0 件 (`git diff -- spec_grag/` は空)。`SECTION_METADATA_PROMPT_VERSION` の一時変更 (S4 シナリオ用) も S5 直前に元の `section-metadata-v2` に戻して `git diff spec_grag/section_metadata.py` が空であることを確認済。
+
+#### 完了確認結果 (2026-05-14, Claude main agent 直接計測)
+
+Codex rescue subagent 経由で B-5 を投げたが、Codex の sandbox は spec-grag working dir には access できる一方 `curl http://localhost:6333/` への接続が deny されており (`Operation not permitted (os error 1)`、`/var/run/docker.sock` 権限不足)、real Qdrant を使う S0〜S5 シナリオが実行できなかった。Codex は forwarder Final report で正直にブロッカーを報告し (B-4 で踏んだ「venv 外 pytest の幻のエラーを scope 外で修正する」逸脱とは対照的、`git diff` 0 件)、本 session で Claude main agent が `/tmp/spec_grag_b5_measure/` を引き継いで 5 シナリオを直接計測した。
+
+計測結果 (`doc/監査/B-5_cache_measurement_2026-05-14.md` §2 集計表):
+
+- **S0 (initial build, clean state)**: cache_hits=0, llm_calls=7 batch (51 section 分), reused=0, generated=51, wall 96.0s, section_metadata cache files 0→51 (file-per-entry)、related_typing entries 0→1632
+- **S1 (no-change incremental)**: cache_hits=51, llm_calls=0, reused=51, all stages skipped_unchanged, wall 1.0s。B-2 fast path と entry 単位 cache は重ね合わせ動作 (section_metadata stage で cache 全件 hit を観測してから retrieval_index / related_sections の fast path が起動)
+- **S2 (1 section 本文編集)**: cache_hits=50, llm_calls=1, batch_sizes=[1], reused=50, generated=1, wall 94.6s。section_metadata cache files 51→52 (旧 entry が残る + 新 entry 追加)、related_typing entries +82 (Section 01 が source/target になる pair が再 typing)
+- **S3 (1 section heading 変更, source_section_id 変化)**: cache_hits=50, llm_calls=1, generated=1, wall 97.3s。cache files 52→52 (S2 で追加された旧 Section 01 entry が S3 で削除 + 新 Section 01A entry が追加 = incremental 経路の部分的 GC)、related_typing entries +82
+- **S4 (prompt_version "section-metadata-v2-b5probe" に一時 bump)**: cache_hits=0, llm_calls=7, generated=51, wall 1.2s。cache files 52→103 (旧 prompt_version の 52 entry はそのまま、新 prompt_version の 51 entry 追加)。retrieval_index / related_sections は skipped_unchanged 維持 (prompt_version は section_metadata 専用)
+- **S5 (`spec-grag core --all`, prompt_version 戻し済)**: cache_hits=0, llm_calls=7, generated=51, wall 94.1s。cache files 103→51 (`--all` で全 wipe + 新 51 entry)、related_typing entries 1796→1632 (S0 と同水準まで wipe)。`use_cache=False` 経路で LLM 由来 cache が全クリアされる外部設計書 §7 通りの動作
+
+判定根拠:
+
+- S2 / S3 の `cache_hits=50 + llm_calls=1` (= 変更 section だけ LLM 再生成、他 50 section は cache 経路で再利用) が **entry 単位再構築の実証**
+- S3 (`source_section_id` 変化) でも他 50 section の cache key は変わらず hit する → 「heading 変更で cache 全 miss する risk」は実態と異なる
+- S4 で全件 invalidate、S5 で全件 wipe + 再生成という挙動が外部設計書の `--all` 契約と整合
+- 5 シナリオすべてで「entry が不要に invalidate される経路」「cache miss 時の LLM call が想定外に発生する経路」は観測されず → (b) / (c) ではない
+
+副次観察 (B-5 scope 外、計測結果 doc に記録):
+
+- incremental 経路の cache file GC は部分的にのみ動作。S2 で +1 orphan、S3 で 1 個 cleanup されたが、S4 (prompt_version) の旧 entry は削除されない。`--all` が確実な reset 経路
+- `related_typing_cache.json` は 1 file = 全 entry の JSON map で、entry 追加時に file 全体を rewrite する。50 section / 1796 entry 規模では I/O コスト未観測 (S1 wall 1.0s)。大規模 spec (500 section, ~50000 entry) でのコストは B-6 検討範囲
+
+#### 背景 (開放中時代の原文を保持)
+
+B-2 計画書本文で「LLM cache (section_metadata, related_typing) のエントリ単位再構築は本 task と直交」と書いた。しかし実コード確認で、`SectionMetadataCache` ([spec_grag/section_metadata.py:170](spec_grag/section_metadata.py#L170)) は `section_metadata_cache_key(...)` で section 単位、`RelatedTypingCache` ([spec_grag/related_typing_cache.py:48](spec_grag/related_typing_cache.py#L48)) は `make_related_typing_cache_key(...)` で (source, target) pair 単位の entry cache が **既に存在する** ことが分かった。
+
+つまり B-2 計画書の「直交」表現は実態と合っていない可能性があり、エントリ単位再構築は既に satisfied の可能性が高い。新規 task として独立した実装方針を書く前に、現状の cache 経路で **何が既に削減されており、何が削減できていないか** を計測で確定する必要がある。
+
+#### 真因 / 仮説 (開放中時代の原文を保持)
+
+未確定。実コードで確認できているのは次まで:
+
+- `SectionMetadataCache` は `section_metadata_cache_key(source_section_id, source_hash, semantic_hash, metadata_version, prompt_version, enabled_fields, limits)` で entry key を作る ([spec_grag/section_metadata.py:562](spec_grag/section_metadata.py#L562))
+- `RelatedTypingCache` は (source_section_id, target_section_id) pair に対する key を持つ
+- `generate_section_metadata_result` で `cache.get(cache_key)` がヒットすれば LLM call を skip する経路がある ([spec_grag/section_metadata.py:300](spec_grag/section_metadata.py#L300) 周辺)
+
+未確認:
+
+- `--all` 実行時の cache invalidation がどの範囲で起きるか
+- section 順序変更 / chapter ファイル名変更で `source_section_id` が変わった場合に cache 全 miss するか (semantic_hash 一致でも key が変わる risk)
+- partial change で changed section の隣接 (related_sections の target になる section) の typing cache が無効化される条件
+- `metadata_version` / `prompt_version` の bump で cache が一括 invalidate される現実装の挙動が想定通りか
+
+実装の事後変遷 (完了確認済み時点): 「未確認」とした 4 項目すべて 2026-05-14 の Claude main agent 計測で確定 (上記 #### 完了確認結果 を参照)。
+
+#### 目的 (開放中時代の原文を保持)
+
+現状の section_metadata / related_typing cache が「entry 単位での再構築」を実際に達成しているかを計測で確定する。確定後に次のいずれかへ振り分ける:
+
+- (a) 既存実装で satisfied → 本 task をクローズし、B-2 計画書本文の scope 外記述を訂正する
+- (b) 一部 entry が不要に invalidate される経路がある → 該当経路の修正を新規 task として切り出す
+- (c) cache miss 時の LLM call が想定外に発生する経路がある → 該当箇所の修正を新規 task として切り出す
+
+#### 実装方針 (開放中時代の原文を保持)
+
+本 task は「調査と確定」task。実装方針は調査後に確定する。調査手順:
+
+1. cache hit / miss を区別する telemetry を `SectionMetadataCache` / `RelatedTypingCache` に追加 (B-2 で導入した env-gated debug log と同パターン)
+2. 50 section 合成 fixture で次のシナリオを計測:
+   - no-change incremental (B-2 fast path で skip するため cache 経路自体に入らない想定)
+   - 1 section の source 変更 (changed section のみ cache miss する想定)
+   - 1 section の章タイトル変更で `source_section_id` 変化 (cache 全 miss の risk)
+   - `metadata_version` / `prompt_version` bump (意図的に cache を全 invalidate する想定)
+   - `--all` 実行 (cache をどこまで信頼するか実装に依存)
+3. 各シナリオで cache hit 率 / LLM call 回数 / wall time を記録
+4. 想定と異なる経路があれば、その経路の真因を確定して新規 task に切り出す
+5. 想定通りなら本 task をクローズし、B-2 計画書本文の「直交」表現を「既存実装で達成済み」に訂正する
+
+実装の事後変遷 (完了確認済み時点): (1) は telemetry 追加せず、既存 `CoreResult.diagnostics.section_metadata_generation` (`cache_hits` / `llm_calls` / `batch_sizes` / `reused_section_ids` / `generated_section_ids` 露出) と `.spec-grag/cache/section_metadata/*.json` の file 数 snapshot + `related_typing_cache.json` の entry 数 snapshot で計測できることが分かったため、production code への変更なしで完遂した。(5) の「直交」訂正は本 disposition と `doc/DESIGN.ja.md` §3.6 / §5.9 で実施。
+
+#### 検証条件 (開放中時代の原文を保持)
+
+A. **計測結果のドキュメント化**
+- 上記 5 シナリオの cache hit 率 / LLM call 回数 / wall time を表として `doc/監査/` 配下に残す
+- 結果に基づく結論 (a / b / c) を明示
+
+B. **(b) または (c) に振り分けた場合**
+- 新規 task (B-5a / B-5b など) を `doc/TODO.ja.md` に追加し、実装方針と検証条件を確定
+
+C. **(a) に振り分けた場合**
+- B-2 計画書本文の scope 外記述 (`doc/TODO.ja.md` の B-2 section 内 or DESIGN.ja.md) を訂正
+- 既存 cache 経路の動作を `doc/DESIGN.ja.md` (内部設計書) に追記し、Agent が将来同じ誤認をしないようにする
+
+#### 触れる主なファイル (開放中時代の原文を保持)
+
+- [spec_grag/section_metadata.py](spec_grag/section_metadata.py): cache 経路の telemetry 追加 (調査後に元に戻す)
+- [spec_grag/related_typing_cache.py](spec_grag/related_typing_cache.py): cache 経路の telemetry 追加 (調査後に元に戻す)
+- [spec_grag/related_sections.py](spec_grag/related_sections.py): typing cache 利用箇所 ([spec_grag/related_sections.py:520](spec_grag/related_sections.py#L520) 周辺)
+- `doc/監査/` 配下に計測結果
+
+実装の事後変遷 (完了確認済み時点): production code 3 ファイルへの変更は 0 件で完了。実際に変更したのは `doc/監査/B-5_cache_measurement_2026-05-14.md` (新規) と `doc/DESIGN.ja.md` §3.6 / §5.9 (追記) と `doc/TODO.ja.md` (本 disposition 追記、preamble 優先順位更新) のみ。
+
+#### 依存 / scope 外 (開放中時代の原文を保持)
+
+- **依存**: なし (B-2 / B-3 と独立に進められる)
+- **scope 外**:
+  - 新規 cache 機構の導入 (現状 cache で不足が確定した場合のみ別 task)
+  - cache の cross-run 永続化方針の見直し (現在は `.spec-grag/context/` に JSON で保存。これは既存契約)
+
+実装の事後変遷 (完了確認済み時点): incremental 経路の cache file GC 挙動 (S2→S3 で旧 entry 削除あり、S4 prompt_version で旧 entry 削除なし) の真因追跡は本 task では行わず、`doc/監査/B-5_cache_measurement_2026-05-14.md` §5 残範囲として記録。将来 GC 仕様の明文化が必要なら別 task として切り出す。
 
 ### CDX-001: `prior_state` dead 引数の削除
 

@@ -236,6 +236,16 @@ llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 ```
 
+### 3.6 Section Metadata Cache の entry 単位再構築
+
+`SectionMetadataCache` ([spec_grag/section_metadata.py:170](../spec_grag/section_metadata.py#L170)) は section_metadata の生成結果を **entry 単位** で永続化し、incremental 経路で変更されていない section の LLM call を省く。cache key は `section_metadata_cache_key(source_section_id, source_hash, semantic_hash, metadata_version, prompt_version, enabled_fields, limits)` ([spec_grag/section_metadata.py:562](../spec_grag/section_metadata.py#L562)) で、key の SHA-256 が `.spec-grag/cache/section_metadata/<hash>.json` の file 名になる。1 entry = 1 JSON file 構成のため、changed section だけ書き替えれば残り section の cache は file system 上で触らない。
+
+incremental 経路で `cache.get(cache_key)` が hit すれば `generate_section_metadata_result` ([spec_grag/section_metadata.py:300](../spec_grag/section_metadata.py#L300) 周辺) は LLM call を skip し、`reused_section_ids` に section_id を加え `cache_hits` を increment する。miss すれば section を `llm_batch_max_sections` ごとの batch にまとめて 1 LLM call で生成し、`generated_section_ids` と `llm_calls` を更新する。`CoreResult.diagnostics.section_metadata_generation` は `cache_hits` / `llm_calls` / `batch_sizes` / `reused_section_ids` / `generated_section_ids` を公開しており、operator は cache 経路の現実を CoreResult から直接確認できる。
+
+key 構成要素のいずれかが変わると entry が invalidate される。具体例: source 本文を 1 文字変えると `source_hash` と `semantic_hash` が変わり、その section の cache だけ miss する。section の `## ` heading 名を変えると `source_section_id` (= `<doc>#<ordinal>-<slug>` 形式、[spec_grag/section_parser.py](../spec_grag/section_parser.py)) が変わるので、heading を変えた section の cache だけ miss する。`prompt_version` を bump すると全 section の key が変わり cache 全 miss + 全 section LLM 再生成になる。これは B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) の S0〜S5 で実機確認済。
+
+incremental 経路の cache file garbage collection は部分的にのみ動作する (B-5 計測 §2 副次観察)。`--all` flag を渡した実行 (= `use_cache=False`) では `.spec-grag/cache/` 配下の section_metadata cache が wipe され、その後の generation で全 section の entry が新規書き込みされる。これが「外部設計書 §7 で `--all` が `LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価` と表現される動作」の内部実装である。
+
 ## 4. Source Retrieval Index
 
 標準構成は、FlagEmbedding の BGE-M3 と Qdrant を使う。
@@ -829,6 +839,21 @@ needs_source_update -> pending
 defer -> pending
 task_scope_resolution -> resolved + valid_scope=task_scope
 ```
+
+### 5.9 Related Typing Cache の entry 単位再構築
+
+`RelatedTypingCache` ([spec_grag/related_typing_cache.py:48](../spec_grag/related_typing_cache.py#L48)) は Related Sections の typing LLM 出力 (= candidate pair に対する relation type / why 判定) を **(source_section_id, target_section_id) pair 単位** で永続化する。cache key は `make_related_typing_cache_key(source_section_id, target_section_id, source_hash, target_hash, prompt_version, ...)` で構成され、永続化形式は `.spec-grag/cache/related_typing_cache.json` 内の `entries` map (1 file = 全 entry の dict)。
+
+[`spec_grag/related_sections.py:520`](../spec_grag/related_sections.py#L520) 周辺の typing 利用箇所で `cache.get(key)` が hit すれば LLM typing call を skip し、miss すれば LLM call で type 判定を行う。changed section が source または target になる pair の cache 経路は miss、それ以外の pair は hit する設計。
+
+B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) で 50 section fixture に対し:
+
+- 初期 build で 1632 entry (50 section × 平均 candidate per section)
+- 1 section の本文変更で entry +82 (旧 entry は残る、新 cache key で +82 entry 追加 = changed section が source/target になる pair の再 typing 分)
+- 1 section の heading 変更で entry +82 (新 source_section_id の pair が cache に追加、古い entry は残る)
+- `--all` で entry 1796 → 1632 (= initial build 同等まで wipe + 再生成)
+
+`RelatedTypingCache` の永続化レイヤは 1 file = 全 entry の構成で、entry 追加時に file 全体を rewrite する。50 section / 1632〜1796 entry の規模では I/O コストは観測されない (wall time 1.0s = 全 stage skipped_unchanged のケース)。大規模 spec (500 section, ~50000 entry) でのコストは未確認 (B-6 検討範囲)。
 
 ## 6. Chapter Key Anchor
 

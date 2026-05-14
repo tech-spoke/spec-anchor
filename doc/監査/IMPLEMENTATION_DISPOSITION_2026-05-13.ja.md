@@ -122,14 +122,16 @@
 
 ## AUD-006: Chapter Anchors の LLM fallback が freshness に degrade 反映されない
 
-判定: 保留。
+判定: 保留 / 方針再検討済み (2026-05-14)。
 
-理由: 今回は Source Retrieval Index と Related Sections の no-change fast path、および retrieval provenance を対象にした。Chapter Anchors fallback の freshness 表現は別変更で固定する。
+理由: 今回は Source Retrieval Index と Related Sections の no-change fast path、および retrieval provenance を対象にした。Chapter Anchors fallback の扱いは別変更で固定する。
+
+方針切替 (2026-05-14): 当初の「degraded 反映」案は破棄し、**通常モードでは mechanical fallback を failed 扱い・canonical 保存しない** 方針に切り替えた。degraded で先に進める設計は「動いているように見えるが品質保証されていない」状態を許容してしまい、Purpose (章単位 key anchor を見失わない) を満たさないため。詳細は `doc/TODO.ja.md` の AUD-006 残 TODO を参照。
 
 対応:
 
 - 今回は未修正。
-- `doc/TODO.ja.md` に AUD-006 の残 TODO を追加した。
+- `doc/TODO.ja.md` に AUD-006 の残 TODO を追加 (2026-05-13)、方針切替を反映して更新 (2026-05-14)。
 
 証跡:
 
@@ -137,19 +139,26 @@
 
 残 TODO:
 
-- `fallback_chapter_ids` を freshness warning / diagnostics に反映する。
-- fallback 時の freshness status を設計文書と test で固定する。
+- 通常モードで `fallback_chapter_ids` が 1 件以上発生した場合、`chapter_anchors` artifact を `status: failed` (または `partial_failed`) にし、canonical file として書き込まない。core 最終結果は `failed_required_artifacts` に `chapter_anchors` を含めて `status: failed` にする。
+- mechanical fallback の preview は CoreResult diagnostics に残す (Agent / human review 用)。
+- explicit best-effort mode (`--allow-mechanical-anchors` 仮称) の導入是非を人間判断で確定する。
+- `doc/EXTERNAL_DESIGN.ja.md` の Chapter Anchors / freshness 仕様にこの扱いを明記する。
+- `tests/test_chapter_anchors.py` 等で provider missing / provider failure / unparseable response の 3 ケースを通常モードで分けて検証する。
 
 ## AUD-007: Related Sections の Qdrant fallback が diagnostics へ十分に表出しない
 
-判定: 保留。
+判定: 保留 / 方針再検討済み (2026-05-14)。
 
-理由: 今回の Related Sections 変更は no-change fast path と status 公開であり、Qdrant retriever 初期化失敗時の fallback diagnostics はまだ実装していない。
+理由: 今回の Related Sections 変更は no-change fast path と status 公開であり、Qdrant retriever 初期化失敗時の扱いはまだ実装していない。
+
+方針切替 (2026-05-14): 当初の「diagnostics 表出 + warnings 反映」案は弱いと判定し、**Qdrant を期待した設定 (`vector_store.provider = qdrant`、`url` 設定済み) で初期化失敗 → InMemory fallback した場合は、通常モードで Related Sections を failed として扱い、canonical artifact として success 保存しない** 方針に切り替えた。
+
+ただし Qdrant 未設定で最初から InMemory を使う dev / test 構成は対象外 (`success` のまま)。問題は「Qdrant を期待した設定なのに黙って InMemory に変わること」のみ。詳細は `doc/TODO.ja.md` の AUD-007 残 TODO を参照。
 
 対応:
 
 - 今回は未修正。
-- `doc/TODO.ja.md` に AUD-007 の残 TODO を追加した。
+- `doc/TODO.ja.md` に AUD-007 の残 TODO を追加 (2026-05-13)、方針切替を反映して更新 (2026-05-14)。
 
 証跡:
 
@@ -157,8 +166,12 @@
 
 残 TODO:
 
-- Qdrant retriever 初期化失敗を Related Sections diagnostics に残す。
-- Qdrant 正常時と fallback 時を分ける test を追加する。
+- 通常モードで Qdrant 設定済み + 初期化失敗の場合、`related_sections` artifact を `status: failed` にし、canonical file として success 保存しない。core 最終結果は `failed_required_artifacts` に `related_sections` を含めて `status: failed` にする。
+- CoreResult diagnostics に `expected_retrieval_backend = "qdrant"` / `actual_retrieval_backend = "in_memory"` / `fallback_used` / `fallback_reason` / `qdrant_url_configured` / `embedding_provider` を記録する。
+- `_add_qdrant_section_hybrid_candidates()` ([spec_grag/related_sections.py:1304](spec_grag/related_sections.py#L1304)) の現状 (例外を握って `retriever = None` で InMemory に落ちる) を、fallback 情報を上位へ伝搬する戻り値経路に変える。
+- explicit best-effort mode (`--best-effort` 仮称、AUD-006 と共通) の導入是非を人間判断で確定する。
+- `doc/EXTERNAL_DESIGN.ja.md` の Related Sections / freshness 仕様にこの扱いを明記する。
+- Qdrant 設定済み + 初期化失敗 / Qdrant 正常 / Qdrant 未設定 (純 InMemory) の 3 経路を test で分けて検証する。
 
 ## 検証
 
