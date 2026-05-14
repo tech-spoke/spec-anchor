@@ -732,6 +732,134 @@ def test_qdrant_section_hybrid_candidate_generation_produces_candidates() -> Non
         assert any("section_similarity" in term for term in terms), terms
 
 
+def test_aud007_qdrant_unconfigured_uses_inmemory_success() -> None:
+    """AUD-007: Qdrant 未設定 (`vector_store.provider != "qdrant"`) では
+    InMemoryHybridRetriever を最初から使い、`qdrant_backend_failure` は出ない。
+    """
+    module = importlib.import_module("spec_grag.related_sections")
+    sections = _fixture_sections()
+    metadata = _metadata_for(sections)
+
+    # vector_store.provider != "qdrant" の構成 (dev / test 用)
+    result = module.generate_related_section_candidates_result(
+        sections,
+        section_metadata=metadata,
+        config={
+            "vector_store": {"provider": "", "url": ""},
+            "embedding": {"provider": "flagembedding"},
+            "retrieval": {"section_candidate_top_k": 4},
+        },
+        generated_at="2026-05-06T00:00:00Z",
+    )
+    assert result.qdrant_backend_failure is None
+    payload = result.to_dict()
+    assert "qdrant_backend_failure" not in payload
+    # 旧 fallback 経路の握り潰し痕跡 (related_sections_qdrant_backend_failure
+    # diagnostic) も出ない
+    for diagnostic in payload["diagnostics"]:
+        assert diagnostic.get("reason_code") != "related_sections_qdrant_backend_failure"
+
+
+def test_aud007_qdrant_backend_initialization_failure_returns_failure_descriptor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUD-007: Qdrant 設定済みで `QdrantHybridRetriever` の `__init__` が
+    例外を投げた場合、InMemory fallback には落ちず `qdrant_backend_failure`
+    descriptor が candidate generation result に乗る (旧 silent fallback 削除)。
+    """
+    module = importlib.import_module("spec_grag.related_sections")
+    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    sections = _fixture_sections()
+    metadata = _metadata_for(sections)
+
+    class _BrokenRetriever:
+        def __init__(self, *, url: str, collection: str) -> None:
+            raise RuntimeError("simulated qdrant connection refused")
+
+    monkeypatch.setattr(retrieval_module, "QdrantHybridRetriever", _BrokenRetriever)
+
+    result = module.generate_related_section_candidates_result(
+        sections,
+        section_metadata=metadata,
+        config={
+            "vector_store": {
+                "provider": "qdrant",
+                "url": "http://localhost:6333",
+                "collection": "aud007_failed_collection",
+            },
+            "embedding": {"provider": "flagembedding"},
+            "retrieval": {"section_candidate_top_k": 4},
+        },
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    assert result.qdrant_backend_failure is not None
+    failure = result.qdrant_backend_failure
+    assert failure["expected_retrieval_backend"] == "qdrant"
+    assert failure["actual_retrieval_backend"] == "unavailable"
+    assert failure["fallback_attempted"] is False
+    assert failure["qdrant_url_configured"] is True
+    assert failure["embedding_provider"] == "flagembedding"
+    assert "simulated qdrant connection refused" in failure["failure_reason"]
+
+    # Qdrant 失敗時、Qdrant 由来の候補は 0 件 (InMemory fallback が走らない)
+    qdrant_candidates = [
+        candidate
+        for candidate in result.related_section_candidates
+        if "qdrant_section_hybrid" in candidate["channels"]
+    ]
+    assert qdrant_candidates == [], "no qdrant_section_hybrid candidate must be added on failure"
+
+    # diagnostic が候補一覧に出ている
+    diagnostic_codes = [str(item.get("reason_code") or "") for item in result.diagnostics]
+    assert "related_sections_qdrant_backend_failure" in diagnostic_codes
+
+    payload = result.to_dict()
+    assert isinstance(payload["qdrant_backend_failure"], dict)
+    assert payload["qdrant_backend_failure"]["expected_retrieval_backend"] == "qdrant"
+
+
+def test_aud007_qdrant_normal_no_fallback_diagnostic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUD-007: 正常に Qdrant が動く場合、`qdrant_backend_failure` は None。"""
+    module = importlib.import_module("spec_grag.related_sections")
+    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    sections = _fixture_sections()
+    metadata = _metadata_for(sections)
+
+    class _Retriever:
+        def __init__(self, *, url: str, collection: str) -> None:
+            self.url = url
+            self.collection = collection
+
+        def search(self, *_args: Any, **_kwargs: Any) -> SimpleNamespace:
+            return SimpleNamespace(hits=[])
+
+    monkeypatch.setattr(retrieval_module, "QdrantHybridRetriever", _Retriever)
+
+    result = module.generate_related_section_candidates_result(
+        sections,
+        section_metadata=metadata,
+        config={
+            "vector_store": {
+                "provider": "qdrant",
+                "url": "http://localhost:6333",
+                "collection": "aud007_normal_collection",
+            },
+            "embedding": {"provider": "flagembedding"},
+            "retrieval": {"section_candidate_top_k": 4},
+        },
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    assert result.qdrant_backend_failure is None
+    payload = result.to_dict()
+    assert "qdrant_backend_failure" not in payload
+    diagnostic_codes = [str(item.get("reason_code") or "") for item in result.diagnostics]
+    assert "related_sections_qdrant_backend_failure" not in diagnostic_codes
+
+
 def test_llm_batch_concurrency_runs_batches_in_parallel() -> None:
     """Phase H follow-up: when llm_batch_concurrency > 1, batch loop submits
     multiple LLM calls concurrently. Verify by making provider sleep and

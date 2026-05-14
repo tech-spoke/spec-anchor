@@ -1673,6 +1673,88 @@ def test_aud002_retrieval_index_failure_marks_freshness_failed(
     assert "Source Retrieval Index update failed" in result["warnings"]
 
 
+def test_aud007_qdrant_backend_failure_marks_related_sections_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AUD-007: Qdrant 設定済みで `QdrantHybridRetriever` 初期化失敗時、
+    Related Sections は `status = failed` となり、core の status / freshness が
+    failed に降格し、`failed_required_artifacts` に `related_sections` を含む。
+    canonical Related Sections (section_metadata の関連先 + Qdrant payload patch)
+    は更新されない。
+    """
+    project_root = tmp_path / "project"
+    _write_real_provider_project(
+        project_root,
+        collection="aud007_collection",
+        qdrant_url="http://localhost:6333",
+    )
+
+    core_module = _core_module()
+    fake_qdrant = _CoreFakeQdrantClient()
+    fake_embedding = _CoreFakeEmbeddingProvider()
+    _install_core_fake_qdrant(monkeypatch, fake_qdrant)
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "FlagEmbeddingBgeM3Provider",
+        lambda **_kwargs: fake_embedding,
+    )
+
+    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    related_module = importlib.import_module("spec_grag.related_sections")
+
+    class _BrokenQdrantRetriever:
+        def __init__(self, *, url: str, collection: str) -> None:
+            raise RuntimeError("simulated qdrant connection refused for AUD-007")
+
+    monkeypatch.setattr(
+        retrieval_module, "QdrantHybridRetriever", _BrokenQdrantRetriever
+    )
+    # related_sections.py は import で取り込み済みなので、その module 側も上書きする
+    if hasattr(related_module, "QdrantHybridRetriever"):
+        monkeypatch.setattr(
+            related_module, "QdrantHybridRetriever", _BrokenQdrantRetriever
+        )
+
+    patches_before = list(fake_qdrant.payload_patches)
+
+    result = _result_dict(_run_spec_core(project_root, provider=FakeSpecCoreProvider()))
+    freshness = _freshness(result)
+
+    assert result["related_sections_status"] == "failed"
+    assert result["status"] == "failed"
+    assert freshness["status"] == "failed"
+    assert "failed_required_artifact" in freshness.get("blocking_reasons", [])
+    failed_artifacts = freshness["diagnostics"]["failed_required_artifacts"]
+    assert "related_sections" in failed_artifacts
+
+    # diagnostics に Qdrant backend failure descriptor が乗っている
+    related_diagnostic = result["diagnostics"]["related_sections"]
+    failure = related_diagnostic.get("qdrant_backend_failure")
+    assert isinstance(failure, dict), failure
+    assert failure["expected_retrieval_backend"] == "qdrant"
+    assert failure["actual_retrieval_backend"] == "unavailable"
+    assert failure["fallback_attempted"] is False
+    assert failure["qdrant_url_configured"] is True
+    assert "simulated qdrant connection refused" in failure["failure_reason"]
+
+    # warnings に failure_reason を引用した文字列が含まれる
+    assert any(
+        "Related Sections retrieval backend failure" in warning
+        and "simulated qdrant connection refused" in warning
+        for warning in result["warnings"]
+    ), result["warnings"]
+
+    # canonical Qdrant payload patch (related_sections field の上書き) が走らない
+    new_patches = fake_qdrant.payload_patches[len(patches_before) :]
+    related_patches = [
+        patch
+        for patch in new_patches
+        if "related_sections" in patch.get("payload", {})
+    ]
+    assert related_patches == [], related_patches
+
+
 def test_spec_core_does_not_modify_human_owned_purpose_or_concept(
     tmp_path: Path,
 ) -> None:

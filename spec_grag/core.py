@@ -495,6 +495,9 @@ def _run_spec_core_unlocked(
         progress_tracker=progress_tracker,
     )
     related_sections_status = _related_sections_status(related_generation)
+    related_sections_qdrant_backend_failure = _related_sections_qdrant_backend_failure(
+        related_generation
+    )
     related_section_candidates = _related_section_candidates(related_generation)
     selected_related_sections = _merge_related_sections_by_source(
         _related_sections_by_source(related_generation),
@@ -505,11 +508,15 @@ def _run_spec_core_unlocked(
             generated_at=generated_at,
         ),
     )
-    section_metadata = related_sections_api.apply_related_sections_to_metadata(
-        section_metadata,
-        {"related_sections": selected_related_sections},
-    )
-    if related_sections_status != "skipped_unchanged":
+    # AUD-007: Qdrant backend が初期化に失敗して related_sections が failed の場合、
+    # canonical artifact (section_manifest の related_sections field + Qdrant
+    # section payload の related_sections) を更新せず前回値を残す。
+    if related_sections_status != "failed":
+        section_metadata = related_sections_api.apply_related_sections_to_metadata(
+            section_metadata,
+            {"related_sections": selected_related_sections},
+        )
+    if related_sections_status not in {"skipped_unchanged", "failed"}:
         _update_section_collection_related_sections_if_enabled(
             config=config,
             section_metadata=section_metadata,
@@ -625,11 +632,13 @@ def _run_spec_core_unlocked(
         failed_required_artifacts.append("section_metadata")
     if retrieval_index_status == "failed":
         failed_required_artifacts.append("retrieval_index")
+    if related_sections_status == "failed":
+        # AUD-007: Qdrant 設定済みなのに retriever 初期化失敗時、Related Sections は
+        # required artifact failure として扱う (degraded ではない)。
+        failed_required_artifacts.append("related_sections")
     degraded_optional_artifacts = []
     if generation_status == "degraded":
         degraded_optional_artifacts.append("section_metadata")
-    if related_sections_status == "failed":
-        degraded_optional_artifacts.append("related_sections")
     generation_warnings = list(metadata_generation_summary.get("warnings") or [])
     if retrieval_index_status == "failed":
         if _verify_index_has_issues(verify_index_diagnostics):
@@ -639,7 +648,17 @@ def _run_spec_core_unlocked(
         else:
             generation_warnings.append("Source Retrieval Index update failed")
     if related_sections_status == "failed":
-        generation_warnings.append("Related Sections generation failed")
+        if related_sections_qdrant_backend_failure is not None:
+            failure_reason = str(
+                related_sections_qdrant_backend_failure.get("failure_reason") or ""
+            )
+            generation_warnings.append(
+                "Related Sections retrieval backend failure: "
+                f"{failure_reason}; canonical related_sections artifact is not updated. "
+                "Restore Qdrant connectivity and run /spec-core --rebuild."
+            )
+        else:
+            generation_warnings.append("Related Sections generation failed")
     generation_diagnostics = {
         "section_metadata_generation": {
             **metadata_generation_summary,
@@ -660,6 +679,7 @@ def _run_spec_core_unlocked(
         "related_sections": {
             "status": related_sections_status,
             "diagnostics": _related_generation_diagnostics(related_generation),
+            "qdrant_backend_failure": related_sections_qdrant_backend_failure,
         },
     }
 
@@ -2609,7 +2629,34 @@ def _related_sections_status(payload: Any) -> str:
         diagnostics = payload.get("diagnostics")
         if diagnostics:
             return "failed"
+        return "success"
+    artifact = getattr(payload, "artifact", None)
+    if isinstance(artifact, Mapping):
+        status = artifact.get("status")
+        if isinstance(status, str) and status:
+            return status
     return "success"
+
+
+def _related_sections_qdrant_backend_failure(payload: Any) -> dict[str, Any] | None:
+    """Return the Qdrant backend failure descriptor when AUD-007 marks failed."""
+
+    if isinstance(payload, Mapping):
+        failure = payload.get("qdrant_backend_failure")
+        if isinstance(failure, Mapping):
+            return dict(failure)
+        return None
+    candidate_generation = getattr(payload, "candidate_generation", None)
+    if candidate_generation is not None:
+        failure = getattr(candidate_generation, "qdrant_backend_failure", None)
+        if isinstance(failure, Mapping):
+            return dict(failure)
+    artifact = getattr(payload, "artifact", None)
+    if isinstance(artifact, Mapping):
+        failure = artifact.get("qdrant_backend_failure")
+        if isinstance(failure, Mapping):
+            return dict(failure)
+    return None
 
 
 def _related_generation_diagnostics(payload: Any) -> list[dict[str, Any]]:

@@ -40,7 +40,7 @@
 | AUD-004 | 採用 / 修正済み | 残 TODO なし。詳細は `doc/監査/IMPLEMENTATION_DISPOSITION_2026-05-13.ja.md` を参照 |
 | AUD-005 | 既対応 / 方針確定 | 本文 chunking / 本文 embedding は行わない。`search_keys` / `identifiers` と Agentic Search で補う方針として B-2 の scope 外に明記 |
 | AUD-006 | 保留 / 方針再検討済み (2026-05-14) | 「開放中」に残 TODO として詳細を保持。当初の degraded 反映方針は破棄し、**通常モードでは mechanical fallback を failed 扱い・canonical 保存しない** 方針に切り替えた |
-| AUD-007 | 保留 / 方針再検討済み (2026-05-14) | 「開放中」に残 TODO として詳細を保持。当初の diagnostics 表出方針は弱いと判定し、**Qdrant 設定済みなのに InMemory fallback した場合は通常モードで failed 扱い** へ切り替えた |
+| AUD-007 | 採用 / 修正済み (2026-05-14) | 残 TODO なし。`general-purpose` subagent 実装 + Claude main 監査 (逆方向検証 + R6 全 pass) で完了。詳細は「完了確認済み」配下の AUD-007 block を参照 |
 
 ### CDX 監査 (2026-05-13 B-3b 実装監査)
 
@@ -68,10 +68,11 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (案 A + A-1 で確定済、AUD-006 完了後の同手順実施)
-2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+1. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
 
 AUD-006 (Chapter Anchors mechanical fallback の機能廃止根絶) は 2026-05-14 に CODEX rescue 実装 + Claude main 監査 (逆方向検証 + scope 外 mechanical 残骸 2 hit を Claude main で同時掃除 + fake provider の `notes` 補完で既存 test 維持) で完了し、`_mechanical_anchor()` 削除、`fallback_chapter_ids` → `failed_chapter_ids` rename、failed chapter があれば canonical artifact 更新せず freshness を failed に降格する経路を実装。「完了確認済み」配下に移動済。
+
+AUD-007 (Related Sections の Qdrant 設定時 InMemory fallback の機能廃止根絶) は 2026-05-14 に Codex auto-background 事故後 `general-purpose` subagent (Claude モデル) で実装 + Claude main 独立逆方向検証で完了し、`_add_qdrant_section_hybrid_candidates` の Qdrant 失敗時 InMemory fallback path 削除、failure descriptor 戻り値で上位伝搬、`failed_required_artifacts.append("related_sections")` + canonical artifact (section_manifest + Qdrant payload patch) 抑制経路を実装 (Qdrant 未設定の dev/test InMemory 経路は保持)。「完了確認済み」配下に移動済。
 
 B-7a (Related Sections candidate generation の source partial 化) は 2026-05-14 に CODEX rescue 実装 + Claude main 監査 (真の partial 化検証用 assertion 追加 + 逆方向検証で本物性確認) で完了し、`related_sections.elapsed_sec=50.4s → 4.666s` (1/10 以下達成)、stage 別 timing (candidate 4.52s / selection 0.017s) で Phase 1 推定が厳密確定。「完了確認済み」配下に移動済。
 
@@ -84,87 +85,6 @@ B-5a (B-3b partial path で 50 section embed 問題) は 2026-05-14 に Claude m
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
-
-### AUD-007: Related Sections の Qdrant fallback を通常モードで failed 扱いにする
-
-#### 背景
-
-`doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-007 で、Related Sections が Qdrant retriever 初期化失敗時に InMemory fallback しても、diagnostics へ十分に表出しない risk が指摘された。
-
-当初の TODO 起票時 (2026-05-13) は「Qdrant retriever 初期化失敗を candidate generation diagnostics に残し、core の `related_sections_status` または warnings に fallback 情報を反映する」方針だったが、2026-05-14 の再検討で **diagnostics 表出だけでは弱く、Qdrant 設定済みなのに InMemory fallback した場合は通常モードで failed として扱う** 方針に切り替えた。
-
-「動いたように見えるが、本番で期待した retrieval backend ではない」状態を success にすると、AUD-006 と同じく「動いているように見えるが品質保証されていない」設計になるため。
-
-#### 真因 / 仮説
-
-確定。fallback 自体は処理継続のために妥当だが、production 設定 (`vector_store.provider = qdrant`、`url` 設定済み、embedding provider = flagembedding) で Qdrant retriever 初期化に失敗して InMemory に落ちる場合、それは「Qdrant が使えなかったが代替で処理を続けた」のではなく production contract 的には「**設定された retrieval backend を使えなかった**」状態である。
-
-ただし、Qdrant 未設定で最初から InMemory を使う構成 (dev / test 用) は failed にしない。問題は「Qdrant を期待した設定なのに黙って InMemory に変わること」のみ。
-
-#### 目的
-
-Related Sections candidate generation が、Qdrant を期待した設定で実 Qdrant ではなく InMemory fallback を使った場合、production contract failure として canonical artifact / core 結果を success にしない。これにより Agent / operator が「本番で期待した経路を使えなかった」事実を見落とさないようにする。
-
-#### 実装方針 (2026-05-14 人間判断確定: 案 A + 案 A-1)
-
-**explicit best-effort mode は導入しない**。`--allow-retrieval-fallback` や `--best-effort` 等の CLI flag は追加しない。さらに **Qdrant 設定時の InMemory fallback path を削除する** (ルール 15: 機能廃止は根絶)。Qdrant 未設定 (dev / test の純 InMemory 構成) は引き続き `success` で対応。
-
-##### 状況区分と扱い
-
-| 状況 | 扱い |
-| --- | --- |
-| Qdrant 未設定 (`vector_store.provider` が `qdrant` でない、または `url` 未設定) で InMemory を使う | `success` のまま (本 task の対象外、dev / test 用構成) |
-| dev / test 用に明示的に InMemory を指定 | `success` のまま (本 task の対象外) |
-| Qdrant 設定済みで初期化失敗 | **`failed`** (本 task の対象、唯一の経路)。InMemory fallback は **発生しない** (= path 削除) |
-
-##### 通常モード (本実装で唯一の経路) の挙動
-
-1. `_add_qdrant_section_hybrid_candidates()` で Qdrant retriever 初期化失敗を検知した場合、**InMemory fallback には落ちない** (= 旧 `retriever = None` → `InMemoryHybridRetriever(payloads)` の経路を Qdrant 設定時には実行しない)。代わりに「expected_backend = qdrant、actual_backend = unavailable、fallback_reason」の情報を上位に伝搬
-2. `_generate_related_sections()` 側で受け取った retriever 失敗情報により、`related_sections` を required artifact failure として扱い、`status: "failed"` を返す
-3. core の `status` を `"failed"` にし、`failed_required_artifacts` に `related_sections` を含める
-4. canonical `related_sections` artifact は更新しない (前回の正常 artifact を残す = stale だが嘘の success よりは安全)
-5. CoreResult diagnostics には次の構造で記録する:
-   ```json
-   {
-     "related_sections": {
-       "status": "failed",
-       "expected_retrieval_backend": "qdrant",
-       "actual_retrieval_backend": "unavailable",
-       "fallback_attempted": false,
-       "failure_reason": "Qdrant retriever initialization failed: <error>",
-       "qdrant_url_configured": true,
-       "embedding_provider": "flagembedding"
-     }
-   }
-   ```
-
-##### code 削除対象
-
-- `_add_qdrant_section_hybrid_candidates()` 内の「Qdrant 設定済みなのに retriever 初期化失敗時に `InMemoryHybridRetriever(payloads)` を作る」経路
-- 旧 fallback 関連の silent exception 経路 (`except Exception: retriever = None` のような握り潰し)
-- 関連する診断 field (例: `fallback_used`、`actual_backend = "in_memory"` のような旧 fallback 経路を前提とした表現)
-
-Qdrant 未設定 (dev / test 構成、`vector_store.provider != "qdrant"` または `url` 未設定) で InMemoryHybridRetriever を **最初から** 使う経路は本 task で削除しない。これは「Qdrant を期待しない構成」での正規動作。判定は呼び出し時点 (Qdrant 設定の有無) で完結させる。
-
-#### 検証条件
-
-- Qdrant URL を設定したまま接続失敗を fake で再現したとき、`related_sections` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `related_sections` が含まれる
-- 同条件で CoreResult diagnostics に `expected_retrieval_backend = "qdrant"` / `actual_retrieval_backend = "unavailable"` / `failure_reason` が記録される (`fallback_attempted = false`)
-- Qdrant 未設定 (InMemory を最初から使う構成) では fallback diagnostics が出ず `success` のまま (本変更が dev / test 経路へ regression しない)
-- Qdrant 正常時には fallback diagnostics が出ず、real Qdrant retriever が使われたことが diagnostics から確認できる
-- `_add_qdrant_section_hybrid_candidates()` で Qdrant 設定時の `InMemoryHybridRetriever` インスタンス化が **完全に消えている** (`git grep` で確認: Qdrant 設定時の InMemory fallback への参照 0 hit)
-- fallback path (削除済) / real Qdrant path / Qdrant 未設定 (純 InMemory) path の 3 経路を test で分けて検証 (削除した path は test も削除または書き換え)
-
-#### 依存 / scope 外
-
-- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Related Sections / freshness 仕様に「Qdrant を期待した設定で初期化失敗時、Related Sections を failed として扱う。InMemory fallback は提供しない (Qdrant 未設定の dev / test 用構成では引き続き InMemory を使う)」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
-- AUD-006 と同じ案 A + 案 A-1 の方針で実施。CLI flag は両方とも追加しない (best-effort mode 不採用)
-- AUD-006 との性質差:
-  - AUD-006 = semantic artifact generation failure (artifact 中身の品質低下)
-  - AUD-007 = configured retrieval backend failure (経路差: 設定 vs 実消費)
-  - 運用上の扱いは同じ (通常 = failed、案 A-1 で関連 path 削除)
-- 既存の `core` 経路 と `_add_qdrant_section_hybrid_candidates()` の戻り値契約を変える必要がある (現状は fallback 情報を上位に伝える戻り値経路を持たない、新規追加)
-- ルール 15 (機能廃止は根絶) の徹底: Qdrant 設定時 InMemory fallback への参照を `git grep` で残骸 0 確認
 
 ### B-6: core 開始時の Qdrant scroll コストの大規模 spec 計測
 
@@ -1330,6 +1250,147 @@ mechanical fallback を canonical な Chapter Anchors artifact として success
 - ルール 15 (機能廃止は根絶) の徹底: `_mechanical_anchor`、`fallback_chapter_ids`、`used_fallback`、`--allow-mechanical-anchors` 等を git grep で残骸 0 確認
 
 実装の事後変遷 (完了確認済み時点): ルール 15 徹底のため、Codex が scope 厳守で残した `mechanical` 残骸 2 hit (`inject.py:761` と `llm_provider.py:578` の旧コメント) も Claude main で同一 commit で掃除。`related_sections.py` の `mechanically extracted identifiers` 2 hit は section identifiers 抽出の別文脈で AUD-006 とは無関係のため保持。R6 で fake provider の `notes` field 欠落による既存 test fail が顕在化したため、`FakeSpecCoreProvider.generate` の chapter_anchors 経路出力に `notes: []` を補完 (旧実装で mechanical fallback により誤魔化されていたものの真因解消)。
+
+### AUD-007: Related Sections の Qdrant fallback を通常モードで failed 扱いにする
+
+#### 状態
+
+採用 / 修正済み (2026-05-14、案 A + 案 A-1 = best-effort mode 不採用 + Qdrant 設定時 InMemory fallback path 完全削除)。実装差分は本 commit で確定する:
+
+- `spec_grag/related_sections.py`:
+  - `_add_qdrant_section_hybrid_candidates()` の戻り値型を `None` から `dict[str, Any] | None` に拡張。Qdrant 設定済み (`use_real_qdrant=True` + `qdrant_url` 設定済み) で `QdrantHybridRetriever` の `__init__` が例外を投げた場合、旧 `except Exception: retriever = None` → `if retriever is None: retriever = InMemoryHybridRetriever(payloads)` の silent fallback path を削除し、failure descriptor (`expected_retrieval_backend`, `actual_retrieval_backend`, `fallback_attempted=False`, `failure_reason`, `qdrant_url_configured`, `embedding_provider`) を return で上位伝搬
+  - `else: retriever = InMemoryHybridRetriever(payloads)` で Qdrant 未設定経路 (dev / test 用、`vector_store.provider != "qdrant"` または `url` 未設定) は引き続き InMemory hybrid retriever を最初から使う = 本 task の削除対象外
+  - `RelatedSectionCandidateGeneration` dataclass に `qdrant_backend_failure: dict[str, Any] | None = None` field を追加。`generate_related_section_candidates_result()` が failure 時に descriptor を埋めて返す
+  - `to_dict()` は failure descriptor がある場合に `payload["qdrant_backend_failure"]` を埋める。同時に severity=error の `related_sections_qdrant_backend_failure` diagnostic を `diagnostics` に append
+  - `generate_related_sections_result()` / `generate_related_sections_partial_result()` の artifact dict に `status: "failed"` (failure 時) / `"success"` (正常時) を埋め込み、failure 時は `artifact["qdrant_backend_failure"]` も埋める
+- `spec_grag/core.py`:
+  - `_related_sections_status()` を拡張し、`payload.artifact["status"]` を読んで `"failed"` を返す経路を追加 (Mapping 直接受け + dataclass 受けの 2 経路を維持)
+  - `_related_sections_qdrant_backend_failure()` helper を追加し、payload / `candidate_generation.qdrant_backend_failure` / `artifact["qdrant_backend_failure"]` の 3 経路から failure descriptor を取り出す
+  - `_run_spec_core_unlocked()`: `related_sections_status != "failed"` の場合のみ `apply_related_sections_to_metadata` を呼ぶ (failure 時は section_metadata の `related_sections` field を更新しない = canonical artifact 抑制)、`related_sections_status not in {"skipped_unchanged", "failed"}` の場合のみ `_update_section_collection_related_sections_if_enabled` を呼ぶ (failure 時は Qdrant section payload の `related_sections` 上書きをしない)
+  - `failed_required_artifacts.append("related_sections")` を Related Sections failure 時に実行し、freshness を failed に降格 (旧 `degraded_optional_artifacts.append("related_sections")` 経路は削除)
+  - failure 時の warning に `failure_reason` を引用 (`Related Sections retrieval backend failure: <reason>; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild.`)
+  - `generation_diagnostics["related_sections"]` に `qdrant_backend_failure` を露出
+- `tests/test_related_sections.py`: 3 件追加 (`test_aud007_qdrant_unconfigured_uses_inmemory_success` / `test_aud007_qdrant_backend_initialization_failure_returns_failure_descriptor` / `test_aud007_qdrant_normal_no_fallback_diagnostic`) — Qdrant 未設定 / Qdrant 失敗 / Qdrant 正常の 3 経路を分けて検証
+- `tests/test_spec_core.py`: 1 件追加 (`test_aud007_qdrant_backend_failure_marks_related_sections_failed`) — Qdrant 失敗時に core status=failed / freshness blocking_reason に `failed_required_artifact` / Qdrant payload patch (related_sections field 上書き) 0 件を確認
+- `doc/EXTERNAL_DESIGN.ja.md` §4.1 / §7.4 / §11 を更新 (ルール 14 遵守、内部関数名なしで動作と結果を表現)
+
+#### 完了確認結果 (2026-05-14, general-purpose subagent 実装 + Claude main 監査 + 独立逆方向検証)
+
+実装 (`general-purpose` subagent (Claude モデル)、~12 分、80 tool uses、Final report 9 セクション完備):
+
+- AUD-007 当初は `codex:codex-rescue` に依頼したが、Codex 子 process が 30 分のタイムアウト直前で auto-background に達し、prompt 内 Python code block を bash として実行する誤動作で working tree に 0 hit。Codex 残存 process を kill 後、`general-purpose` subagent に切り替えて再実施した
+- 5 files (production 2 + test 2 + doc 1) を編集、scope 厳守
+- 削除根絶確認 (subagent 内): Qdrant 設定時の `InMemoryHybridRetriever` 呼び出し残骸 0 hit
+- 4 test を実装、3 経路 (未設定 / 失敗 / 正常) + core 全体 (`test_spec_core.py`) で確認
+- target unit test 4 passed
+
+Claude main 監査 + 独立逆方向検証:
+
+- 独立逆方向検証: `_add_qdrant_section_hybrid_candidates` の failure descriptor return 行 (1666〜1670) を一時的に `return None` に書き換えて、新規 test 2 件 (`test_aud007_qdrant_backend_initialization_failure_returns_failure_descriptor` / `test_aud007_qdrant_backend_failure_marks_related_sections_failed`) が `AssertionError` で fail することを確認 → 真に failure descriptor 経路を検証している決定的証拠。確認後 return 文を復元
+- scope 監査: 編集ファイルが 5 files (production 2 + test 2 + doc 1) で AUD-007 関連のみ、外部契約 doc も §4.1 / §7.4 / §11 の 3 箇所に限定。AUD-006 と異なり Codex scope 外残骸の Claude main 補完は不要
+- 残骸検証: `git grep` で Qdrant 設定時 InMemory fallback への参照 0 hit (Qdrant 未設定経路の `else: retriever = InMemoryHybridRetriever(payloads)` は本 task 対象外で保持)
+- R6 (全 pytest, `--skip-external`): **384 passed / 16 skipped** (AUD-006 完了時点の 380 + AUD-007 新規 test 4 = 384)
+
+検証条件別の達成状況:
+
+- **Qdrant URL 設定済みで接続失敗時、canonical artifact 未更新 + status=failed + failed_required_artifacts に related_sections**: ✓ `test_aud007_qdrant_backend_failure_marks_related_sections_failed` で assertion 済 (Qdrant payload patch 0 件 + section_manifest related_sections 未更新)
+- **CoreResult diagnostics に expected_retrieval_backend / actual_retrieval_backend / failure_reason 記録 (fallback_attempted=false)**: ✓ test で assertion
+- **Qdrant 未設定 (純 InMemory) では fallback diagnostics 出ず success 維持**: ✓ `test_aud007_qdrant_unconfigured_uses_inmemory_success` で assertion (本変更が dev / test 経路へ regression しない)
+- **Qdrant 正常時には fallback diagnostics 出ない**: ✓ `test_aud007_qdrant_normal_no_fallback_diagnostic` で assertion
+- **Qdrant 設定時の InMemory fallback への参照 0 hit**: ✓ git grep 確認
+- **3 経路 (削除済 fallback / real Qdrant / Qdrant 未設定 InMemory) を test で分けて検証**: ✓ 削除した fallback path は failure descriptor return 経路で代替し、各経路に test を 1 件ずつ配置
+
+外部契約変更:
+
+- `doc/EXTERNAL_DESIGN.ja.md` §4.1: 「Qdrant を期待した設定で Related Sections 用の retrieval backend を初期化できなかった場合、`/spec-core` は payload 内の関連先と Section Metadata 側の関連先一覧を更新せず、前回値を残す」を追記
+- §7.4: `related_sections_status` の `failed` 説明を「例外発生または Qdrant 設定済みで初期化失敗時、canonical な related_sections (Section Metadata 内一覧 + 検索 backend 側 payload) を更新せず前回値を残す」に拡張、`/spec-core --rebuild` で再生成する旨を追記。直後の段落で「Qdrant 期待設定 (`vector_store.provider = "qdrant"` / `url` 設定済み / `embedding.provider = "flagembedding"`) で backend 初期化失敗時に InMemory 自動切替を行わず failed として扱う / Qdrant 未設定の InMemory 構成は success 継続」を 1 段落で明示
+- §11 エラー契約表: 「Related Sections の retrieval backend に到達できない (Qdrant を期待した設定で初期化失敗)」行を追加し、`status = failed` + Section Metadata 内関連先一覧と検索 backend 側 payload を更新せず前回値を残す挙動、Qdrant 未設定 InMemory 構成が対象外であることを明記
+
+trade-off:
+
+- Qdrant 設定時 InMemory fallback 削除により、Qdrant 一時停止時の dev 体験は「Qdrant 復旧後に `/spec-core --rebuild` で再生成が必要」になる (= 旧実装の「黙って InMemory に逃げる」体験は失われる)
+- canonical Related Sections (Section Metadata 内一覧 + Qdrant payload patch) を failure 時に更新しない設計の trade-off は、stale だが嘘の success よりは安全な選択 (AUD-006 と同じ判断)
+
+#### 背景 (開放中時代の原文を保持)
+
+`doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-007 で、Related Sections が Qdrant retriever 初期化失敗時に InMemory fallback しても、diagnostics へ十分に表出しない risk が指摘された。
+
+当初の TODO 起票時 (2026-05-13) は「Qdrant retriever 初期化失敗を candidate generation diagnostics に残し、core の `related_sections_status` または warnings に fallback 情報を反映する」方針だったが、2026-05-14 の再検討で **diagnostics 表出だけでは弱く、Qdrant 設定済みなのに InMemory fallback した場合は通常モードで failed として扱う** 方針に切り替えた。
+
+「動いたように見えるが、本番で期待した retrieval backend ではない」状態を success にすると、AUD-006 と同じく「動いているように見えるが品質保証されていない」設計になるため。
+
+#### 真因 / 仮説 (開放中時代の原文を保持)
+
+確定。fallback 自体は処理継続のために妥当だが、production 設定 (`vector_store.provider = qdrant`、`url` 設定済み、embedding provider = flagembedding) で Qdrant retriever 初期化に失敗して InMemory に落ちる場合、それは「Qdrant が使えなかったが代替で処理を続けた」のではなく production contract 的には「**設定された retrieval backend を使えなかった**」状態である。
+
+ただし、Qdrant 未設定で最初から InMemory を使う構成 (dev / test 用) は failed にしない。問題は「Qdrant を期待した設定なのに黙って InMemory に変わること」のみ。
+
+#### 目的 (開放中時代の原文を保持)
+
+Related Sections candidate generation が、Qdrant を期待した設定で実 Qdrant ではなく InMemory fallback を使った場合、production contract failure として canonical artifact / core 結果を success にしない。これにより Agent / operator が「本番で期待した経路を使えなかった」事実を見落とさないようにする。
+
+#### 実装方針 (2026-05-14 人間判断確定: 案 A + 案 A-1、開放中時代の原文を保持)
+
+**explicit best-effort mode は導入しない**。`--allow-retrieval-fallback` や `--best-effort` 等の CLI flag は追加しない。さらに **Qdrant 設定時の InMemory fallback path を削除する** (ルール 15: 機能廃止は根絶)。Qdrant 未設定 (dev / test の純 InMemory 構成) は引き続き `success` で対応。
+
+##### 状況区分と扱い
+
+| 状況 | 扱い |
+| --- | --- |
+| Qdrant 未設定 (`vector_store.provider` が `qdrant` でない、または `url` 未設定) で InMemory を使う | `success` のまま (本 task の対象外、dev / test 用構成) |
+| dev / test 用に明示的に InMemory を指定 | `success` のまま (本 task の対象外) |
+| Qdrant 設定済みで初期化失敗 | **`failed`** (本 task の対象、唯一の経路)。InMemory fallback は **発生しない** (= path 削除) |
+
+##### 通常モード (本実装で唯一の経路) の挙動
+
+1. `_add_qdrant_section_hybrid_candidates()` で Qdrant retriever 初期化失敗を検知した場合、**InMemory fallback には落ちない** (= 旧 `retriever = None` → `InMemoryHybridRetriever(payloads)` の経路を Qdrant 設定時には実行しない)。代わりに「expected_backend = qdrant、actual_backend = unavailable、fallback_reason」の情報を上位に伝搬
+2. `_generate_related_sections()` 側で受け取った retriever 失敗情報により、`related_sections` を required artifact failure として扱い、`status: "failed"` を返す
+3. core の `status` を `"failed"` にし、`failed_required_artifacts` に `related_sections` を含める
+4. canonical `related_sections` artifact は更新しない (前回の正常 artifact を残す = stale だが嘘の success よりは安全)
+5. CoreResult diagnostics には次の構造で記録する:
+   ```json
+   {
+     "related_sections": {
+       "status": "failed",
+       "expected_retrieval_backend": "qdrant",
+       "actual_retrieval_backend": "unavailable",
+       "fallback_attempted": false,
+       "failure_reason": "Qdrant retriever initialization failed: <error>",
+       "qdrant_url_configured": true,
+       "embedding_provider": "flagembedding"
+     }
+   }
+   ```
+
+##### code 削除対象
+
+- `_add_qdrant_section_hybrid_candidates()` 内の「Qdrant 設定済みなのに retriever 初期化失敗時に `InMemoryHybridRetriever(payloads)` を作る」経路
+- 旧 fallback 関連の silent exception 経路 (`except Exception: retriever = None` のような握り潰し)
+- 関連する診断 field (例: `fallback_used`、`actual_backend = "in_memory"` のような旧 fallback 経路を前提とした表現)
+
+Qdrant 未設定 (dev / test 構成、`vector_store.provider != "qdrant"` または `url` 未設定) で InMemoryHybridRetriever を **最初から** 使う経路は本 task で削除しない。これは「Qdrant を期待しない構成」での正規動作。判定は呼び出し時点 (Qdrant 設定の有無) で完結させる。
+
+#### 検証条件 (開放中時代の原文を保持)
+
+- Qdrant URL を設定したまま接続失敗を fake で再現したとき、`related_sections` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `related_sections` が含まれる
+- 同条件で CoreResult diagnostics に `expected_retrieval_backend = "qdrant"` / `actual_retrieval_backend = "unavailable"` / `failure_reason` が記録される (`fallback_attempted = false`)
+- Qdrant 未設定 (InMemory を最初から使う構成) では fallback diagnostics が出ず `success` のまま (本変更が dev / test 経路へ regression しない)
+- Qdrant 正常時には fallback diagnostics が出ず、real Qdrant retriever が使われたことが diagnostics から確認できる
+- `_add_qdrant_section_hybrid_candidates()` で Qdrant 設定時の `InMemoryHybridRetriever` インスタンス化が **完全に消えている** (`git grep` で確認: Qdrant 設定時の InMemory fallback への参照 0 hit)
+- fallback path (削除済) / real Qdrant path / Qdrant 未設定 (純 InMemory) path の 3 経路を test で分けて検証 (削除した path は test も削除または書き換え)
+
+#### 依存 / scope 外 (開放中時代の原文を保持)
+
+- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Related Sections / freshness 仕様に「Qdrant を期待した設定で初期化失敗時、Related Sections を failed として扱う。InMemory fallback は提供しない (Qdrant 未設定の dev / test 用構成では引き続き InMemory を使う)」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
+- AUD-006 と同じ案 A + 案 A-1 の方針で実施。CLI flag は両方とも追加しない (best-effort mode 不採用)
+- AUD-006 との性質差:
+  - AUD-006 = semantic artifact generation failure (artifact 中身の品質低下)
+  - AUD-007 = configured retrieval backend failure (経路差: 設定 vs 実消費)
+  - 運用上の扱いは同じ (通常 = failed、案 A-1 で関連 path 削除)
+- 既存の `core` 経路 と `_add_qdrant_section_hybrid_candidates()` の戻り値契約を変える必要がある (現状は fallback 情報を上位に伝える戻り値経路を持たない、新規追加)
+- ルール 15 (機能廃止は根絶) の徹底: Qdrant 設定時 InMemory fallback への参照を `git grep` で残骸 0 確認
+
+実装の事後変遷 (完了確認済み時点): `codex:codex-rescue` で auto-background 事故が起きたため、`general-purpose` subagent (Claude モデル) に切り替えて再実装した。Codex 残存 process は session 終了時に kill 確認済み (`ps -eo pid,etime,cmd | grep -iE 'codex|companion'` で 0 件)。実装後 Claude main で `_add_qdrant_section_hybrid_candidates` の failure descriptor return を一時的に `return None` に書き換える独立逆方向検証を行い、AUD-007 関連の新規 2 test が AssertionError で fail することを確認 (真に内部 failure descriptor 経路を検証している決定的証拠) → 復元。AUD-006 と同じ「mechanical 残骸」のような Codex scope 外残骸の Claude main 補完は不要 (subagent の scope が production 2 + test 2 + doc 1 = 5 files で完結していたため)。
 
 ### CDX-001: `prior_state` dead 引数の削除
 

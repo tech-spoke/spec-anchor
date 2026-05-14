@@ -145,6 +145,7 @@ class RelatedSectionCandidateGeneration:
     dropped_candidate_count_by_source: dict[str, int]
     generated_at: str
     elapsed_sec: float
+    qdrant_backend_failure: dict[str, Any] | None = None
 
     @property
     def candidates(self) -> list[dict[str, Any]]:
@@ -152,7 +153,7 @@ class RelatedSectionCandidateGeneration:
 
     def to_dict(self) -> dict[str, Any]:
         limit_events = _related_candidate_limit_events(self.diagnostics)
-        return {
+        payload: dict[str, Any] = {
             "artifact_role": RELATED_SECTIONS_ROLE,
             "artifact_kind": "retrieval_auxiliary",
             "retrieval_auxiliary": True,
@@ -171,6 +172,9 @@ class RelatedSectionCandidateGeneration:
             "generated_at": self.generated_at,
             "elapsed_sec": self.elapsed_sec,
         }
+        if self.qdrant_backend_failure is not None:
+            payload["qdrant_backend_failure"] = dict(self.qdrant_backend_failure)
+        return payload
 
 
 @dataclass(frozen=True)
@@ -428,7 +432,7 @@ def generate_related_section_candidates_result(
         full_records=records,
         source_section_ids=source_section_id_set,
     )
-    _add_qdrant_section_hybrid_candidates(
+    qdrant_backend_failure = _add_qdrant_section_hybrid_candidates(
         builders,
         source_records,
         records_by_id,
@@ -441,6 +445,7 @@ def generate_related_section_candidates_result(
         use_real_qdrant=use_real_qdrant_section,
         qdrant_url=qdrant_url,
         qdrant_collection=section_collection,
+        embedding_provider_id=embedding_provider_id,
     )
 
     all_candidates = [builder.to_candidate() for builder in builders.values()]
@@ -461,6 +466,18 @@ def generate_related_section_candidates_result(
             candidate_generation_elapsed_sec=elapsed_sec,
         ),
     )
+    if qdrant_backend_failure is not None:
+        diagnostics.append(
+            _diagnostic(
+                "related_sections_qdrant_backend_failure",
+                "Qdrant retrieval backend was configured but could not be initialized; "
+                "no Qdrant-driven candidates were added and Related Sections must be "
+                "marked failed by the caller.",
+                stage=RELATED_SECTIONS_SOURCE,
+                severity="error",
+                **qdrant_backend_failure,
+            ),
+        )
     return RelatedSectionCandidateGeneration(
         related_section_candidates=candidates,
         diagnostics=diagnostics,
@@ -468,6 +485,9 @@ def generate_related_section_candidates_result(
         dropped_candidate_count_by_source=dropped_counts,
         generated_at=generated_at,
         elapsed_sec=elapsed_sec,
+        qdrant_backend_failure=dict(qdrant_backend_failure)
+        if qdrant_backend_failure is not None
+        else None,
     )
 
 
@@ -1117,9 +1137,12 @@ def generate_related_sections_result(
         cache_dir=cache_dir,
     )
     diagnostics = candidate_generation.diagnostics + selection.diagnostics
+    qdrant_backend_failure = candidate_generation.qdrant_backend_failure
+    artifact_status = "failed" if qdrant_backend_failure is not None else "success"
     artifact = {
         "artifact_role": RELATED_SECTIONS_ROLE,
         "artifact_kind": "retrieval_auxiliary",
+        "status": artifact_status,
         "retrieval_auxiliary": True,
         "retrieval_aid_not_evidence": True,
         "reference_helper": True,
@@ -1144,6 +1167,8 @@ def generate_related_sections_result(
         "diagnostics": diagnostics,
         "generated_at": generated_at,
     }
+    if qdrant_backend_failure is not None:
+        artifact["qdrant_backend_failure"] = dict(qdrant_backend_failure)
     return RelatedSectionsGeneration(
         artifact=artifact,
         candidate_generation=candidate_generation,
@@ -1293,9 +1318,12 @@ def generate_related_sections_partial_result(
         elapsed_sec=selection.elapsed_sec,
     )
     diagnostics = candidate_generation.diagnostics + final_selection.diagnostics
+    qdrant_backend_failure = candidate_generation.qdrant_backend_failure
+    artifact_status = "failed" if qdrant_backend_failure is not None else "success"
     artifact = {
         "artifact_role": RELATED_SECTIONS_ROLE,
         "artifact_kind": "retrieval_auxiliary",
+        "status": artifact_status,
         "retrieval_auxiliary": True,
         "retrieval_aid_not_evidence": True,
         "reference_helper": True,
@@ -1320,6 +1348,8 @@ def generate_related_sections_partial_result(
         "diagnostics": diagnostics,
         "generated_at": generated_at,
     }
+    if qdrant_backend_failure is not None:
+        artifact["qdrant_backend_failure"] = dict(qdrant_backend_failure)
     return RelatedSectionsGeneration(
         artifact=artifact,
         candidate_generation=candidate_generation,
@@ -1577,11 +1607,20 @@ def _add_qdrant_section_hybrid_candidates(
     use_real_qdrant: bool = False,
     qdrant_url: str = "",
     qdrant_collection: str = "spec_grag_section",
-) -> None:
-    """Add candidates from section-level dense+sparse hybrid retrieval (Qdrant)."""
+    embedding_provider_id: str = "",
+) -> dict[str, Any] | None:
+    """Add candidates from section-level dense+sparse hybrid retrieval (Qdrant).
+
+    Returns a failure descriptor when Qdrant is configured (``use_real_qdrant``
+    is true) but the Qdrant-backed retriever cannot be initialized. In that
+    case no candidates are added and the caller is expected to mark the
+    Related Sections artifact as ``failed``. Returns ``None`` on success and
+    in the Qdrant-unconfigured path (which uses :class:`InMemoryHybridRetriever`
+    for development / test).
+    """
 
     if not records or top_k <= 0:
-        return
+        return None
     index_records = full_records if full_records is not None else records
     try:
         from spec_grag.retrieval_index import (
@@ -1589,7 +1628,7 @@ def _add_qdrant_section_hybrid_candidates(
             build_section_payloads,
         )
     except ImportError:
-        return
+        return None
 
     sections_for_payload = [
         {
@@ -1613,9 +1652,9 @@ def _add_qdrant_section_hybrid_candidates(
     payloads = build_section_payloads(sections_for_payload, metadata_for_payload)
     payload_by_id = {payload["source_section_id"]: payload for payload in payloads}
     if not payloads:
-        return
+        return None
 
-    retriever: Any = None
+    retriever: Any
     if use_real_qdrant and qdrant_url and qdrant_collection:
         try:
             from spec_grag.retrieval_index import QdrantHybridRetriever
@@ -1624,9 +1663,24 @@ def _add_qdrant_section_hybrid_candidates(
                 url=qdrant_url,
                 collection=qdrant_collection,
             )
-        except Exception:
-            retriever = None
-    if retriever is None:
+        except Exception as exc:
+            # AUD-007: Qdrant が設定済みなのに retriever 初期化に失敗した場合は
+            # silently InMemory fallback せず、上位で failed 扱いとして
+            # canonical artifact を更新しないようにする。
+            return {
+                "expected_retrieval_backend": "qdrant",
+                "actual_retrieval_backend": "unavailable",
+                "fallback_attempted": False,
+                "failure_reason": (
+                    f"Qdrant retriever initialization failed: {exc}"
+                ),
+                "qdrant_url_configured": True,
+                "embedding_provider": embedding_provider_id,
+            }
+    else:
+        # Qdrant 未設定 (dev / test 用構成、`vector_store.provider != "qdrant"`
+        # または `url` 未設定) では InMemory hybrid retriever を最初から使う。
+        # これは本 task の削除対象外 (= 正規動作)。
         retriever = InMemoryHybridRetriever(payloads)
     cap = max(0, int(final_top_n)) if final_top_n else 0
     for source in records:
@@ -1673,6 +1727,7 @@ def _add_qdrant_section_hybrid_candidates(
                 evidence_snippets=[_candidate_snippet(target_record, metadata_by_id)],
             )
             accepted_for_source += 1
+    return None
 
 
 def _add_index_candidates(
