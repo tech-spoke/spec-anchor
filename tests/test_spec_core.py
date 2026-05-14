@@ -465,8 +465,9 @@ related_selected_max_per_section = 4
 
 
 class _CoreFakePoint:
-    def __init__(self, point_id: Any) -> None:
+    def __init__(self, point_id: Any, payload: dict[str, Any] | None = None) -> None:
         self.id = point_id
+        self.payload = dict(payload or {})
 
 
 class _CoreFakePointStruct:
@@ -532,6 +533,7 @@ class _CoreFakeQdrantClient:
     def __init__(self) -> None:
         self.collection_created = False
         self.point_ids: list[Any] = []
+        self.payload_by_point_id: dict[str, dict[str, Any]] = {}
         self.upserted_points: list[Any] = []
         self.deleted_point_ids: list[Any] = []
         self.payload_patches: list[dict[str, Any]] = []
@@ -553,18 +555,27 @@ class _CoreFakeQdrantClient:
     ) -> tuple[list[_CoreFakePoint], int | None]:
         start = int(offset or 0)
         end = start + int(limit)
-        points = [_CoreFakePoint(point_id) for point_id in self.point_ids[start:end]]
+        points = [
+            _CoreFakePoint(
+                point_id,
+                self.payload_by_point_id.get(str(point_id), {}),
+            )
+            for point_id in self.point_ids[start:end]
+        ]
         next_offset = end if end < len(self.point_ids) else None
         return points, next_offset
 
     def recreate_collection(self, **kwargs: Any) -> None:
         self.collection_created = True
         self.point_ids = []
+        self.payload_by_point_id = {}
 
     def delete(self, *, collection_name: str, points_selector: Any) -> None:
         points = list(points_selector.points)
         self.deleted_point_ids.extend(points)
         self.point_ids = [point_id for point_id in self.point_ids if point_id not in points]
+        for point_id in points:
+            self.payload_by_point_id.pop(str(point_id), None)
 
     def upsert(self, *, collection_name: str, points: Any) -> None:
         self.collection_created = True
@@ -572,6 +583,7 @@ class _CoreFakeQdrantClient:
         by_id = {str(point_id): point_id for point_id in self.point_ids}
         for point in self.upserted_points:
             by_id[str(point.id)] = point.id
+            self.payload_by_point_id[str(point.id)] = dict(point.payload)
         self.point_ids = list(by_id.values())
 
     def set_payload(
@@ -588,6 +600,19 @@ class _CoreFakeQdrantClient:
                 "points": points,
             }
         )
+        source_section_ids: set[str] = set()
+        for condition in getattr(points, "must", []):
+            if getattr(condition, "key", "") == "source_section_id":
+                source_section_ids.add(str(getattr(condition.match, "value", "")))
+        if source_section_ids:
+            for point_payload in self.payload_by_point_id.values():
+                if str(point_payload.get("source_section_id") or "") in source_section_ids:
+                    point_payload.update(dict(payload))
+            return
+        point_ids = points if isinstance(points, list) else []
+        for point_id in point_ids:
+            existing = self.payload_by_point_id.setdefault(str(point_id), {})
+            existing.update(dict(payload))
 
 
 class _CoreFakeEmbeddingProvider:
@@ -1234,6 +1259,11 @@ def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
         "generate_related_sections_result",
         fake_related,
     )
+    monkeypatch.setattr(
+        core_module.related_sections_api,
+        "generate_related_sections_partial_result",
+        fake_related,
+    )
 
     _run_spec_core(project_root, provider=FakeSpecCoreProvider())
     _run_spec_core(project_root, provider=FakeSpecCoreProvider())
@@ -1302,6 +1332,90 @@ def test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert(
     diagnostics = progress["stages"]["section_collection_upsert"]["diagnostics"]
     assert diagnostics["sections_upserted_count"] == 1
     assert diagnostics["embed_documents_input_size"] == 1
+
+
+def test_b7_related_sections_partial_regenerate_source_centric(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_grag.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_cdx006_project(project_root, collection="b7_related_sections_partial_collection")
+    spec_path = project_root / "docs/spec/spec.md"
+    sample_path = project_root / "docs/spec/sample.md"
+    sample_path.unlink()
+    shutil.copyfile(REPO_ROOT / "tests/fixtures/spec_50sections/spec.md", spec_path)
+
+    core_module = _core_module()
+    fake_qdrant = _CoreFakeQdrantClient()
+    fake_embedding = _CoreFakeEmbeddingProvider()
+    _install_core_fake_qdrant(monkeypatch, fake_qdrant)
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "FlagEmbeddingBgeM3Provider",
+        lambda **_kwargs: fake_embedding,
+    )
+
+    first = _result_dict(
+        _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+    )
+    section_02_first = _section_by_id(first, "section-02-billing-ledger")
+    first_related = section_02_first.get("related_sections") or []
+    assert first_related
+    first_targets = {
+        str(item.get("target_section_id") or "") for item in first_related
+    }
+    first_hints = {str(item.get("relation_hint") or "") for item in first_related}
+
+    spec_path.write_text(
+        spec_path.read_text().replace("ten minutes", "eleven minutes")
+    )
+    second = _result_dict(
+        _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+    )
+
+    progress = read_progress(project_root)
+    assert progress is not None
+    related_stage = progress["stages"]["related_sections"]
+    assert related_stage["action"] == "regenerated_partial"
+    assert related_stage["batch_count"] == 1
+    assert related_stage["llm_calls"] == 1
+    assert any(
+        str(section_id).endswith("section-01-authentication-window")
+        for section_id in related_stage["changed_source_section_ids"]
+    )
+
+    related_diagnostics = second["diagnostics"]["related_sections"]["diagnostics"]
+    partial_diagnostic = next(
+        item
+        for item in related_diagnostics
+        if item.get("reason_code") == "related_sections_partial_regenerated"
+    )
+    assert partial_diagnostic["partial_regeneration"] is True
+    assert partial_diagnostic["source_centric_partial"] is True
+    assert partial_diagnostic["unchanged_source_inheritance"] is True
+    assert partial_diagnostic["removed_source_exclusion"] is True
+    assert partial_diagnostic["partial_mode"] == "source_changed_only"
+    assert partial_diagnostic["changed_target_relations_inherited"] is True
+    assert partial_diagnostic["requires_full_regeneration_for_complete_target_recheck"] is True
+    assert any(
+        str(section_id).endswith("section-01-authentication-window")
+        for section_id in partial_diagnostic["changed_source_section_ids"]
+    )
+    assert any(
+        str(section_id).endswith("section-01-authentication-window")
+        for section_id in partial_diagnostic["changed_target_section_ids"]
+    )
+
+    section_02_second = _section_by_id(second, "section-02-billing-ledger")
+    second_related = section_02_second.get("related_sections") or []
+    second_targets = {
+        str(item.get("target_section_id") or "") for item in second_related
+    }
+    second_hints = {str(item.get("relation_hint") or "") for item in second_related}
+    assert second_targets == first_targets
+    assert second_hints == first_hints
 
 
 def test_b5a_partial_upsert_ignores_source_span_shift(

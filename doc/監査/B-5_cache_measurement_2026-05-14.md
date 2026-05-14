@@ -223,6 +223,40 @@ S2 / S3 で測定された stage 内訳は次の通り (1 section 変更 = ideal
 
 `section_collection_upsert + related_sections` で 92.5s = wall 94.6s のほぼ全て。incremental の利用者価値は事実上 `no-change ケース` (S1, wall 1.0s) でのみ実現されている。1 section 変更で initial build 並みの時間がかかるのは利用者体験として致命的。
 
+### 4.x.2.1 B-7 Phase 1 実装後の S2 計測 (2026-05-14, source 中心 partial)
+
+B-7 step 1 (CODEX rescue 実装 + Claude main 監査 + GPT 指摘の必須フラグ追加) を `/tmp/spec_grag_b5_measure/` で実機計測した結果 (50 section fixture + fake LLM + real BGE-M3 + real Qdrant、S0 clean → Section 01 を `ten` → `eleven` で 1 文字編集 → S2 incremental):
+
+| metric | B-5 計測時 (S2) | B-5a 完了時 (S2 postfix) | **B-7 Phase 1 完了時 (S2 b7)** |
+|---|---|---|---|
+| wall | 94.6s | 63.9s | **61.7s** |
+| `section_collection_upsert.elapsed` | 40.8s | 9.2s | 9.2s |
+| `section_collection_upsert.action` | upserted_partial | upserted_partial | upserted_partial |
+| `related_sections.action` | `fallback_regenerated` | `fallback_regenerated` | **`regenerated_partial`** ✓ |
+| `related_sections.batch_count` | 7 | 7 | **1** ✓ |
+| `related_sections.llm_calls` | 7 | 7 | **1** ✓ |
+| `related_sections.elapsed` | 51.7s | 52.6s | **50.4s** |
+| `section_metadata.cache_hits` / `llm_calls` | 50 / 1 | 50 / 1 | 50 / 1 (不変) |
+| diagnostics: `partial_mode` | (n/a) | (n/a) | **`source_changed_only`** ✓ |
+| diagnostics: `changed_target_relations_inherited` | (n/a) | (n/a) | **True** ✓ |
+| diagnostics: `requires_full_regeneration_for_complete_target_recheck` | (n/a) | (n/a) | **True** ✓ |
+| diagnostics: `changed_source_section_ids` | (n/a) | (n/a) | `['spec.md#0002-section-01-authentication-window']` ✓ |
+
+**重要な観察**: `batch_count` は **7 → 1** に削減 (= 50 source → 1 source の LLM typing)、しかし `related_sections.elapsed_sec` は **52.6s → 50.4s で約 2.2s しか短縮されない**。
+
+partial 経路の構築 (selection / typing の source 絞り込み) は仕様通り完了したが、**`related_sections.elapsed_sec` の主因は LLM typing batch ではなく candidate generation 段階** (= `generate_related_section_candidates_result(sections, ...)` を全 section から呼んでいる) であることが示唆される。
+
+Codex の partial 実装は selection 段階のみを絞り込んでおり、candidate generation は全 section を入力として走る ([spec_grag/related_sections.py](../../spec_grag/related_sections.py) `generate_related_sections_partial_result` line 1131-1138)。selection 段階の batch_count = 1 達成は B-7 step 1 の検証条件 A (`actual_call_count <= 2`) を満たすが、検証条件 B (`elapsed_sec が initial build の 1/10 以下`) は **未達 (50.4s)**。
+
+このため、B-7 task は **Phase 1 完了 (selection / typing partial 化)** として「完了確認済み」へ移動するが、`elapsed_sec` 目標達成のためには candidate generation の partial 化を **B-7a として独立 task 起票** する。stage 別 timing 内訳 (candidate_generation_elapsed_sec / selection_elapsed_sec) を B-7a の必須計測項目に含めることで、本 task で「主因確定」が間接推論に留まった点を補正する。
+
+B-7 Phase 1 で固定した不変条件 (regression test `test_b7_related_sections_partial_regenerate_source_centric` で常時検証):
+
+- changed/added source の selection / typing のみ再実行 (`batch_count == 1`)
+- unchanged source は前回 selected_related_sections を継承 (Section 02 の `target_section_id` / `relation_hint` 集合が initial build と一致)
+- removed source は artifact から除外、removed target を含む inherited relation は除外
+- diagnostics に partial の制限を明示 (`partial_mode=source_changed_only`、`changed_target_relations_inherited=True`、`requires_full_regeneration_for_complete_target_recheck=True`)
+
 ## 5. 残範囲 / 未検証 / scope 外
 
 - cache GC の incremental 経路における削除条件 (S2→S3 で旧 Section 01 entry が削除された一方、S4 では旧 prompt_version entry が削除されない違い) の真因は本書では追跡していない。B-5 task scope は「entry 単位再構築の達成確認」のみ。GC 挙動の文書化が必要なら別 task として切り出す候補

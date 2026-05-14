@@ -472,6 +472,11 @@ def _run_spec_core_unlocked(
         section_collection_upsert_info=section_collection_upsert_info,
         progress_tracker=progress_tracker,
     )
+    section_diff_sets = _section_collection_diff_sets(
+        sections,
+        previous_section_manifest,
+        section_collection_fingerprints_by_id,
+    )
     emit("core_related_sections_start")
     related_pair_cache_dir = cache_dir
     related_generation = _generate_related_sections(
@@ -484,6 +489,8 @@ def _run_spec_core_unlocked(
         store=store,
         run_full=run_full,
         unchanged_sections=unchanged_sections,
+        section_diff_sets=section_diff_sets,
+        previous_related_sections=previous_metadata,
         retrieval_index_status=retrieval_index_status,
         progress_tracker=progress_tracker,
     )
@@ -652,6 +659,7 @@ def _run_spec_core_unlocked(
         "verify_index": verify_index_diagnostics,
         "related_sections": {
             "status": related_sections_status,
+            "diagnostics": _related_generation_diagnostics(related_generation),
         },
     }
 
@@ -1398,24 +1406,22 @@ def _related_sections_fast_path_decision(
     store: ContextArtifactStore | None,
     run_full: bool,
     unchanged_sections: Mapping[str, Any] | None,
+    section_diff_sets: Mapping[str, Any] | None = None,
     retrieval_index_status: str,
 ) -> dict[str, Any]:
+    del unchanged_sections  # section diff sets drive both no-change and partial paths.
     if run_full:
-        return {"can_skip": False, "reason": "full_rebuild"}
+        return {"can_skip": False, "can_partial": False, "reason": "full_rebuild"}
     if retrieval_index_status not in {"success", "skipped_unchanged"}:
-        return {"can_skip": False, "reason": f"retrieval_index_{retrieval_index_status or 'unknown'}"}
-    if not unchanged_sections or not unchanged_sections.get("unchanged"):
-        return {"can_skip": False, "reason": str((unchanged_sections or {}).get("reason") or "section_changed")}
+        return {"can_skip": False, "can_partial": False, "reason": f"retrieval_index_{retrieval_index_status or 'unknown'}"}
     actual_state = _read_optional_artifact(store, "related_sections_state")
     if actual_state is None:
-        return {"can_skip": False, "reason": "sidecar_missing"}
+        return {"can_skip": False, "can_partial": False, "reason": "sidecar_missing"}
     mismatch = _state_mismatch(
         actual_state,
         expected_state,
         keys=(
             "schema_version",
-            "section_list_fingerprint",
-            "section_hash_fingerprint",
             "candidate_generation_config_fingerprint",
             "selection_prompt_version",
             "selection_model",
@@ -1425,8 +1431,64 @@ def _related_sections_fast_path_decision(
         ),
     )
     if mismatch:
-        return {"can_skip": False, "reason": "fingerprint_mismatch", "field": mismatch}
-    return {"can_skip": True, "reason": UNCHANGED_SECTION_REASON}
+        return {"can_skip": False, "can_partial": False, "reason": "fingerprint_mismatch", "field": mismatch}
+    section_mismatch = _state_mismatch(
+        actual_state,
+        expected_state,
+        keys=(
+            "section_list_fingerprint",
+            "section_hash_fingerprint",
+        ),
+    )
+    if section_mismatch is None:
+        return {
+            "can_skip": True,
+            "can_partial": False,
+            "reason": UNCHANGED_SECTION_REASON,
+        }
+    if _has_section_diff(section_diff_sets):
+        return {
+            "can_skip": False,
+            "can_partial": True,
+            "reason": str((section_diff_sets or {}).get("reason") or section_mismatch),
+            "field": section_mismatch,
+        }
+    return {
+        "can_skip": False,
+        "can_partial": False,
+        "reason": "section_fingerprint_mismatch",
+        "field": section_mismatch,
+    }
+
+
+def _has_section_diff(section_diff_sets: Mapping[str, Any] | None) -> bool:
+    if not isinstance(section_diff_sets, Mapping):
+        return False
+    return any(
+        section_diff_sets.get(key)
+        for key in (
+            "added_section_ids",
+            "changed_section_ids",
+            "removed_section_ids",
+        )
+    )
+
+
+def _changed_or_added_section_ids(
+    section_diff_sets: Mapping[str, Any] | None,
+) -> list[str]:
+    if not isinstance(section_diff_sets, Mapping):
+        return []
+    section_ids: list[str] = []
+    for key in ("added_section_ids", "changed_section_ids"):
+        values = section_diff_sets.get(key) or []
+        if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
+            continue
+        for section_id in values:
+            value = str(section_id)
+            if value and value not in section_ids:
+                section_ids.append(value)
+    return sorted(section_ids)
 
 
 def _read_optional_artifact(
@@ -2400,6 +2462,8 @@ def _generate_related_sections(
     store: ContextArtifactStore | None = None,
     run_full: bool = False,
     unchanged_sections: Mapping[str, Any] | None = None,
+    section_diff_sets: Mapping[str, Any] | None = None,
+    previous_related_sections: Mapping[str, Any] | None = None,
     retrieval_index_status: str = "",
     progress_tracker: CoreProgressTracker | None = None,
 ) -> Any:
@@ -2414,6 +2478,7 @@ def _generate_related_sections(
         store=store,
         run_full=run_full,
         unchanged_sections=unchanged_sections,
+        section_diff_sets=section_diff_sets,
         retrieval_index_status=retrieval_index_status,
     )
     if fast_path["can_skip"]:
@@ -2431,6 +2496,31 @@ def _generate_related_sections(
             "diagnostics": [],
             "generated_at": generated_at,
         }
+
+    if fast_path.get("can_partial"):
+        changed_source_section_ids = _changed_or_added_section_ids(section_diff_sets)
+        result = related_sections_api.generate_related_sections_partial_result(
+            sections,
+            section_metadata=section_metadata,
+            previous_related_sections=previous_related_sections,
+            changed_source_section_ids=changed_source_section_ids,
+            provider=provider,
+            config=config,
+            generated_at=generated_at,
+            cache_dir=cache_dir,
+        )
+        if store is not None and retrieval_index_status in {"success", "skipped_unchanged"}:
+            store.write("related_sections_state", expected_state)
+        _progress_action(
+            progress_tracker,
+            "related_sections",
+            action="regenerated_partial",
+            reason=str(fast_path.get("reason") or "section_changed"),
+            diagnostics=_related_generation_diagnostics(result),
+            batch_count=getattr(getattr(result, "selection", None), "llm_calls", 0),
+            changed_source_section_ids=changed_source_section_ids,
+        )
+        return result
 
     try:
         result = related_sections_api.generate_related_sections_result(
@@ -2485,6 +2575,19 @@ def _related_sections_status(payload: Any) -> str:
         if diagnostics:
             return "failed"
     return "success"
+
+
+def _related_generation_diagnostics(payload: Any) -> list[dict[str, Any]]:
+    value: Any = None
+    if hasattr(payload, "diagnostics"):
+        value = getattr(payload, "diagnostics")
+    elif hasattr(payload, "to_dict"):
+        return _related_generation_diagnostics(payload.to_dict())
+    elif isinstance(payload, Mapping):
+        value = payload.get("diagnostics")
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return []
+    return [dict(item) for item in value if isinstance(item, Mapping)]
 
 
 def _related_sections_from_metadata(

@@ -1090,11 +1090,186 @@ def generate_related_sections_result(
     )
 
 
+def generate_related_sections_partial_result(
+    sections: Sequence[Any],
+    *,
+    changed_source_section_ids: Sequence[str] | None = None,
+    changed_section_ids: Sequence[str] | None = None,
+    previous_related_sections: Any | None = None,
+    section_metadata: Any | None = None,
+    metadata: Any | None = None,
+    config: Any | None = None,
+    project_config: Any | None = None,
+    provider: LlmProvider | None = None,
+    llm_provider: LlmProvider | None = None,
+    llm_config: Any | None = None,
+    limits: Any | None = None,
+    generated_at: str | None = None,
+    prompt_version: str = RELATED_SECTIONS_PROMPT_VERSION,
+    metadata_version: int = DEFAULT_METADATA_VERSION,
+    cache_dir: Any | None = None,
+) -> RelatedSectionsGeneration:
+    """Regenerate Related Sections for changed/added sources and inherit the rest."""
+
+    generated_at = generated_at or _now()
+    records = [_normalize_section(section) for section in sections]
+    current_source_ids = [record.source_section_id for record in records]
+    current_source_id_set = set(current_source_ids)
+    changed_sources = {
+        str(section_id)
+        for section_id in _first_not_none(
+            changed_source_section_ids,
+            changed_section_ids,
+            [],
+        )
+        if str(section_id) in current_source_id_set
+    }
+    changed_sources_in_order = [
+        section_id for section_id in current_source_ids if section_id in changed_sources
+    ]
+
+    candidate_generation = generate_related_section_candidates_result(
+        sections,
+        section_metadata=_first_not_none(section_metadata, metadata),
+        config=config,
+        project_config=project_config,
+        limits=limits,
+        generated_at=generated_at,
+    )
+    filtered_candidates = [
+        dict(candidate)
+        for candidate in candidate_generation.related_section_candidates
+        if str(candidate.get("source_section_id") or "") in changed_sources
+    ]
+    selection = select_related_sections_result(
+        sections,
+        candidates={
+            "related_section_candidates": filtered_candidates,
+        },
+        section_metadata=_first_not_none(section_metadata, metadata),
+        config=config,
+        project_config=project_config,
+        provider=provider,
+        llm_provider=llm_provider,
+        llm_config=llm_config,
+        limits=limits,
+        source_section_ids=changed_sources_in_order,
+        generated_at=generated_at,
+        prompt_version=prompt_version,
+        metadata_version=metadata_version,
+        cache_dir=cache_dir,
+    )
+
+    previous_by_source = _coerce_related_sections_by_source(previous_related_sections)
+    selected_by_source = {
+        source_id: [dict(item) for item in items]
+        for source_id, items in selection.related_sections.items()
+    }
+    final_related_sections: dict[str, list[dict[str, Any]]] = {}
+    inherited_source_ids: list[str] = []
+    for source_id in current_source_ids:
+        if source_id in changed_sources:
+            final_related_sections[source_id] = selected_by_source.get(source_id, [])
+            continue
+        inherited_source_ids.append(source_id)
+        inherited_items: list[dict[str, Any]] = []
+        for item in previous_by_source.get(source_id, []):
+            target_id = str(item.get("target_section_id") or "")
+            if target_id and target_id in current_source_id_set and target_id != source_id:
+                inherited_items.append(dict(item))
+        final_related_sections[source_id] = inherited_items
+
+    removed_source_ids = sorted(set(previous_by_source) - current_source_id_set)
+    final_sections = [
+        {
+            "source_section_id": source_id,
+            "section_id": source_id,
+            "related_sections": final_related_sections.get(source_id, []),
+        }
+        for source_id in current_source_ids
+    ]
+    partial_diagnostic = _diagnostic(
+        "related_sections_partial_regenerated",
+        "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+        stage="related_sections",
+        severity="info",
+        partial_regeneration=True,
+        partial_mode="source_changed_only",
+        source_centric_partial=True,
+        source_centric_partial_regeneration=True,
+        unchanged_source_inheritance=True,
+        removed_source_exclusion=True,
+        fallback_regenerated=False,
+        changed_target_relations_inherited=True,
+        requires_full_regeneration_for_complete_target_recheck=True,
+        changed_source_section_ids=changed_sources_in_order,
+        changed_target_section_ids=changed_sources_in_order,
+        added_or_changed_source_section_ids=changed_sources_in_order,
+        inherited_source_section_ids=inherited_source_ids,
+        removed_source_section_ids=removed_source_ids,
+        candidate_count=len(candidate_generation.related_section_candidates),
+        candidate_count_for_selection=len(filtered_candidates),
+        selection_source_count=len(changed_sources_in_order),
+        inherited_source_count=len(inherited_source_ids),
+        removed_source_count=len(removed_source_ids),
+        batch_count=selection.llm_calls,
+        llm_calls=selection.llm_calls,
+    )
+    final_selection_diagnostics = list(selection.diagnostics) + [partial_diagnostic]
+    final_selection = RelatedSectionSelection(
+        related_sections=final_related_sections,
+        sections=final_sections,
+        diagnostics=final_selection_diagnostics,
+        llm_results=selection.llm_results,
+        llm_calls=selection.llm_calls,
+        generated_at=generated_at,
+    )
+    diagnostics = candidate_generation.diagnostics + final_selection.diagnostics
+    artifact = {
+        "artifact_role": RELATED_SECTIONS_ROLE,
+        "artifact_kind": "retrieval_auxiliary",
+        "retrieval_auxiliary": True,
+        "retrieval_aid_not_evidence": True,
+        "reference_helper": True,
+        "evidence": False,
+        "related_sections_are_evidence": False,
+        "metadata": _retrieval_auxiliary_metadata(),
+        "generation": {
+            "stage": "related_sections",
+            "prompt_version": prompt_version,
+            "metadata_version": metadata_version,
+            "candidate_channels": list(MVP_CANDIDATE_CHANNELS),
+            "allowed_relation_hints": sorted(ALLOWED_RELATION_HINTS),
+            "allowed_confidence": sorted(ALLOWED_CONFIDENCE),
+        },
+        "related_section_candidates": candidate_generation.related_section_candidates,
+        "related_candidate_limit_events": _related_candidate_limit_events(
+            candidate_generation.diagnostics,
+        ),
+        "sections": final_sections,
+        "diagnostics": diagnostics,
+        "generated_at": generated_at,
+    }
+    return RelatedSectionsGeneration(
+        artifact=artifact,
+        candidate_generation=candidate_generation,
+        selection=final_selection,
+        diagnostics=diagnostics,
+    )
+
+
 def generate_related_sections(
     sections: Sequence[Any],
     **kwargs: Any,
 ) -> dict[str, Any]:
     return generate_related_sections_result(sections, **kwargs).artifact
+
+
+def generate_related_sections_partial(
+    sections: Sequence[Any],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    return generate_related_sections_partial_result(sections, **kwargs).artifact
 
 
 def apply_related_sections_to_metadata(
@@ -2649,6 +2824,8 @@ __all__ = [
     "generate_related_section_candidates",
     "generate_related_section_candidates_result",
     "generate_related_sections",
+    "generate_related_sections_partial",
+    "generate_related_sections_partial_result",
     "generate_related_sections_result",
     "related_section_reevaluation_targets",
     "select_related_sections",
