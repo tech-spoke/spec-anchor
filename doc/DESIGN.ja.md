@@ -780,6 +780,71 @@ fast path に入る条件 (すべて満たす場合):
 
 通常経路に fallback した場合は `related_sections_status = "success"` または `"failed"`、`core_progress.json` の `stages.related_sections.action = "fallback_regenerated"`、`reason` に fallback 根拠を記録する。
 
+### 5.7.2 partial change regeneration (source 中心 partial)
+
+`incremental no-change fast path` (§5.7.1) は「全 section が unchanged」の場合のみ動作する。1 section でも変更があると従来は `fallback_regenerated` 経路で全 section を再生成していたが (`generate_related_sections_result` が `generate_related_section_candidates_result(sections)` を全 section 入力で呼び、`select_related_sections_result` が 全 source の typing batch を走らせる)、B-7 Phase 1 + B-7a で **changed/added section を source とする pair だけ再生成し、unchanged source は前回値を継承する** 部分再生成経路を追加した (`stages.related_sections.action = "regenerated_partial"`)。
+
+#### 判定順序
+
+`_related_sections_fast_path_decision` ([spec_grag/core.py:1395](spec_grag/core.py#L1395) 周辺) の戻り値に `can_partial: bool` を追加し、`_generate_related_sections` ([spec_grag/core.py:2392](spec_grag/core.py#L2392) 周辺) は次の優先順位で経路を選ぶ。
+
+1. `run_full=True` → `fallback_regenerated` (`--all` / `--rebuild` 経路)
+2. `retrieval_index_status` が `success` / `skipped_unchanged` 以外 → `fallback_regenerated` (retrieval が壊れていれば related_sections 経路も諦める)
+3. `related_sections_state.json` が無い → `fallback_regenerated` (= 初回扱い)
+4. 非 section 指紋 (`schema_version` / `candidate_generation_config_fingerprint` / `selection_prompt_version` / `selection_model` / `selection_provider` / `selection_effort` / `artifact_schema_version`) のいずれかが不一致 → `fallback_regenerated` (= 設定変更時の意図的全件再評価)
+5. `section_list_fingerprint` と `section_hash_fingerprint` が両方一致 → `skipped_unchanged` (§5.7.1 fast path)
+6. section 指紋が不一致だが `section_diff_sets` (B-3b で計算済) に `added_section_ids` / `changed_section_ids` / `removed_section_ids` の少なくとも 1 件がある → **`regenerated_partial`** (本節)
+7. それ以外 → `fallback_regenerated`
+
+#### 部分再生成の動作
+
+`generate_related_sections_partial_result` ([spec_grag/related_sections.py:1100](spec_grag/related_sections.py#L1100) 周辺) は次のように動く。
+
+1. `generate_related_section_candidates_result(sections, source_section_ids=changed_or_added_source_ids, ...)` を呼ぶ。`source_section_ids` が指定された場合、内部で `source_records` を絞り込んで 4 channel (`_add_markdown_link_candidates` / `_add_shared_identifier_candidates` / `_add_search_key_candidates` / `_add_qdrant_section_hybrid_candidates`) に渡す。`records_by_id` (target lookup) と inverted index は **全 records から構築** するため、target 側全 section へのリンクは保たれる
+2. `select_related_sections_result(..., candidates=filtered_candidates, source_section_ids=changed_or_added_source_ids)` で LLM typing batch を実行。changed/added source を含む pair の cache miss だけ LLM call が走る (= 1 source × 1 batch、`actual_call_count == 1`)
+3. `previous_related_sections` (= `_read_previous_section_metadata` 経由で取得した前回 selected_related_sections) と merge:
+   - **changed/added source**: 新 selection 結果を使う
+   - **unchanged source**: 前回値を継承。ただし target が `removed_source_ids` に含まれる relation は除外
+   - **removed source**: 最終 artifact から除外
+4. `_progress_action(action="regenerated_partial", ..., candidate_generation_elapsed_sec=<float>, selection_elapsed_sec=<float>, candidate_generation_source_count=<int>, candidate_generation_partial_mode="source_changed_only")` で stage 別 timing を記録
+
+`RelatedSectionCandidateGeneration` / `RelatedSectionSelection` の dataclass に `elapsed_sec: float` field を持たせ、それぞれの API 内部で `time.perf_counter()` で計測する。
+
+#### diagnostics の制限フラグ
+
+`generate_related_sections_partial_result` の `partial_diagnostic` (reason_code = `related_sections_partial_regenerated`) は次フィールドで partial 経路の trade-off を明示する。
+
+| field | 値 | 意味 |
+|---|---|---|
+| `partial_regeneration` | `true` | 部分再生成経路に乗ったこと |
+| `partial_mode` | `"source_changed_only"` | source 中心 partial であることの表明 |
+| `source_centric_partial` / `source_centric_partial_regeneration` | `true` | 同上 (人間向け表現の冗長性) |
+| `unchanged_source_inheritance` | `true` | unchanged source は前回値継承 |
+| `removed_source_exclusion` | `true` | removed source は artifact から除外 |
+| `changed_target_relations_inherited` | `true` | **target 変化分の relation は前回継承される (= 完全な意味更新ではない)** |
+| `requires_full_regeneration_for_complete_target_recheck` | `true` | **完全な target recheck には `--all` が必要** |
+| `changed_source_section_ids` / `changed_target_section_ids` | `list[str]` | 再 typing した source / target id |
+| `inherited_source_section_ids` / `removed_source_section_ids` | `list[str]` | 継承 / 除外した source id |
+| `candidate_count` / `candidate_count_for_selection` / `selection_source_count` / `inherited_source_count` / `removed_source_count` / `batch_count` / `llm_calls` | `int` | 各種カウンタ |
+
+加えて `generate_related_section_candidates_result` の **内部生成** diagnostic (reason_code = `related_section_candidate_generation_scope`) が `candidate_generation_partial_mode` / `candidate_generation_source_count` / `candidate_generation_elapsed_sec` を表明する。この diagnostic は core.py や `partial_diagnostic` の固定値経由ではなく `source_records` の絞り込みを直接反映するため、partial 化の本物性を検証する unit test (`test_b7a_related_sections_candidate_generation_source_partial`) はこの diagnostic を assertion 対象にする。
+
+`requires_full_regeneration_for_complete_target_recheck` と `changed_target_relations_inherited` の 2 フラグは **partial 経路の安全性を後続 Agent / 人間に伝える safety flag** であり、`source_centric_partial` だけでは「source 中心 partial」の意味は伝わるが「target 変化分の関連性 / conflict 判定が前回継承される」の含意までは明示されないため必須とする (B-7 Phase 1 で GPT 指摘により追加された設計)。
+
+#### trade-off と運用指針
+
+- partial 経路は **日常編集向けの高速経路**: 1 文字編集、typo 修正、軽微な内容変更で `related_sections.elapsed_sec` を ~5s 以下に圧縮する。50 section fixture / Section 01 1 文字編集の S2 で wall 99s → 16.3s、`related_sections.elapsed_sec` 50.4s → 4.666s を実測 (`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.2.2 参照)
+- partial 経路は **完全監査向けの経路ではない**: changed section が他 section の関連先として現れる場合、`unchanged source` 側の関連性 / conflict 判定は前回継承される。Section の意味が semantic 的に変わった場合、または release 前 / audit 前は `/spec-core --all` で完全再評価する
+- target 側 candidate の partial 化 (target が changed の pair の再 typing) は本実装の scope 外。将来 task として切り出す候補
+
+#### 既存契約への影響
+
+- `related_sections_status` の取り得る値は不変 (`success` / `skipped_unchanged` / `failed` / `blocked`)。partial 経路は `success` の一種
+- `stages.related_sections.action` の取り得る値: `skipped_unchanged` / **`regenerated_partial`** (新規) / `generated` (`--all`) / `fallback_regenerated` / `failed`
+- `fallback_regenerated` の挙動は不変 (`prompt_version` / `metadata_version` / schema bump 時に全体再生成)
+- `--all` 経路 (`generated`) の挙動は不変
+- `skipped_unchanged` 経路の挙動は不変
+
 ### 5.8 Conflict Review Items
 
 `related_sections` の `possible_conflict: true` フラグが立った section pair について、CLI は該当 section pair の Source Specs snippet、関連する Purpose / Core Concept、候補生成 channel を LLM に渡して conflict 判定を行う。Related Sections の relation_hint には `conflicts_with` は含まれない (§5.4 参照)。Conflict Review pipeline は Related Sections の分類とは独立した judge call で、Purpose / Core Concept / Source Specs grounding を必須とする。

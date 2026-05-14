@@ -607,6 +607,10 @@ Source Specs の一部 Section だけが変わった incremental 実行では、
 - `failed` — Related Sections 生成のいずれかの段階で例外が発生した。Agent / LLM は前回値の利用継続を選ぶか、`/spec-core --all` での再生成を選ぶ。
 - `blocked` — 上流の理由で `/spec-core` が中断され、Related Sections 経路に到達しなかった。
 
+Source Specs の一部 Section だけが変わった incremental 実行では、`/spec-core` は Related Sections の更新対象を変更・追加された Section だけに絞る。変更されていない Section の Related Sections は前回値をそのまま使い、削除された Section に向いていた関連先は取り除く。この部分更新が使われた場合、`related_sections_status` は引き続き `success` を返し、`.spec-grag/state/core_progress.json` の `stages.related_sections.action` は `regenerated_partial` になる。利用者は同じ stage の `candidate_generation_elapsed_sec`、`selection_elapsed_sec`、`candidate_generation_source_count`、`candidate_generation_partial_mode` で内訳を確認できる。1 Section だけを変更した場合、この stage の時間は、全 Section の Related Sections を作り直す時間ではなく、変更された Section 数に比例した時間として観測される。
+
+部分更新の前提として、`/spec-core` は **変更された Section から見た関連先** を更新するが、**変更された Section が他の Section の関連先として現れる場合の判定はそのまま前回結果を引き継ぐ**。これは軽微な編集 (1 文字修正、typo) で関連性判定が壊れないよう保守的に振る舞う設計選択である。Section の意味が大きく変わった場合、または conflict 判定を完全に洗い直したい場合は、`/spec-core --all` を実行する。`.spec-grag/context/related_sections` の各エントリの `partial_mode` と `requires_full_regeneration_for_complete_target_recheck` フラグは、この前提を Agent / 利用者に明示するために添えられる。
+
 `potential_conflicts` は、Related Sections の `conflicts_with` に由来する conflict 候補である。CLI / LLM が Source Specs、Purpose、Core Concept の根拠から「矛盾ではない」または「優先関係が明確」と判断できる場合は warning として残すだけでよい。
 
 一方、LLM が既存根拠だけでは解決できない場合は、`conflict_review_items` に status `pending` の項目を作る。pending conflict は人間判断待ちであり、freshness report は `status = blocked` と `blocking_reasons[] = ["pending_conflict"]` を返す。

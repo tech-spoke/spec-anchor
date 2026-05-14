@@ -68,12 +68,13 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-7 Phase 2**: partial 経路の外部 / 内部設計書への明文化 (`doc/EXTERNAL_DESIGN.ja.md` §7.4 と `doc/DESIGN.ja.md` §5.7 周辺)。B-7 Phase 1 と B-7a の実装挙動が固定された (`regenerated_partial` action、source 中心 partial の trade-off、stage 別 timing) ので doc 化のタイミング
-2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-3. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
-4. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+1. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+2. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+3. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
 
 B-7a (Related Sections candidate generation の source partial 化) は 2026-05-14 に CODEX rescue 実装 + Claude main 監査 (真の partial 化検証用 assertion 追加 + 逆方向検証で本物性確認) で完了し、`related_sections.elapsed_sec=50.4s → 4.666s` (1/10 以下達成)、stage 別 timing (candidate 4.52s / selection 0.017s) で Phase 1 推定が厳密確定。「完了確認済み」配下に移動済。
+
+B-7 Phase 2 (partial 経路の外部 / 内部設計書明文化) は 2026-05-14 に Claude main で実施し、`doc/EXTERNAL_DESIGN.ja.md` §7.4 に `regenerated_partial` の動作と trade-off (target 変化分は前回継承、完全再評価には `--all` が必要) を追記、`doc/DESIGN.ja.md` §5.7.2 に判定順 / partial 動作 / diagnostics 制限フラグ / trade-off と運用指針 / 既存契約への影響を新規セクションで追記。「完了確認済み」配下の B-7 / B-7a disposition に Phase 2 完了を追記済。
 
 B-5 (cache の現状確認) は 2026-05-14 に Claude main 計測で (a) 既存実装で satisfied を確定、`doc/監査/B-5_cache_measurement_2026-05-14.md` と `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。
 
@@ -1059,10 +1060,10 @@ Claude main 監査 + 局所修正:
 - 完全 target recheck が必要な場合は `--all` を使う
 - これは diagnostics に明示フラグで表明 (後の Agent / 人間が partial = 完全再評価 と誤解しないため)
 
-未達範囲と次 task:
+未達範囲と次 task (実装の事後変遷):
 
-- `related_sections.elapsed_sec` の 1/10 以下目標は **B-7a (candidate generation の source partial 化)** で達成を目指す
-- partial 経路の **外部 / 内部設計書への明文化** (`doc/EXTERNAL_DESIGN.ja.md` §7.4 と `doc/DESIGN.ja.md` §5.7 周辺) は **B-7 Phase 2** として別 commit で実施。doc を別 task に切り出した理由は「実装挙動を先に固定してから doc に書く」(嘘を書きにくくする設計選択、step 1 prompt で明示)
+- ~~`related_sections.elapsed_sec` の 1/10 以下目標は **B-7a (candidate generation の source partial 化)** で達成を目指す~~ → **B-7a で達成済** (2026-05-14、commit `b1eb8e5`、`elapsed=50.4s → 4.666s`)
+- ~~partial 経路の **外部 / 内部設計書への明文化** (`doc/EXTERNAL_DESIGN.ja.md` §7.4 と `doc/DESIGN.ja.md` §5.7 周辺) は **B-7 Phase 2** として別 commit で実施~~ → **B-7 Phase 2 完了** (2026-05-14、本 commit)
 
 #### 背景 (開放中時代の原文を保持)
 
@@ -1210,9 +1211,9 @@ implementation の trade-off (Phase 1 から継承):
 - 完全 target recheck が必要な場合は `--all` を使う
 - これは diagnostics に明示フラグで表明し、後の Agent / 人間が partial = 完全再評価 と誤解しないよう warning として伝える
 
-残課題:
+残課題 (実装の事後変遷):
 
-- partial 経路の **外部 / 内部設計書への明文化** は **B-7 Phase 2** として別 commit / 別 task で実施
+- ~~partial 経路の **外部 / 内部設計書への明文化** は **B-7 Phase 2** として別 commit / 別 task で実施~~ → **B-7 Phase 2 完了** (2026-05-14、`doc/EXTERNAL_DESIGN.ja.md` §7.4 と `doc/DESIGN.ja.md` §5.7.2 を更新。ルール 14 遵守で外部設計書には内部関数名を出さず動作と trade-off で表現、内部設計書には判定順 / merge rule / diagnostics 制限フラグ / 既存契約への影響を完全記述)
 
 #### 背景 (開放中時代の原文を保持)
 
