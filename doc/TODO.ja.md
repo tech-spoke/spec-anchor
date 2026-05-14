@@ -68,9 +68,10 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-2. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
-3. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+1. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (案 A + A-1 で確定済、AUD-006 完了後の同手順実施)
+2. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+
+AUD-006 (Chapter Anchors mechanical fallback の機能廃止根絶) は 2026-05-14 に CODEX rescue 実装 + Claude main 監査 (逆方向検証 + scope 外 mechanical 残骸 2 hit を Claude main で同時掃除 + fake provider の `notes` 補完で既存 test 維持) で完了し、`_mechanical_anchor()` 削除、`fallback_chapter_ids` → `failed_chapter_ids` rename、failed chapter があれば canonical artifact 更新せず freshness を failed に降格する経路を実装。「完了確認済み」配下に移動済。
 
 B-7a (Related Sections candidate generation の source partial 化) は 2026-05-14 に CODEX rescue 実装 + Claude main 監査 (真の partial 化検証用 assertion 追加 + 逆方向検証で本物性確認) で完了し、`related_sections.elapsed_sec=50.4s → 4.666s` (1/10 以下達成)、stage 別 timing (candidate 4.52s / selection 0.017s) で Phase 1 推定が厳密確定。「完了確認済み」配下に移動済。
 
@@ -83,75 +84,6 @@ B-5a (B-3b partial path で 50 section embed 問題) は 2026-05-14 に Claude m
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
 
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
-
-### AUD-006: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする
-
-#### 背景
-
-`doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-006 で、Chapter Anchors の LLM fallback が artifact success として扱われ、freshness に degraded として反映されない risk が指摘された。
-
-当初の TODO 起票時 (2026-05-13) は「`fallback_chapter_ids` を degraded optional artifact として freshness に渡す」方針だったが、2026-05-14 の再検討で **通常モードでは mechanical fallback を failed として扱う** 方針に切り替えた。degraded で先に進める設計は「動いているように見えるが品質保証されていない」状態を許容してしまい、Purpose (章単位 key anchor を見失わない) を満たさないため。
-
-#### 真因 / 仮説
-
-確定。mechanical fallback ([`_mechanical_anchor()`](spec_grag/chapter_anchors.py#L459-L484)) は「LLM が章を読んで統合した anchor」ではなく「section metadata を機械的に連結した placeholder」であり、LLM-generated anchor と品質差がある。
-
-具体差分:
-
-- `summary`: LLM 章俯瞰要約 → 各 section の `summary` を `" / "` で連結しただけ
-- `key_topics`: LLM 章抽出 (最大 6 件) → 各 section の `search_keys` 先頭 1 件を連結 (最大 6 件)
-- `important_sections`: LLM 選定 (最大 5 件) → 章の **先頭 3 section** を機械的に固定
-- `notes`: LLM 補足 (最大 3 件) → **空 list**
-
-これを canonical artifact として [`status: "success"`](spec_grag/chapter_anchors.py#L260-L272) で保存・参照させると、Agent は freshness が fresh の場合に「LLM 品質の章 anchor が揃っている」と誤判定する。
-
-#### 目的
-
-mechanical fallback を canonical な Chapter Anchors artifact として success 扱いさせない。Agent が後段の Agentic Search / `/spec-inject` で「LLM 品質の章 anchor」が存在すると誤判定するのを防ぐ。
-
-#### 実装方針
-
-##### 仮称定義: explicit best-effort mode
-
-ルール 6 (新規用語は範囲を先に明示) に従い、本 task で導入を検討する mode を次のように定義する。
-
-- 仮称: explicit best-effort mode
-- 意味: 利用者が CLI flag (`--allow-mechanical-anchors` 等、命名は実装時に確定) を明示指定したときのみ、mechanical fallback を degraded artifact として保存することを許可する mode
-- 含む: Chapter Anchors の mechanical fallback の degraded 保存許可
-- 含まない: 他 artifact (section_metadata / related_sections / retrieval_index) の fallback 許可、freshness の failed/degraded 全般の表現変更
-- 既存概念との差分: 既存には best-effort mode 概念は無い。導入する場合は外部契約 (`doc/EXTERNAL_DESIGN.ja.md`) への追記が必要
-- 未決: そもそも導入するか (人間判断要)。導入する場合の flag 名、CLI exit code、複数回 run 跨ぎでの cache invalidation 挙動
-
-##### 通常モード (default) の挙動
-
-1. `generate_chapter_anchors()` で `fallback_chapter_ids` が 1 件でも発生したら、artifact `status` を `"failed"` または `"partial_failed"` にする
-2. mechanical fallback の anchor 内容は canonical artifact (`.spec-grag/chapter_anchors.json`) として書き込まない
-3. 失敗した chapter id / 失敗理由 / mechanical preview は CoreResult diagnostics に残してよい (Agent / human review 用)
-4. core の最終結果も `chapter_anchors` を required artifact failure として扱い、`status: "failed"` を返す
-5. freshness 側は `failed_required_artifacts` に `chapter_anchors` を含めて failed と判定する
-
-##### explicit best-effort mode の挙動 (人間判断で採否確定)
-
-1. CLI で `--allow-mechanical-anchors` を指定した run のみ、mechanical fallback を canonical artifact として書き込む
-2. artifact `status` は `"degraded"`、`fallback_chapter_ids` を必ず含める
-3. freshness は `degraded`、`warning` に「Chapter anchors were generated mechanically because LLM generation failed.」相当を出す
-
-#### 検証条件
-
-- LLM provider failure を fake provider で再現したとき、通常モードでは `chapter_anchors` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `chapter_anchors` が含まれる
-- 通常モードで CoreResult diagnostics に「どの chapter で fallback が起きたか / 失敗理由」が残る
-- 既存の no-change fast path (前回の正常な LLM anchor が cache hit する経路) では LLM call なしで success のまま (本変更が成功経路へ regression しない)
-- explicit best-effort mode を採用した場合、`--allow-mechanical-anchors` 指定時のみ mechanical anchor が `status: "degraded"` で書き込まれ、`fallback_chapter_ids` と warning が含まれる
-- `tests/test_chapter_anchors.py` 等で provider missing / provider failure / unparseable response の 3 ケースを通常モード (および best-effort mode を採用するならそちらも) で分けて検証
-
-#### 依存 / scope 外
-
-- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Chapter Anchors / freshness 仕様に「mechanical fallback は通常モードでは canonical artifact として保存せず、Chapter Anchors を required artifact failure として freshness を failed にする」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
-- AUD-007 (Related Sections の Qdrant fallback) とは「失敗対象」が異なる: AUD-006 は **artifact の中身そのもの (semantic artifact generation failure)** の品質低下、AUD-007 は **設定された retrieval backend を使えなかった (configured retrieval backend failure)** 経路差。ただし運用上の結論は同じで、両方とも「通常モードでは failed、明示 best-effort のときだけ degraded」に揃える
-- 既存の `core` 経路で `chapter_anchors_status` を返す箇所 (`spec_grag/core.py`) と、`run_inject_search()` / Agentic Search が anchor を読む経路の両方を一貫させる
-- 人間判断要 (実装着手前に確定):
-  - explicit best-effort mode を導入するか、それとも「mechanical fallback は一切 canonical 保存しない、CLI で明示しても禁止」とするか
-  - 後者の場合、`generate_chapter_anchors()` の `_mechanical_anchor()` 自体を削除する選択肢もある (ルール 15: 機能廃止は根絶)。残す場合は「diagnostics preview 用のみ」と用途を明示する
 
 ### AUD-007: Related Sections の Qdrant fallback を通常モードで failed 扱いにする
 
@@ -173,69 +105,66 @@ mechanical fallback を canonical な Chapter Anchors artifact として success
 
 Related Sections candidate generation が、Qdrant を期待した設定で実 Qdrant ではなく InMemory fallback を使った場合、production contract failure として canonical artifact / core 結果を success にしない。これにより Agent / operator が「本番で期待した経路を使えなかった」事実を見落とさないようにする。
 
-#### 実装方針
+#### 実装方針 (2026-05-14 人間判断確定: 案 A + 案 A-1)
+
+**explicit best-effort mode は導入しない**。`--allow-retrieval-fallback` や `--best-effort` 等の CLI flag は追加しない。さらに **Qdrant 設定時の InMemory fallback path を削除する** (ルール 15: 機能廃止は根絶)。Qdrant 未設定 (dev / test の純 InMemory 構成) は引き続き `success` で対応。
 
 ##### 状況区分と扱い
 
 | 状況 | 扱い |
 | --- | --- |
-| Qdrant 未設定 (`vector_store.provider` が `qdrant` でない、または `url` 未設定) で InMemory を使う | `success` のまま (本 task の対象外) |
+| Qdrant 未設定 (`vector_store.provider` が `qdrant` でない、または `url` 未設定) で InMemory を使う | `success` のまま (本 task の対象外、dev / test 用構成) |
 | dev / test 用に明示的に InMemory を指定 | `success` のまま (本 task の対象外) |
-| Qdrant 設定済みで初期化失敗 → InMemory fallback | **`failed`** (本 task の対象、通常モード default) |
-| 明示的な best-effort mode (`--allow-retrieval-fallback` または `--best-effort`、命名は AUD-006 と揃える) で fallback 許可 | `degraded` |
-| diagnostics にだけ記録して `success` | 不十分 (旧 TODO 案、破棄) |
+| Qdrant 設定済みで初期化失敗 | **`failed`** (本 task の対象、唯一の経路)。InMemory fallback は **発生しない** (= path 削除) |
 
-##### 通常モード (default) の挙動
+##### 通常モード (本実装で唯一の経路) の挙動
 
-1. `_add_qdrant_section_hybrid_candidates()` ([spec_grag/related_sections.py:1304](spec_grag/related_sections.py#L1304)) または周辺で Qdrant retriever 初期化失敗を検知した時点で、上位 (`_generate_related_sections()` ([spec_grag/core.py:1549](spec_grag/core.py#L1549)) 側) へ「expected_backend = qdrant、actual_backend = in_memory、fallback_reason」を伝搬する。現状の例外握り潰し + `retriever = None` ([spec_grag/related_sections.py:1355-1365](spec_grag/related_sections.py#L1355-L1365)) は不十分なので戻り値または diagnostics 経由で伝搬する形に変える
-2. `related_sections` を required artifact failure として扱い、core の `status` を `"failed"` にし、`failed_required_artifacts` に `related_sections` を含める
-3. InMemory fallback で得られた candidate は canonical `related_sections` artifact として success 扱いで保存しない
-4. CoreResult diagnostics には次の構造で記録する (artifact 名 / field 名は実装時に既存契約と整合確認):
-
+1. `_add_qdrant_section_hybrid_candidates()` で Qdrant retriever 初期化失敗を検知した場合、**InMemory fallback には落ちない** (= 旧 `retriever = None` → `InMemoryHybridRetriever(payloads)` の経路を Qdrant 設定時には実行しない)。代わりに「expected_backend = qdrant、actual_backend = unavailable、fallback_reason」の情報を上位に伝搬
+2. `_generate_related_sections()` 側で受け取った retriever 失敗情報により、`related_sections` を required artifact failure として扱い、`status: "failed"` を返す
+3. core の `status` を `"failed"` にし、`failed_required_artifacts` に `related_sections` を含める
+4. canonical `related_sections` artifact は更新しない (前回の正常 artifact を残す = stale だが嘘の success よりは安全)
+5. CoreResult diagnostics には次の構造で記録する:
    ```json
    {
      "related_sections": {
        "status": "failed",
        "expected_retrieval_backend": "qdrant",
-       "actual_retrieval_backend": "in_memory",
-       "fallback_used": true,
-       "fallback_reason": "Qdrant retriever initialization failed: <error>",
+       "actual_retrieval_backend": "unavailable",
+       "fallback_attempted": false,
+       "failure_reason": "Qdrant retriever initialization failed: <error>",
        "qdrant_url_configured": true,
        "embedding_provider": "flagembedding"
      }
    }
    ```
 
-##### explicit best-effort mode の挙動 (人間判断で採否確定)
+##### code 削除対象
 
-AUD-006 で導入を検討する `explicit best-effort mode` (仮称) と同じ CLI flag (`--best-effort` または backend 別の `--allow-retrieval-fallback`) を共有する想定。指定時のみ次の挙動を許可する:
+- `_add_qdrant_section_hybrid_candidates()` 内の「Qdrant 設定済みなのに retriever 初期化失敗時に `InMemoryHybridRetriever(payloads)` を作る」経路
+- 旧 fallback 関連の silent exception 経路 (`except Exception: retriever = None` のような握り潰し)
+- 関連する診断 field (例: `fallback_used`、`actual_backend = "in_memory"` のような旧 fallback 経路を前提とした表現)
 
-1. InMemory fallback の candidate を `status: "degraded"` の artifact として保存
-2. diagnostics に通常モードと同じ field + `allowed_by: "--best-effort"` (または相当 flag 名) を残す
-3. freshness は `degraded`、warning に「Configured retrieval backend (qdrant) was not available; in-memory fallback was used.」相当を出す
+Qdrant 未設定 (dev / test 構成、`vector_store.provider != "qdrant"` または `url` 未設定) で InMemoryHybridRetriever を **最初から** 使う経路は本 task で削除しない。これは「Qdrant を期待しない構成」での正規動作。判定は呼び出し時点 (Qdrant 設定の有無) で完結させる。
 
 #### 検証条件
 
-- Qdrant URL を設定したまま接続失敗を fake で再現したとき、通常モードでは `related_sections` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `related_sections` が含まれる
-- 同条件で CoreResult diagnostics に `expected_retrieval_backend = "qdrant"` / `actual_retrieval_backend = "in_memory"` / `fallback_reason` が記録される
+- Qdrant URL を設定したまま接続失敗を fake で再現したとき、`related_sections` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `related_sections` が含まれる
+- 同条件で CoreResult diagnostics に `expected_retrieval_backend = "qdrant"` / `actual_retrieval_backend = "unavailable"` / `failure_reason` が記録される (`fallback_attempted = false`)
 - Qdrant 未設定 (InMemory を最初から使う構成) では fallback diagnostics が出ず `success` のまま (本変更が dev / test 経路へ regression しない)
 - Qdrant 正常時には fallback diagnostics が出ず、real Qdrant retriever が使われたことが diagnostics から確認できる
-- explicit best-effort mode を採用した場合、`--best-effort` (または相当 flag) 指定時のみ InMemory fallback が `status: "degraded"` で書き込まれ、`allowed_by` が記録される
-- fallback path / real Qdrant path / Qdrant 未設定 (純 InMemory) path の 3 経路を test で分けて検証する
+- `_add_qdrant_section_hybrid_candidates()` で Qdrant 設定時の `InMemoryHybridRetriever` インスタンス化が **完全に消えている** (`git grep` で確認: Qdrant 設定時の InMemory fallback への参照 0 hit)
+- fallback path (削除済) / real Qdrant path / Qdrant 未設定 (純 InMemory) path の 3 経路を test で分けて検証 (削除した path は test も削除または書き換え)
 
 #### 依存 / scope 外
 
-- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Related Sections / freshness 仕様に「Qdrant を期待した設定で初期化失敗時、通常モードでは Related Sections を failed として扱う。InMemory fallback は canonical production result にしない」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
-- AUD-006 と best-effort mode の CLI flag / 振る舞いを揃える: AUD-006 単独で導入するか、両者まとめて 1 つの flag (`--best-effort`) で覆うかは人間判断要。バラバラに導入すると CLI 表面が増える
+- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Related Sections / freshness 仕様に「Qdrant を期待した設定で初期化失敗時、Related Sections を failed として扱う。InMemory fallback は提供しない (Qdrant 未設定の dev / test 用構成では引き続き InMemory を使う)」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
+- AUD-006 と同じ案 A + 案 A-1 の方針で実施。CLI flag は両方とも追加しない (best-effort mode 不採用)
 - AUD-006 との性質差:
   - AUD-006 = semantic artifact generation failure (artifact 中身の品質低下)
   - AUD-007 = configured retrieval backend failure (経路差: 設定 vs 実消費)
-  - 運用上の扱いは同じ (通常 = failed、明示 best-effort = degraded)
-- 既存の `core` 経路 ([spec_grag/core.py:1549](spec_grag/core.py#L1549) 以降) と `_add_qdrant_section_hybrid_candidates()` ([spec_grag/related_sections.py:1304](spec_grag/related_sections.py#L1304)) の戻り値契約を変える必要がある (現状は fallback 情報を上位に伝える戻り値経路を持たない)
-- 人間判断要 (実装着手前に確定):
-  - explicit best-effort mode を導入するか、それとも「Qdrant 設定済みなら fallback は常に failed、CLI で明示しても禁止」とするか
-  - 後者の場合、`_add_qdrant_section_hybrid_candidates()` の InMemory fallback path 自体を Qdrant 設定時には呼ばないよう削除する選択肢もある (ルール 15: 機能廃止は根絶)。残す場合は「Qdrant 未設定構成専用」と用途を明示する
-  - flag 名 (`--best-effort` 共通 / `--allow-retrieval-fallback` 個別) の選択
+  - 運用上の扱いは同じ (通常 = failed、案 A-1 で関連 path 削除)
+- 既存の `core` 経路 と `_add_qdrant_section_hybrid_candidates()` の戻り値契約を変える必要がある (現状は fallback 情報を上位に伝える戻り値経路を持たない、新規追加)
+- ルール 15 (機能廃止は根絶) の徹底: Qdrant 設定時 InMemory fallback への参照を `git grep` で残骸 0 確認
 
 ### B-6: core 開始時の Qdrant scroll コストの大規模 spec 計測
 
@@ -1276,6 +1205,131 @@ E. **`fallback_regenerated` / `generated` / `skipped_unchanged` の維持**
   - 大規模 spec (500 section 規模) での挙動: B-6 scope
 
 実装の事後変遷 (完了確認済み時点): target 側 partial 化 (`changed_target_relations_inherited=False` 化) は Phase 1/B-7a の trade-off として継承され、本 session では実装しない。AUD-006 / conflicts_with の partial 化も別 task のまま。
+
+### AUD-006: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする
+
+#### 状態
+
+採用 / 修正済み (2026-05-14、案 A + 案 A-1 = best-effort mode 不採用 + `_mechanical_anchor()` および関連 path 完全削除)。実装差分は次のコミットで確定する予定 (本 commit 着手前は session working tree に保持):
+
+- `spec_grag/chapter_anchors.py`:
+  - `_mechanical_anchor()` 関数本体を物理削除 (ルール 15: 機能廃止は根絶)
+  - `_anchor_from_llm_output()` の signature を `tuple[anchor, used_fallback]` → `dict | None` に変更 (失敗時 None 返却)
+  - `ChapterAnchorsGeneration` dataclass の `fallback_chapter_ids` → `failed_chapter_ids` に rename
+  - `generate_chapter_anchors()` で失敗 chapter を output_chapters に append しない、`failed_chapter_ids` と `failure_reasons_by_chapter` を集計、artifact `status` を `failed` (1 件以上失敗) / `success` (全成功) で切り替え
+- `spec_grag/core.py`:
+  - `_chapter_anchors()` の戻り値を `tuple[artifact, llm_results, failed_chapter_ids]` に拡張
+  - 呼び出し側で `chapter_anchors.status == "failed"` の場合 `failed_required_artifacts.append("chapter_anchors")` で freshness を failed に降格
+  - canonical artifact (`chapter_anchors.json`) は `status: "success"` のときだけ書き込み (failed 時は前回値を残す)
+  - `generation_diagnostics["chapter_anchors"]` に status / failed_chapter_ids / failure_reasons_by_chapter を露出
+- `spec_grag/inject.py` / `spec_grag/llm_provider.py`: 古い「mechanical builder」「mechanical fallback path」へのコメント参照 2 hit を Claude main で同時掃除 (Codex の scope 厳守で残った 2 hit のうち、AUD-006 関連の歴史残骸 2 件)。`related_sections.py` の `mechanically extracted identifiers` 2 hit は別文脈 (section identifiers 抽出) のため保持
+- `tests/test_chapter_anchors.py`: 旧 `test_*_fallback_when_llm_returns_invalid_shape` を `test_*_marks_failed_when_llm_returns_invalid_shape` に書き換え、新規 failed test 3 件 (provider missing / provider raises / llm_output_missing_summary) を追加
+- `tests/test_spec_core.py` / `tests/test_spec_inject.py`: `FakeSpecCoreProvider` の chapter_anchors 経路出力に `notes: []` を追加 (Codex 実装後の R6 で 40 件 / 27 件の test fail が発生し、`required_fields=("summary", "key_topics", "important_sections", "notes")` 違反が真因と Claude main で判明、fake provider の出力補完で全 test 通過)
+- `doc/EXTERNAL_DESIGN.ja.md` §4.1 / §7.4 / §11 を更新 (ルール 14 遵守、内部関数名なしで動作と結果を表現)
+
+#### 完了確認結果 (2026-05-14, CODEX rescue 実装 + Claude main 監査 + 既存 test 整合性修復 + 逆方向検証)
+
+実装 (CODEX rescue、~10.8 分、Final report 10 セクション完備):
+
+- `_mechanical_anchor()` 関数本体を削除 (29 行)
+- `_anchor_from_llm_output()` を None 返却型に簡素化
+- dataclass field rename + `failure_reasons_by_chapter` 新規 diagnostics
+- core.py で failed 経路と canonical 書き込み抑制を追加
+- 外部設計書 §4.1 (artifact 物理配置) / §7.4 (CoreResult 出力) / §11 (エラー契約表) を更新
+- target unit test 13 passed (`tests/test_chapter_anchors.py`)
+- 削除根絶確認: `_mechanical_anchor` / `fallback_chapter_ids` / `used_fallback` すべて 0 hit
+- `mechanical` 4 hit のうち 2 件 (inject.py:761、llm_provider.py:578) は Codex scope 外として未処理、残り 2 件 (related_sections.py:2022/2046) は別文脈 ("mechanically extracted identifiers" = section identifiers の機械抽出) のため保持
+
+Claude main 監査 + 補完修正:
+
+- inject.py:761 と llm_provider.py:578 の AUD-006 関連歴史残骸を Claude main で同時掃除 (Codex の scope 厳守判断を尊重しつつ、ルール 15「機能廃止は根絶」の徹底のため AUD-006 同一 commit で削除)
+- 逆方向検証: `if anchor is None:` を `if anchor is None and False:` に書き換えて新規 failed test 3 件が `AssertionError` で fail することを確認 → 真に内部 failed 集計を検証している決定的証拠
+- R6 で 40 test failed が発生 → 真因調査で `FakeSpecCoreProvider.generate` の chapter_anchors 経路出力に `notes` field が無いことを同定。`generate_with_retries(..., required_fields=("summary", "key_topics", "important_sections", "notes"))` の必須 field 違反で fake LLM 経由でも `result.status != "success"` になり新実装で chapter failed 扱いに → 旧実装では mechanical fallback で誤魔化されていたものが顕在化
+- `tests/test_spec_core.py:102` と `tests/test_spec_inject.py:113` の FakeSpecCoreProvider に `notes: []` を 1 行追加 (= 旧 test の前提を新実装に合わせる修正、production を test 通過のために弱めない方針との両立)
+- 修正後 R6 全 pass: **380 passed / 16 skipped** (B-7 Phase 2 完了時の 378 + AUD-006 関連新 test +2 = 380)
+- 監査範囲 scope: spec_grag/chapter_anchors.py + spec_grag/core.py + spec_grag/inject.py + spec_grag/llm_provider.py + tests/test_chapter_anchors.py + tests/test_spec_core.py + tests/test_spec_inject.py + doc/EXTERNAL_DESIGN.ja.md = 8 files (Codex は 5 files、Claude main 補完は 3 files)
+
+検証条件別の達成状況:
+
+- **LLM provider failure 時 canonical 書き込みなし、core status=failed、failed_required_artifacts に chapter_anchors**: ✓ test_chapter_anchors の新規 failed test 3 件で assertion 済
+- **CoreResult diagnostics に失敗理由が残る**: ✓ `failure_reasons_by_chapter` 経由で chapter_id → reason 文字列を保存
+- **no-change fast path で LLM call なし success**: ✓ 既存 cache reuse test (`test_chapter_anchors_cache_reuses_unchanged_chapter`) が pass 維持
+- **`_mechanical_anchor()` への参照 0 hit**: ✓ git grep で確認
+- **provider missing / provider failure / unparseable response の 3 ケースを failed として検証**: ✓ 新規 test 3 件で assertion
+- **`--all` / `--rebuild` 経路でも failed 挙動一貫**: ✓ rebuild_all=True を受ける既存経路に変更なし、failed 判定は cache の前段で動作
+
+外部契約変更:
+
+- `doc/EXTERNAL_DESIGN.ja.md` §4.1: 「Chapter anchor を生成できない chapter があった場合、`/spec-core` はこの canonical artifact を更新せず、前回の値を残す」を追記
+- §7.4: Chapter Anchors の失敗時挙動 (mechanical fallback 不提供、canonical 更新せず、freshness failed、`/spec-core --all` で再試行) を 1 段落で明示
+- §11 エラー契約表: 「Chapter Key Anchor 更新に一部失敗」を `status = degraded` → `status = failed` + canonical artifact 更新しないに書き換え
+
+trade-off:
+
+- mechanical fallback 削除により、LLM provider が一時的に落ちた場合の dev 体験は「`/spec-core --all` で再試行が必要」になる (= 旧実装の「mechanical で進む」体験は失われる)
+- canonical `chapter_anchors.json` を失敗時に更新しない設計の trade-off は、stale だが嘘の success よりは安全な選択
+
+#### 背景 (開放中時代の原文を保持)
+
+`doc/監査/IMPLEMENTATION_METHOD_AUDIT.ja.md` の AUD-006 で、Chapter Anchors の LLM fallback が artifact success として扱われ、freshness に degraded として反映されない risk が指摘された。
+
+当初の TODO 起票時 (2026-05-13) は「`fallback_chapter_ids` を degraded optional artifact として freshness に渡す」方針だったが、2026-05-14 の再検討で **通常モードでは mechanical fallback を failed として扱う** 方針に切り替えた。degraded で先に進める設計は「動いているように見えるが品質保証されていない」状態を許容してしまい、Purpose (章単位 key anchor を見失わない) を満たさないため。
+
+#### 真因 / 仮説 (開放中時代の原文を保持)
+
+確定。mechanical fallback ([`_mechanical_anchor()`](spec_grag/chapter_anchors.py#L459-L484)) は「LLM が章を読んで統合した anchor」ではなく「section metadata を機械的に連結した placeholder」であり、LLM-generated anchor と品質差がある。
+
+具体差分:
+
+- `summary`: LLM 章俯瞰要約 → 各 section の `summary` を `" / "` で連結しただけ
+- `key_topics`: LLM 章抽出 (最大 6 件) → 各 section の `search_keys` 先頭 1 件を連結 (最大 6 件)
+- `important_sections`: LLM 選定 (最大 5 件) → 章の **先頭 3 section** を機械的に固定
+- `notes`: LLM 補足 (最大 3 件) → **空 list**
+
+これを canonical artifact として [`status: "success"`](spec_grag/chapter_anchors.py#L260-L272) で保存・参照させると、Agent は freshness が fresh の場合に「LLM 品質の章 anchor が揃っている」と誤判定する。
+
+#### 目的 (開放中時代の原文を保持)
+
+mechanical fallback を canonical な Chapter Anchors artifact として success 扱いさせない。Agent が後段の Agentic Search / `/spec-inject` で「LLM 品質の章 anchor」が存在すると誤判定するのを防ぐ。
+
+#### 実装方針 (2026-05-14 人間判断確定、開放中時代の原文を保持)
+
+**explicit best-effort mode は導入しない**。`--allow-mechanical-anchors` や `--best-effort` 等の CLI flag は追加しない。さらに **`_mechanical_anchor()` の code path 自体を削除する** (ルール 15: 機能廃止は根絶)。「mechanical fallback で動いた風の success」を作る経路を完全に絶つ。
+
+##### 通常モード (本実装で唯一の経路) の挙動
+
+1. `generate_chapter_anchors()` で LLM provider が missing / failure / unparseable response いずれかの理由で chapter anchor を生成できなかった場合、その chapter は `"failed"` として扱う
+2. mechanical fallback の anchor 内容は **生成も保存もしない** (= `_mechanical_anchor()` を呼ばない)
+3. 失敗した chapter id / 失敗理由は CoreResult diagnostics に残す (Agent / human review 用)
+4. 1 chapter でも失敗した場合、artifact `status` を `"failed"` にする (`fallback_chapter_ids` field は廃止、または「廃止された旧 field」として doc 化)
+5. core の最終結果も `chapter_anchors` を required artifact failure として扱い、`status: "failed"` を返す
+6. freshness 側は `failed_required_artifacts` に `chapter_anchors` を含めて failed と判定する
+7. canonical artifact (`.spec-grag/context/chapter_anchors.json`) は、全 chapter が LLM 生成成功した実行でのみ書き込む。1 chapter でも失敗があれば canonical file を更新しない (前回の正常 artifact を残す = stale だが嘘の success よりは安全)
+
+##### code 削除対象
+
+- `spec_grag/chapter_anchors.py` の `_mechanical_anchor()` 関数本体
+- `_anchor_from_llm_output()` の `(anchor, used_fallback)` 戻り値の `used_fallback` 経路と関連処理
+- `fallback_chapter_ids` 集約と artifact 出力経路
+- 旧 fallback 関連の diagnostics field (ただし「LLM failed の理由」は新 diagnostics で表現する)
+
+#### 検証条件 (開放中時代の原文を保持)
+
+- LLM provider failure を fake provider で再現したとき、`chapter_anchors` artifact が canonical file として書き込まれず、core の `status` が `"failed"`、`failed_required_artifacts` に `chapter_anchors` が含まれる
+- CoreResult diagnostics に「どの chapter で LLM 生成失敗が起きたか / 失敗理由」が残る (新 diagnostics 構造)
+- 既存の no-change fast path (前回の正常な LLM anchor が cache hit する経路) では LLM call なしで success のまま (本変更が成功経路へ regression しない)
+- `_mechanical_anchor()` への参照が production code から完全に消えている (`git grep _mechanical_anchor -- spec_grag` で 0 hit)
+- `tests/test_chapter_anchors.py` 等で provider missing / provider failure / unparseable response の 3 ケースをすべて `status: "failed"` で検証 (mechanical fallback の挙動を期待する旧 test は削除または書き換え)
+- `--all` / `--rebuild` 経路でも同じ failed 挙動が一貫していること
+
+#### 依存 / scope 外 (開放中時代の原文を保持)
+
+- 外部契約変更を伴う: `doc/EXTERNAL_DESIGN.ja.md` の Chapter Anchors / freshness 仕様に「Chapter anchor を生成できない chapter があった場合、Chapter Anchors を required artifact failure として freshness を failed にし、canonical artifact は更新しない。mechanical fallback による degrade 経路は提供しない」を明記する必要がある (ルール 14 に従い読者が動作で理解できる言葉で記述)
+- AUD-007 (Related Sections の Qdrant fallback) とは「失敗対象」が異なる: AUD-006 は **artifact の中身そのもの (semantic artifact generation failure)** の品質低下、AUD-007 は **設定された retrieval backend を使えなかった (configured retrieval backend failure)** 経路差。ただし運用上の結論は同じ (両方とも案 A + A-1 で failed 固定 + path 削除)。AUD-006 完了後に AUD-007 を実施
+- 既存の `core` 経路で `chapter_anchors_status` を返す箇所 (`spec_grag/core.py`) と、`run_inject_search()` / Agentic Search が anchor を読む経路の両方を一貫させる
+- ルール 15 (機能廃止は根絶) の徹底: `_mechanical_anchor`、`fallback_chapter_ids`、`used_fallback`、`--allow-mechanical-anchors` 等を git grep で残骸 0 確認
+
+実装の事後変遷 (完了確認済み時点): ルール 15 徹底のため、Codex が scope 厳守で残した `mechanical` 残骸 2 hit (`inject.py:761` と `llm_provider.py:578` の旧コメント) も Claude main で同一 commit で掃除。`related_sections.py` の `mechanically extracted identifiers` 2 hit は section identifiers 抽出の別文脈で AUD-006 とは無関係のため保持。R6 で fake provider の `notes` field 欠落による既存 test fail が顕在化したため、`FakeSpecCoreProvider.generate` の chapter_anchors 経路出力に `notes: []` を補完 (旧実装で mechanical fallback により誤魔化されていたものの真因解消)。
 
 ### CDX-001: `prior_state` dead 引数の削除
 

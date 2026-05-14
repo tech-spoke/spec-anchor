@@ -696,7 +696,7 @@ def _run_spec_core_unlocked(
         section_manifest_payload["generation"] = dict(metadata_generation_block)
     section_manifest = section_manifest_payload
     emit("core_chapter_anchors_start")
-    chapter_anchors, chapter_anchors_llm_results = _chapter_anchors(
+    chapter_anchors, chapter_anchors_llm_results, chapter_anchors_failed_ids = _chapter_anchors(
         sections,
         metadata_entries,
         generated_at,
@@ -713,6 +713,20 @@ def _run_spec_core_unlocked(
             chapter_anchors_llm_results,
         )
     emit("core_chapter_anchors_done")
+    if chapter_anchors.get("status") == "failed":
+        failed_required_artifacts.append("chapter_anchors")
+        generation_warnings.append(
+            f"Chapter Anchors LLM generation failed for {len(chapter_anchors_failed_ids)} chapter(s); "
+            f"canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+        )
+    generation_diagnostics["chapter_anchors"] = {
+        "status": chapter_anchors.get("status"),
+        "failed_chapter_ids": chapter_anchors_failed_ids,
+        "failure_reasons_by_chapter": chapter_anchors.get("generation", {}).get(
+            "failure_reasons_by_chapter",
+            {},
+        ),
+    }
     freshness_report = build_freshness_report(
         conflict_review_items=conflict_review_items,
         failed_required_artifacts=failed_required_artifacts,
@@ -733,8 +747,9 @@ def _run_spec_core_unlocked(
             "conflict_review_items": conflict_review_items,
             "generated_at": generated_at,
         },
-        "chapter_anchors": chapter_anchors,
     }
+    if chapter_anchors.get("status") == "success":
+        artifacts["chapter_anchors"] = chapter_anchors
     if not watcher_internal_update:
         artifacts["freshness"] = freshness_report
     emit("core_artifact_write_start")
@@ -3147,16 +3162,12 @@ def _chapter_anchors(
     cache_dir: str | Path | None = None,
     concept_text: str | None = None,
     rebuild_all: bool = False,
-) -> tuple[dict[str, Any], list[Any]]:
+) -> tuple[dict[str, Any], list[Any], list[str]]:
     """Phase R-7: LLM-generated Chapter Key Anchor.
 
     Delegates to `spec_grag.chapter_anchors.generate_chapter_anchors`
-    which issues one LLM call per chapter and falls back to a mechanical
-    anchor (concatenated summaries + first search_keys + first 3
-    section_ids) when the provider is missing or the response is
-    unparseable. Callers that don't pass `config` / `provider` (e.g.
-    legacy tests, watcher snapshot paths) still get a usable anchor via
-    the fallback path.
+    which issues one LLM call per chapter and reports chapter ids whose
+    LLM output could not produce a usable anchor.
 
     `rebuild_all=True` propagates the `--all` / `--rebuild` CLI contract
     into chapter_anchors so its on-disk cache is bypassed for the load
@@ -3179,7 +3190,7 @@ def _chapter_anchors(
         generated_at=generated_at,
         rebuild_all=rebuild_all,
     )
-    return generation.artifact, list(generation.llm_results)
+    return generation.artifact, list(generation.llm_results), list(generation.failed_chapter_ids)
 
 
 def _section_manifest_audit_by_id(

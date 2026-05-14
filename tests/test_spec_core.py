@@ -99,6 +99,7 @@ class FakeSpecCoreProvider:
             "chapter_summary": f"chapter:{_fingerprint(text)}",
             "key_topics": [f"topic:{_fingerprint(text)}"],
             "important_sections": [section_id] if section_id else [],
+            "notes": [],
         }
 
     def judge(self, pair: Any, **_: Any) -> dict[str, Any]:

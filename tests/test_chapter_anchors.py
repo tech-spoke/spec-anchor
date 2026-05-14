@@ -195,7 +195,7 @@ def test_generate_chapter_anchors_filters_invalid_important_sections() -> None:
     assert main_chapter["important_sections"] == ["docs/spec/main.md#alpha"]
 
 
-def test_generate_chapter_anchors_fallback_when_llm_returns_invalid_shape() -> None:
+def test_generate_chapter_anchors_marks_failed_when_llm_returns_invalid_shape() -> None:
     @dataclass
     class _BrokenProvider:
         @property
@@ -212,17 +212,77 @@ def test_generate_chapter_anchors_fallback_when_llm_returns_invalid_shape() -> N
         generated_at="2026-05-11T03:00:00Z",
     )
 
-    assert set(result.fallback_chapter_ids) == {"docs/spec/main.md", "docs/spec/other.md"}
-    for chapter in result.chapters:
-        # Mechanical anchor: summary is concatenation of section summaries.
-        if chapter["chapter_id"] == "docs/spec/main.md":
-            assert "Alpha covers authentication" in chapter["summary"]
-            assert "Beta defines session policy" in chapter["summary"]
-            assert chapter["key_topics"] == ["authentication", "session"]
-            assert chapter["important_sections"] == [
-                "docs/spec/main.md#alpha",
-                "docs/spec/main.md#beta",
-            ]
+    failed_ids = {"docs/spec/main.md", "docs/spec/other.md"}
+    assert set(result.failed_chapter_ids) == failed_ids
+    assert result.artifact["status"] == "failed"
+    assert set(result.artifact["generation"]["failed_chapter_ids"]) == failed_ids
+    reasons = result.artifact["generation"]["failure_reasons_by_chapter"]
+    assert set(reasons) == failed_ids
+    assert all(reason.startswith("llm_generation_failed: ") for reason in reasons.values())
+    assert len(result.chapters) == 0
+
+
+def test_generate_chapter_anchors_marks_failed_when_provider_raises() -> None:
+    @dataclass
+    class _RaisingProvider:
+        @property
+        def provider_id(self) -> str:
+            return "raising-fake"
+
+        def generate(self, request: LlmRequest, *, timeout_sec: int) -> dict[str, Any]:
+            raise RuntimeError(f"boom for {request.section_id}")
+
+    result = generate_chapter_anchors(
+        _sections(),
+        _metadata_entries(),
+        provider=_RaisingProvider(),
+        generated_at="2026-05-11T03:00:00Z",
+    )
+
+    failed_ids = {"docs/spec/main.md", "docs/spec/other.md"}
+    assert set(result.failed_chapter_ids) == failed_ids
+    assert result.artifact["status"] == "failed"
+    assert set(result.artifact["generation"]["failed_chapter_ids"]) == failed_ids
+    reasons = result.artifact["generation"]["failure_reasons_by_chapter"]
+    assert set(reasons) == failed_ids
+    assert all(reason.startswith("llm_generation_failed: boom for ") for reason in reasons.values())
+    assert result.chapters == []
+
+
+def test_generate_chapter_anchors_marks_failed_when_llm_output_missing_summary() -> None:
+    @dataclass
+    class _MissingSummaryProvider:
+        @property
+        def provider_id(self) -> str:
+            return "missing-summary-fake"
+
+        def generate(self, request: LlmRequest, *, timeout_sec: int) -> dict[str, Any]:
+            summary: str | None = ""
+            if request.section_id == "docs/spec/other.md":
+                summary = None
+            return {
+                "summary": summary,
+                "key_topics": ["topic"],
+                "important_sections": list(request.section_hashes.keys())[:1],
+                "notes": [],
+            }
+
+    result = generate_chapter_anchors(
+        _sections(),
+        _metadata_entries(),
+        provider=_MissingSummaryProvider(),
+        generated_at="2026-05-11T03:00:00Z",
+    )
+
+    failed_ids = {"docs/spec/main.md", "docs/spec/other.md"}
+    assert set(result.failed_chapter_ids) == failed_ids
+    assert result.artifact["status"] == "failed"
+    assert set(result.artifact["generation"]["failed_chapter_ids"]) == failed_ids
+    assert result.artifact["generation"]["failure_reasons_by_chapter"] == {
+        chapter_id: "llm_output_unparseable_or_missing_summary"
+        for chapter_id in failed_ids
+    }
+    assert result.chapters == []
 
 
 def test_chapter_anchors_cache_reuses_unchanged_chapter(tmp_path: Path) -> None:
@@ -362,11 +422,8 @@ def test_chapter_key_anchor_output_schema_includes_required_fields() -> None:
 
     The bug found during real-codex verification was: codex was given the
     default `_spec_core_output_schema` (which requires `summary` +
-    `search_keys`) for the `chapter_key_anchor` stage. The LLM returned a
-    section-shaped object, `_anchor_from_llm_output` rejected the
-    `key_topics`/`important_sections`/`notes` absence, and every chapter
-    fell back to the mechanical aggregator. Verify the schema now reflects
-    Phase R-7 contract.
+    `search_keys`) for the `chapter_key_anchor` stage. Verify the schema
+    now reflects Phase R-7 contract.
     """
 
     from spec_grag.llm_provider import _chapter_key_anchor_output_schema

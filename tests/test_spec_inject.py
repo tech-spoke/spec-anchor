@@ -110,6 +110,7 @@ class FakeSpecCoreProvider:
             "chapter_summary": "security chapter anchor",
             "key_topics": ["authentication"],
             "important_sections": [section_id] if section_id else [],
+            "notes": [],
         }
 
     def judge_conflict(self, request: Any, **_: Any) -> dict[str, Any]:

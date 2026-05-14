@@ -574,8 +574,9 @@ def _chapter_key_anchor_output_schema() -> dict[str, Any]:
     `doc/EXTERNAL_DESIGN.ja.md` §2.9. Without this dedicated schema the
     codex provider would receive the section_metadata schema (with
     `search_keys`) and produce output that
-    `spec_grag.chapter_anchors._anchor_from_llm_output` rejects, forcing
-    every chapter through the mechanical fallback path.
+    `spec_grag.chapter_anchors._anchor_from_llm_output` rejects, marking
+    every chapter as failed in the Chapter Key Anchor artifact (since
+    AUD-006 the failed chapters are no longer replaced by any fallback).
     """
 
     return {
