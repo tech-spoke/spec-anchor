@@ -68,13 +68,194 @@ CDX-002 fix は二重防御 ((1) `_PAYLOAD_FINGERPRINT_EXCLUDE_KEYS = frozenset(
 
 優先順位 (上から順に着手):
 
-1. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
-2. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
-3. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+1. **B-5a (最優先 / 高インパクト)**: B-3b partial path が「partial = ほぼ全件」状態になっている真因調査と修正。1 section 変更で `embed_documents_input_size=50` (51 section 中) になり、incremental 全体 wall を initial build とほぼ同等にしている直接原因
+2. **B-7 (高優先)**: partial change 時の related_sections 増分再生成。現状は incremental でも `action=fallback_regenerated` で全 section 再 typing。S2/S3 で 51〜54s かかり、incremental の利用者価値を損なう主犯
+3. **B-6**: 大規模 spec での Qdrant scroll 計測 (主犯ではないため低優先)
+4. **AUD-006**: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
+5. **AUD-007**: Related Sections の Qdrant fallback を通常モードで failed 扱いにする (外部契約変更を伴うため `doc/EXTERNAL_DESIGN.ja.md` への追記要、人間判断要)
 
-B-5 (section_metadata / related_typing cache の現状確認) は 2026-05-14 に Claude main agent が直接計測して結論 (a) (既存実装で satisfied) を確定。計測結果は `doc/監査/B-5_cache_measurement_2026-05-14.md`、cache 経路の現実装は `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。
+B-5 (section_metadata / related_typing cache の現状確認) は 2026-05-14 に Claude main agent が直接計測して結論 (a) (既存実装で satisfied) を確定。計測結果は `doc/監査/B-5_cache_measurement_2026-05-14.md`、cache 経路の現実装は `doc/DESIGN.ja.md` §3.6 / §5.9 に追記済。「完了確認済み」配下に移動済。**ただし B-5 計測の副次発見として、1 section 変更でも core 全体 wall が initial build とほぼ同等 (S2 94.6s vs S0 96.0s) という重大な incremental 性能問題が判明した**。主因は B-5a (section_collection_upsert の partial が機能していない) と B-7 (related_sections の incremental 経路に partial 化が無い) で、これらが上記優先順位の 1, 2 位として独立 task となる。
 
 B-3b は CDX-001〜CDX-007 解消後の最終再評価 (2026-05-14, session b3b_final_remeasure) で合格条件を満たし、「完了確認済み」配下に移動済。B-4 (`--verify-index`) は 2026-05-14 に CODEX rescue subagent 実装 + Claude main 監査で完了し「完了確認済み」配下に移動済。
+
+### B-5a: B-3b partial path で「partial = ほぼ全件 embed」になる真因調査と修正
+
+#### 背景
+
+B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.1) で、50 section fixture / 1 section 本文 1 文字変更の incremental 実行 (S2) において、`section_collection_upsert` stage が次の挙動を示すことが観測された。
+
+```text
+action                       = upserted_partial   ← partial 経路に乗っている
+reason                       = source_hash
+partial_requested            = true
+embed_documents_input_size   = 50                ← 51 section 中 50 件 BGE-M3 embedding
+sections_upserted_count      = 50                ← 50 件 Qdrant upsert
+total_section_input_count    = 51
+elapsed_sec                  = 40.795s
+```
+
+つまり action は `upserted_partial`、partial_requested=true で B-3b partial path には乗っているが、実際の embed 対象が 50 件 (= 51 中 1 件だけ skip)。これは B-3b の意図 (changed/added section だけ embed) と乖離している。
+
+B-3b 完了確認 (`doc/TODO.ja.md` 完了確認済み配下 B-3b block、commit `b42b309`) の同条件計測では `embed_documents_input_size=1, sections_upserted_count=1, elapsed=8.465s` で合格していた。完了確認時の fixture (`/tmp/spec_grag_b3b_measure/`) は本セッションで揮発済のため、B-3b 完了確認時の数値が「正しい partial 挙動」だったか、それとも「測定時に偶然 1 件 embed だった」だけかが現時点で確定していない。
+
+S3 (heading 変更) も同様に `embed_documents_input_size=50, sections_upserted_count=50, stale_points_deleted=1`。
+
+#### 真因 / 仮説
+
+未確定。次のいずれかが原因と推測される。
+
+- (i) `payload_fingerprint` の計算で、Section 01 の変更が他 49 section の payload にも影響して fingerprint を変えている (例: `related_sections` 以外の field で他 section 参照を持つ field が存在し、CDX-002 修正で除外されていない)
+- (ii) `section_manifest.json` の前回 entry と current entry の比較で何かの key が一致しない (例: `vector_input_fingerprint` の計算式が前回 run と current で微妙に異なる、`build_section_embedding_text` 内の何か)
+- (iii) `_section_collection_diff_sets` ([spec_grag/core.py](spec_grag/core.py)) の判定で、`changed_section_ids` 集合計算が想定より広く出る経路がある
+- (iv) B-3b 完了確認以降の commit (`bbb843e` CDX follow-up、`345fff1` B-4) のいずれかで partial 判定が回帰した
+- (v) B-3b 完了確認時の数値が partial path の正しい挙動を反映しておらず (= 別の理由で 1 件 embed になっていた)、現在の 50 件 embed が常態
+
+#### 目的
+
+B-5 計測で S2 が `embed_documents_input_size=50` になる経路の真因を突き止め、changed section 数 (S2 では 1) に対応する embed/upsert に絞る。これにより 1 section 変更時の `section_collection_upsert.elapsed_sec` を ~1s (= 1 section の BGE-M3 embedding + Qdrant upsert + model load 9〜10s の固定費を引いた値) に圧縮し、incremental 利用者価値の最大の主因を解消する。
+
+#### 実装方針
+
+調査と修正:
+
+1. `/tmp/spec_grag_b5_measure/` を再構築 (cache / state / Qdrant collection を clean)、S0 → S2 を再実行
+2. S2 実行直前と直後で `.spec-grag/state/section_manifest.json` を snapshot して diff を取り、どの section の entry に差分が出るかを正確に列挙
+3. `_section_collection_diff_sets` の `added/changed/removed_section_ids` 集合の中身を debug log で吐かせ、changed が 1 件 (= Section 01) なのか 50 件なのかを確定
+4. changed が 50 件と判定されているなら、その 50 件で **どの fingerprint** が前回と一致しないかを field 単位で出して原因を絞る (`source_hash` / `semantic_hash` / `vector_input_fingerprint` / `payload_fingerprint`)
+5. 原因が `payload_fingerprint` 計算なら、CDX-002 修正と同じ系統で除外対象 field を追加する。`vector_input_fingerprint` なら `build_section_embedding_text` の入力 metadata の安定性を見直す
+6. B-3b 完了確認時 (commit `b42b309` 時点) の partial path が正しく 1 件 embed していたかを git checkout または `git show b42b309:spec_grag/core.py` で照合
+7. 修正後、S2 で `embed_documents_input_size=1, sections_upserted_count=1, elapsed ≤ 15s (model load 9〜10s 含む)` になることを再計測で確認
+
+#### 検証条件
+
+A. **真因の確定**
+- S2 で changed_section_ids 集合の正確な内訳を `core_progress.json` または debug log から取得
+- どの fingerprint が前回と乖離しているかを field 単位で同定
+
+B. **修正後の挙動**
+- 50 section fixture / 1 section 本文 1 文字変更で `embed_documents_input_size=1, sections_upserted_count=1`
+- `section_collection_upsert.elapsed_sec ≤ 15s` (= B-3b 完了確認時の合格条件 T_partial - T_nochange ≤ 15s と整合)
+
+C. **B-3b 完了確認との整合**
+- 修正後の挙動が B-3b 完了確認時の数値 (`embed_documents_input_size=1, elapsed=8.465s`) と一致するか、または B-3b 完了確認の数値そのものが誤計測だった場合はその根拠を明示
+
+D. **既存 pytest の合格**
+- `pytest -q --skip-external` で全 pass 維持
+- partial path の判定経路に unit test を追加 (`payload_fingerprint` 計算の安定性、`_section_collection_diff_sets` の expected 集合)
+
+E. **regression 防止**
+- B-3b 完了確認時の数値が正しかった場合: `tests/test_spec_core.py` に「S2 相当の 1 section 変更で `embed_documents_input_size=1`」を assertion する test を追加し、将来の partial path 回帰を catch する
+
+#### 触れる主なファイル
+
+- [spec_grag/core.py](spec_grag/core.py): `_section_collection_diff_sets` の判定経路、`_upsert_section_collection_if_enabled` の partial 引数渡し
+- [spec_grag/retrieval_index.py](spec_grag/retrieval_index.py): `_payload_fingerprint_input`、`section_payload_fingerprints`、`build_section_payloads`、`build_section_embedding_text` の入力安定性
+- `tests/test_spec_core.py` (新規 test 追加)
+
+#### 完了条件
+
+- 検証条件 (A)〜(E) すべて満たす
+- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
+
+#### 依存 / scope 外
+
+- **依存**: 本 task は B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) の副次発見が起点。B-3b の partial path 仕様を再確認する必要があり、B-3b 完了確認時の fixture (`/tmp/spec_grag_b3b_measure/`) は揮発済のため、現 session で fixture を再構築する
+- **scope 外**:
+  - related_sections の partial 化は別 task (B-7) として独立
+  - B-3b の機能本体 (partial path の存在) は前提とする。本 task は「partial path が正しく動いているか」の調査と修正に限る
+  - 50 section 超の大規模 spec での挙動は B-6 scope
+
+### B-7: partial change 時の related_sections 増分再生成
+
+#### 背景
+
+B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md` §4.x.2) で、50 section fixture / 1 section 本文 1 文字変更の incremental 実行 (S2) において、`related_sections` stage が次の挙動を示すことが観測された。
+
+```text
+action               = fallback_regenerated
+reason               = source_hash_changed
+batch_count          = 7
+actual_call_count    = 7
+elapsed_sec          = 51.725s
+```
+
+action `fallback_regenerated` は「incremental 経路で fast path に乗れず、全 section の Related Sections を再生成」した状態。`batch_count=7` は `llm_batch_max_sections=8` で全 51 section を batch 化した結果 (8×6 + 3 = 51 section)。つまり 1 section だけが changed だったにも関わらず、related_sections 経路では全 51 section の typing が再実行されている。
+
+これは S0 initial build の `related_sections.elapsed_sec=51.252s` と S2 の `51.725s` がほぼ同じことから明確に観測される (= 1 section 変更でも全体再生成、initial build と同コスト)。`doc/DESIGN.ja.md` §5.7.1 の `incremental no-change fast path` は「全 section が unchanged」の no-change ケースだけ skipped_unchanged で抜ける設計で、1 section でも変化があれば fast path から fallback して全体再生成する。
+
+#### 真因 / 仮説
+
+確定。current 実装の related_sections には **partial 増分再生成経路が存在しない**。`incremental no-change fast path` が唯一の最適化経路で、それ以外は全体再生成 (`fallback_regenerated`) になる。
+
+これは `spec_grag/related_sections.py` および `spec_grag/core.py` の `_generate_related_sections` の現実装に基づく確定事項で、新規実装が必要。
+
+#### 目的
+
+partial change incremental で、changed section とその隣接 (related_sections candidate の source または target になる section) だけ Related Sections の候補生成と LLM typing を実行し、それ以外の section は前回の `selected_related_sections` を継承する経路を追加する。これにより 1 section 変更時の `related_sections.elapsed_sec` を ~5s (= 1 section の candidate 生成 + 隣接 pair の typing) 程度に圧縮し、incremental の利用者価値を実現する。
+
+#### 仮称: `regenerated_partial` action
+
+- 仮称か既存用語か: 仮称
+- 意味: incremental 経路で changed/added section を source または target に持つ pair だけ Related Sections candidate generation と LLM typing を実行し、それ以外は前回の selected_related_sections を継承する partial path
+- 含む: changed/added section 由来の pair candidate 生成、その pair の typing LLM call、selected_related_sections の差分マージ、`related_typing_cache` の reuse (B-5 で確認済の entry 単位 cache)
+- 含まない: 全 section の candidate 再生成 (= 既存の `fallback_regenerated`)、`--all` 経路 (= 既存の `generated`)、conflicts_with 判定の partial 化 (これは別 task)
+- 既存概念との差分: 既存 `incremental no-change fast path` は「全 section unchanged」でのみ動く。本 task は「partial change で changed/added が 1 件以上ある」ケースに `regenerated_partial` を導入する
+- 未決: changed section が source/target どちらにもなる pair 集合をどう列挙するか (前回 manifest を参照するか、現 candidate generation を limited 入力で走らせるか)、`selected_related_sections` の差分マージで前回値を継承する条件、conflicts_with の partial 取り扱い
+
+#### 実装方針
+
+1. `_generate_related_sections` の incremental 経路で `changed_section_ids` / `added_section_ids` を引数として受け取る
+2. partial 経路を導入:
+   - changed/added section の現 metadata + 隣接 candidate を limited 入力で `candidate_generation` に渡す
+   - 候補 pair から `related_typing_cache` で hit する pair を skip、miss する pair だけ LLM typing call を batch 化
+   - 前回の `selected_related_sections` から changed/added section 由来の pair を除き、新規 typing 結果とマージ
+3. `core_progress.json` の `related_sections.action` に `regenerated_partial` を追加。既存 `fallback_regenerated` は「設計上は全体再生成が必要なケース」(例: `prompt_version` bump、`metadata_version` bump、`related_typing_cache` schema 変更) でのみ使う
+4. fast path 判定 ([spec_grag/related_sections.py:520](spec_grag/related_sections.py#L520) 周辺) に partial 経路の判定を追加。判定順:
+   - 全 section unchanged → `skipped_unchanged` (既存)
+   - changed/added が prompt_version / metadata_version / schema 変更を含む → `fallback_regenerated`
+   - それ以外 (= changed section の集合がある) → `regenerated_partial` (新規)
+
+#### 検証条件
+
+A. **partial 経路の動作**
+- 50 section fixture / 1 section 本文 1 文字変更で `related_sections.action=regenerated_partial`
+- `actual_call_count` が「changed/added section を source または target に持つ pair の typing call 数」に一致 (= 全 section 再 typing の `actual_call_count=7` ではない、より少ない値)
+
+B. **時間圧縮**
+- `related_sections.elapsed_sec` が initial build の 1/10 以下 (例: 5s 未満) に収まる
+
+C. **selected_related_sections の整合**
+- 1 section 変更前後で、changed/added section 以外の section の selected_related_sections が前回値と一致 (継承されている)
+- changed/added section と隣接 section の selected_related_sections は新規生成されている
+
+D. **既存 pytest の合格**
+- `pytest -q --skip-external` で全 pass 維持
+- partial 経路の unit test を `tests/test_related_sections.py` に追加
+
+E. **`fallback_regenerated` の維持**
+- `prompt_version` bump / `metadata_version` bump 時は引き続き `fallback_regenerated` で全体再生成
+- `--all` 時は `generated`
+
+#### 触れる主なファイル
+
+- [spec_grag/related_sections.py](spec_grag/related_sections.py): partial 経路の実装、candidate generation の limited 入力、selected_related_sections の差分マージ
+- [spec_grag/core.py](spec_grag/core.py): `_generate_related_sections` の partial 引数受け渡し、`core_progress.json` の `regenerated_partial` action 記録
+- [doc/DESIGN.ja.md](doc/DESIGN.ja.md): §5.7 / §5.7.1 に `regenerated_partial` の仕様追記
+- [doc/EXTERNAL_DESIGN.ja.md](doc/EXTERNAL_DESIGN.ja.md): `related_sections_status` の `success` / `skipped_unchanged` / `failed` / `blocked` の表現に partial 経路の補足を追加 (内部実装名は出さず、操作と結果で書く)
+- `tests/test_related_sections.py`
+
+#### 完了条件
+
+- 検証条件 (A)〜(E) すべて満たす
+- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・実機計測結果を保持。block の削除は禁止)
+
+#### 依存 / scope 外
+
+- **依存**: B-5a (B-3b partial path の真因解明) と独立して進められるが、B-5a 完了後の方が core 全体 wall を正確に再評価できる。順序としては B-5a → B-7 を推奨
+- **scope 外**:
+  - `chapter_anchors` の partial 化 (changed section が含まれる章だけ regenerate する経路): 別 task。AUD-006 で chapter_anchors fallback の扱いを確定した後に着手
+  - `conflicts_with` の partial 化 (changed section 由来の pair だけ conflict 判定): 別 task
+  - 大規模 spec (500 section 規模) での挙動: B-6 scope に含めるか、本 task 完了後に独立計測
 
 ### AUD-006: Chapter Anchors mechanical fallback を通常モードで failed 扱いにする
 
