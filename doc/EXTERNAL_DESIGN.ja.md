@@ -499,7 +499,7 @@ spec-grag-watch [project_root]
 | `--all` | clear → 再生成 | reuse (hash 一致時) |
 | `--rebuild` | clear → 再生成 | full recreate (collection 再作成) |
 
-`--rebuild` は `--all` を含意する。`--use-cache` は deprecated (挙動は無指定と同等)。
+`--rebuild` は `--all` を含意する。
 
 `/spec-core` は `.spec-grag/config.toml` で指定された LLM provider、embedding provider、vector store provider をそのまま使う。指定された provider が失敗した場合は、別の provider に黙って切り替えず、失敗として報告する。
 

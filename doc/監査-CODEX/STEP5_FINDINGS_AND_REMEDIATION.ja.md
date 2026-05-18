@@ -684,7 +684,7 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 
 | # | 問題 | 推奨選択肢 | 工数感（暫定）|
 |---|---|---|---|
-| F-3 | `--use-cache` の挙動（廃止予定機能の残骸） | **C（完全削除）— 2026-05-18 確定** | 低（実装数行削除 + 外部設計書 §7.1 の deprecation 記述削除、test / template の修正不要）|
+| F-3 | `--use-cache` の挙動（廃止予定機能の残骸） | **C（完全削除）— 2026-05-18 確定** ✅ 完了 2026-05-18 | 低（実装数行削除 + 外部設計書 §7.1 の deprecation 記述削除、test / template の修正不要）|
 | F-9 | 「制約検証」操作全体が仕様外実装 | **A（CLI から完全削除）— 2026-05-18 確定** | 大（`validate_constraints` 関数削除 + `--constraints*` argparse 削除 + Agent template / SKILL 大幅改訂 + 関連 test 削除 / 更新 + 外部設計書 §8.4 / §8.5 改訂）|
 | F-A | `--project-root` / `--root` flag が仕様外 | **A（完全削除）— 2026-05-18 確定** | 中（全 CLI サブコマンドの argparse 削除 + 実装の `project_root` 引数削除 + test の `--project-root` 呼出を Python API に書き換え + 設計書 §8.4 削除）|
 | F-7 | `--freshness-json` / `--freshness-file` flag が仕様外 | **A（完全削除）— 2026-05-18 確定** | 小（inject / realign の argparse 削除 + 実装の freshness_report 引数経路削除 + test の `--freshness-json` 呼出を Python API に書き換え + 設計書 §8.4 削除）|

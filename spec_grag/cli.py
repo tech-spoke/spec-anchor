@@ -71,11 +71,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="verify that the Qdrant Source Retrieval Index payloads match the current section hashes",
     )
-    core.add_argument(
-        "--use-cache",
-        action="store_true",
-        help="(deprecated) keep reusable section metadata cache even with --all",
-    )
     core.add_argument("--project-root", "--root", dest="project_root", default=".", help="target project root")
     core.add_argument(
         "--llm-provider",
@@ -358,7 +353,6 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
             all=run_full_flag,
             all_mode=run_full_flag,
             mode="full" if run_full_flag else None,
-            use_cache=args.use_cache,
             rebuild_embeddings=rebuild_embeddings,
             verify_index=args.verify_index,
             decision_payload=decision_payload,

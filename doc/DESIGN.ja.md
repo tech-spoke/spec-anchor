@@ -244,7 +244,7 @@ incremental 経路で `cache.get(cache_key)` が hit すれば `generate_section
 
 key 構成要素のいずれかが変わると entry が invalidate される。具体例: source 本文を 1 文字変えると `source_hash` と `semantic_hash` が変わり、その section の cache だけ miss する。section の `## ` heading 名を変えると `source_section_id` (= `<doc>#<ordinal>-<slug>` 形式、[spec_grag/section_parser.py](../spec_grag/section_parser.py)) が変わるので、heading を変えた section の cache だけ miss する。`prompt_version` を bump すると全 section の key が変わり cache 全 miss + 全 section LLM 再生成になる。これは B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) の S0〜S5 で実機確認済。
 
-incremental 経路の cache file garbage collection は部分的にのみ動作する (B-5 計測 §2 副次観察)。`--all` flag を渡した実行 (= `use_cache=False`) では `.spec-grag/cache/` 配下の section_metadata cache が wipe され、その後の generation で全 section の entry が新規書き込みされる。これが「外部設計書 §7 で `--all` が `LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価` と表現される動作」の内部実装である。
+incremental 経路の cache file garbage collection は部分的にのみ動作する (B-5 計測 §2 副次観察)。`--all` flag を渡した実行では `.spec-grag/cache/` 配下の section_metadata cache が wipe され、その後の generation で全 section の entry が新規書き込みされる。これが「外部設計書 §7 で `--all` が `LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価` と表現される動作」の内部実装である。
 
 ## 4. Source Retrieval Index
 

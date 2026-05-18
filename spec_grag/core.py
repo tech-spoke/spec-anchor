@@ -56,7 +56,6 @@ def run_spec_core(
     full: bool = False,
     force: bool = False,
     mode: str | None = None,
-    use_cache: bool = False,
     rebuild_embeddings: bool = False,
     verify_index: bool = False,
     decision_payload: Mapping[str, Any] | None = None,
@@ -161,7 +160,6 @@ def run_spec_core(
             full=full,
             force=force,
             mode=mode,
-            use_cache=use_cache,
             rebuild_embeddings=rebuild_embeddings,
             verify_index=verify_index,
             decision_payload=decision_payload,
@@ -198,7 +196,6 @@ def _run_spec_core_unlocked(
     full: bool = False,
     force: bool = False,
     mode: str | None = None,
-    use_cache: bool = False,
     rebuild_embeddings: bool = False,
     verify_index: bool = False,
     decision_payload: Mapping[str, Any] | None = None,
@@ -272,16 +269,16 @@ def _run_spec_core_unlocked(
     run_full = bool(all or all_mode or full or force or mode == "full")
     mode_name = "full" if run_full else "incremental"
 
-    # `--all` (use_cache=False) clears the LLM-derived caches BEFORE the
-    # stages run, so the new run's `cache.store()` writes become the
-    # post-run cache state (EXTERNAL_DESIGN §7.4 「クリアして再評価」).
+    # `--all` clears the LLM-derived caches BEFORE the stages run, so the new
+    # run's `cache.store()` writes become the post-run cache state
+    # (EXTERNAL_DESIGN §7.4 「クリアして再評価」).
     # - section_metadata / chapter_anchors caches are content-addressed
     #   per-section / per-chapter; the clear removes orphans from earlier
     #   prompt_version / model / cache_key changes.
     # - related_typing_cache.json is flat JSON keyed by section pair
     #   signatures with no content-addressed naming, so the physical
     #   removal is the only way to force re-typing under `--all`.
-    if run_full and not use_cache:
+    if run_full:
         related_pair_cache_file = cache_dir / "related_typing_cache.json"
         try:
             related_pair_cache_file.unlink()
@@ -382,7 +379,7 @@ def _run_spec_core_unlocked(
         config=llm_generation_config,
         provider=active_provider,
         previous_metadata=previous_metadata,
-        rebuild_all=run_full and not use_cache,
+        rebuild_all=run_full,
         cache_dir=cache_dir,
         generated_at=generated_at,
     )
@@ -724,7 +721,7 @@ def _run_spec_core_unlocked(
         provider=chapter_anchor_provider,
         cache_dir=cache_dir,
         concept_text=concept_text,
-        rebuild_all=run_full and not use_cache,
+        rebuild_all=run_full,
     )
     if progress_tracker is not None:
         _record_llm_call_stats(
