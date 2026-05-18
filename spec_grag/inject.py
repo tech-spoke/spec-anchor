@@ -68,9 +68,6 @@ def run_spec_inject(
     *,
     root: str | Path | None = None,
     cwd: str | Path | None = None,
-    task_prompt: str | None = None,
-    prompt: str | None = None,
-    conversation_context: str | None = None,
     agent_constraints: Sequence[Mapping[str, Any]] | None = None,
     constraints: Sequence[Mapping[str, Any]] | None = None,
     generated_constraints: Sequence[Mapping[str, Any]] | None = None,
@@ -85,10 +82,12 @@ def run_spec_inject(
 
     `provider` and `llm_provider` are accepted for API compatibility only.
     They are deliberately unused because `/spec-inject` must not call an
-    autonomous LLM provider or rerun `/spec-core`.
+    autonomous LLM provider or rerun `/spec-core`. Per §5.3 / §8.4 the task
+    prompt and conversation context are Agent / LLM responsibilities and
+    are not consumed by the CLI.
     """
 
-    del task_prompt, prompt, conversation_context, provider, llm_provider
+    del provider, llm_provider
 
     project = _project_root(project_root, root=root, cwd=cwd)
     report = (

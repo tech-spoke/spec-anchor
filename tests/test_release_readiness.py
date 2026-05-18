@@ -205,7 +205,6 @@ max_retries = 0
                 "inject",
                 "--constraints",
                 constraints_json,
-                "release smoke",
             ],
             cwd=tmp_path,
         )
@@ -223,7 +222,6 @@ max_retries = 0
                 constraints_json,
                 "--answer-json",
                 answer_json,
-                "release smoke",
             ],
             cwd=tmp_path,
         )

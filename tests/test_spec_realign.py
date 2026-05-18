@@ -123,12 +123,6 @@ def _run_spec_realign(project_root: Path, **kwargs: Any) -> Any:
         project_root=project_root,
         root=project_root,
         cwd=project_root,
-        task_prompt=kwargs.pop("task_prompt", "認証修正案を作ってください"),
-        prompt=kwargs.pop("prompt", None),
-        conversation_context=kwargs.pop(
-            "conversation_context",
-            "認証チェックの修正案を作るという中心課題が明確な会話区間。",
-        ),
         agent_constraints=kwargs.pop("agent_constraints", _valid_constraints()),
         constraints=kwargs.pop("constraints", None),
         generated_constraints=kwargs.pop("generated_constraints", None),
@@ -418,96 +412,9 @@ def test_t_u18_blocked_freshness_stops_before_answer_provider_and_spec_core(
     assert "課題プロンプトへの回答または修正案" not in text
 
 
-def test_t_e05_no_task_prompt_with_clear_conversation_context_can_proceed(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    result = _result_dict(
-        _run_spec_realign(
-            project_root,
-            task_prompt=None,
-            prompt=None,
-            conversation_context=(
-                "直近の会話では、認証チェックの修正案を作ることが中心課題として明確。"
-            ),
-        )
-    )
-
-    assert _stopped(result) is False
-    assert "認証処理の先頭で active session を検証" in _text_blob(_answer(result))
-
-
-@pytest.mark.parametrize("conversation_context", ("", "   "))
-def test_t_e05_no_task_prompt_with_blank_context_asks_clarification(
-    tmp_path: Path,
-    conversation_context: str,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    result = _result_dict(
-        _run_spec_realign(
-            project_root,
-            task_prompt=None,
-            prompt=None,
-            conversation_context=conversation_context,
-        )
-    )
-    text = _text_blob(result)
-
-    assert _stopped(result) is True
-    assert _constraints(result) == []
-    assert (
-        "clarification" in text.lower()
-        or "確認" in text
-        or "中心課題" in text
-        or "曖昧" in text
-    )
-    assert "課題プロンプトへの回答または修正案" not in text
-
-
-def test_t_e05_agent_supplied_clarification_flag_asks_clarification(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    result = _result_dict(
-        _run_spec_realign(
-            project_root,
-            task_prompt=None,
-            prompt=None,
-            conversation_context="それ、どうしますか。",
-            clarification_required=True,
-        )
-    )
-    text = _text_blob(result)
-
-    assert _stopped(result) is True
-    assert _constraints(result) == []
-    assert "clarification" in text.lower() or "確認" in text
-    assert "課題プロンプトへの回答または修正案" not in text
-
-
-def test_t_e05_non_empty_ambiguous_words_do_not_trigger_cli_heuristic(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    result = _result_dict(
-        _run_spec_realign(
-            project_root,
-            task_prompt="これを直す",
-            prompt="これを直す",
-            conversation_context="Agent が会話区間を解釈し、認証仕様の修正対象を特定済み。",
-        )
-    )
-
-    assert _stopped(result) is False
-    assert "課題プロンプトへの回答または修正案" in _text_blob(result)
+# test_t_e05_*: clarification 経路の test 群は F-2 で削除。
+# 仕様 §5.3 / §8.4 / §9.1 / §9.2 により、task_prompt / conversation_context /
+# clarification 判定は Agent / LLM の責務であり、CLI は消費しない。
 
 
 def test_t_e04_answer_conflict_with_constraints_is_surfaced_for_human_review(

@@ -61,9 +61,6 @@ def run_spec_realign(
     *,
     root: str | Path | None = None,
     cwd: str | Path | None = None,
-    task_prompt: str | None = None,
-    prompt: str | None = None,
-    conversation_context: Any | None = None,
     agent_constraints: Sequence[Mapping[str, Any]] | None = None,
     constraints: Sequence[Mapping[str, Any]] | None = None,
     generated_constraints: Sequence[Mapping[str, Any]] | None = None,
@@ -75,9 +72,6 @@ def run_spec_realign(
     freshness: Mapping[str, Any] | Any | None = None,
     provider: Any = None,
     llm_provider: Any = None,
-    clarification_required: bool | None = None,
-    agent_clarification_required: bool | None = None,
-    needs_clarification: bool | None = None,
     generated_at: str | None = None,
     **extra: Any,
 ) -> dict[str, Any]:
@@ -86,28 +80,18 @@ def run_spec_realign(
     `provider` and `llm_provider` are accepted for API compatibility only.
     They are passed through to `/spec-inject`, which deliberately ignores them;
     `/spec-realign` never calls a `[llm]` provider or synthesizes an answer.
+    Per §5.3 / §9.1 / §9.2 the task prompt, conversation context, and
+    clarification judgement are Agent / LLM responsibilities and are not
+    consumed by the CLI.
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
-    task_text = _first_text(task_prompt, prompt)
-    context_text = _conversation_text(conversation_context)
-    agent_requested_clarification = _agent_clarification_required(
-        explicit_values=(
-            clarification_required,
-            agent_clarification_required,
-            needs_clarification,
-        ),
-        extra=extra,
-    )
 
     try:
         inject_result = run_spec_inject(
             project_root=project,
             root=root,
             cwd=cwd,
-            task_prompt=task_prompt,
-            prompt=prompt,
-            conversation_context=conversation_context,
             agent_constraints=agent_constraints,
             constraints=constraints,
             generated_constraints=generated_constraints,
@@ -119,12 +103,6 @@ def run_spec_realign(
             **extra,
         )
     except SpecInjectError as exc:
-        if agent_requested_clarification or _needs_clarification(task_text, context_text):
-            return _clarification_result(
-                project_root=project,
-                generated_at=generated_at,
-                reason_detail=str(exc),
-            )
         raise SpecRealignError(str(exc)) from exc
 
     inject_payload = _jsonable(inject_result)
@@ -134,13 +112,6 @@ def run_spec_realign(
 
     if _is_stopped(inject_payload):
         return _stopped_from_inject(inject_payload, project_root=project, generated_at=generated_at)
-
-    if agent_requested_clarification or _needs_clarification(task_text, context_text):
-        return _clarification_result(
-            project_root=project,
-            generated_at=generated_at,
-            inject_result=inject_payload,
-        )
 
     validated_constraints = _constraints_from_inject(inject_payload)
     selected_answer = _first_answer(agent_answer, answer, generated_answer, answer_candidate)
@@ -155,8 +126,6 @@ def run_spec_realign(
     structured_answer = structure_realign_answer(
         selected_answer,
         constraints=validated_constraints,
-        task_prompt=task_text,
-        conversation_context=context_text,
         inject_result=inject_payload,
     )
 
@@ -190,8 +159,6 @@ def structure_realign_answer(
     answer_candidate: Any,
     *,
     constraints: Sequence[Mapping[str, Any]] | None = None,
-    task_prompt: str | None = None,
-    conversation_context: str | None = None,
     inject_result: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Validate and normalize an Agent-generated Answer into four sections."""
@@ -291,11 +258,7 @@ def structure_realign_answer(
         ANSWER_TARGETS_LABEL: (
             _normalize_section(targets_section)
             if not _is_blank(targets_section)
-            else _default_targets(
-                task_prompt=task_prompt,
-                conversation_context=conversation_context,
-                inject_result=inject_result,
-            )
+            else _default_targets(inject_result=inject_result)
         ),
         ANSWER_REVIEW_LABEL: _normalize_review_section(review_items),
         ANSWER_FINAL_LABEL: _normalize_section(final_section),
@@ -322,41 +285,6 @@ def _stopped_from_inject(
     }
     result.pop("answer", None)
     result.pop("realign_answer", None)
-    return result
-
-
-def _clarification_result(
-    *,
-    project_root: Path,
-    generated_at: str | None,
-    inject_result: Mapping[str, Any] | None = None,
-    reason_detail: str | None = None,
-) -> dict[str, Any]:
-    result: dict[str, Any] = {
-        "command": "/spec-realign",
-        "project_root": project_root.as_posix(),
-        "generated_at": generated_at,
-        "should_stop": True,
-        "stops": True,
-        "blocked": True,
-        "can_continue": False,
-        "constraints": [],
-        "stop_reason": "needs_clarification",
-        "reasons": ["needs_clarification"],
-        "clarification_required": True,
-        "clarification_prompt": (
-            "課題プロンプト、または中心課題が分かる会話区間を指定してください。"
-        ),
-        "recommended_next_action": "ask the user to clarify the task prompt",
-    }
-    if reason_detail:
-        result["diagnostics"] = {"inject_error": reason_detail}
-    if inject_result is not None:
-        result["status"] = inject_result.get("status")
-        result["freshness_report"] = deepcopy(inject_result.get("freshness_report") or {})
-        result["blocking_reasons"] = list(inject_result.get("blocking_reasons") or [])
-        result["warnings"] = list(inject_result.get("warnings") or [])
-        result["inject_result"] = deepcopy(dict(inject_result))
     return result
 
 
@@ -597,16 +525,9 @@ def _constraint_section(constraints: Sequence[Mapping[str, Any]]) -> list[str]:
 
 def _default_targets(
     *,
-    task_prompt: str | None,
-    conversation_context: str | None,
     inject_result: Mapping[str, Any] | None,
 ) -> list[Any]:
     targets: list[Any] = []
-    if task_prompt and task_prompt.strip():
-        targets.append({"task_prompt": task_prompt.strip()})
-    elif conversation_context and conversation_context.strip():
-        targets.append({"conversation_context": conversation_context.strip()})
-
     context = inject_result.get("injectable_context") if isinstance(inject_result, Mapping) else None
     if isinstance(context, Mapping):
         raw_targets = context.get("今回見るべき対象")
@@ -626,48 +547,6 @@ def _first_present(mapping: Mapping[str, Any], *keys: str) -> Any:
         if key in mapping and not _is_blank(mapping.get(key)):
             return mapping.get(key)
     return None
-
-
-def _needs_clarification(task_prompt: str | None, conversation_context: str | None) -> bool:
-    if task_prompt and task_prompt.strip():
-        return False
-    context = (conversation_context or "").strip()
-    return not context
-
-
-def _agent_clarification_required(
-    *,
-    explicit_values: Sequence[bool | None],
-    extra: Mapping[str, Any],
-) -> bool:
-    for value in explicit_values:
-        if isinstance(value, bool):
-            return value
-    for key in (
-        "clarification_required",
-        "agent_clarification_required",
-        "needs_clarification",
-    ):
-        value = extra.get(key)
-        if isinstance(value, bool):
-            return value
-    return False
-
-
-def _first_text(*values: Any) -> str | None:
-    for value in values:
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return None
-
-
-def _conversation_text(value: Any) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value.strip() or None
-    text = _plain_text(value)
-    return text.strip() or None
 
 
 def _first_answer(*values: Any) -> Any | None:

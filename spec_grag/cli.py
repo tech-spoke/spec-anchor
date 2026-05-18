@@ -89,7 +89,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         "inject",
         help="prepare constraints for Agent-driven work without generating an answer",
     )
-    inject.add_argument("--conversation-context", help="conversation context interpreted by the Agent")
     inject.add_argument(
         "--constraints",
         "--constraints-json",
@@ -103,7 +102,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         dest="constraints_file",
         help="path to Agent-supplied constraints JSON",
     )
-    inject.add_argument("task", nargs="*", help="optional task prompt")
 
     inject_search = subparsers.add_parser(
         "inject-search",
@@ -138,7 +136,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         "realign",
         help="prepare constraints and let the Agent produce an answer",
     )
-    realign.add_argument("--conversation-context", help="conversation context interpreted by the Agent")
     realign.add_argument(
         "--constraints",
         "--constraints-json",
@@ -161,7 +158,6 @@ def build_main_parser() -> argparse.ArgumentParser:
     )
     realign.add_argument("--answer-json", "--agent-answer-json", dest="answer_json", help="Agent-supplied answer candidate JSON")
     realign.add_argument("--answer-file", "--agent-answer-file", dest="answer_file", help="path to Agent-supplied answer JSON or text")
-    realign.add_argument("task", nargs="*", help="optional task prompt")
 
     watch = subparsers.add_parser(
         "watch",
@@ -350,8 +346,6 @@ def _run_inject_from_args(args: argparse.Namespace) -> int:
         )
         result = run_spec_inject(
             project_root=project_root,
-            task_prompt=_task_prompt(args),
-            conversation_context=args.conversation_context,
             agent_constraints=constraints,
         )
     except SpecInjectError as exc:
@@ -468,8 +462,6 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
         answer = _load_answer_argument(args)
         result = run_spec_realign(
             project_root=project_root,
-            task_prompt=_task_prompt(args),
-            conversation_context=args.conversation_context,
             agent_constraints=constraints,
             agent_answer=answer,
         )
@@ -489,11 +481,6 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
 
 def _resolved_project_root() -> Path:
     return Path.cwd().resolve()
-
-
-def _task_prompt(args: argparse.Namespace) -> str | None:
-    task = " ".join(getattr(args, "task", []) or ()).strip()
-    return task or None
 
 
 def _load_json_argument(
