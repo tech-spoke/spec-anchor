@@ -692,8 +692,8 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 | F-C | `spec-grag inject` サブコマンド + 各 inject-* の gate 不足 | **A（gate probe 削除 + 各 inject-* に gate 組み込み）— 2026-05-18 確定** | 中（`spec-grag inject` 完全削除 + 各 inject-* の冒頭に freshness gate 追加 + realign 側も freshness gate 追加 + Agent template / SKILL の手順改訂 + 関連 test 更新 + 設計書 §8.4 行 763 削除 + 設計書 §3.3 を各コマンドに適用と整理）|
 | F-D | `inject-purpose` / `inject-chapters` の artifact 全体返却がコンテキスト圧迫 | **A（Purpose 全文 + Core Concept / chapter は path 返却 + template / SKILL に指示記述）— 2026-05-18 確定** | 中（inject-purpose / inject-chapters の戻り値構造変更 + template / SKILL の path ② / ③ 手順改訂 + 関連 test 更新 + 設計書 §8.4 行 766-767 改訂 + 設計書 §3.4 「Source Specs を丸ごと投入しない」原則を artifact に拡張）|
 | F-2 | `<課題プロンプト>` / `--conversation-context` dead 引数 + realign の仕様外実装 | **A-2'（実装と外部設計書から完全削除 + 仕様外実装削除）— 2026-05-18 確定** | 中（CLI / inject / realign の引数削除 + `_needs_clarification` / `_default_targets` / `_conversation_text` / `_first_text` 等の仕様外関数削除 + test 更新 + 外部設計書 §8 / §9 改訂）|
-| F-1 | Qdrant collection 名の 3 段優先順位 | **A（実装を単一 key に整理）— 2026-05-16 確定** | 中（実装削除 + 既存 config の migration ガイド + test 書き換え）|
-| F-5 | 設定項目表に `vector_store.*collection` 未列挙 | **F-1 A 採用で自動解決**（実装側から互換 key が消えるため、設計書改訂不要）| 0（F-1 に同梱）|
+| F-1 | Qdrant collection 名の 3 段優先順位 | **A（実装を単一 key に整理）— 2026-05-16 確定** ✅ 完了 2026-05-18 | 中（実装削除 + 既存 config の migration ガイド + test 書き換え）|
+| F-5 | 設定項目表に `vector_store.*collection` 未列挙 | **F-1 A 採用で自動解決**（実装側から互換 key が消えるため、設計書改訂不要）✅ 完了 2026-05-18 | 0（F-1 に同梱）|
 
 ### §4.2 中期（次に確認・整理すべき）
 

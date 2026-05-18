@@ -1229,8 +1229,6 @@ def _read_section_manifest_generation(
 def _section_collection_name(config: Mapping[str, Any]) -> str:
     value = (
         _config_get(config, ("retrieval", "section_collection"))
-        or _config_get(config, ("vector_store", "section_collection"))
-        or _config_get(config, ("vector_store", "collection"))
         or "spec_grag_section"
     )
     return str(value)

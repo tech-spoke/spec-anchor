@@ -385,15 +385,7 @@ def generate_related_section_candidates_result(
         else ""
     )
     section_collection = str(
-        _config_value(
-            retrieval_config,
-            "section_collection",
-            _config_value(
-                vector_store_config,
-                "section_collection",
-                _config_value(vector_store_config, "collection", "spec_grag_section"),
-            ),
-        )
+        _config_value(retrieval_config, "section_collection", "spec_grag_section")
         or "spec_grag_section"
     )
     embedding_provider_id = (

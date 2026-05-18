@@ -307,7 +307,7 @@ def test_inject_search_returns_source_provenance_for_agentic_search(
     assert result["hits"][0]["source_span"]["start_line"] == 3
 
 
-def test_inject_search_prefers_retrieval_section_collection_over_vector_store_collection(
+def test_inject_search_reads_retrieval_section_collection(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -315,10 +315,8 @@ def test_inject_search_prefers_retrieval_section_collection_over_vector_store_co
         tmp_path,
         config_overrides=dedent(
             """\
-            collection = "wrong_collection"
-
             [retrieval]
-            section_collection = "right_collection"
+            section_collection = "custom_collection"
             """
         ),
     )
@@ -356,9 +354,8 @@ def test_inject_search_prefers_retrieval_section_collection_over_vector_store_co
     result = run_inject_search(project_root=project, query="alpha", top_k=1)
 
     assert result["warnings"] == []
-    assert result["collection"] == "right_collection"
-    assert captured["collection"] == "right_collection"
-    assert captured["collection"] != "wrong_collection"
+    assert result["collection"] == "custom_collection"
+    assert captured["collection"] == "custom_collection"
 
 
 def test_build_hybrid_retriever_constructs_qdrant_hybrid_retriever() -> None:

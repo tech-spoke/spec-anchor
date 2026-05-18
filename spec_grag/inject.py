@@ -961,10 +961,7 @@ def _qdrant_section_config(project: Path) -> dict[str, str]:
     return {
         "url": str(vector_store.get("url") or "http://localhost:6333"),
         "section_collection": str(
-            retrieval.get("section_collection")
-            or vector_store.get("section_collection")
-            or vector_store.get("collection")
-            or "spec_grag_section"
+            retrieval.get("section_collection") or "spec_grag_section"
         ),
     }
 
