@@ -29,7 +29,7 @@ inject は、ユーザーが課題用 constraints を必要としており、ま
 2. gate probe として `spec-grag inject "<task>"` を実行する。JSON が blocked / failed の場合は停止する。`blocking_reasons` に dirty / stale / watcher 系の理由がある場合、core/watch を実行または待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict (`pending_conflict`) の場合、Conflict Review Items と decision options を人間に提示する。probe が `needs_agent_constraints` を返した場合、Agent-generated constraints を作るための freshness は満たされている。
 3. task と会話区間から search keys を生成する。
 4. 4 path の Agentic Search を行う。path は必須ではなく許可。課題の性質に応じて組み合わせる。
-   - **path ① Qdrant section-level retrieval** (主経路): `spec-grag inject-search "<query>" --top-k 8` で hybrid retrieval → hits の payload (heading_path / summary / search_keys / identifiers / related_sections) を読む → related_sections の target を `spec-grag inject-section "<id>"` で payload lookup → Source Specs 本文を Read で確認 → 再帰的に辿り、制約に無関係と判断できた時点で打ち切り
+   - **path ① Qdrant section-level retrieval** (主経路): `spec-grag inject-search "<query>"` で hybrid retrieval → hits の payload (heading_path / summary / search_keys / identifiers / related_sections) を読む → related_sections の target を `spec-grag inject-section "<id>"` で payload lookup → Source Specs 本文を Read で確認 → 再帰的に辿り、制約に無関係と判断できた時点で打ち切り
    - **path ② chapter anchor** (章単位エントリ): `spec-grag inject-chapters` → summary / key_topics / important_sections で関係しそうな章を特定 → path ① と同様に Agentic Search
    - **path ③ Purpose / Core Concept**: `spec-grag inject-purpose` → 全文を読み、課題に該当する制約根拠を抽出
    - **path ④ Conflict Review Items**: `spec-grag inject-conflicts` → resolved + stale でない items を取得 → valid_scope と referenced_source_refs を確認 → 制約に組み込む

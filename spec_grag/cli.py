@@ -116,9 +116,6 @@ def build_main_parser() -> argparse.ArgumentParser:
     inject_search.add_argument(
         "--project-root", "--root", dest="project_root", default=".", help="target project root"
     )
-    inject_search.add_argument(
-        "--top-k", dest="top_k", type=int, default=8, help="top-K hits to return (default 8)"
-    )
     inject_search.add_argument("query", nargs="+", help="natural-language search query")
 
     inject_section = subparsers.add_parser(
@@ -411,7 +408,6 @@ def _run_inject_search_from_args(args: argparse.Namespace) -> int:
         result = run_inject_search(
             project_root=project_root,
             query=query,
-            top_k=int(args.top_k),
         )
     except Exception as exc:
         result = _exception_result(

@@ -778,7 +778,6 @@ CLI は外部契約として次の参照操作を提供する。
 | `inject` / `realign` | `--constraints-file <path>` / `--agent-constraints-file <path>` | Agent が生成した制約 JSON のファイル入力 |
 | `inject` / `realign` | `--freshness-json <json>` | freshness report の上書き JSON |
 | `inject` / `realign` | `--freshness-file <path>` | freshness report の上書き JSON ファイル |
-| `inject-search` | `--top-k <int>` | 返却する top-K 件数。既定 8 |
 
 ### 8.5 通常出力
 

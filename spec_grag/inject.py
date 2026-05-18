@@ -871,7 +871,7 @@ def run_inject_search(
     project_root: str | Path = ".",
     *,
     query: str,
-    top_k: int = 8,
+    top_k: int | None = None,
     root: str | Path | None = None,
     cwd: str | Path | None = None,
 ) -> dict[str, Any]:
@@ -880,14 +880,23 @@ def run_inject_search(
     `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-search). Returns the top-K
     section payloads (source_document_id / source_section_id / source_span /
     heading / summary / search_keys / identifiers / related_sections / score)
-    ranked by RRF over
-    BGE-M3 dense + sparse vectors. When Qdrant or FlagEmbedding is
-    unavailable, the call returns a structured warning instead of
-    raising so the Agent can fall back to other paths (§8.3 path ②/③/④).
+    ranked by RRF over BGE-M3 dense + sparse vectors. `top_k` defaults to
+    `[retrieval].section_final_top_n` from project config (default 8 when
+    omitted). When Qdrant or FlagEmbedding is unavailable, the call returns
+    a structured warning instead of raising so the Agent can fall back to
+    other paths (§8.3 path ②/③/④).
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
     qdrant_config = _qdrant_section_config(project)
+    if top_k is None:
+        project_config = _read_project_config(project)
+        retrieval = (
+            project_config.get("retrieval")
+            if isinstance(project_config.get("retrieval"), Mapping)
+            else {}
+        )
+        top_k = int(retrieval.get("section_final_top_n", 8))
     base_result: dict[str, Any] = {
         "command": "/spec-inject inject-search",
         "project_root": project.as_posix(),

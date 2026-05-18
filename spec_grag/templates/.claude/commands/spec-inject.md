@@ -19,7 +19,7 @@ allowed-tools: Read, Grep, Glob, Bash(spec-grag inject*), Bash(spec-grag realign
 
 ### path ① Qdrant section-level retrieval (Source Specs 探索の主経路)
 
-a. search keys で hybrid retrieval を呼ぶ: `spec-grag inject-search "<query>" --top-k 8`
+a. search keys で hybrid retrieval を呼ぶ: `spec-grag inject-search "<query>"`
 b. 返ってきた hits の payload (heading_path / summary / search_keys / identifiers / related_sections) を読み、制約に関連しそうな候補を選ぶ
 c. 候補 section の related_sections 配列から target_section_id を取得し、payload lookup する: `spec-grag inject-section "<target_id>" [<target_id>...]`
 d. 必要なら Source Specs ファイル本文を Read で確認し、制約根拠を抽出する
