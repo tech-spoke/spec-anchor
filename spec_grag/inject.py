@@ -15,48 +15,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from spec_grag.conflict_review import SCOPES as CONFLICT_REVIEW_SCOPES
 from spec_grag.freshness import build_freshness_gate_decision, pending_conflict_items
-
-
-FINAL_EVIDENCE_ORIGINS = {
-    "Purpose",
-    "Core Concept",
-    "Source Specs",
-    "Conflict Review Item",
-}
-SUPPORT_ONLY_ORIGINS = {
-    "Section Summary",
-    "Search Keys",
-    "Related Sections",
-    "Chapter Key Anchor",
-}
-REQUIRED_CONSTRAINT_FIELDS = (
-    "statement",
-    "evidence_origin",
-    "evidence_ref",
-    "support_refs",
-    "applicability",
-)
-REQUIRED_STRING_CONSTRAINT_FIELDS = (
-    "statement",
-    "evidence_origin",
-    "evidence_ref",
-    "applicability",
-)
-CONFLICT_REVIEW_INVALID_STATUSES = {
-    "pending",
-    "dismissed",
-    "unresolved",
-    "deferred",
-    "needs_human_review",
-    "needs_source_update",
-    "stale",
-    "stale_resolution",
-}
-CONFLICT_REVIEW_STALE_STATUSES = {"stale", "stale_resolution"}
-UNREFLECTED_CONFLICT_WARNING_CODE = "unreflected_conflict_resolution"
-TASK_SCOPE_CONFLICT_WARNING_CODE = "task_scope_conflict_resolution"
 
 
 class SpecInjectError(ValueError):
@@ -68,9 +27,6 @@ def run_spec_inject(
     *,
     root: str | Path | None = None,
     cwd: str | Path | None = None,
-    agent_constraints: Sequence[Mapping[str, Any]] | None = None,
-    constraints: Sequence[Mapping[str, Any]] | None = None,
-    generated_constraints: Sequence[Mapping[str, Any]] | None = None,
     freshness_report: Mapping[str, Any] | Any | None = None,
     freshness: Mapping[str, Any] | Any | None = None,
     provider: Any = None,
@@ -78,13 +34,14 @@ def run_spec_inject(
     generated_at: str | None = None,
     **_: Any,
 ) -> dict[str, Any]:
-    """Return a validated, injectable constraint context for `/spec-inject`.
+    """Return the freshness gate + pending conflict result for `/spec-inject`.
 
     `provider` and `llm_provider` are accepted for API compatibility only.
     They are deliberately unused because `/spec-inject` must not call an
-    autonomous LLM provider or rerun `/spec-core`. Per §5.3 / §8.4 the task
-    prompt and conversation context are Agent / LLM responsibilities and
-    are not consumed by the CLI.
+    autonomous LLM provider or rerun `/spec-core`. Per §5.3 / §8.5 the
+    constraint structure (statement / evidence_origin / evidence_ref /
+    support_refs / applicability / uncertainty) is the responsibility of
+    the Agent / LLM and is not validated by the CLI.
     """
 
     del provider, llm_provider
@@ -108,342 +65,17 @@ def run_spec_inject(
         decision = _hydrate_pending_conflict_items(decision, project)
         return _stopped_result(base_result, decision)
 
-    candidate_constraints = _first_constraints(
-        agent_constraints,
-        constraints,
-        generated_constraints,
-    )
-    if candidate_constraints is None:
-        raise SpecInjectError(
-            "Agent constraints are required for /spec-inject; "
-            "the CLI validates supplied constraints but does not generate fallback constraints."
-        )
-
-    validated = validate_constraints(
-        candidate_constraints,
-        conflict_review_items=_read_conflict_review_items(project),
-    )
-    summary = _injectable_summary(validated)
-    constraint_warnings = _constraint_warnings(validated)
-    if constraint_warnings:
-        summary["制約警告"] = constraint_warnings
     result = {
         **base_result,
         "should_stop": False,
         "stops": False,
         "blocked": False,
         "can_continue": True,
-        "constraints": validated,
-        "injectable_context": summary,
-        "labels": {
-            "constraints": "今回守る制約",
-            "targets": "今回見るべき対象",
-            "related": "関連先として確認したもの",
-        },
     }
     if decision.get("warnings"):
         result["warnings"] = list(decision.get("warnings") or [])
         result["continues_with_warnings"] = bool(decision.get("continues_with_warnings"))
-    if constraint_warnings:
-        result["warnings"] = list(result.get("warnings") or []) + constraint_warnings
-        result["continues_with_warnings"] = True
     return result
-
-
-def validate_constraints(
-    constraints: Sequence[Mapping[str, Any]],
-    conflict_review_items: Sequence[Mapping[str, Any]] | Mapping[str, Any] | None = None,
-) -> list[dict[str, Any]]:
-    """Validate and normalize Agent-supplied constraints."""
-
-    if not _is_sequence(constraints):
-        raise SpecInjectError("constraints must be a list of objects")
-
-    conflict_items = _coerce_conflict_review_items(conflict_review_items)
-    normalized: list[dict[str, Any]] = []
-    for index, raw in enumerate(constraints):
-        if not isinstance(raw, Mapping):
-            raise SpecInjectError(f"constraint[{index}] must be an object")
-        item = deepcopy(dict(raw))
-        missing = [field for field in REQUIRED_CONSTRAINT_FIELDS if field not in item]
-        if missing:
-            raise SpecInjectError(
-                f"constraint[{index}] missing required field(s): {', '.join(missing)}"
-            )
-
-        invalid_strings = [
-            field
-            for field in REQUIRED_STRING_CONSTRAINT_FIELDS
-            if not _non_empty_string(item.get(field))
-        ]
-        if invalid_strings:
-            raise SpecInjectError(
-                f"constraint[{index}] field(s) must be non-empty strings: "
-                + ", ".join(invalid_strings)
-            )
-
-        origin = item["evidence_origin"]
-        if origin in SUPPORT_ONLY_ORIGINS:
-            raise SpecInjectError(
-                f"{origin} cannot be used as final evidence_origin; "
-                "evidence_origin must be one of: "
-                + ", ".join(sorted(FINAL_EVIDENCE_ORIGINS))
-            )
-        if origin not in FINAL_EVIDENCE_ORIGINS:
-            raise SpecInjectError(
-                f"unsupported evidence_origin {origin}; evidence_origin must be one of: "
-                + ", ".join(sorted(FINAL_EVIDENCE_ORIGINS))
-            )
-
-        support_refs = item.get("support_refs")
-        if not isinstance(support_refs, list):
-            raise SpecInjectError(f"constraint[{index}] support_refs must be a list")
-
-        item["evidence_origin"] = origin
-        item["support_refs"] = [_normalize_support_ref(ref) for ref in support_refs]
-        if origin == "Conflict Review Item":
-            _validate_conflict_review_constraint(
-                item,
-                index=index,
-                conflict_review_items=conflict_items,
-            )
-        normalized.append(_jsonable(item))
-
-    return normalized
-
-
-def _validate_conflict_review_constraint(
-    item: dict[str, Any],
-    *,
-    index: int,
-    conflict_review_items: Sequence[Mapping[str, Any]],
-) -> None:
-    evidence_ref = str(item.get("evidence_ref") or "").strip()
-    sources = _conflict_review_metadata_sources(
-        item,
-        evidence_ref=evidence_ref,
-        conflict_review_items=conflict_review_items,
-    )
-    validation_sources = [
-        (label, source)
-        for label, source in sources
-        if _has_conflict_review_validation_metadata(source)
-    ]
-    if not validation_sources:
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence requires structured "
-            "metadata or an artifact match with status=resolved, stale_resolution=false "
-            "or resolution_status not stale_resolution, and valid_scope"
-        )
-
-    statuses = _metadata_values(validation_sources, "status", "conflict_status")
-    resolution_statuses = _metadata_values(validation_sources, "resolution_status")
-    stale_values = _metadata_values(validation_sources, "stale_resolution")
-    scopes = _metadata_values(validation_sources, "valid_scope")
-    reflection_statuses = _metadata_values(validation_sources, "reflection_status")
-
-    invalid_status = _first_invalid_conflict_review_status(statuses + resolution_statuses)
-    if invalid_status is not None:
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence must be resolved; "
-            f"got {invalid_status}"
-        )
-
-    if not any(_normalize_metadata_value(value) == "resolved" for value in statuses + resolution_statuses):
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence must include status=resolved"
-        )
-
-    stale_value = next((value for value in stale_values if _is_stale_resolution(value)), None)
-    if stale_value is not None:
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence is stale_resolution"
-        )
-
-    has_non_stale_signal = any(_is_non_stale_resolution(value) for value in stale_values) or any(
-        _normalize_metadata_value(value) not in CONFLICT_REVIEW_STALE_STATUSES
-        for value in resolution_statuses
-    )
-    if not has_non_stale_signal:
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence must include "
-            "stale_resolution=false or resolution_status not stale_resolution"
-        )
-
-    if not scopes or any(not _non_empty_metadata_value(scope) for scope in scopes):
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence must include "
-            "non-empty valid_scope"
-        )
-
-    invalid_scope = next(
-        (
-            str(scope)
-            for scope in scopes
-            if _normalize_metadata_value(scope) not in CONFLICT_REVIEW_SCOPES
-        ),
-        None,
-    )
-    if invalid_scope is not None:
-        raise SpecInjectError(
-            f"constraint[{index}] Conflict Review Item evidence has invalid valid_scope: "
-            f"{invalid_scope}"
-        )
-
-    if any(_normalize_metadata_value(status) == "unreflected" for status in reflection_statuses):
-        _append_constraint_warning(
-            item,
-            {
-                "code": UNREFLECTED_CONFLICT_WARNING_CODE,
-                "evidence_ref": evidence_ref,
-                "note": (
-                    "resolved Conflict Review Item resolution is a human decision "
-                    "that is not yet reflected in Purpose, Core Concept, or Source Specs"
-                ),
-            },
-        )
-
-    if any(_normalize_metadata_value(scope) == "task_scope" for scope in scopes):
-        _append_constraint_warning(
-            item,
-            {
-                "code": TASK_SCOPE_CONFLICT_WARNING_CODE,
-                "evidence_ref": evidence_ref,
-                "note": (
-                    "valid_scope=task_scope means this Conflict Review Item resolution "
-                    "is only a temporary decision for the current task"
-                ),
-            },
-        )
-
-
-def _conflict_review_metadata_sources(
-    item: Mapping[str, Any],
-    *,
-    evidence_ref: str,
-    conflict_review_items: Sequence[Mapping[str, Any]],
-) -> list[tuple[str, Mapping[str, Any]]]:
-    sources: list[tuple[str, Mapping[str, Any]]] = []
-    _append_metadata_source(sources, "constraint", item)
-    for key in ("conflict_review_item", "evidence", "resolution"):
-        _append_metadata_source(sources, key, item.get(key))
-
-    if evidence_ref:
-        for conflict_item in conflict_review_items:
-            if _conflict_review_item_matches(conflict_item, evidence_ref):
-                _append_metadata_source(sources, "artifact", conflict_item)
-    return sources
-
-
-def _append_metadata_source(
-    sources: list[tuple[str, Mapping[str, Any]]],
-    label: str,
-    value: Any,
-) -> None:
-    if not isinstance(value, Mapping):
-        return
-    sources.append((label, value))
-    nested_resolution = value.get("resolution")
-    if isinstance(nested_resolution, Mapping):
-        sources.append((f"{label}.resolution", nested_resolution))
-    nested_evidence = value.get("evidence")
-    if isinstance(nested_evidence, Mapping):
-        sources.append((f"{label}.evidence", nested_evidence))
-
-
-def _has_conflict_review_validation_metadata(value: Mapping[str, Any]) -> bool:
-    return any(
-        key in value
-        for key in (
-            "status",
-            "conflict_status",
-            "resolution_status",
-            "stale_resolution",
-            "valid_scope",
-            "reflection_status",
-        )
-    )
-
-
-def _metadata_values(
-    sources: Sequence[tuple[str, Mapping[str, Any]]],
-    *keys: str,
-) -> list[Any]:
-    values: list[Any] = []
-    for _, source in sources:
-        for key in keys:
-            if key in source:
-                values.append(source.get(key))
-    return values
-
-
-def _first_invalid_conflict_review_status(values: Sequence[Any]) -> str | None:
-    for value in values:
-        normalized = _normalize_metadata_value(value)
-        if normalized in CONFLICT_REVIEW_INVALID_STATUSES:
-            return normalized
-    return None
-
-
-def _normalize_metadata_value(value: Any) -> str:
-    return str(value).strip().lower().replace("-", "_")
-
-
-def _non_empty_metadata_value(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
-
-
-def _is_stale_resolution(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    normalized = _normalize_metadata_value(value)
-    return normalized in {"true", "1", "yes", "y", "stale", "stale_resolution"}
-
-
-def _is_non_stale_resolution(value: Any) -> bool:
-    if isinstance(value, bool):
-        return not value
-    normalized = _normalize_metadata_value(value)
-    return normalized in {"false", "0", "no", "n", "fresh", "current", "resolved"}
-
-
-def _append_constraint_warning(item: dict[str, Any], warning: Mapping[str, Any]) -> None:
-    raw_warnings = item.get("warnings")
-    if raw_warnings is None:
-        warnings: list[Any] = []
-    elif isinstance(raw_warnings, list):
-        warnings = list(raw_warnings)
-    else:
-        warnings = [raw_warnings]
-
-    code = warning.get("code")
-    if code is not None and any(
-        isinstance(existing, Mapping) and existing.get("code") == code for existing in warnings
-    ):
-        item["warnings"] = warnings
-        return
-
-    warnings.append(dict(warning))
-    item["warnings"] = warnings
-
-
-def _constraint_warnings(constraints: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    warnings: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for constraint in constraints:
-        evidence_ref = str(constraint.get("evidence_ref") or "")
-        for warning in _as_list(constraint.get("warnings")):
-            if isinstance(warning, Mapping):
-                item = dict(warning)
-            else:
-                item = {"note": str(warning)}
-            item.setdefault("evidence_ref", evidence_ref)
-            key = repr(_jsonable(item))
-            if key in seen:
-                continue
-            warnings.append(_jsonable(item))
-            seen.add(key)
-    return warnings
 
 
 def _read_conflict_review_items(project_root: Path) -> list[dict[str, Any]]:
@@ -552,49 +184,6 @@ def _pending_only_stop(decision: Mapping[str, Any]) -> bool:
     )
 
 
-def _injectable_summary(constraints: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    targets: list[dict[str, str]] = []
-    related: list[dict[str, str]] = []
-    seen_related: set[tuple[str, str]] = set()
-
-    for constraint in constraints:
-        targets.append(
-            {
-                "origin": str(constraint.get("evidence_origin")),
-                "ref": str(constraint.get("evidence_ref")),
-                "applicability": str(constraint.get("applicability")),
-            }
-        )
-        for support in constraint.get("support_refs", []):
-            if not isinstance(support, Mapping):
-                continue
-            origin = str(support.get("origin") or "")
-            ref = str(support.get("ref") or "")
-            key = (origin, ref)
-            if not origin and not ref:
-                continue
-            if key in seen_related:
-                continue
-            related.append({"origin": origin, "ref": ref})
-            seen_related.add(key)
-
-    return {
-        "今回守る制約": [str(item.get("statement")) for item in constraints],
-        "今回見るべき対象": targets,
-        "関連先として確認したもの": related,
-    }
-
-
-def _first_constraints(*values: Any) -> Any | None:
-    for value in values:
-        if value is None:
-            continue
-        if _is_sequence(value) and not value:
-            continue
-        return value
-    return None
-
-
 def _read_freshness_artifact(project_root: Path) -> dict[str, Any]:
     from spec_grag.artifacts import ContextArtifactStore
 
@@ -651,21 +240,6 @@ def _project_root(
 ) -> Path:
     selected = project_root if project_root != "." else root or cwd or project_root
     return Path(selected).expanduser().resolve()
-
-
-def _normalize_support_ref(value: Any) -> dict[str, Any]:
-    if isinstance(value, Mapping):
-        item = deepcopy(dict(value))
-        if "origin" in item:
-            item["origin"] = str(item["origin"])
-        if "ref" in item:
-            item["ref"] = str(item["ref"])
-        return _jsonable(item)
-    return {"ref": str(value)}
-
-
-def _non_empty_string(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
 
 
 def _is_sequence(value: Any) -> bool:
@@ -855,9 +429,10 @@ def run_inject_conflicts(
     excluded_items: list[dict[str, Any]] = []
     for item in raw_items:
         status = str(item.get("status") or "").strip().lower()
-        if status == "resolved" and status not in CONFLICT_REVIEW_STALE_STATUSES:
-            # Apply the same stale check `/spec-inject` uses for its
-            # primary constraint validation path.
+        if status == "resolved":
+            # Filter out stale resolutions; the Agent must only cite
+            # non-stale resolved items as `evidence_origin = "Conflict
+            # Review Item"`.
             stale_marker = item.get("stale_resolution") or item.get("stale")
             if stale_marker:
                 excluded_items.append(
@@ -1061,5 +636,4 @@ __all__ = [
     "run_inject",
     "inject",
     "execute_spec_inject",
-    "validate_constraints",
 ]

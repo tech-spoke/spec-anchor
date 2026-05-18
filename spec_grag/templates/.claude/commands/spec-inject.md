@@ -54,8 +54,8 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 | 過去判断の継続 | ④ | ①、③ |
 
 5. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
-6. Agent-generated constraints を CLI で検証する: `spec-grag inject --constraints '<json-array>'`。CLI は supplied constraints を検証し、fallback constraints を生成しない。検証に失敗した場合、constraints を直すか blocker として報告する。
-7. validated constraint set、evidence list、Agentic Search summary だけを出力する。`/spec-inject` では task への回答や最終案を出さない。
+6. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空文字列であること、`evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` / `Conflict Review Item` のいずれかであること、`Section Summary` / `Search Keys` / `Related Sections` / `Chapter Key Anchor` を `evidence_origin` に置かないこと、`support_refs` が list であること。`evidence_origin = "Conflict Review Item"` の場合、`spec-grag inject-conflicts` の返却に含まれる items (resolved + stale でない) だけを参照する。CLI は構造検証を行わないため、Agent 自身が確認する。
+7. constraint set、evidence list、Agentic Search summary だけを出力する。`/spec-inject` では task への回答や最終案を出さない。
 
 ### constraints JSON の作り方
 

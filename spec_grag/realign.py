@@ -44,14 +44,6 @@ CONFLICT_DECLARATION_KEYS = (
     "constraint_violations",
     "violates_constraints",
 )
-CONSTRAINT_REVIEW_KEYS = CONFLICT_DECLARATION_KEYS + (
-    "warning",
-    "warnings",
-    "note",
-    "notes",
-)
-
-
 class SpecRealignError(ValueError):
     """Raised when `/spec-realign` inputs are invalid."""
 
@@ -61,9 +53,6 @@ def run_spec_realign(
     *,
     root: str | Path | None = None,
     cwd: str | Path | None = None,
-    agent_constraints: Sequence[Mapping[str, Any]] | None = None,
-    constraints: Sequence[Mapping[str, Any]] | None = None,
-    generated_constraints: Sequence[Mapping[str, Any]] | None = None,
     agent_answer: Any | None = None,
     answer: Any | None = None,
     generated_answer: Any | None = None,
@@ -75,14 +64,16 @@ def run_spec_realign(
     generated_at: str | None = None,
     **extra: Any,
 ) -> dict[str, Any]:
-    """Return a RealignResult from Agent-supplied constraints and answer.
+    """Return a RealignResult that structures the Agent-supplied answer.
 
     `provider` and `llm_provider` are accepted for API compatibility only.
     They are passed through to `/spec-inject`, which deliberately ignores them;
     `/spec-realign` never calls a `[llm]` provider or synthesizes an answer.
-    Per §5.3 / §9.1 / §9.2 the task prompt, conversation context, and
-    clarification judgement are Agent / LLM responsibilities and are not
-    consumed by the CLI.
+    Per §5.3 / §8.5 / §9.1 / §9.2 the constraint generation, task prompt and
+    conversation context interpretation, and clarification judgement are
+    Agent / LLM responsibilities and are not consumed by the CLI. The CLI
+    only enforces the freshness gate and structures the Agent answer into
+    the RealignResult layout.
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
@@ -92,9 +83,6 @@ def run_spec_realign(
             project_root=project,
             root=root,
             cwd=cwd,
-            agent_constraints=agent_constraints,
-            constraints=constraints,
-            generated_constraints=generated_constraints,
             freshness_report=freshness_report,
             freshness=freshness,
             provider=provider,
@@ -113,19 +101,16 @@ def run_spec_realign(
     if _is_stopped(inject_payload):
         return _stopped_from_inject(inject_payload, project_root=project, generated_at=generated_at)
 
-    validated_constraints = _constraints_from_inject(inject_payload)
     selected_answer = _first_answer(agent_answer, answer, generated_answer, answer_candidate)
     if selected_answer is None:
         return _needs_answer_result(
             project_root=project,
             generated_at=generated_at,
             inject_result=inject_payload,
-            constraints=validated_constraints,
         )
 
     structured_answer = structure_realign_answer(
         selected_answer,
-        constraints=validated_constraints,
         inject_result=inject_payload,
     )
 
@@ -142,7 +127,6 @@ def run_spec_realign(
         "stops": False,
         "blocked": False,
         "can_continue": True,
-        "constraints": validated_constraints,
         "answer": structured_answer,
         "realign_answer": structured_answer,
         "inject_result": inject_payload,
@@ -158,15 +142,19 @@ def run_spec_realign(
 def structure_realign_answer(
     answer_candidate: Any,
     *,
-    constraints: Sequence[Mapping[str, Any]] | None = None,
     inject_result: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Validate and normalize an Agent-generated Answer into four sections."""
+    """Normalize an Agent-generated Answer into the RealignResult 4-section layout.
+
+    Per §8.5 / §9.3 the Agent supplies the constraints inside the answer
+    candidate (in `ANSWER_CONSTRAINTS_LABEL` or a similarly-named section).
+    The CLI does not validate constraint content; it only re-shapes the
+    answer into the canonical 4-section layout for downstream consumers.
+    """
 
     if answer_candidate is None:
         raise SpecRealignError("agent_answer is required for /spec-realign")
 
-    constraints_payload = [dict(item) for item in constraints or ()]
     raw_candidate = _jsonable(answer_candidate)
     sections = _section_source(raw_candidate)
 
@@ -222,7 +210,6 @@ def structure_realign_answer(
         )
 
     declared_review = _declared_review_items(raw_candidate)
-    constraint_review = _constraint_review_items(constraints_payload)
     inferred_review = (
         []
         if declared_review or not _is_blank(review_section)
@@ -231,30 +218,11 @@ def structure_realign_answer(
     review_items = _merge_review_items(
         review_section,
         declared_review,
-        constraint_review,
         inferred_review,
     )
-    actual_constraints_section = _constraint_section(constraints_payload)
-    if actual_constraints_section and not _is_blank(constraints_section):
-        review_items = _merge_review_items(
-            review_items,
-            [
-                {
-                    "answer_candidate_constraints": _normalize_section(constraints_section),
-                    "note": (
-                        "Agent answer candidate supplied its own constraints; "
-                        "validated /spec-inject constraints are used."
-                    ),
-                }
-            ],
-        )
 
     return {
-        ANSWER_CONSTRAINTS_LABEL: (
-            actual_constraints_section
-            if actual_constraints_section
-            else _normalize_section(constraints_section)
-        ),
+        ANSWER_CONSTRAINTS_LABEL: _normalize_section(constraints_section),
         ANSWER_TARGETS_LABEL: (
             _normalize_section(targets_section)
             if not _is_blank(targets_section)
@@ -293,7 +261,6 @@ def _needs_answer_result(
     project_root: Path,
     generated_at: str | None,
     inject_result: Mapping[str, Any],
-    constraints: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
         "command": "/spec-realign",
@@ -310,29 +277,10 @@ def _needs_answer_result(
         "stops": True,
         "blocked": True,
         "can_continue": False,
-        "constraints": constraints,
         "stop_reason": "needs_agent_answer",
         "reasons": ["needs_agent_answer"],
         "inject_result": deepcopy(dict(inject_result)),
     }
-
-
-def _constraints_from_inject(inject_result: Mapping[str, Any]) -> list[dict[str, Any]]:
-    raw = (
-        inject_result.get("constraints")
-        or inject_result.get("constraint_set")
-        or inject_result.get("agent_constraints")
-        or inject_result.get("injected_constraints")
-        or []
-    )
-    if not _is_sequence(raw):
-        raise SpecRealignError("InjectResult constraints must be list-like")
-    normalized: list[dict[str, Any]] = []
-    for index, item in enumerate(raw):
-        if not isinstance(item, Mapping):
-            raise SpecRealignError(f"InjectResult constraint[{index}] must be an object")
-        normalized.append(_jsonable(dict(item)))
-    return normalized
 
 
 def _section_source(value: Any) -> Any:
@@ -371,97 +319,6 @@ def _declared_items_for_key(key: str, value: Any) -> list[Any]:
     if _is_sequence(value):
         return [deepcopy(item) for item in value]
     return [deepcopy(value)]
-
-
-def _constraint_review_items(constraints: Sequence[Mapping[str, Any]]) -> list[Any]:
-    items: list[Any] = []
-    for index, constraint in enumerate(constraints):
-        if not isinstance(constraint, Mapping):
-            continue
-        collected: list[tuple[str, Any]] = []
-        _collect_constraint_review_values(constraint, collected)
-        for key, value in collected:
-            for item in _declared_items_for_key(key, value):
-                items.append(_constraint_review_item(constraint, index=index, key=key, value=item))
-        if (
-            _contains_metadata_value(constraint, "reflection_status", "unreflected")
-            and not _contains_warning_code(constraint, "unreflected_conflict_resolution")
-        ):
-            items.append(
-                _constraint_review_item(
-                    constraint,
-                    index=index,
-                    key="reflection_status",
-                    value={
-                        "code": "unreflected_conflict_resolution",
-                        "note": (
-                            "resolved Conflict Review Item resolution is a human decision "
-                            "that is not yet reflected in Purpose, Core Concept, or Source Specs"
-                        ),
-                    },
-                )
-            )
-    return items
-
-
-def _collect_constraint_review_values(value: Any, items: list[tuple[str, Any]]) -> None:
-    if isinstance(value, Mapping):
-        for key, item in value.items():
-            key_text = str(key)
-            if key_text in CONSTRAINT_REVIEW_KEYS:
-                if item is not False and not _is_blank(item):
-                    items.append((key_text, item))
-                continue
-            _collect_constraint_review_values(item, items)
-    elif _is_sequence(value):
-        for item in value:
-            _collect_constraint_review_values(item, items)
-
-
-def _constraint_review_item(
-    constraint: Mapping[str, Any],
-    *,
-    index: int,
-    key: str,
-    value: Any,
-) -> dict[str, Any]:
-    if isinstance(value, Mapping):
-        item = deepcopy(dict(value))
-        item.setdefault("kind", key)
-    else:
-        item = {key: deepcopy(value)}
-
-    statement = constraint.get("statement")
-    if isinstance(statement, str) and statement.strip():
-        item.setdefault("constraint", statement.strip())
-    item.setdefault("constraint_index", index)
-    for source_key in ("evidence_origin", "evidence_ref", "applicability"):
-        source_value = constraint.get(source_key)
-        if isinstance(source_value, str) and source_value.strip():
-            item.setdefault(source_key, source_value.strip())
-    return item
-
-
-def _contains_warning_code(value: Any, code: str) -> bool:
-    if isinstance(value, Mapping):
-        if value.get("code") == code:
-            return True
-        return any(_contains_warning_code(item, code) for item in value.values())
-    if _is_sequence(value):
-        return any(_contains_warning_code(item, code) for item in value)
-    return False
-
-
-def _contains_metadata_value(value: Any, key: str, expected: str) -> bool:
-    expected_value = expected.strip().lower()
-    if isinstance(value, Mapping):
-        current = value.get(key)
-        if isinstance(current, str) and current.strip().lower() == expected_value:
-            return True
-        return any(_contains_metadata_value(item, key, expected) for item in value.values())
-    if _is_sequence(value):
-        return any(_contains_metadata_value(item, key, expected) for item in value)
-    return False
 
 
 def _conflict_lines(value: Any) -> list[str]:
@@ -514,26 +371,12 @@ def _normalize_review_section(value: Any) -> Any:
     return [_jsonable(item) for item in items]
 
 
-def _constraint_section(constraints: Sequence[Mapping[str, Any]]) -> list[str]:
-    statements: list[str] = []
-    for item in constraints:
-        statement = item.get("statement")
-        if isinstance(statement, str) and statement.strip():
-            statements.append(statement.strip())
-    return statements
-
-
 def _default_targets(
     *,
     inject_result: Mapping[str, Any] | None,
 ) -> list[Any]:
-    targets: list[Any] = []
-    context = inject_result.get("injectable_context") if isinstance(inject_result, Mapping) else None
-    if isinstance(context, Mapping):
-        raw_targets = context.get("今回見るべき対象")
-        if not _is_blank(raw_targets):
-            targets.extend(_as_items(raw_targets))
-    return targets
+    del inject_result
+    return []
 
 
 def _normalize_section(value: Any) -> Any:

@@ -197,29 +197,23 @@ max_retries = 0
     )
     assert core_payload["status"] == "updated"
 
-    constraints_json = json.dumps(_base_constraint())
     inject_payload = _json_output(
-        _run(
-            [
-                executable,
-                "inject",
-                "--constraints",
-                constraints_json,
-            ],
-            cwd=tmp_path,
-        )
+        _run([executable, "inject"], cwd=tmp_path)
     )
     assert inject_payload["status"] in {"fresh", "success"}
     assert inject_payload["can_continue"] is True
 
-    answer_json = json.dumps({"answer": "The release smoke path is ready."})
+    answer_json = json.dumps({
+        "今回守る制約": ["Keep the release smoke path deterministic."],
+        "今回扱う修正候補または検討対象": [],
+        "競合 / 不確実性 / 人間レビューが必要な点": [],
+        "課題プロンプトへの回答または修正案": "The release smoke path is ready.",
+    })
     realign_payload = _json_output(
         _run(
             [
                 executable,
                 "realign",
-                "--constraints",
-                constraints_json,
                 "--answer-json",
                 answer_json,
             ],

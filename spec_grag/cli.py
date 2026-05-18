@@ -85,22 +85,9 @@ def build_main_parser() -> argparse.ArgumentParser:
         help="path to a JSON conflict decision payload to pass to /spec-core",
     )
 
-    inject = subparsers.add_parser(
+    subparsers.add_parser(
         "inject",
-        help="prepare constraints for Agent-driven work without generating an answer",
-    )
-    inject.add_argument(
-        "--constraints",
-        "--constraints-json",
-        "--agent-constraints-json",
-        dest="constraints_json",
-        help="Agent-supplied constraints as a JSON array",
-    )
-    inject.add_argument(
-        "--constraints-file",
-        "--agent-constraints-file",
-        dest="constraints_file",
-        help="path to Agent-supplied constraints JSON",
+        help="freshness gate probe for /spec-inject (Agent supplies constraints separately per §8.5)",
     )
 
     inject_search = subparsers.add_parser(
@@ -134,20 +121,7 @@ def build_main_parser() -> argparse.ArgumentParser:
 
     realign = subparsers.add_parser(
         "realign",
-        help="prepare constraints and let the Agent produce an answer",
-    )
-    realign.add_argument(
-        "--constraints",
-        "--constraints-json",
-        "--agent-constraints-json",
-        dest="constraints_json",
-        help="Agent-supplied constraints as a JSON array",
-    )
-    realign.add_argument(
-        "--constraints-file",
-        "--agent-constraints-file",
-        dest="constraints_file",
-        help="path to Agent-supplied constraints JSON",
+        help="structure the Agent-supplied answer into the RealignResult layout",
     )
     realign.add_argument(
         "--answer",
@@ -335,27 +309,12 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
 
 
 def _run_inject_from_args(args: argparse.Namespace) -> int:
-    from spec_grag.inject import SpecInjectError, run_spec_inject
+    from spec_grag.inject import run_spec_inject
 
+    del args
     project_root = _resolved_project_root()
     try:
-        constraints = _load_json_argument(
-            value=args.constraints_json,
-            file_path=args.constraints_file,
-            label="constraints",
-        )
-        result = run_spec_inject(
-            project_root=project_root,
-            agent_constraints=constraints,
-        )
-    except SpecInjectError as exc:
-        result = _agent_input_error_result(
-            "/spec-inject",
-            project_root=project_root,
-            exc=exc,
-            stop_reason="needs_agent_constraints",
-            recommended_next_action="provide Agent-generated constraints to spec-grag inject",
-        )
+        result = run_spec_inject(project_root=project_root)
     except Exception as exc:
         result = _exception_result("/spec-inject", project_root=project_root, exc=exc)
     print(_dumps_json(result))
@@ -454,15 +413,9 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
 
     project_root = _resolved_project_root()
     try:
-        constraints = _load_json_argument(
-            value=args.constraints_json,
-            file_path=args.constraints_file,
-            label="constraints",
-        )
         answer = _load_answer_argument(args)
         result = run_spec_realign(
             project_root=project_root,
-            agent_constraints=constraints,
             agent_answer=answer,
         )
     except SpecRealignError as exc:
@@ -565,8 +518,6 @@ def _exception_result(command: str, *, project_root: Path, exc: Exception) -> di
 def _realign_stop_reason(message: str) -> str:
     if "answer" in message or "agent_answer" in message:
         return "needs_agent_answer"
-    if "constraint" in message:
-        return "needs_agent_constraints"
     return "needs_agent_input"
 
 
@@ -574,8 +525,6 @@ def _realign_recommended_next_action(message: str) -> str:
     reason = _realign_stop_reason(message)
     if reason == "needs_agent_answer":
         return "provide an Agent-generated answer candidate to spec-grag realign"
-    if reason == "needs_agent_constraints":
-        return "provide Agent-generated constraints to spec-grag realign"
     return "provide the missing Agent-generated input to spec-grag realign"
 
 
