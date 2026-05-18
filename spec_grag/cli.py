@@ -71,7 +71,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="verify that the Qdrant Source Retrieval Index payloads match the current section hashes",
     )
-    core.add_argument("--project-root", "--root", dest="project_root", default=".", help="target project root")
     core.add_argument(
         "--llm-provider",
         dest="llm_provider_id",
@@ -90,7 +89,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         "inject",
         help="prepare constraints for Agent-driven work without generating an answer",
     )
-    inject.add_argument("--project-root", "--root", dest="project_root", default=".", help="target project root")
     inject.add_argument("--conversation-context", help="conversation context interpreted by the Agent")
     inject.add_argument(
         "--constraints",
@@ -111,9 +109,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         "inject-search",
         help="Phase R-6: section-level Qdrant hybrid retrieval (top-K section payload)",
     )
-    inject_search.add_argument(
-        "--project-root", "--root", dest="project_root", default=".", help="target project root"
-    )
     inject_search.add_argument("query", nargs="+", help="natural-language search query")
 
     inject_section = subparsers.add_parser(
@@ -121,41 +116,28 @@ def build_main_parser() -> argparse.ArgumentParser:
         help="Phase R-6: id-indexed section payload lookup against Qdrant",
     )
     inject_section.add_argument(
-        "--project-root", "--root", dest="project_root", default=".", help="target project root"
-    )
-    inject_section.add_argument(
         "section_ids", nargs="+", help="one or more source_section_id values"
     )
 
-    inject_chapters = subparsers.add_parser(
+    subparsers.add_parser(
         "inject-chapters",
         help="Phase R-6: return chapter_anchors.json for the project",
     )
-    inject_chapters.add_argument(
-        "--project-root", "--root", dest="project_root", default=".", help="target project root"
-    )
 
-    inject_purpose = subparsers.add_parser(
+    subparsers.add_parser(
         "inject-purpose",
         help="Phase R-6: return Purpose + Core Concept file contents",
     )
-    inject_purpose.add_argument(
-        "--project-root", "--root", dest="project_root", default=".", help="target project root"
-    )
 
-    inject_conflicts = subparsers.add_parser(
+    subparsers.add_parser(
         "inject-conflicts",
         help="Phase R-6: return resolved (non-stale) Conflict Review Items",
-    )
-    inject_conflicts.add_argument(
-        "--project-root", "--root", dest="project_root", default=".", help="target project root"
     )
 
     realign = subparsers.add_parser(
         "realign",
         help="prepare constraints and let the Agent produce an answer",
     )
-    realign.add_argument("--project-root", "--root", dest="project_root", default=".", help="target project root")
     realign.add_argument("--conversation-context", help="conversation context interpreted by the Agent")
     realign.add_argument(
         "--constraints",
@@ -201,7 +183,6 @@ def build_watch_parser() -> argparse.ArgumentParser:
 
 
 def _add_watch_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("project_root", nargs="?", default=".", help="target project root")
     parser.add_argument("--once", action="store_true", help="run one scan and exit")
     parser.add_argument(
         "--interval-sec",
@@ -318,7 +299,7 @@ def _run_watch_from_args(args: argparse.Namespace) -> int:
     import spec_grag.watcher as watcher
 
     result = watcher.run_spec_grag_watch(
-        project_root=args.project_root,
+        project_root=str(Path.cwd()),
         once=args.once,
         interval_sec=args.interval_sec,
         debounce_sec=args.debounce_sec,
@@ -332,7 +313,7 @@ def _run_watch_from_args(args: argparse.Namespace) -> int:
 def _run_core_from_args(args: argparse.Namespace) -> int:
     from spec_grag.core import run_spec_core
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         decision_payload = _load_json_argument(
             value=args.decision_json,
@@ -360,7 +341,7 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
 def _run_inject_from_args(args: argparse.Namespace) -> int:
     from spec_grag.inject import SpecInjectError, run_spec_inject
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         constraints = _load_json_argument(
             value=args.constraints_json,
@@ -392,7 +373,7 @@ def _run_inject_search_from_args(args: argparse.Namespace) -> int:
 
     from spec_grag.inject import run_inject_search
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     query = " ".join(getattr(args, "query", []) or ()).strip()
     try:
         result = run_inject_search(
@@ -412,7 +393,7 @@ def _run_inject_section_from_args(args: argparse.Namespace) -> int:
 
     from spec_grag.inject import run_inject_section
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         result = run_inject_section(
             project_root=project_root,
@@ -431,7 +412,7 @@ def _run_inject_chapters_from_args(args: argparse.Namespace) -> int:
 
     from spec_grag.inject import run_inject_chapters
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         result = run_inject_chapters(project_root=project_root)
     except Exception as exc:
@@ -447,7 +428,7 @@ def _run_inject_purpose_from_args(args: argparse.Namespace) -> int:
 
     from spec_grag.inject import run_inject_purpose
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         result = run_inject_purpose(project_root=project_root)
     except Exception as exc:
@@ -463,7 +444,7 @@ def _run_inject_conflicts_from_args(args: argparse.Namespace) -> int:
 
     from spec_grag.inject import run_inject_conflicts
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         result = run_inject_conflicts(project_root=project_root)
     except Exception as exc:
@@ -477,7 +458,7 @@ def _run_inject_conflicts_from_args(args: argparse.Namespace) -> int:
 def _run_realign_from_args(args: argparse.Namespace) -> int:
     from spec_grag.realign import SpecRealignError, run_spec_realign
 
-    project_root = _resolved_project_root(args.project_root)
+    project_root = _resolved_project_root()
     try:
         constraints = _load_json_argument(
             value=args.constraints_json,
@@ -506,8 +487,8 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
     return _command_exit_code(result)
 
 
-def _resolved_project_root(value: str | Path) -> Path:
-    return Path(value).expanduser().resolve()
+def _resolved_project_root() -> Path:
+    return Path.cwd().resolve()
 
 
 def _task_prompt(args: argparse.Namespace) -> str | None:

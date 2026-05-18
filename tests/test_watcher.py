@@ -792,6 +792,7 @@ def test_cli_options_override_config_for_one_watch_run(
     monkeypatch.setattr(watcher, "run_spec_grag_watch", fake_watch, raising=False)
     monkeypatch.setattr(watcher, "run_watcher_once", fake_watch, raising=False)
 
+    monkeypatch.chdir(fake_project["root"])
     exit_code = cli.watch_main(
         [
             "--once",
@@ -803,7 +804,6 @@ def test_cli_options_override_config_for_one_watch_run(
             "60",
             "--max-runs",
             "3",
-            str(fake_project["root"]),
         ]
     )
 

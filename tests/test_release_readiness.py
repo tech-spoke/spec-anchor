@@ -193,7 +193,7 @@ max_retries = 0
     )
 
     core_payload = _json_output(
-        _run([executable, "core", "--all", "--project-root", str(tmp_path)], cwd=REPO_ROOT)
+        _run([executable, "core", "--all"], cwd=tmp_path)
     )
     assert core_payload["status"] == "updated"
 
@@ -203,13 +203,11 @@ max_retries = 0
             [
                 executable,
                 "inject",
-                "--project-root",
-                str(tmp_path),
                 "--constraints",
                 constraints_json,
                 "release smoke",
             ],
-            cwd=REPO_ROOT,
+            cwd=tmp_path,
         )
     )
     assert inject_payload["status"] in {"fresh", "success"}
@@ -221,15 +219,13 @@ max_retries = 0
             [
                 executable,
                 "realign",
-                "--project-root",
-                str(tmp_path),
                 "--constraints",
                 constraints_json,
                 "--answer-json",
                 answer_json,
                 "release smoke",
             ],
-            cwd=REPO_ROOT,
+            cwd=tmp_path,
         )
     )
     assert realign_payload["status"] in {"fresh", "success"}
