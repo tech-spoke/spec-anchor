@@ -776,8 +776,6 @@ CLI は外部契約として次の参照操作を提供する。
 | `inject` / `realign` | `--conversation-context <text>` | 会話区間文字列。Agent / LLM が解釈する補助入力 |
 | `inject` / `realign` | `--constraints <json>` / `--constraints-json <json>` / `--agent-constraints-json <json>` | Agent が生成した制約 JSON 配列。alias は同義 |
 | `inject` / `realign` | `--constraints-file <path>` / `--agent-constraints-file <path>` | Agent が生成した制約 JSON のファイル入力 |
-| `inject` / `realign` | `--freshness-json <json>` | freshness report の上書き JSON |
-| `inject` / `realign` | `--freshness-file <path>` | freshness report の上書き JSON ファイル |
 
 ### 8.5 通常出力
 

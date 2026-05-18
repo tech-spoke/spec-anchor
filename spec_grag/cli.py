@@ -105,8 +105,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         dest="constraints_file",
         help="path to Agent-supplied constraints JSON",
     )
-    inject.add_argument("--freshness-json", help="freshness report JSON override")
-    inject.add_argument("--freshness-file", help="path to freshness report JSON override")
     inject.add_argument("task", nargs="*", help="optional task prompt")
 
     inject_search = subparsers.add_parser(
@@ -181,8 +179,6 @@ def build_main_parser() -> argparse.ArgumentParser:
     )
     realign.add_argument("--answer-json", "--agent-answer-json", dest="answer_json", help="Agent-supplied answer candidate JSON")
     realign.add_argument("--answer-file", "--agent-answer-file", dest="answer_file", help="path to Agent-supplied answer JSON or text")
-    realign.add_argument("--freshness-json", help="freshness report JSON override")
-    realign.add_argument("--freshness-file", help="path to freshness report JSON override")
     realign.add_argument("task", nargs="*", help="optional task prompt")
 
     watch = subparsers.add_parser(
@@ -371,17 +367,11 @@ def _run_inject_from_args(args: argparse.Namespace) -> int:
             file_path=args.constraints_file,
             label="constraints",
         )
-        freshness = _load_json_argument(
-            value=args.freshness_json,
-            file_path=args.freshness_file,
-            label="freshness report",
-        )
         result = run_spec_inject(
             project_root=project_root,
             task_prompt=_task_prompt(args),
             conversation_context=args.conversation_context,
             agent_constraints=constraints,
-            freshness_report=freshness,
         )
     except SpecInjectError as exc:
         result = _agent_input_error_result(
@@ -494,11 +484,6 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
             file_path=args.constraints_file,
             label="constraints",
         )
-        freshness = _load_json_argument(
-            value=args.freshness_json,
-            file_path=args.freshness_file,
-            label="freshness report",
-        )
         answer = _load_answer_argument(args)
         result = run_spec_realign(
             project_root=project_root,
@@ -506,7 +491,6 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
             conversation_context=args.conversation_context,
             agent_constraints=constraints,
             agent_answer=answer,
-            freshness_report=freshness,
         )
     except SpecRealignError as exc:
         result = _agent_input_error_result(
