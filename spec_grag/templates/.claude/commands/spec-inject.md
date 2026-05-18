@@ -27,14 +27,16 @@ e. c-d を再帰的に適用する (最大数 hop)。制約に関係しないと
 
 ### path ② chapter_anchors.json による章単位エントリ
 
-a. 章 anchor を取得する: `spec-grag inject-chapters`
-b. 返ってきた chapters の summary / key_topics / important_sections を読み、関係しそうな章を特定する
-c. 特定された章配下の section を path ① と同様に Agentic Search で読み、制約を抽出する
+a. 章 anchor の path を取得する: `spec-grag inject-chapters`
+b. 返ってきた `chapter_anchors_path` を `Read` で読む。章数が多い場合は必要な範囲だけ部分取得する
+c. 各 chapter の summary / key_topics / important_sections を見て、今回の課題に関連しそうな章を特定する
+d. 特定された章配下の section を path ① と同様に Agentic Search で読み、制約を抽出する
 
 ### path ③ Purpose / Core Concept からの制約抽出
 
-a. Purpose + Core Concept の全文を取得する: `spec-grag inject-purpose`
-b. 課題に該当する制約根拠を抽出する
+a. Purpose 全文と Core Concept path を取得する: `spec-grag inject-purpose`
+b. 返ってきた `purpose` (全文) から課題に該当する制約根拠を抽出する
+c. 返ってきた `core_concept_path` を `Read` で読み、課題に関連する箇所だけを部分取得して制約根拠を抽出する。Core Concept は大きくなる可能性があるため一括投入しない
 
 ### path ④ resolved Conflict Review Items の確認
 

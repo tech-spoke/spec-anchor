@@ -30,8 +30,8 @@ inject は、ユーザーが課題用 constraints を必要としており、ま
 3. task と会話区間から search keys を生成する。
 4. 4 path の Agentic Search を行う。path は必須ではなく許可。課題の性質に応じて組み合わせる。
    - **path ① Qdrant section-level retrieval** (主経路): `spec-grag inject-search "<query>"` で hybrid retrieval → hits の payload (heading_path / summary / search_keys / identifiers / related_sections) を読む → related_sections の target を `spec-grag inject-section "<id>"` で payload lookup → Source Specs 本文を Read で確認 → 再帰的に辿り、制約に無関係と判断できた時点で打ち切り
-   - **path ② chapter anchor** (章単位エントリ): `spec-grag inject-chapters` → summary / key_topics / important_sections で関係しそうな章を特定 → path ① と同様に Agentic Search
-   - **path ③ Purpose / Core Concept**: `spec-grag inject-purpose` → 全文を読み、課題に該当する制約根拠を抽出
+   - **path ② chapter anchor** (章単位エントリ): `spec-grag inject-chapters` で `chapter_anchors_path` を取得 → `Read` で読む (大きい場合は部分取得) → summary / key_topics / important_sections で関係しそうな章を特定 → path ① と同様に Agentic Search
+   - **path ③ Purpose / Core Concept**: `spec-grag inject-purpose` で `purpose` (全文) と `core_concept_path` を取得 → Purpose 全文から制約根拠を抽出 → `core_concept_path` は `Read` で課題に関連する部分だけを部分取得して制約根拠を抽出 (Core Concept は大きくなる可能性があるため一括投入しない)
    - **path ④ Conflict Review Items**: `spec-grag inject-conflicts` → resolved + stale でない items を取得 → valid_scope と referenced_source_refs を確認 → 制約に組み込む
    - path 選択の指針: 具体的 API / 識別子 → ①主 + ③④補強、全体方針 / 抽象的 → ②主 + ①③④補強、Purpose / Core Concept 直接質問 → ③主 + ①②補強、過去判断の継続 → ④主 + ①③補強
    - ユーザーが全文レビューを明示しない限り、Source Specs full text を最終 context に丸ごと貼らない。

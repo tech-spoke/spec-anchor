@@ -223,7 +223,7 @@ Conversation Context
 
 会話区間は検索キー生成と制約生成の入力であり、仕様上の根拠ではない。最終根拠は Purpose、Core Concept、Source Specs のどれに由来するかを区別する。Section Summary と Chapter Key Anchor を使った場合は、参照補助として区別する。
 
-SPEC-grag は、Source Specs 本文を無条件に LLM コンテキストへ丸ごと投入しない。Agent / LLM は Agentic Search、検索キー生成、根拠確認のために必要な Source Specs snippet を読むことができる。読んだ本文を無整理のまま最終回答の前提へ混ぜてはいけない。最終的に使う制約は、今回の課題に必要なものとして生成し、根拠を示す。
+SPEC-grag は、Source Specs 本文および大きく成長する保持物 (Core Concept、Chapter Key Anchor) を無条件に LLM コンテキストへ丸ごと投入しない。Agent / LLM は Agentic Search、検索キー生成、根拠確認のために必要な Source Specs snippet および保持物の必要箇所を読むことができる。`spec-grag inject-chapters` / `inject-purpose` は対応する保持物の path を返すので、Agent は path を `Read` で読み、課題に関連する部分だけを抽出する。Purpose は目的そのもので短いため `inject-purpose` の戻り値に全文を含める。読んだ本文を無整理のまま最終回答の前提へ混ぜてはいけない。最終的に使う制約は、今回の課題に必要なものとして生成し、根拠を示す。
 
 Search Keys は根拠にしない。Section Summary と Chapter Key Anchor は検索・理解の補助であり、制約として採用する場合は Purpose、Core Concept、Source Specs、または解決済み Conflict Review Item の根拠を確認する。
 
@@ -762,8 +762,8 @@ CLI は外部契約として次の参照操作を提供する。
 | 課題プロンプトの gate probe | `spec-grag inject "<task>"` | freshness report、pending conflict、`needs_agent_constraints` フラグ |
 | section-level hybrid retrieval | `spec-grag inject-search "<query>"` | top-K の Section payload (source_document_id / source_section_id / source_span / heading / summary / search_keys / identifiers / related_sections / score) |
 | Section payload lookup (related 辿り) | `spec-grag inject-section "<id>" [<id>...]` | 指定 section_id の payload 一括取得 |
-| 章 anchor 取得 | `spec-grag inject-chapters` | `chapter_anchors.json` 全体 |
-| Purpose / Core Concept 取得 | `spec-grag inject-purpose` | `purpose_file` + `concept_file` の全文 |
+| 章 anchor 取得 | `spec-grag inject-chapters` | `chapter_anchors.json` の path。Agent は path を `Read` で読み、課題に関連しそうな章を特定する |
+| Purpose / Core Concept 取得 | `spec-grag inject-purpose` | `purpose` (Purpose 全文、短いので注入) + `core_concept_path` (Core Concept の path、Agent が `Read` で必要箇所を抽出) |
 | Conflict Review Items 取得 | `spec-grag inject-conflicts` | `status = resolved` かつ stale でない items |
 | 制約検証 | `spec-grag inject "<task>" --constraints '<JSON>'` | validated constraints + injectable_context |
 

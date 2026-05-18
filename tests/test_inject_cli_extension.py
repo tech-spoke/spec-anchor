@@ -90,7 +90,7 @@ def _write_project(
     return project
 
 
-def test_inject_chapters_returns_artifact(tmp_path: Path) -> None:
+def test_inject_chapters_returns_artifact_path(tmp_path: Path) -> None:
     project = _write_project(
         tmp_path,
         chapter_anchors={
@@ -111,8 +111,9 @@ def test_inject_chapters_returns_artifact(tmp_path: Path) -> None:
 
     assert result["command"] == "/spec-inject inject-chapters"
     assert result["status"] == "success"
-    chapters = result["chapter_anchors"]["chapters"]
-    assert chapters[0]["chapter_id"] == "ch-1"
+    expected_path = (project / ".spec-grag/context/chapter_anchors.json").as_posix()
+    assert result["chapter_anchors_path"] == expected_path
+    assert "chapter_anchors" not in result
     assert result["warnings"] == []
 
 
@@ -122,11 +123,11 @@ def test_inject_chapters_warns_when_artifact_missing(tmp_path: Path) -> None:
     result = run_inject_chapters(project_root=project)
 
     assert result["status"] == "missing"
-    assert result["chapter_anchors"]["status"] == "missing"
+    assert result["chapter_anchors_path"].endswith("chapter_anchors.json")
     assert result["warnings"][0]["reason_code"] == "chapter_anchors_missing"
 
 
-def test_inject_purpose_returns_full_text(tmp_path: Path) -> None:
+def test_inject_purpose_returns_purpose_full_text_and_concept_path(tmp_path: Path) -> None:
     project = _write_project(
         tmp_path,
         purpose_text="# Purpose\nLine 1.\nLine 2.\n",
@@ -136,8 +137,11 @@ def test_inject_purpose_returns_full_text(tmp_path: Path) -> None:
     result = run_inject_purpose(project_root=project)
 
     assert result["command"] == "/spec-inject inject-purpose"
-    assert "Line 1." in (result["purpose_text"] or "")
-    assert "Principle A." in (result["concept_text"] or "")
+    assert "Line 1." in (result["purpose"] or "")
+    expected_concept_path = (project / "docs/core/concept.md").as_posix()
+    assert result["core_concept_path"] == expected_concept_path
+    assert "concept_text" not in result
+    assert "purpose_text" not in result
     assert result["warnings"] == []
 
 
@@ -150,8 +154,8 @@ def test_inject_purpose_warns_when_purpose_file_unset(tmp_path: Path) -> None:
 
     result = run_inject_purpose(project_root=project)
 
-    assert result["purpose_text"] is None
-    assert result["concept_text"] is None
+    assert result["purpose"] is None
+    assert result["core_concept_path"] is None
     reason_codes = {w["reason_code"] for w in result["warnings"]}
     assert "purpose_file_unset" in reason_codes
     assert "concept_file_unset" in reason_codes
