@@ -86,7 +86,9 @@ def _config(
         "vector_store": {
             "provider": vector_store_provider,
             "url": "http://fake-qdrant:6333",
-            "collection": "verify_index_collection",
+        },
+        "retrieval": {
+            "section_collection": "verify_index_collection",
         },
     }
 

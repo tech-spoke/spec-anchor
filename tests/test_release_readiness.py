@@ -198,10 +198,12 @@ max_retries = 0
     assert core_payload["status"] == "updated"
 
     inject_payload = _json_output(
-        _run([executable, "inject"], cwd=tmp_path)
+        _run([executable, "inject-conflicts"], cwd=tmp_path)
     )
-    assert inject_payload["status"] in {"fresh", "success"}
-    assert inject_payload["can_continue"] is True
+    # inject-conflicts runs the same internal freshness gate as every other
+    # inject-* command (F-C). On a freshly-built project it should return
+    # the resolved (non-stale) Conflict Review Items list without stopping.
+    assert "should_stop" not in inject_payload or inject_payload["should_stop"] is False
 
     answer_json = json.dumps({
         "今回守る制約": ["Keep the release smoke path deterministic."],

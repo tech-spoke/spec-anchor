@@ -652,9 +652,13 @@ def test_qdrant_section_hybrid_channel_is_present_in_candidate_set() -> None:
     assert module.QDRANT_SECTION_HYBRID == "qdrant_section_hybrid"
 
 
-def test_qdrant_section_hybrid_uses_vector_store_collection_fallback(
+def test_qdrant_section_hybrid_uses_retrieval_section_collection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Post-F-1: candidate generation reads only `[retrieval].section_collection`.
+    The legacy `[vector_store].section_collection` / `[vector_store].collection`
+    fallback chain was removed; the single key path is the only contract."""
+
     module = importlib.import_module("spec_grag.related_sections")
     retrieval_module = importlib.import_module("spec_grag.retrieval_index")
     sections = _fixture_sections()
@@ -678,15 +682,17 @@ def test_qdrant_section_hybrid_uses_vector_store_collection_fallback(
             "vector_store": {
                 "provider": "qdrant",
                 "url": "http://localhost:6333",
-                "collection": "right_vector_store_collection",
             },
             "embedding": {"provider": "flagembedding"},
-            "retrieval": {"section_candidate_top_k": 1},
+            "retrieval": {
+                "section_collection": "custom_section_collection",
+                "section_candidate_top_k": 1,
+            },
         },
         generated_at="2026-05-06T00:00:00Z",
     )
 
-    assert captured["collection"] == "right_vector_store_collection"
+    assert captured["collection"] == "custom_section_collection"
 
 
 def test_legacy_channels_are_removed_from_module() -> None:

@@ -56,6 +56,7 @@ def _write_project(
 ) -> Path:
     project = tmp_path / "project"
     (project / ".spec-grag" / "context").mkdir(parents=True)
+    (project / ".spec-grag" / "state").mkdir(parents=True)
     (project / "docs/core").mkdir(parents=True)
     (project / "docs/core/purpose.md").write_text(purpose_text)
     (project / "docs/core/concept.md").write_text(concept_text)
@@ -79,6 +80,12 @@ def _write_project(
         """
     )
     (project / ".spec-grag/config.toml").write_text(config)
+    # Each inject-* command now runs an internal freshness gate (F-C).
+    # Tests that focus on inject-* behavior assume a `fresh` baseline; tests
+    # that exercise the gate itself overwrite this file explicitly.
+    (project / ".spec-grag/state/freshness.json").write_text(
+        json.dumps({"status": "fresh", "blocking_reasons": [], "warnings": []})
+    )
     if chapter_anchors is not None:
         (project / ".spec-grag/context/chapter_anchors.json").write_text(
             json.dumps(chapter_anchors)
@@ -148,8 +155,12 @@ def test_inject_purpose_returns_purpose_full_text_and_concept_path(tmp_path: Pat
 def test_inject_purpose_warns_when_purpose_file_unset(tmp_path: Path) -> None:
     project = tmp_path / "project"
     (project / ".spec-grag" / "context").mkdir(parents=True)
+    (project / ".spec-grag" / "state").mkdir(parents=True)
     (project / ".spec-grag" / "config.toml").write_text(
         '[core]\nconcept_file = ""\npurpose_file = ""\n'
+    )
+    (project / ".spec-grag/state/freshness.json").write_text(
+        json.dumps({"status": "fresh", "blocking_reasons": [], "warnings": []})
     )
 
     result = run_inject_purpose(project_root=project)
@@ -164,9 +175,13 @@ def test_inject_purpose_warns_when_purpose_file_unset(tmp_path: Path) -> None:
 def test_inject_purpose_warns_when_purpose_file_missing(tmp_path: Path) -> None:
     project = tmp_path / "project"
     (project / ".spec-grag" / "context").mkdir(parents=True)
+    (project / ".spec-grag" / "state").mkdir(parents=True)
     (project / ".spec-grag" / "config.toml").write_text(
         '[core]\npurpose_file = "docs/core/purpose.md"\n'
         'concept_file = "docs/core/concept.md"\n'
+    )
+    (project / ".spec-grag/state/freshness.json").write_text(
+        json.dumps({"status": "fresh", "blocking_reasons": [], "warnings": []})
     )
 
     result = run_inject_purpose(project_root=project)

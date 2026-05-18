@@ -26,18 +26,17 @@ core 実行後は、後続作業に必要な CoreResult field を報告する: `
 inject は、ユーザーが課題用 constraints を必要としており、まだ回答や実装案を求めていない場合に使う。
 
 1. 明示された prompt と現在の会話区間から task を定義する。
-2. gate probe として `spec-grag inject` を実行する。JSON が blocked / failed の場合は停止する。`blocking_reasons` に dirty / stale / watcher 系の理由がある場合、core/watch を実行または待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict (`pending_conflict`) の場合、Conflict Review Items と decision options を人間に提示する。probe が `needs_agent_constraints` を返した場合、Agent-generated constraints を作るための freshness は満たされている。
-3. task と会話区間から search keys を生成する。
-4. 4 path の Agentic Search を行う。path は必須ではなく許可。課題の性質に応じて組み合わせる。
+2. task と会話区間から search keys を生成する。
+3. 4 path の Agentic Search を行う。各 `spec-grag inject-*` コマンドは freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示 (`should_stop=true`) を返す。返却 JSON の `blocking_reasons` に dirty / stale / watcher 系の理由がある場合、core/watch を実行または待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict の場合、Conflict Review Items と decision options を人間に提示する。path は必須ではなく許可。課題の性質に応じて組み合わせる。
    - **path ① Qdrant section-level retrieval** (主経路): `spec-grag inject-search "<query>"` で hybrid retrieval → hits の payload (heading_path / summary / search_keys / identifiers / related_sections) を読む → related_sections の target を `spec-grag inject-section "<id>"` で payload lookup → Source Specs 本文を Read で確認 → 再帰的に辿り、制約に無関係と判断できた時点で打ち切り
    - **path ② chapter anchor** (章単位エントリ): `spec-grag inject-chapters` で `chapter_anchors_path` を取得 → `Read` で読む (大きい場合は部分取得) → summary / key_topics / important_sections で関係しそうな章を特定 → path ① と同様に Agentic Search
    - **path ③ Purpose / Core Concept**: `spec-grag inject-purpose` で `purpose` (全文) と `core_concept_path` を取得 → Purpose 全文から制約根拠を抽出 → `core_concept_path` は `Read` で課題に関連する部分だけを部分取得して制約根拠を抽出 (Core Concept は大きくなる可能性があるため一括投入しない)
    - **path ④ Conflict Review Items**: `spec-grag inject-conflicts` → resolved + stale でない items を取得 → valid_scope と referenced_source_refs を確認 → 制約に組み込む
    - path 選択の指針: 具体的 API / 識別子 → ①主 + ③④補強、全体方針 / 抽象的 → ②主 + ①③④補強、Purpose / Core Concept 直接質問 → ③主 + ①②補強、過去判断の継続 → ④主 + ①③補強
    - ユーザーが全文レビューを明示しない限り、Source Specs full text を最終 context に丸ごと貼らない。
-5. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。`evidence_origin` は Purpose、Core Concept、Source Specs、Conflict Review Item のいずれかに限る。Section Summary、Search Keys、Related Sections、Chapter Key Anchor は `support_refs` にだけ置ける。これらを sole evidence にしない。
-6. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空、`evidence_origin` は Purpose / Core Concept / Source Specs / Conflict Review Item のいずれか、`support_refs` は list。CLI は構造検証を行わないため、Agent 自身が確認する。Conflict Review Item を根拠にする場合は `spec-grag inject-conflicts` の返却 (resolved + stale でない) だけを使う。
-7. validated constraints、evidence、search summary だけを出力する。inject では task への回答を出さない。
+4. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。`evidence_origin` は Purpose、Core Concept、Source Specs、Conflict Review Item のいずれかに限る。Section Summary、Search Keys、Related Sections、Chapter Key Anchor は `support_refs` にだけ置ける。これらを sole evidence にしない。
+5. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空、`evidence_origin` は Purpose / Core Concept / Source Specs / Conflict Review Item のいずれか、`support_refs` は list。CLI は構造検証を行わないため、Agent 自身が確認する。Conflict Review Item を根拠にする場合は `spec-grag inject-conflicts` の返却 (resolved + stale でない) だけを使う。
+6. constraints、evidence、search summary だけを出力する。inject では task への回答を出さない。
 
 ### constraints JSON の作り方
 

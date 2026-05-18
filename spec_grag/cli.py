@@ -85,11 +85,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         help="path to a JSON conflict decision payload to pass to /spec-core",
     )
 
-    subparsers.add_parser(
-        "inject",
-        help="freshness gate probe for /spec-inject (Agent supplies constraints separately per §8.5)",
-    )
-
     inject_search = subparsers.add_parser(
         "inject-search",
         help="Phase R-6: section-level Qdrant hybrid retrieval (top-K section payload)",
@@ -228,8 +223,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "core":
         return _run_core_from_args(args)
-    if args.command == "inject":
-        return _run_inject_from_args(args)
     if args.command == "inject-search":
         return _run_inject_search_from_args(args)
     if args.command == "inject-section":
@@ -254,7 +247,7 @@ def slash_main(argv: Sequence[str] | None = None) -> int:
         description="Render or dispatch SPEC-grag slash command helpers.",
     )
     _add_version(parser)
-    parser.add_argument("command", nargs="?", choices=("core", "inject", "realign"))
+    parser.add_argument("command", nargs="?", choices=("core", "realign"))
     parser.parse_args(argv)
     return 0
 
@@ -304,19 +297,6 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
         )
     except Exception as exc:
         result = _exception_result("/spec-core", project_root=project_root, exc=exc)
-    print(_dumps_json(result))
-    return _command_exit_code(result)
-
-
-def _run_inject_from_args(args: argparse.Namespace) -> int:
-    from spec_grag.inject import run_spec_inject
-
-    del args
-    project_root = _resolved_project_root()
-    try:
-        result = run_spec_inject(project_root=project_root)
-    except Exception as exc:
-        result = _exception_result("/spec-inject", project_root=project_root, exc=exc)
     print(_dumps_json(result))
     return _command_exit_code(result)
 

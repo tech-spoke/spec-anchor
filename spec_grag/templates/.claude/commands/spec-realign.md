@@ -13,14 +13,13 @@ allowed-tools: Read, Grep, Glob, Bash(spec-grag inject*), Bash(spec-grag realign
 ## 必須手順
 
 1. 明示された argument と現在の会話区間から task を定義する。会話区間は search、constraint generation、answer drafting の補助に使うが、final evidence ではない。
-2. project root で gate probe を実行する: `spec-grag inject`。command が non-zero exit でも JSON を読む。freshness が blocked / failed の場合は停止する。`blocking_reasons` に dirty / stale / watcher 系の理由がある場合、`/spec-core` または watcher を実行・待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict の場合、Conflict Review Items と decision choices を人間に提示する。probe が `needs_agent_constraints` を返した場合は続行する。
-3. task と会話区間から search keys を生成する。
-4. `/spec-inject` と同じ 4 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose、path ④ inject-conflicts)。各 path の手順は `/spec-inject` template を参照。
-5. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
-6. constraints の構造を自己点検する (spec-inject template §6 と同じ手順)。CLI は構造検証を行わないため、Agent 自身が確認する。
-7. constraints に従う answer candidate を作る。answer が constraint と衝突する場合、隠さず human review として明示する。
-8. answer candidate は次の 4 区分を区別する: `今回守る制約`, `今回扱う修正候補または検討対象`, `競合 / 不確実性 / 人間レビューが必要な点`, `課題プロンプトへの回答または修正案`。constraints は `今回守る制約` セクションに直接書く。
-9. CLI で答案を整形する: `spec-grag realign --answer-json '<json-object>'`。CLI は freshness gate を通したうえで answer を 4 区分の RealignResult に整形して返す。CLI は constraints の真偽は検証しない (Agent の責務)。
+2. task と会話区間から search keys を生成する。
+3. `/spec-inject` と同じ 4 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose、path ④ inject-conflicts)。各 path の手順は `/spec-inject` template を参照。各 `spec-grag inject-*` コマンドは freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示を返す。停止理由に応じて `/spec-core` または watcher を実行・待機するようユーザーに伝える。`/spec-core` は自動実行しない。
+4. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
+5. constraints の構造を自己点検する (spec-inject template §5 と同じ手順)。CLI は構造検証を行わないため、Agent 自身が確認する。
+6. constraints に従う answer candidate を作る。answer が constraint と衝突する場合、隠さず human review として明示する。
+7. answer candidate は次の 4 区分を区別する: `今回守る制約`, `今回扱う修正候補または検討対象`, `競合 / 不確実性 / 人間レビューが必要な点`, `課題プロンプトへの回答または修正案`。constraints は `今回守る制約` セクションに直接書く。
+8. CLI で答案を整形する: `spec-grag realign --answer-json '<json-object>'`。CLI は freshness gate を通したうえで answer を 4 区分の RealignResult に整形して返す。`/spec-realign` も freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示を返す。CLI は constraints の真偽は検証しない (Agent の責務)。
 
 ### constraints JSON の作り方
 

@@ -190,7 +190,7 @@ Purpose と Core Concept は人間が更新する。SPEC-grag はこれらを自
 
 ### 3.3 保持物の鮮度を保つ
 
-`/spec-inject` と `/spec-realign` は、保持物が最新でない場合は停止し、理由と対処方法を表示する (freshness gate)。
+`/spec-inject` (各 `inject-*` サブコマンド: `inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts`) と `/spec-realign` は、保持物が最新でない場合は停止し、理由と対処方法を表示する (freshness gate)。各コマンドは内部で gate を通すので、Agent が事前に別の probe コマンドを呼ぶ必要はない。
 
 | 状態 | `/spec-inject` / `/spec-realign` の動作 | 対処 |
 |---|---|---|
@@ -753,18 +753,17 @@ Agentic Search は Agent / LLM の責務である。CLI は検索結果、payloa
 
 ### 8.4 CLI が提供する操作
 
-CLI は外部契約として次の参照操作を提供する。
+CLI は外部契約として次の参照操作を提供する。各 `inject-*` コマンドは内部で freshness gate / pending conflict gate / watcher gate を通す (§3.3 / §2.8 / §6.3)。gate が blocked / failed の場合、各コマンドは Agentic Search を実行せず、停止指示と理由 (`should_stop=true`、`blocking_reasons`、`recommended_next_action`) を返す。Agent は別途事前 probe を実行する必要はない。
 
 | 操作 | コマンド | 戻り値 |
 |---|---|---|
-| 課題プロンプトの gate probe | `spec-grag inject` | freshness report、pending conflict、`needs_agent_constraints` フラグ |
 | section-level hybrid retrieval | `spec-grag inject-search "<query>"` | top-K の Section payload (source_document_id / source_section_id / source_span / heading / summary / search_keys / identifiers / related_sections / score) |
 | Section payload lookup (related 辿り) | `spec-grag inject-section "<id>" [<id>...]` | 指定 section_id の payload 一括取得 |
 | 章 anchor 取得 | `spec-grag inject-chapters` | `chapter_anchors.json` の path。Agent は path を `Read` で読み、課題に関連しそうな章を特定する |
 | Purpose / Core Concept 取得 | `spec-grag inject-purpose` | `purpose` (Purpose 全文、短いので注入) + `core_concept_path` (Core Concept の path、Agent が `Read` で必要箇所を抽出) |
 | Conflict Review Items 取得 | `spec-grag inject-conflicts` | `status = resolved` かつ stale でない items |
 
-`spec-grag inject` / `inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` には CLI 固有フラグはない。`/spec-realign` の CLI フラグは §9.4 を参照。
+`spec-grag inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` には CLI 固有フラグはない。`/spec-realign` の CLI フラグは §9.4 を参照。
 
 ### 8.5 通常出力
 

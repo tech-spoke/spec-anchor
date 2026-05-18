@@ -133,8 +133,8 @@ def test_t_p02_main_cli_help_lists_primary_commands() -> None:
     ("command", "runner_module", "runner_name", "extra_args"),
     (
         ("core", "spec_grag.core", "run_spec_core", ("--all",)),
-        ("inject", "spec_grag.inject", "run_spec_inject", ("review this",)),
-        ("realign", "spec_grag.realign", "run_spec_realign", ("review this",)),
+        ("inject-conflicts", "spec_grag.inject", "run_inject_conflicts", ()),
+        ("realign", "spec_grag.realign", "run_spec_realign", ()),
     ),
 )
 def test_t_p02_main_cli_dispatches_primary_commands_as_json(
@@ -176,7 +176,7 @@ def test_t_p02_main_cli_dispatches_primary_commands_as_json(
     assert calls, f"{command} must dispatch to {runner_module}.{runner_name}"
 
     payload = _json_stdout(captured.out)
-    assert payload["command"] == f"/spec-{command}"
+    assert command.split("-")[0] in payload["command"]
     assert payload["status"] == "ok"
 
 

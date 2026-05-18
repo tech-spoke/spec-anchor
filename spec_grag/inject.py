@@ -258,6 +258,24 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def _gate_stop_for_command(project: Path, command: str) -> dict[str, Any] | None:
+    """Return a stopped result if the freshness gate or pending conflict blocks.
+
+    Each `/spec-inject inject-*` and `/spec-realign` command enforces the
+    freshness gate (§3.3), pending conflict gate (§2.8 / §3.4), and watcher
+    gate (§6.3) before doing its specific work. The Agent only sees the
+    stopped payload — there is no separate `spec-grag inject` probe to call
+    in advance.
+    """
+
+    gate = run_spec_inject(project_root=project)
+    if not gate.get("should_stop"):
+        return None
+    result = dict(gate)
+    result["command"] = command
+    return result
+
+
 def run_inject_section(
     project_root: str | Path = ".",
     *,
@@ -282,6 +300,9 @@ def run_inject_section(
     )
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    gate = _gate_stop_for_command(project, "/spec-inject inject-section")
+    if gate is not None:
+        return gate
     requested_ids = [str(value) for value in section_ids if value]
     qdrant_config = _qdrant_section_config(project)
     base_result = {
@@ -338,6 +359,9 @@ def run_inject_chapters(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    gate = _gate_stop_for_command(project, "/spec-inject inject-chapters")
+    if gate is not None:
+        return gate
     artifact_path = _context_dir(project) / "chapter_anchors.json"
     warnings: list[dict[str, Any]] = []
     if not artifact_path.is_file():
@@ -372,6 +396,9 @@ def run_inject_purpose(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    gate = _gate_stop_for_command(project, "/spec-inject inject-purpose")
+    if gate is not None:
+        return gate
     config = _read_project_config(project)
     core_section = config.get("core") if isinstance(config.get("core"), Mapping) else {}
     purpose_path = _resolve_optional_path(
@@ -424,6 +451,9 @@ def run_inject_conflicts(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    gate = _gate_stop_for_command(project, "/spec-inject inject-conflicts")
+    if gate is not None:
+        return gate
     raw_items = _read_conflict_review_items(project)
     resolved_items: list[dict[str, Any]] = []
     excluded_items: list[dict[str, Any]] = []
@@ -480,6 +510,9 @@ def run_inject_search(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    gate = _gate_stop_for_command(project, "/spec-inject inject-search")
+    if gate is not None:
+        return gate
     qdrant_config = _qdrant_section_config(project)
     if top_k is None:
         project_config = _read_project_config(project)

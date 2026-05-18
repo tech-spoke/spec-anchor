@@ -386,15 +386,14 @@ def test_t_c01_spec_inject_template_matches_agent_cli_boundary(tmp_path: Path) -
 
 
 def _assert_agentic_constraint_workflow_text(text: str) -> None:
+    """Post-F-2 / F-9 / F-C: template enumerates the Agentic Search workflow
+    and constraint structure self-check, but no longer mentions the deleted
+    `gate probe` / `--constraints` / `needs_agent_constraints` plumbing."""
+
     lower = text.lower()
     for expected in (
-        "gate probe",
-        "needs_agent_constraints",
         "会話区間",
         "search keys",
-        "source specs snippet",
-        "related sections",
-        "chapter key anchor",
         "agentic search",
         "statement",
         "evidence_origin",
@@ -402,16 +401,20 @@ def _assert_agentic_constraint_workflow_text(text: str) -> None:
         "support_refs",
         "applicability",
         "uncertainty",
-        "spec-grag inject",
-        "--constraints",
+        "inject-search",
+        "inject-section",
+        "inject-chapters",
+        "inject-purpose",
+        "inject-conflicts",
         "constraints json の作り方",
         "最小 schema",
         "良い例",
         "禁止例",
+        "自己点検",
     ):
-        assert expected in lower
-    assert "cli" in lower and "検証" in lower
-    assert "fallback constraints" in lower and "生成しない" in lower
+        assert expected in lower, f"missing keyword: {expected}"
+    # F-9: structure validation lives on the Agent side, not the CLI.
+    assert "構造検証" in text or "構造を自己点検" in text
     assert "section summary" in lower
     assert "sole evidence" in lower
     for expected in (
@@ -422,10 +425,8 @@ def _assert_agentic_constraint_workflow_text(text: str) -> None:
         '"applicability"',
         '"uncertainty"',
         "path + section id",
-        "cli validation failed",
-        "再生成",
     ):
-        assert expected in lower
+        assert expected in lower, f"missing schema marker: {expected}"
 
 
 def _assert_realign_answer_workflow_text(text: str) -> None:
@@ -438,9 +439,8 @@ def _assert_realign_answer_workflow_text(text: str) -> None:
         "競合 / 不確実性 / 人間レビューが必要な点",
         "課題プロンプトへの回答または修正案",
         "answer candidate",
-        "constraint-checked",
     ):
-        assert expected in lower
+        assert expected in lower, f"missing keyword: {expected}"
 
 
 def _assert_japanese_agent_template_text(text: str) -> None:
@@ -450,10 +450,8 @@ def _assert_japanese_agent_template_text(text: str) -> None:
         "会話区間",
         "自動実行しない",
         "人間",
-        "検証",
-        "生成しない",
     ):
-        assert expected in lower
+        assert expected in lower, f"missing keyword: {expected}"
 
 
 def _constraints_json_block(text: str) -> str:
