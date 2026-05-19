@@ -350,7 +350,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "{qdrant_url}"
-collection = "{collection}"
 """
     )
     (project_root / "docs/core/purpose.md").write_text("# Purpose\nVerify real /spec-core provider usage.\n")
@@ -448,7 +447,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "http://fake-qdrant:6333"
-collection = "{collection}"
 
 [retrieval]
 section_candidate_top_k = 0
@@ -1572,7 +1570,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "http://fake-qdrant:6333"
-collection = "b5a_source_span_collection"
 
 [retrieval]
 section_candidate_top_k = 0

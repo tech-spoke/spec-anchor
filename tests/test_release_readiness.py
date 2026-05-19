@@ -178,7 +178,11 @@ max_retries = 0
         )
         .replace(
             'provider = "qdrant"\nurl = "http://localhost:6333"',
-            'provider = "memory"\ncollection = "spec_grag_release_smoke"',
+            'provider = "memory"',
+        )
+        .replace(
+            'section_collection = "spec_grag_section"',
+            'section_collection = "spec_grag_release_smoke"',
         ),
         encoding="utf-8",
     )

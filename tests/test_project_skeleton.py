@@ -125,8 +125,9 @@ def test_t_p02_main_cli_help_lists_primary_commands() -> None:
 
     assert result.returncode == 0, result.stderr or result.stdout
     help_text = result.stdout.lower()
-    for expected in ("core", "inject", "realign"):
+    for expected in ("core", "inject-conflicts", "realign"):
         assert expected in help_text
+    assert 'inject "' not in help_text
 
 
 @pytest.mark.parametrize(

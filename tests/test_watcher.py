@@ -121,7 +121,6 @@ sparse_enabled = true
 [vector_store]
 provider = "qdrant"
 url = "{qdrant_url}"
-collection = "{collection}"
 
 [watcher]
 enabled = true
