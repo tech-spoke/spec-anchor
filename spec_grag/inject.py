@@ -100,27 +100,6 @@ def _coerce_conflict_review_items(
     return [deepcopy(dict(item)) for item in value if isinstance(item, Mapping)]
 
 
-def _conflict_review_item_matches(item: Mapping[str, Any], evidence_ref: str) -> bool:
-    candidates = (
-        item.get("conflict_id"),
-        item.get("id"),
-        item.get("evidence_ref"),
-    )
-    return any(str(candidate or "").strip() == evidence_ref for candidate in candidates)
-
-
-def _as_list(value: Any) -> list[Any]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return list(value)
-    if isinstance(value, tuple):
-        return list(value)
-    if isinstance(value, set):
-        return sorted(value)
-    return [value]
-
-
 def _base_result(
     decision: Mapping[str, Any],
     *,

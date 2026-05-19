@@ -226,7 +226,7 @@ def structure_realign_answer(
         ANSWER_TARGETS_LABEL: (
             _normalize_section(targets_section)
             if not _is_blank(targets_section)
-            else _default_targets(inject_result=inject_result)
+            else []
         ),
         ANSWER_REVIEW_LABEL: _normalize_review_section(review_items),
         ANSWER_FINAL_LABEL: _normalize_section(final_section),
@@ -369,14 +369,6 @@ def _normalize_review_section(value: Any) -> Any:
     if not items:
         return []
     return [_jsonable(item) for item in items]
-
-
-def _default_targets(
-    *,
-    inject_result: Mapping[str, Any] | None,
-) -> list[Any]:
-    del inject_result
-    return []
 
 
 def _normalize_section(value: Any) -> Any:
