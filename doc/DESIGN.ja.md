@@ -38,9 +38,9 @@
 - [x] §6 Chapter Key Anchor は LLM が章単位で生成する (input: 章 heading + 配下 summary / search_keys / identifiers / related_sections + 関連 Core Concept、output: chapter_id / summary / key_topics / important_sections / notes / source_section_ids / generated_at)
   - 実装: Phase R-7 で spec_grag/chapter_anchors.py (`generate_chapter_anchors`、`ChapterAnchorsCache`、`CHAPTER_ANCHORS_PROMPT_VERSION = "chapter-anchors-v1"`)。spec_grag/core.py `_chapter_anchors` を新 module 委譲に置換 (cache_dir = context_dir / "cache"、provider は section_metadata と同 active_provider、concept_text は `[core].concept_file` から読み込み)。stage は LlmRequest contract に合わせ `chapter_key_anchor`
   - 検証: tests/test_chapter_anchors.py の 9 件 (chapter ごとに LLM call、summary/key_topics/notes が LLM 出力に由来、important_sections が章内 section_ids に絞られる、unparseable response 時の mechanical fallback、cache reuse、section_hash 変更時の選択的 invalidation)
-- [x] §8 `/spec-inject` CLI 拡張 (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` / `inject "<task>"`)
-  - 実装: Phase R-6 で spec_grag/inject.py に `run_inject_search` / `run_inject_section` / `run_inject_chapters` / `run_inject_purpose` / `run_inject_conflicts` を追加、spec_grag/cli.py に対応する subparser + dispatcher を追加。Qdrant / FlagEmbedding 不可時は structured warning fallback
-  - 検証: tests/test_inject_cli_extension.py の 11 件
+- [x] §8 `/spec-inject` CLI 拡張 (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts`)
+  - 実装: Phase R-6 で spec_grag/inject.py に `run_inject_search` / `run_inject_section` / `run_inject_chapters` / `run_inject_purpose` / `run_inject_conflicts` を追加、spec_grag/cli.py に対応する subparser + dispatcher を追加。Qdrant / FlagEmbedding 不可時は structured warning fallback。F-C 採用後、各 inject-* の冒頭に freshness gate を組み込み、gate probe 専用 subcommand (`spec-grag inject`) は撤去
+  - 検証: tests/test_inject_cli_extension.py
 
 ## 1. 設計方針
 
@@ -189,7 +189,7 @@ dotted name (例: updatePrice.bindContext)
 関数呼び出し風 (例: bindContext())
 ファイルパス
 slash command (例: /spec-core)
-CLI command (例: spec-grag inject)
+CLI command (例: spec-grag core, spec-grag inject-search)
 CLI option (例: --rebuild)
 ALL_CAPS 定数、PascalCase 型名
 config key
@@ -1007,17 +1007,15 @@ return CoreResult
 
 ## 8. `/spec-inject` と `/spec-realign`
 
-slash command は Agent / LLM に探索手順を指示する。CLI は次の参照操作を提供する。CLAUDE.md ルール 4 の `evidence_origin` enum (Purpose / Core Concept / Source Specs / Conflict Review Item) を 4 path がカバーする。
+slash command は Agent / LLM に探索手順を指示する。CLI は次の参照操作を提供する。CLAUDE.md ルール 4 の `evidence_origin` enum (Purpose / Core Concept / Source Specs / Conflict Review Item) を 4 path がカバーする。各 `inject-*` および `realign` は内部で freshness gate / pending conflict gate / watcher gate を通すので、Agent が事前 probe を呼ぶ必要はない (F-C 採用後の構造)。
 
 | 操作 | コマンド | 戻り値 | 対応 path |
 |---|---|---|---|
-| gate probe | `spec-grag inject "<task>"` | freshness report、pending conflict、`needs_agent_constraints` フラグ | 全 path 共通 |
 | section-level hybrid retrieval | `spec-grag inject-search "<query>"` | top-K の section payload (source_document_id / source_section_id / source_span / heading / summary / search_keys / identifiers / related_sections / score) | path ① |
 | section payload lookup | `spec-grag inject-section "<id>" [<id>...]` | 指定 section_id の payload 一括取得。`related_sections` 辿り用 | path ① の hop traversal |
-| 章 anchor 取得 | `spec-grag inject-chapters` | `chapter_anchors.json` 全体 | path ② |
-| Purpose / Core Concept 取得 | `spec-grag inject-purpose` | `purpose_file` + `concept_file` の全文 | path ③ |
+| 章 anchor 取得 | `spec-grag inject-chapters` | `chapter_anchors.json` の path (Agent が `Read` で読み、関連章を特定する) | path ② |
+| Purpose / Core Concept 取得 | `spec-grag inject-purpose` | `purpose` (全文) + `core_concept_path` (Agent が `Read` で必要箇所を部分取得) | path ③ |
 | Conflict Review Items 取得 | `spec-grag inject-conflicts` | `status = resolved` かつ stale でない items | path ④ |
-| 制約検証 | `spec-grag inject "<task>" --constraints '<JSON>'` | validated constraints + injectable_context | constraint 確定時 |
 
 Agent / LLM はこれらを使い、課題の性質に応じて 4 path を組み合わせる。
 
@@ -1028,7 +1026,7 @@ Agent / LLM はこれらを使い、課題の性質に応じて 4 path を組み
 | Purpose / Core Concept 直接質問 | ③ | ①、② |
 | 過去判断の継続 | ④ | ①、③ |
 
-CLI は探索方針を自律的に決めない。Agent / LLM は inject-search の戻り値の `related_sections` 配列を辿る再帰探索を、`[limits].max_traversal_hops` (default 2-3) の範囲で行う。
+CLI は探索方針を自律的に決めない。Agent / LLM は `inject-search` の戻り値の `related_sections` 配列を辿る再帰探索を、課題への寄与が無くなったと判断した時点で打ち切る。再帰深さの上限は CLI 設定では持たず、Agent / LLM 側の判断に委ねる。
 
 ## 9. Freshness
 

@@ -171,12 +171,18 @@ llm_batch_concurrency = 1   # default、逐次
 
 ## コマンド一覧
 
+いずれの inject-* / realign コマンドもカレントディレクトリのプロジェクトを対象に動作する (project root 指定の CLI flag は廃止されているため、対象プロジェクトに `cd` してから実行する)。
+
 | コマンド | 目的 |
 |---|---|
-| `spec-grag core [--all] [--use-cache]` | Section Summary、Search Keys、Related Sections、Chapter Key Anchor、Retrieval Index、Conflict Review Item を生成・更新する。`--all` は完全再生成で、section metadata cache を読まない。`--all --use-cache` を指定した場合だけ同一 cache key の section metadata cache を再利用してよい。Conflict Review Item の人間判断は Agent が構造化して `/spec-core` に渡す（人間が JSON を直接編集する運用ではない） |
-| `spec-grag inject "<課題>"` | Agent が生成した制約を検証し、注入用のコンテキストを返す。回答は生成しない |
-| `spec-grag realign "<課題>"` | 制約を検証した上で、Agent が生成した回答候補を構造化して返す |
-| `spec-grag-watch [project_root] [--once]` | Source Specs の変更を監視し、background で incremental update を行う |
+| `spec-grag core [--all] [--rebuild] [--verify-index]` | Section Summary、Search Keys、Related Sections、Chapter Key Anchor、Retrieval Index、Conflict Review Item を生成・更新する。`--all` は LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。`--rebuild` は加えて Qdrant section collection を drop + recreate する。`--verify-index` は Source Retrieval Index の payload と current section hash の整合を能動検証する。Conflict Review Item の人間判断は Agent が構造化して `/spec-core` に渡す（人間が JSON を直接編集する運用ではない） |
+| `spec-grag inject-search "<query>"` | Section-level hybrid retrieval (BGE-M3 dense + sparse の RRF) で top-K の Section payload を返す。各コマンドは内部で freshness / pending conflict / watcher gate を通すので、Agent は事前 probe を呼ぶ必要はない |
+| `spec-grag inject-section "<section_id>" [<section_id>...]` | 指定 section_id の payload を一括取得する (related_sections 辿りの素呼び出し) |
+| `spec-grag inject-chapters` | `chapter_anchors.json` の path を返す。Agent は path を `Read` で読み、関連章を特定する (artifact 本文は丸ごと注入しない) |
+| `spec-grag inject-purpose` | Purpose 全文と Core Concept の path を返す。Core Concept は path で返し、Agent が `Read` で必要箇所のみ部分取得する |
+| `spec-grag inject-conflicts` | resolved かつ stale でない Conflict Review Item を返す。Agent はこの範囲だけを `evidence_origin = "Conflict Review Item"` の制約根拠にしてよい |
+| `spec-grag realign --answer-json '<json>'` (もしくは `--answer-file <path>` / `--answer <text>`) | Agent が生成した回答候補を 4 区分 (今回守る制約 / 今回扱う修正候補または検討対象 / 競合・不確実性・人間レビューが必要な点 / 課題プロンプトへの回答または修正案) の RealignResult に整形して返す。CLI は constraints の真偽を検証しない (Agent 責務、§8.5 / §9 参照) |
+| `spec-grag-watch [--once]` | カレントディレクトリのプロジェクトの Source Specs 変更を監視し、background で incremental update を行う |
 | `spec-grag-setup-project --target <path>` | 対象プロジェクトに `.spec-grag/config.toml`、Agent 入口、Purpose / Core Concept 雛形を配置する |
 | `spec-grag-setup-system --check-only` | SPEC-grag 本体の導入状態と外部依存を確認する |
 

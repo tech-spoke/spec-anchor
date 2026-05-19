@@ -457,15 +457,14 @@ your-project/
 
 ### 6.3 spec-grag-watch
 
-Source Specs の変更を検知し、background で `/spec-core` 相当の incremental update を繰り返す。
+Source Specs の変更を検知し、background で `/spec-core` 相当の incremental update を繰り返す。対象プロジェクトはカレントディレクトリ固定なので、対象プロジェクトに `cd` してから実行する。
 
 ```
-spec-grag-watch [project_root]
+spec-grag-watch
 ```
 
 | オプション | 既定 | 内容 |
 |---|---|---|
-| `project_root` (位置引数) | `.` | プロジェクトルート |
 | `--once` | — | 1 回だけ scan して終了する (poll ループに入らない) |
 | `--interval-sec <秒>` | 2.0 | 変更がないときの poll 間隔 |
 | `--debounce-sec <秒>` | 1.0 | 変更検知後、update を開始するまでの待ち時間 (連続変更をまとめる) |
