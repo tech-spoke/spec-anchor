@@ -23,6 +23,19 @@ Section 数が多いプロジェクトでは、`/spec-core --all` の LLM 呼び
 
 主導権は Agent / LLM にある。slash command は Agent / LLM に対して探索手順を指示し、CLI は保持物と検索機能を提供する。CLI は最終判断主体ではない。
 
+### 1.1 方式の分類
+
+SPEC-grag は、業界標準資料 (`doc/監査/STANDARD_GRAG_PATTERNS.ja.md`) の分類で言えば **Hybrid RAG + lightweight related-section retrieval** に位置づけられる。
+
+| 要素 | SPEC-grag での実装 |
+|---|---|
+| Hybrid RAG | Section を単位とした BGE-M3 の dense + sparse vector を Qdrant の `[retrieval].section_collection` で RRF 結合する。これが Source Specs 探索の主経路 (`spec-grag inject-search`) |
+| lightweight related-section retrieval | 各 Section に LLM 生成の Section Metadata (Summary / Search Keys / Identifiers / Related Sections) を持たせ、Related Sections は単純な配列として payload に格納する。`spec-grag inject-section` で id 指定の payload lookup を提供し、Agent が再帰的に辿る |
+
+業界標準資料 §7 で言うところの「property graph」「entity relation graph」「hierarchical cluster」は本方式では**標準経路に含めない** (§1 軽量化方針)。Related Sections は単一の payload field として持ち、graph traversal の代替を Agent の再帰的 lookup に置く。これにより、永続化する構造を最小に抑え、graph 構築・保守のコストを Agent / LLM 側の探索コストに置き換える。
+
+「SPEC-grag」は本方式に与えた固有の製品名であり、業界用語の「GraphRAG」とは別カテゴリ (graph 構造を持たないため) であることに注意する。
+
 ## 2. 用語と範囲
 
 本書では新しい整理語を使うため、先に範囲を定義する。

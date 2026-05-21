@@ -95,7 +95,7 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 
 | # | 問題 | 重要度（暫定） | ステータス | 追加調査の必要性 |
 |---|---|---|---|---|
-| U-1 | 方式呼称「SPEC-grag」と業界用語の対応 | **High（戦略）** | ⏳ 未着手 (§4.3 長期、戦略判断) | プロジェクトの位置づけ判断。コード調査ではなく人間判断 |
+| U-1 | 方式呼称「SPEC-grag」と業界用語の対応 | **High（戦略）** | ✅ 完了 2026-05-19 (§3.8 選択肢 A 採用、§1.1 に方式分類を明示) | プロジェクトオーナーが「Hybrid RAG + lightweight related-section retrieval に分類される」と判断、外部設計書 §1.1 として方式分類節を新設 (rename 後は SPEC-anchor と読み替え) |
 | U-2 | fake provider の状態表現（CoreResult / freshness / diagnostics への表れ方） | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`spec_grag/core.py` / `freshness.py` の fake provider 経路追跡） |
 | U-3 | `source_section_id` の形式（`<file_path>#<heading_slug>`）と一意性 | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`section_parser.py` の id 生成と uniqueness 検査） |
 | U-4 | setup script の実装事実 | **Medium** | ⏳ 未着手 (§4.2 中期) | Step 2 が target 9 CLI 中心。setup script について Step 1-B 相当のフロー追跡が必要 |
@@ -382,6 +382,17 @@ F-3 は F-1 と同類の「廃止予定機能の残骸」パターンだが、**
 | D | **現状のまま、業界用語との対応を記述しない**: 外部利用者が判断 | 最小工数。ただし「GRAG」と読まれる可能性が残る |
 
 **Claude 推奨**: **A（業界用語比較を追記、または C と組み合わせ）**。理由: Purpose で軽量化方針が明示されている以上、業界標準 GRAG への拡張 (B) は方針と矛盾。現状の方式は業界標準資料 §7 で明示的に「lightweight related-section retrieval」と分類できる。A で位置づけを明示すれば、利用者の期待ズレを防げる。
+
+**プロジェクトオーナー判断 (2026-05-19): A 採用**。SPEC-grag は **Hybrid RAG + lightweight related-section retrieval** に分類されると明示する。あわせて、製品名を **SPEC-grag → SPEC-anchor** に rename することを決定 (本判断時点で別 commit にて rename 作業実施予定、CLI コマンド・Python package・env var・Qdrant collection 名 default を含む全面置換)。
+
+**実施内容 (2026-05-19、commit 反映済)**: `doc/EXTERNAL_DESIGN.ja.md` §1 末尾に「### 1.1 方式の分類」節を新設:
+
+- Hybrid RAG の実装: Section 単位の BGE-M3 dense + sparse vector を Qdrant の `[retrieval].section_collection` で RRF 結合 (`inject-search` の主経路)
+- lightweight related-section retrieval の実装: 各 Section の LLM 生成 Section Metadata (Summary / Search Keys / Identifiers / Related Sections) を payload に格納、Related Sections は単純な配列として持ち、`inject-section` で id 指定 lookup
+- 業界用語「property graph」「entity relation graph」「hierarchical cluster」は標準経路に含めない (§1 軽量化方針)
+- 「GraphRAG」とは別カテゴリ (graph 構造を持たないため)
+
+なお §1.1 の本文には現在「SPEC-grag」と書かれているが、後続の rename commit (機械置換) で「SPEC-anchor」に書き換わる予定。
 
 ### §3.9 未確認項目（U-2 〜 U-7）の追加調査方針
 
@@ -763,7 +774,7 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 
 | # | 問題 | 推奨選択肢 | 工数感（暫定）|
 |---|---|---|---|
-| U-1 | 「SPEC-grag」呼称と業界用語の対応 | A（業界用語比較を追記）または C（独自呼称と定義） | 低（設計書改訂）。ただし戦略判断は重い |
+| ~~U-1~~ | ~~「SPEC-grag」呼称と業界用語の対応~~ | **A（業界用語比較を追記、Hybrid RAG + lightweight related-section retrieval に分類）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.8) + 製品名を SPEC-anchor に rename することも同時決定 | 低（設計書 §1.1 改訂のみ、rename は別作業）|
 
 ### §4.4 直さない判断（候補）
 
