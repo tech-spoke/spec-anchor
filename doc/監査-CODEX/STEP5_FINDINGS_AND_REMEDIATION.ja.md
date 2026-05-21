@@ -76,7 +76,7 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 | F-3 | `--use-cache` の挙動（廃止予定機能の残骸） | **Medium** | ✅ 完了 2026-05-18 (commit 8fca1b6) | deprecated と書きながら cache clear 条件に影響し、`--all` + `--use-cache` で `--all` 単独と異なる挙動になる。template / test / 利用実態すべて 0 件で完全な dead 機能 |
 | F-4 | `/spec-inject` の人間向け通常出力 | **Medium** | ⏳ 未着手 (§4.2 中期) | 外部設計書は読みやすい構造を契約、実装は JSON。Agent 側で表示変換が必要だが、その責務が外部設計書に書かれていない |
 | F-5 | 設定項目表に `vector_store.section_collection` / `vector_store.collection` 未列挙 | **High** | ✅ 完了 2026-05-18 (F-1 連動で自動解決、commit 2ebdbab) | F-1 と同根。設定項目表が実装と一致しない |
-| F-6 | 環境変数表に debug env var 未列挙 | **Low** | ⏳ 未着手 (§4.2 中期) | `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION` / `SPEC_GRAG_DEBUG_RELATED_PROMPT` が外部設計書に出ない。debug 用なので影響小 |
+| F-6 | 環境変数表に debug env var 未列挙 | **Low** | ✅ 完了 2026-05-19 (§3.5 選択肢 A 採用、§10.3 に 4 行追加) | `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION` / `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION_PATH` / `SPEC_GRAG_DEBUG_RELATED_PROMPT` / `SPEC_GRAG_DEBUG_RELATED_PROMPT_PATH` を §10.3 環境変数表に追加。default 出力先 (`.spec-grag/state/_debug_*.jsonl`) も明示 |
 
 **重要度の根拠**:
 
@@ -89,7 +89,7 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 | # | 問題 | 重要度（暫定） | ステータス | 運用上の影響 |
 |---|---|---|---|---|
 | E-1 | Section embedding text の構成（raw body 不含、Summary/Search Keys/Identifiers から生成） | **Low** | ✅ 完了 2026-05-19 (§3.6 選択肢 B 採用、内部方式を契約に明示) | プロジェクトオーナーが設計判断として採用した方式 (長文の embedding 品質劣化回避 + 検索キーと embedding 入力の語彙一致による retrieval 精度安定)。`/spec-core` は raw body を embed せず、heading_path / Summary / Search Keys (上限 8) / Identifiers (上限 8) を結合した短い text を BGE-M3 に渡す |
-| E-2 | `_debug_*.jsonl`（env var で append、読込 CLI なし） | **Low** | ⏳ 未着手 (§4.2 中期) | デバッグ用ファイル。env var を設定すると `.spec-grag/state/` に append される。利用者が意図せずファイルが増える可能性はあるが、env var 設定時のみ |
+| E-2 | `_debug_*.jsonl`（env var で append、読込 CLI なし） | **Low** | ✅ 完了 2026-05-19 (F-6 連動、§10.3 で default 出力先を明示) | デバッグ用ファイル。env var を設定すると `.spec-grag/state/` に append される。F-6 完了時に各 env var の説明文で default 出力先を明記したため、ファイル存在も契約として外部利用者に開示される |
 
 ### §2.3 未確認（Step 2 範囲限定で判定不能、8 件 → 中期 / 長期）
 
@@ -318,6 +318,17 @@ F-3 は F-1 と同類の「廃止予定機能の残骸」パターンだが、**
 |---|---|
 | A | 外部設計書 §10.2 / §10.3 に追記（E-2 の選択肢 A と連動） |
 | B | 外部設計書 §12 対象外として明示（E-2 の §12 化に連動） |
+
+**プロジェクトオーナー判断 (2026-05-19): A 採用**。debug env var を外部契約として明示することで、retrieval / provider invocation の観測経路を外部利用者にも開示する。E-2 (`_debug_*.jsonl` の出力先) と本 F-6 (env var) は同一機構のため、env var 側を §10.3 に明示することで E-2 が指す `.spec-grag/state/_debug_*.jsonl` の存在も間接的に契約として明示される。
+
+**実施内容 (2026-05-19、commit 反映済)**: `doc/EXTERNAL_DESIGN.ja.md` §10.3 環境変数表に次の 4 行を追加:
+
+- `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION` (truthy で LLM 子プロセスの command / stdin / SHA-256 を JSONL append)
+- `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION_PATH` (出力先 path override、default `.spec-grag/state/_debug_provider_invocations.jsonl`)
+- `SPEC_GRAG_DEBUG_RELATED_PROMPT` (truthy で Related Sections stage の prompt hash と入力 section 集合を JSONL append)
+- `SPEC_GRAG_DEBUG_RELATED_PROMPT_PATH` (出力先 path override、default `.spec-grag/state/_debug_related_prompts.jsonl`)
+
+冒頭文に「`SPEC_GRAG_DEBUG_*` 系は本運用経路の挙動を変えない観察専用 (set 時のみ追加の append 出力が増える)」を追記し、`SPEC_GRAG_FAKE_*` (subsystem 切替) との目的差を明示。
 
 ### §3.6 E-1: Section embedding text の構成
 
@@ -733,7 +744,8 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 |---|---|---|---|
 | F-4 | `/spec-inject` の人間向け通常出力 | C（slash command / skill 側で表示変換と明示） | 低（設計書改訂のみ） |
 | ~~E-1~~ | ~~Section embedding text の構成~~ | **B（内部方式を契約に明示）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.6) | 低（設計書 §4.1 改訂のみ）|
-| E-2 / F-6 | `_debug_*.jsonl` と環境変数表 | B（§12 対象外として明示） | 低（設計書 §12 改訂） |
+| ~~F-6~~ | ~~環境変数表に debug env var 未列挙~~ | **A（外部設計書 §10.3 に追記）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.5) | 低（設計書 §10.3 改訂のみ、env var 4 件追加）|
+| ~~E-2~~ | ~~`_debug_*.jsonl`（env var で append、読込 CLI なし）~~ | **F-6 A 採用に連動して契約明示** ✅ 完了 2026-05-19 (§3.5、F-6 と同 commit、default 出力先 `.spec-grag/state/_debug_*.jsonl` が §10.3 env var 説明に明記される) | 0（F-6 に同梱）|
 | U-2〜U-7 | 未確認項目の追加コード調査 | 個別実施 | 中（U-4 setup script が最大工数） |
 
 ### §4.3 長期（戦略判断を要する）
