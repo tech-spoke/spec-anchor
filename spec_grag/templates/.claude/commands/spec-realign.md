@@ -20,6 +20,7 @@ allowed-tools: Read, Grep, Glob, Bash(spec-grag inject*), Bash(spec-grag realign
 6. constraints に従う answer candidate を作る。answer が constraint と衝突する場合、隠さず human review として明示する。
 7. answer candidate は次の 4 区分を区別する: `今回守る制約`, `今回扱う修正候補または検討対象`, `競合 / 不確実性 / 人間レビューが必要な点`, `課題プロンプトへの回答または修正案`。constraints は `今回守る制約` セクションに直接書く。
 8. CLI で答案を整形する: `spec-grag realign --answer-json '<json-object>'`。CLI は freshness gate を通したうえで answer を 4 区分の RealignResult に整形して返す。`/spec-realign` も freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示を返す。CLI は constraints の真偽は検証しない (Agent の責務)。
+9. CLI の戻り値は **stdout に出る内部 JSON** (RealignResult) であり、CLI 自身は人間向け整形を持たない (外部設計書 §8.5)。Agent は JSON 内の `answer.今回守る制約` / `今回扱う修正候補または検討対象` / `競合 / 不確実性 / 人間レビューが必要な点` / `課題プロンプトへの回答または修正案` の 4 セクションを読み、ユーザー宛の会話に対して 4 区分の見出し付きで整形して出す。CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
 
 ### constraints JSON の作り方
 

@@ -56,6 +56,30 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 5. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空文字列であること、`evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` / `Conflict Review Item` のいずれかであること、`Section Summary` / `Search Keys` / `Related Sections` / `Chapter Key Anchor` を `evidence_origin` に置かないこと、`support_refs` が list であること。`evidence_origin = "Conflict Review Item"` の場合、`spec-grag inject-conflicts` の返却に含まれる items (resolved + stale でない) だけを参照する。CLI は構造検証を行わないため、Agent 自身が確認する。
 6. constraint set、evidence list、Agentic Search summary だけを出力する。`/spec-inject` では task への回答や最終案を出さない。
 
+## CLI 出力と人間向け整形
+
+`spec-grag inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` の戻り値は **stdout に出る内部 JSON** であり、CLI 自身は人間向け整形を持たない (外部設計書 §8.5)。Agent はこの JSON を読んで、ユーザー宛の会話に対して次の構造で整形する:
+
+```text
+今回守る制約
+  - <statement>
+    根拠: <evidence_origin> / <evidence_ref>
+    参照補助: <support_refs (origin/ref) の要約>
+
+今回見るべき対象
+  - <Section または topic>
+    理由: <なぜ今回関係するか>
+
+関連先として確認したもの
+  - <related Section>
+    理由: <depends / impacts / related / conflicts など>
+
+不確実性 / 人間確認
+  - <constraint.uncertainty に挙がった項目>
+```
+
+CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
+
 ### constraints JSON の作り方
 
 最小 schema:

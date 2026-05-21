@@ -74,7 +74,7 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 | F-C | `spec-grag inject` サブコマンド (gate probe) が仕様外 + 各 inject-* の gate 不足 | **High** | ✅ 完了 2026-05-19 (commit f3db2b9) | 仕様 §3.3 / §2.8 / §6.3 は「`/spec-inject` 系全体が freshness / pending conflict / watcher 実行中で停止」を要求。現状は `spec-grag inject` (gate probe) のみが gate を持ち、`inject-search` / `inject-section` 等は gate を持たない。**LLM が「事前 probe を作って事前確認する」という独自設計を入れたが、仕様にこの操作はない**。各 inject-* が gate を持てば事前 probe は不要 (§3.15 詳細) |
 | F-D | `inject-purpose` / `inject-chapters` が artifact 全体を返してコンテキスト圧迫 | **High** | ✅ 完了 2026-05-18 (commit a59345c) | 仕様 §3.4「Source Specs を丸ごと投入しない」原則と矛盾。`inject-purpose` は Purpose + Core Concept 全文、`inject-chapters` は chapter_anchors.json 全体を返す。Core Concept / chapter_anchors は大きくなる可能性があり、Agent コンテキストを圧迫。Purpose は短く目的そのものなので全文返却で良い (§3.16 詳細) |
 | F-3 | `--use-cache` の挙動（廃止予定機能の残骸） | **Medium** | ✅ 完了 2026-05-18 (commit 8fca1b6) | deprecated と書きながら cache clear 条件に影響し、`--all` + `--use-cache` で `--all` 単独と異なる挙動になる。template / test / 利用実態すべて 0 件で完全な dead 機能 |
-| F-4 | `/spec-inject` の人間向け通常出力 | **Medium** | ⏳ 未着手 (§4.2 中期) | 外部設計書は読みやすい構造を契約、実装は JSON。Agent 側で表示変換が必要だが、その責務が外部設計書に書かれていない |
+| F-4 | `/spec-inject` の人間向け通常出力 | **Medium** | ✅ 完了 2026-05-19 (§3.4 選択肢 C 採用、§8.5 + template 改訂) | 外部設計書は読みやすい構造を契約、実装は JSON。Agent 側で表示変換が必要だが、その責務が外部設計書に書かれていない (C 採用後: CLI = JSON、`.claude/commands/` / `.codex/skills/` の template が JSON を読んで人間向け整形を行うと明示) |
 | F-5 | 設定項目表に `vector_store.section_collection` / `vector_store.collection` 未列挙 | **High** | ✅ 完了 2026-05-18 (F-1 連動で自動解決、commit 2ebdbab) | F-1 と同根。設定項目表が実装と一致しない |
 | F-6 | 環境変数表に debug env var 未列挙 | **Low** | ✅ 完了 2026-05-19 (§3.5 選択肢 A 採用、§10.3 に 4 行追加) | `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION` / `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION_PATH` / `SPEC_GRAG_DEBUG_RELATED_PROMPT` / `SPEC_GRAG_DEBUG_RELATED_PROMPT_PATH` を §10.3 環境変数表に追加。default 出力先 (`.spec-grag/state/_debug_*.jsonl`) も明示 |
 
@@ -305,6 +305,15 @@ F-3 は F-1 と同類の「廃止予定機能の残骸」パターンだが、**
 | C | **slash command / skill 側で表示変換することを外部設計書に明示**: 「CLI 出力は JSON、`.claude/commands/` / `.codex/skills/` で人間向け整形」と書く | A の具体化。実装変更不要 |
 
 **Claude 推奨**: **C（slash command 側で整形と明示）**。理由: 既に `spec_grag/templates/.claude/commands/` と `.codex/skills/` の template が存在する ([STEP1A_INVENTORY.ja.md §0 行 75-80 周辺](doc/監査-CODEX/STEP1A_INVENTORY.ja.md))。これらが Agent 側の表示層と位置づけられているはず。外部設計書に「CLI 出力は JSON、表示変換は command/skill template が行う」と明示すれば、契約と実装が一致する。
+
+**プロジェクトオーナー判断 (2026-05-19): C 採用**。実装 (`cli.py` の `print(json.dumps(result, ...))` / `print(_dumps_json(result))`) は既に JSON 出力で C の振る舞いに合致しており、契約 (§8.5) と template の明示だけが追従していなかった。A と C は実質同じ責務分離 (CLI = 機械可読 / 整形 = Agent CLI) だが、C は配置先まで明示 (`.claude/commands/` / `.codex/skills/`) するので「Agent CLI」が指す具体物が読者に伝わる。B (実装に `--format` flag 追加) は CLI の責務を増やすので不採用。
+
+**実施内容 (2026-05-19、commit 反映予定)**:
+
+- `doc/EXTERNAL_DESIGN.ja.md` §8.5 冒頭を書き換え:「`spec-grag inject-*` および `spec-grag realign` の **CLI 出力は内部 JSON** であり、stdout に JSON object を 1 つ出す。人間に見える出力は、Agent CLI 側 (`.claude/commands/spec-inject.md` / `spec-realign.md` および `.codex/skills/spec-grag/SKILL.md` の template) が CLI の JSON 戻り値を解釈し、ユーザー宛の会話に対して次のような読みやすい構造として整形する。CLI 自身に整形 mode (`--format human` 等) は持たない。」
+- `spec_grag/templates/.claude/commands/spec-inject.md` に「CLI 出力と人間向け整形」節を追加し、Agent が JSON を読んで §8.5 の 4 セクション (`今回守る制約` / `今回見るべき対象` / `関連先として確認したもの` / `不確実性 / 人間確認`) に整形する旨を明示。raw JSON を会話に貼らない原則も併記
+- `spec_grag/templates/.claude/commands/spec-realign.md` 手順 9 を追加し、RealignResult JSON を 4 区分 (`今回守る制約` / `今回扱う修正候補または検討対象` / `競合・不確実性・人間レビュー` / `課題プロンプトへの回答または修正案`) に整形する旨を明示
+- `spec_grag/templates/.codex/skills/spec-grag/SKILL.md` 手順 7 として同様の整形ルールを追記
 
 ### §3.5 F-5 / F-6: 設定項目表 / 環境変数表の未列挙
 
@@ -742,7 +751,7 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 
 | # | 問題 | 推奨選択肢 | 工数感（暫定）|
 |---|---|---|---|
-| F-4 | `/spec-inject` の人間向け通常出力 | C（slash command / skill 側で表示変換と明示） | 低（設計書改訂のみ） |
+| ~~F-4~~ | ~~`/spec-inject` の人間向け通常出力~~ | **C（slash command / skill 側で表示変換と明示）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.4) | 低（設計書 §8.5 + template 3 ファイル改訂、実装変更ゼロ）|
 | ~~E-1~~ | ~~Section embedding text の構成~~ | **B（内部方式を契約に明示）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.6) | 低（設計書 §4.1 改訂のみ）|
 | ~~F-6~~ | ~~環境変数表に debug env var 未列挙~~ | **A（外部設計書 §10.3 に追記）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.5) | 低（設計書 §10.3 改訂のみ、env var 4 件追加）|
 | ~~E-2~~ | ~~`_debug_*.jsonl`（env var で append、読込 CLI なし）~~ | **F-6 A 採用に連動して契約明示** ✅ 完了 2026-05-19 (§3.5、F-6 と同 commit、default 出力先 `.spec-grag/state/_debug_*.jsonl` が §10.3 env var 説明に明記される) | 0（F-6 に同梱）|

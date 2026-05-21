@@ -37,6 +37,7 @@ inject は、ユーザーが課題用 constraints を必要としており、ま
 4. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。`evidence_origin` は Purpose、Core Concept、Source Specs、Conflict Review Item のいずれかに限る。Section Summary、Search Keys、Related Sections、Chapter Key Anchor は `support_refs` にだけ置ける。これらを sole evidence にしない。
 5. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空、`evidence_origin` は Purpose / Core Concept / Source Specs / Conflict Review Item のいずれか、`support_refs` は list。CLI は構造検証を行わないため、Agent 自身が確認する。Conflict Review Item を根拠にする場合は `spec-grag inject-conflicts` の返却 (resolved + stale でない) だけを使う。
 6. constraints、evidence、search summary だけを出力する。inject では task への回答を出さない。
+7. `spec-grag inject-*` および `spec-grag realign` の戻り値は **stdout の内部 JSON** であり、CLI は人間向け整形を持たない (外部設計書 §8.5)。Agent は JSON を読んで、ユーザー宛の会話に対して `今回守る制約` / `今回見るべき対象` / `関連先として確認したもの` / `不確実性 / 人間確認` (realign は加えて 4 区分の answer) を見出し付きで整形して出す。raw JSON を会話に貼らない (ユーザーが明示的に raw を要求した場合のみ例外)。
 
 ### constraints JSON の作り方
 
