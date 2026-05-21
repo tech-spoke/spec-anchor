@@ -92,7 +92,7 @@ def test_t_r11_native_qdrant_persists_collection_across_restart(tmp_path: Path) 
     http_port = _free_port()
     grpc_port = _free_port()
     url = f"http://127.0.0.1:{http_port}"
-    collection = f"spec_grag_t_r11_{uuid.uuid4().hex}"
+    collection = f"spec_anchor_t_r11_{uuid.uuid4().hex}"
 
     process = _start_qdrant(
         storage=storage,

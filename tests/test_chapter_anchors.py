@@ -3,7 +3,7 @@
 Chapter Key Anchor is LLM-generated per chapter with fields:
 `chapter_id` / `summary` / `key_topics` / `important_sections` / `notes`
 / `source_section_ids` / `generated_at`. These tests cover the
-`spec_grag.chapter_anchors.generate_chapter_anchors` entry point and its
+`spec_anchor.chapter_anchors.generate_chapter_anchors` entry point and its
 cache.
 """
 
@@ -21,12 +21,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.chapter_anchors import (  # noqa: E402
+from spec_anchor.chapter_anchors import (  # noqa: E402
     CHAPTER_ANCHORS_PROMPT_VERSION,
     ChapterAnchorsCache,
     generate_chapter_anchors,
 )
-from spec_grag.llm_provider import LlmRequest  # noqa: E402
+from spec_anchor.llm_provider import LlmRequest  # noqa: E402
 
 
 @dataclass
@@ -426,7 +426,7 @@ def test_chapter_key_anchor_output_schema_includes_required_fields() -> None:
     now reflects Phase R-7 contract.
     """
 
-    from spec_grag.llm_provider import _chapter_key_anchor_output_schema
+    from spec_anchor.llm_provider import _chapter_key_anchor_output_schema
 
     schema = _chapter_key_anchor_output_schema()
 

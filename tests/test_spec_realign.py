@@ -34,7 +34,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -78,7 +78,7 @@ class ExplodingProvider:
 
 
 def _realign_module() -> Any:
-    return importlib.import_module("spec_grag.realign")
+    return importlib.import_module("spec_anchor.realign")
 
 
 def _run_spec_realign(project_root: Path, **kwargs: Any) -> Any:
@@ -107,8 +107,8 @@ def _run_spec_realign(project_root: Path, **kwargs: Any) -> Any:
 
 
 def _write_project(project_root: Path) -> None:
-    (project_root / ".spec-grag").mkdir(parents=True)
-    (project_root / ".spec-grag" / "config.toml").write_text(CONFIG)
+    (project_root / ".spec-anchor").mkdir(parents=True)
+    (project_root / ".spec-anchor" / "config.toml").write_text(CONFIG)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
     (project_root / "docs/core/purpose.md").write_text(
@@ -264,7 +264,7 @@ def test_t_u18_blocked_freshness_stops_before_answer_provider_and_spec_core(
     project_root = tmp_path / "project"
     _write_project(project_root)
     provider = ExplodingProvider()
-    import spec_grag.core as core_module
+    import spec_anchor.core as core_module
 
     calls: list[Any] = []
 

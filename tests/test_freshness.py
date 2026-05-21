@@ -35,10 +35,10 @@ PRIORITY_ORDER = [
 
 def _module() -> Any:
     try:
-        return importlib.import_module("spec_grag.freshness")
+        return importlib.import_module("spec_anchor.freshness")
     except ModuleNotFoundError as exc:
-        if exc.name == "spec_grag.freshness":
-            pytest.fail("spec_grag.freshness module is required for G-10")
+        if exc.name == "spec_anchor.freshness":
+            pytest.fail("spec_anchor.freshness module is required for G-10")
         raise
 
 

@@ -97,10 +97,10 @@ class FakeConflictJudge:
 
 def _module() -> Any:
     try:
-        return importlib.import_module("spec_grag.conflict_review")
+        return importlib.import_module("spec_anchor.conflict_review")
     except ModuleNotFoundError as exc:
-        if exc.name == "spec_grag.conflict_review":
-            pytest.fail("spec_grag.conflict_review module is required for G-09")
+        if exc.name == "spec_anchor.conflict_review":
+            pytest.fail("spec_anchor.conflict_review module is required for G-09")
         raise
 
 
@@ -924,7 +924,7 @@ def test_phase_e_possible_conflict_flag_routes_to_conflict_review() -> None:
     """
     import importlib
 
-    module = importlib.import_module("spec_grag.conflict_review")
+    module = importlib.import_module("spec_anchor.conflict_review")
     select = module.select_conflict_judging_pairs
     related_sections = {
         "spec.md#alpha": [

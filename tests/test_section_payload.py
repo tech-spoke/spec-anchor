@@ -1,6 +1,6 @@
 """Tests for the Qdrant section-payload read helpers.
 
-Cover the helpers in `spec_grag/section_payload.py`. Verify that:
+Cover the helpers in `spec_anchor/section_payload.py`. Verify that:
 
 * `fetch_section_payloads` issues a single scroll per batch with a
   `MatchAny(any=section_ids)` filter on the `source_section_id` field, and
@@ -29,7 +29,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.section_payload import (  # noqa: E402
+from spec_anchor.section_payload import (  # noqa: E402
     SECTION_PAYLOAD_LOOKUP_BATCH,
     fetch_section_payloads,
     metadata_entries_from_payloads,
@@ -118,14 +118,14 @@ def test_fetch_section_payloads_returns_section_id_indexed_dict() -> None:
     payload_beta = _payload("beta")
     client = _FakeQdrantClient(points_by_section_id={"alpha": payload_alpha, "beta": payload_beta})
 
-    result = fetch_section_payloads(client, ["alpha", "beta"], collection="spec_grag_section")
+    result = fetch_section_payloads(client, ["alpha", "beta"], collection="spec_anchor_section")
 
     assert set(result.keys()) == {"alpha", "beta"}
     assert result["alpha"] == payload_alpha
     assert result["beta"] == payload_beta
     assert len(client.scroll_calls) == 1
     call = client.scroll_calls[0]
-    assert call["collection_name"] == "spec_grag_section"
+    assert call["collection_name"] == "spec_anchor_section"
     assert call["section_ids"] == ["alpha", "beta"]
     assert call["with_payload"] is True
     assert call["with_vectors"] is False
@@ -248,6 +248,6 @@ def test_fetch_section_payloads_normalizes_string_section_ids() -> None:
 def test_section_payload_lookup_error_is_runtime_error_subclass() -> None:
     """SectionPayloadLookupError must be a RuntimeError so callers can catch broadly."""
 
-    from spec_grag.section_payload import SectionPayloadLookupError
+    from spec_anchor.section_payload import SectionPayloadLookupError
 
     assert issubclass(SectionPayloadLookupError, RuntimeError)

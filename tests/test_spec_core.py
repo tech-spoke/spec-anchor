@@ -39,7 +39,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -211,10 +211,10 @@ class RelatedSectionsSpecCoreProvider(FakeSpecCoreProvider):
 
 def _core_module() -> Any:
     try:
-        return importlib.import_module("spec_grag.core")
+        return importlib.import_module("spec_anchor.core")
     except ModuleNotFoundError as exc:
-        if exc.name == "spec_grag.core":
-            pytest.fail("spec_grag.core module is required for G-11 `/spec-core`")
+        if exc.name == "spec_anchor.core":
+            pytest.fail("spec_anchor.core module is required for G-11 `/spec-core`")
         raise
 
 
@@ -279,8 +279,8 @@ def _run_spec_core(project_root: Path, **kwargs: Any) -> Any:
 
 
 def _write_project(project_root: Path) -> dict[str, Path]:
-    (project_root / ".spec-grag").mkdir(parents=True)
-    (project_root / ".spec-grag" / "config.toml").write_text(CONFIG)
+    (project_root / ".spec-anchor").mkdir(parents=True)
+    (project_root / ".spec-anchor" / "config.toml").write_text(CONFIG)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
     purpose = project_root / "docs/core/purpose.md"
@@ -315,10 +315,10 @@ def _write_real_provider_project(
     qdrant_url: str,
 ) -> None:
     command = "codex"
-    (project_root / ".spec-grag").mkdir(parents=True)
+    (project_root / ".spec-anchor").mkdir(parents=True)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
-    (project_root / ".spec-grag/config.toml").write_text(
+    (project_root / ".spec-anchor/config.toml").write_text(
         f"""\
 [sources]
 include = ["docs/spec/**/*.md"]
@@ -329,7 +329,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -387,8 +387,8 @@ def _write_multi_source_real_provider_project(
 
 
 def _write_large_project(project_root: Path, *, section_count: int = 52) -> None:
-    (project_root / ".spec-grag").mkdir(parents=True)
-    (project_root / ".spec-grag" / "config.toml").write_text(
+    (project_root / ".spec-anchor").mkdir(parents=True)
+    (project_root / ".spec-anchor" / "config.toml").write_text(
         CONFIG
         + """\
 
@@ -413,10 +413,10 @@ search_keys_max = 32
 
 
 def _write_cdx006_project(project_root: Path, *, collection: str) -> None:
-    (project_root / ".spec-grag").mkdir(parents=True)
+    (project_root / ".spec-anchor").mkdir(parents=True)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
-    (project_root / ".spec-grag/config.toml").write_text(
+    (project_root / ".spec-anchor/config.toml").write_text(
         f"""\
 [sources]
 include = ["docs/spec/**/*.md"]
@@ -427,7 +427,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -627,7 +627,7 @@ class _CoreFakeEmbeddingProvider:
     def embed_documents(self, texts: Any) -> Any:
         texts = list(texts)
         self.calls.append(texts)
-        module = importlib.import_module("spec_grag.retrieval_index")
+        module = importlib.import_module("spec_anchor.retrieval_index")
         return module.BgeM3EmbeddingBatch(
             embeddings=[
                 module.BgeM3Embedding(
@@ -640,7 +640,7 @@ class _CoreFakeEmbeddingProvider:
 
     def embed_query(self, text: str) -> Any:
         self.query_calls.append(text)
-        module = importlib.import_module("spec_grag.retrieval_index")
+        module = importlib.import_module("spec_anchor.retrieval_index")
         return module.BgeM3Embedding(dense=[1.0], sparse=module.SparseVector())
 
 
@@ -689,10 +689,10 @@ def _freshness(result: Any) -> dict[str, Any]:
 
 
 def _artifact_path(project_root: Path, name: str) -> Path:
-    from spec_grag.artifacts import ARTIFACT_FILENAMES, STATE_ARTIFACTS
+    from spec_anchor.artifacts import ARTIFACT_FILENAMES, STATE_ARTIFACTS
 
     filename = ARTIFACT_FILENAMES[name]
-    base = ".spec-grag/state" if name in STATE_ARTIFACTS else ".spec-grag/context"
+    base = ".spec-anchor/state" if name in STATE_ARTIFACTS else ".spec-anchor/context"
     return project_root / base / filename
 
 
@@ -703,7 +703,7 @@ def _artifact(project_root: Path, name: str) -> dict[str, Any]:
 
 
 def _artifact_texts(project_root: Path) -> dict[str, str]:
-    from spec_grag.artifacts import ARTIFACT_FILENAMES
+    from spec_anchor.artifacts import ARTIFACT_FILENAMES
 
     return {
         name: _artifact_path(project_root, name).read_text()
@@ -1011,7 +1011,7 @@ def test_g11_runtime_core_respects_sources_exclude_in_artifacts(
 ) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
+    config_path = project_root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
             'include = ["docs/spec/**/*.md"]',
@@ -1038,7 +1038,7 @@ def test_g11_runtime_core_fails_when_sources_include_matches_no_files(
 ) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
+    config_path = project_root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
             'include = ["docs/spec/**/*.md"]',
@@ -1122,7 +1122,7 @@ def test_b2_incremental_no_change_skips_retrieval_and_related_heavy_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.core_progress import read_progress
+    from spec_anchor.core_progress import read_progress
 
     project_root = tmp_path / "project"
     _write_real_provider_project(
@@ -1130,7 +1130,7 @@ def test_b2_incremental_no_change_skips_retrieval_and_related_heavy_paths(
         collection="wrong_vector_store_collection",
         qdrant_url="http://localhost:6333",
     )
-    config_path = project_root / ".spec-grag/config.toml"
+    config_path = project_root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text()
         + """\
@@ -1209,7 +1209,7 @@ def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.core_progress import read_progress
+    from spec_anchor.core_progress import read_progress
 
     project_root = tmp_path / "project"
     _write_real_provider_project(
@@ -1299,7 +1299,7 @@ def test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert(
 ) -> None:
     """without non-empty related_sections this test cannot detect CDX-002-style timing divergence (FakeLLM hid the bug originally)."""
 
-    from spec_grag.core_progress import read_progress
+    from spec_anchor.core_progress import read_progress
 
     project_root = tmp_path / "project"
     _write_cdx006_project(project_root, collection="cdx006_collection")
@@ -1339,7 +1339,7 @@ def test_b7_related_sections_partial_regenerate_source_centric(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.core_progress import read_progress
+    from spec_anchor.core_progress import read_progress
 
     project_root = tmp_path / "project"
     _write_cdx006_project(project_root, collection="b7_related_sections_partial_collection")
@@ -1423,7 +1423,7 @@ def test_b7a_related_sections_candidate_generation_source_partial(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.core_progress import read_progress
+    from spec_anchor.core_progress import read_progress
 
     project_root = tmp_path / "project"
     _write_cdx006_project(project_root, collection="b7a_related_sections_partial_collection")
@@ -1533,13 +1533,13 @@ def test_b5a_partial_upsert_ignores_source_span_shift(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.core_progress import read_progress
+    from spec_anchor.core_progress import read_progress
 
     project_root = tmp_path / "project"
-    (project_root / ".spec-grag").mkdir(parents=True)
+    (project_root / ".spec-anchor").mkdir(parents=True)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
-    (project_root / ".spec-grag/config.toml").write_text(
+    (project_root / ".spec-anchor/config.toml").write_text(
         """\
 [sources]
 include = ["docs/spec/**/*.md"]
@@ -1550,7 +1550,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -1697,8 +1697,8 @@ def test_aud007_qdrant_backend_failure_marks_related_sections_failed(
         lambda **_kwargs: fake_embedding,
     )
 
-    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
-    related_module = importlib.import_module("spec_grag.related_sections")
+    retrieval_module = importlib.import_module("spec_anchor.retrieval_index")
+    related_module = importlib.import_module("spec_anchor.related_sections")
 
     class _BrokenQdrantRetriever:
         def __init__(self, *, url: str, collection: str) -> None:
@@ -1840,7 +1840,7 @@ def test_t_i15_spec_core_uses_atomic_context_update_and_writes_freshness_last(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.artifacts import ContextArtifactStore
+    from spec_anchor.artifacts import ContextArtifactStore
 
     project_root = tmp_path / "project"
     _write_project(project_root)
@@ -1863,7 +1863,7 @@ def test_g11_context_update_rolls_back_partial_artifact_set_on_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.artifacts import ContextArtifactStore
+    from spec_anchor.artifacts import ContextArtifactStore
 
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
@@ -1899,7 +1899,7 @@ def test_g14_manual_spec_core_does_not_update_artifacts_while_watcher_running(
 ) -> None:
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
-    state_dir = project_root / ".spec-grag/state"
+    state_dir = project_root / ".spec-anchor/state"
     state_dir.mkdir(parents=True)
     _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
     artifacts_before = _artifact_texts(project_root)
@@ -1947,7 +1947,7 @@ def test_g14_manual_spec_core_ignores_stale_watcher_state_without_now_ms(
 ) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
-    state_dir = project_root / ".spec-grag/state"
+    state_dir = project_root / ".spec-anchor/state"
     state_dir.mkdir(parents=True)
     provider = FakeSpecCoreProvider()
 
@@ -2031,7 +2031,7 @@ def test_g11_core_can_select_codex_or_claude_from_shared_llm_config(
 ) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
+    config_path = project_root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
             '[llm.providers.fake]\ncommand = "fake-noop"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
@@ -2087,7 +2087,7 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
 ) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
-    config_path = project_root / ".spec-grag/config.toml"
+    config_path = project_root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
             '[llm.providers.fake]\ncommand = "fake-noop"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
@@ -2095,7 +2095,7 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
         )
     )
     core_module = _core_module()
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
     calls: list[Any] = []
 
     def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -2123,9 +2123,9 @@ def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fall
 def test_t_r12_configured_real_provider_is_default_without_smoke_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.llm_provider import build_spec_core_llm_provider
+    from spec_anchor.llm_provider import build_spec_core_llm_provider
 
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
 
     provider = build_spec_core_llm_provider(
         {

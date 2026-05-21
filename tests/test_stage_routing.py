@@ -18,8 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.config import ConfigError, LlmConfig, LlmProviderConfig, load_config
-from spec_grag.llm_provider import select_llm_provider_config
+from spec_anchor.config import ConfigError, LlmConfig, LlmProviderConfig, load_config
+from spec_anchor.llm_provider import select_llm_provider_config
 
 
 CONFIG_WITH_ROUTING = """\
@@ -31,7 +31,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -73,13 +73,13 @@ url = "http://localhost:6333"
 
 
 def _write_minimal_project(root: Path) -> None:
-    (root / ".spec-grag").mkdir(parents=True)
+    (root / ".spec-anchor").mkdir(parents=True)
     (root / "docs/core").mkdir(parents=True)
     (root / "docs/spec").mkdir(parents=True)
     (root / "docs/core/purpose.md").write_text("# Purpose\n")
     (root / "docs/core/concept.md").write_text("# Concept\n")
     (root / "docs/spec/main.md").write_text("# Spec\nBody.\n")
-    (root / ".spec-grag/config.toml").write_text(CONFIG_WITH_ROUTING)
+    (root / ".spec-anchor/config.toml").write_text(CONFIG_WITH_ROUTING)
 
 
 def test_stage_routing_loaded_into_llm_config(tmp_path: Path) -> None:
@@ -160,7 +160,7 @@ def test_stage_routing_rejects_unknown_stage(tmp_path: Path) -> None:
         "section_metadata = \"claude\"", "unknown_stage = \"claude\"", 1
     )
     _write_minimal_project(tmp_path)
-    (tmp_path / ".spec-grag/config.toml").write_text(bad)
+    (tmp_path / ".spec-anchor/config.toml").write_text(bad)
     with pytest.raises(ConfigError, match="not an allowed stage"):
         load_config(tmp_path)
 
@@ -172,6 +172,6 @@ def test_stage_routing_rejects_unknown_provider(tmp_path: Path) -> None:
         1,
     )
     _write_minimal_project(tmp_path)
-    (tmp_path / ".spec-grag/config.toml").write_text(bad)
+    (tmp_path / ".spec-anchor/config.toml").write_text(bad)
     with pytest.raises(ConfigError, match="must reference a configured provider"):
         load_config(tmp_path)

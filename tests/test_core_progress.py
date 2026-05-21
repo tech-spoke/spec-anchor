@@ -1,6 +1,6 @@
-"""Unit and integration tests for `spec_grag.core_progress`.
+"""Unit and integration tests for `spec_anchor.core_progress`.
 
-These pin the contract for `.spec-grag/state/core_progress.json` so that a
+These pin the contract for `.spec-anchor/state/core_progress.json` so that a
 crashed `/spec-core --all` run still leaves a useful diagnostic trail.
 """
 
@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.core_progress import (
+from spec_anchor.core_progress import (
     CoreProgressTracker,
     progress_file_path,
     read_progress,
@@ -81,9 +81,9 @@ def test_tracker_increment_aggregates_counts(tmp_path: Path) -> None:
     assert metadata_stage["failed_batch_ids"] == ["batch-3", "batch-7"]
 
 
-def test_tracker_writes_under_spec_grag_state(tmp_path: Path) -> None:
+def test_tracker_writes_under_spec_anchor_state(tmp_path: Path) -> None:
     CoreProgressTracker(tmp_path, run_id="run-4", mode="full")
-    expected = tmp_path / ".spec-grag" / "state" / "core_progress.json"
+    expected = tmp_path / ".spec-anchor" / "state" / "core_progress.json"
     assert expected.is_file()
     assert progress_file_path(tmp_path) == expected
 
@@ -117,9 +117,9 @@ def test_record_llm_call_stats_aggregates_codex_usage(tmp_path) -> None:
     through LlmGenerationResult.usage into core_progress.json."""
     import sys
     sys.path.insert(0, str(REPO_ROOT))
-    from spec_grag.core import _record_llm_call_stats
-    from spec_grag.core_progress import CoreProgressTracker
-    from spec_grag.llm_provider import LlmGenerationResult
+    from spec_anchor.core import _record_llm_call_stats
+    from spec_anchor.core_progress import CoreProgressTracker
+    from spec_anchor.llm_provider import LlmGenerationResult
 
     tracker = CoreProgressTracker(tmp_path, run_id="run-usage", mode="full")
     tracker.emit("core_section_metadata_start")
@@ -165,7 +165,7 @@ def test_record_llm_call_stats_aggregates_codex_usage(tmp_path) -> None:
 def test_extract_cli_usage_handles_codex_stream() -> None:
     import sys
     sys.path.insert(0, str(REPO_ROOT))
-    from spec_grag.llm_provider import _extract_cli_usage
+    from spec_anchor.llm_provider import _extract_cli_usage
 
     stdout = (
         '{"type":"thread.started","thread_id":"abc"}\n'
@@ -185,7 +185,7 @@ def test_extract_cli_usage_handles_claude_json() -> None:
     import json as _json
     import sys
     sys.path.insert(0, str(REPO_ROOT))
-    from spec_grag.llm_provider import _extract_cli_usage
+    from spec_anchor.llm_provider import _extract_cli_usage
 
     stdout = _json.dumps(
         {

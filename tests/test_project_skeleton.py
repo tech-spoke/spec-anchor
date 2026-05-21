@@ -81,7 +81,7 @@ def test_t_p01_package_import_exposes_version_without_provider_initialization(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     for module_name in list(sys.modules):
-        if module_name == "spec_grag" or module_name.startswith("spec_grag."):
+        if module_name == "spec_anchor" or module_name.startswith("spec_anchor."):
             monkeypatch.delitem(sys.modules, module_name, raising=False)
 
     provider_calls: list[str] = []
@@ -92,11 +92,11 @@ def test_t_p01_package_import_exposes_version_without_provider_initialization(
             _ProviderSentinel(module_name, provider_calls),
         )
 
-    package = importlib.import_module("spec_grag")
+    package = importlib.import_module("spec_anchor")
 
     version = getattr(package, "__version__", None)
     if version is None:
-        version = importlib.metadata.version("spec-grag")
+        version = importlib.metadata.version("spec-anchor")
 
     assert isinstance(version, str)
     assert version
@@ -106,11 +106,11 @@ def test_t_p01_package_import_exposes_version_without_provider_initialization(
 @pytest.mark.parametrize(
     "command",
     (
-        "spec-grag",
-        "spec-grag-slash",
-        "spec-grag-watch",
-        "spec-grag-setup-project",
-        "spec-grag-setup-system",
+        "spec-anchor",
+        "spec-anchor-slash",
+        "spec-anchor-watch",
+        "spec-anchor-setup-project",
+        "spec-anchor-setup-system",
     ),
 )
 def test_t_p02_cli_help_exits_zero(command: str) -> None:
@@ -121,7 +121,7 @@ def test_t_p02_cli_help_exits_zero(command: str) -> None:
 
 
 def test_t_p02_main_cli_help_lists_primary_commands() -> None:
-    result = _run_help("spec-grag")
+    result = _run_help("spec-anchor")
 
     assert result.returncode == 0, result.stderr or result.stdout
     help_text = result.stdout.lower()
@@ -133,9 +133,9 @@ def test_t_p02_main_cli_help_lists_primary_commands() -> None:
 @pytest.mark.parametrize(
     ("command", "runner_module", "runner_name", "extra_args"),
     (
-        ("core", "spec_grag.core", "run_spec_core", ("--all",)),
-        ("inject-conflicts", "spec_grag.inject", "run_inject_conflicts", ()),
-        ("realign", "spec_grag.realign", "run_spec_realign", ()),
+        ("core", "spec_anchor.core", "run_spec_core", ("--all",)),
+        ("inject-conflicts", "spec_anchor.inject", "run_inject_conflicts", ()),
+        ("realign", "spec_anchor.realign", "run_spec_realign", ()),
     ),
 )
 def test_t_p02_main_cli_dispatches_primary_commands_as_json(
@@ -158,7 +158,7 @@ def test_t_p02_main_cli_dispatches_primary_commands_as_json(
         }
 
     monkeypatch.setattr(module, runner_name, fake_runner)
-    from spec_grag import cli
+    from spec_anchor import cli
 
     try:
         exit_code = cli.main((command, *extra_args))
@@ -185,7 +185,7 @@ def test_t_p02_core_cli_passes_explicit_llm_provider_id(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    module = importlib.import_module("spec_grag.core")
+    module = importlib.import_module("spec_anchor.core")
     calls: list[dict[str, object]] = []
 
     def fake_runner(*args: object, **kwargs: object) -> dict[str, object]:
@@ -193,7 +193,7 @@ def test_t_p02_core_cli_passes_explicit_llm_provider_id(
         return {"command": "/spec-core", "status": "ok", "returncode": 0}
 
     monkeypatch.setattr(module, "run_spec_core", fake_runner)
-    from spec_grag import cli
+    from spec_anchor import cli
 
     exit_code = cli.main(("core", "--llm-provider", "claude", "--all"))
 
@@ -219,37 +219,37 @@ def test_t_p04_packaging_metadata_defines_scripts_and_package_data() -> None:
     scripts = project["scripts"]
     dependencies = project.get("dependencies", [])
 
-    assert project["name"] == "spec-grag"
+    assert project["name"] == "spec-anchor"
     assert any(str(item).startswith("markdown-it-py") for item in dependencies)
     for script_name in (
-        "spec-grag",
-        "spec-grag-slash",
-        "spec-grag-watch",
-        "spec-grag-setup-project",
-        "spec-grag-setup-system",
+        "spec-anchor",
+        "spec-anchor-slash",
+        "spec-anchor-watch",
+        "spec-anchor-setup-project",
+        "spec-anchor-setup-system",
     ):
         assert script_name in scripts
 
-    package_root = importlib.resources.files("spec_grag")
+    package_root = importlib.resources.files("spec_anchor")
     for resource in (
-        "templates/.codex/skills/spec-grag/SKILL.md",
+        "templates/.codex/skills/spec-anchor/SKILL.md",
         "templates/.claude/commands/spec-core.md",
         "templates/.claude/commands/spec-inject.md",
         "templates/.claude/commands/spec-realign.md",
-        "templates/.spec-grag/config.toml",
-        "templates/.spec-grag/.gitignore",
+        "templates/.spec-anchor/config.toml",
+        "templates/.spec-anchor/.gitignore",
     ):
         assert package_root.joinpath(resource).is_file()
 
 
 def test_t_p05_runtime_package_does_not_import_archive_modules() -> None:
-    package = importlib.import_module("spec_grag")
+    package = importlib.import_module("spec_anchor")
     package_path = Path(package.__file__).resolve()
 
     assert "archive" not in package_path.parts
 
     for module_name, module in sys.modules.items():
-        if not (module_name == "spec_grag" or module_name.startswith("spec_grag.")):
+        if not (module_name == "spec_anchor" or module_name.startswith("spec_anchor.")):
             continue
         module_file = getattr(module, "__file__", None)
         if module_file is None:
@@ -264,7 +264,7 @@ def test_t_p05_tests_do_not_use_archive_fixtures() -> None:
 
 
 def test_t_p06_root_has_no_generated_runtime_state() -> None:
-    runtime_root = REPO_ROOT / ".spec-grag"
+    runtime_root = REPO_ROOT / ".spec-anchor"
     assert not runtime_root.exists()
 
 
@@ -278,7 +278,7 @@ def test_t_p06_new_skeleton_does_not_reference_old_full_grag_modules() -> None:
     )
     source_text = "\n".join(
         path.read_text()
-        for path in (REPO_ROOT / "spec_grag").glob("*.py")
+        for path in (REPO_ROOT / "spec_anchor").glob("*.py")
         if path.name != "__pycache__"
     )
     for old_module_name in old_module_names:

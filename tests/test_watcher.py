@@ -35,7 +35,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [llm.providers.fake]
 command = "fake-noop"
@@ -55,8 +55,8 @@ enabled = true
 interval_ms = 2000
 debounce_ms = 1000
 stale_lock_ms = 300000
-state_file = ".spec-grag/state/watch_state.json"
-queue_file = ".spec-grag/state/watch_queue.json"
+state_file = ".spec-anchor/state/watch_state.json"
+queue_file = ".spec-anchor/state/watch_queue.json"
 """
 
 def _has_section_id(ids: list[str] | set[str], expected: str) -> bool:
@@ -70,10 +70,10 @@ def _has_section_id(ids: list[str] | set[str], expected: str) -> bool:
 @pytest.fixture()
 def fake_project(tmp_path: Path) -> dict[str, Path]:
     root = tmp_path / "project"
-    (root / ".spec-grag/state").mkdir(parents=True)
+    (root / ".spec-anchor/state").mkdir(parents=True)
     (root / "docs/core").mkdir(parents=True)
     (root / "docs/spec").mkdir(parents=True)
-    (root / ".spec-grag/config.toml").write_text(CONFIG)
+    (root / ".spec-anchor/config.toml").write_text(CONFIG)
     (root / "docs/core/purpose.md").write_text("# Purpose\nShip reliable behavior.\n")
     (root / "docs/core/concept.md").write_text("# Concept\nSource Specs are authoritative.\n")
     source = root / "docs/spec/main.md"
@@ -81,16 +81,16 @@ def fake_project(tmp_path: Path) -> dict[str, Path]:
     return {
         "root": root,
         "source": source,
-        "state": root / ".spec-grag/state/watch_state.json",
-        "queue": root / ".spec-grag/state/watch_queue.json",
+        "state": root / ".spec-anchor/state/watch_state.json",
+        "queue": root / ".spec-anchor/state/watch_queue.json",
     }
 
 
 def _write_real_watcher_project(root: Path, *, collection: str, qdrant_url: str) -> None:
-    (root / ".spec-grag/state").mkdir(parents=True)
+    (root / ".spec-anchor/state").mkdir(parents=True)
     (root / "docs/core").mkdir(parents=True)
     (root / "docs/spec").mkdir(parents=True)
-    (root / ".spec-grag/config.toml").write_text(
+    (root / ".spec-anchor/config.toml").write_text(
         f"""\
 [sources]
 include = ["docs/spec/**/*.md"]
@@ -101,7 +101,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -127,8 +127,8 @@ enabled = true
 interval_ms = 0
 debounce_ms = 1
 stale_lock_ms = 300000
-state_file = ".spec-grag/state/watch_state.json"
-queue_file = ".spec-grag/state/watch_queue.json"
+state_file = ".spec-anchor/state/watch_state.json"
+queue_file = ".spec-anchor/state/watch_queue.json"
 """
     )
     (root / "docs/core/purpose.md").write_text("# Purpose\nVerify real watcher operation.\n")
@@ -140,10 +140,10 @@ queue_file = ".spec-grag/state/watch_queue.json"
 
 def _watcher_module() -> Any:
     try:
-        return importlib.import_module("spec_grag.watcher")
+        return importlib.import_module("spec_anchor.watcher")
     except ModuleNotFoundError as exc:
-        if exc.name == "spec_grag.watcher":
-            pytest.fail("spec_grag.watcher module is required for G-14 Watcher")
+        if exc.name == "spec_anchor.watcher":
+            pytest.fail("spec_anchor.watcher module is required for G-14 Watcher")
         raise
 
 
@@ -161,8 +161,8 @@ def _watch_once_function() -> Any:
         (
             "run_watcher_once",
             "run_watcher_cycle",
-            "run_spec_grag_watch_once",
-            "run_spec_grag_watch",
+            "run_spec_anchor_watch_once",
+            "run_spec_anchor_watch",
             "watch",
         ),
     )
@@ -205,7 +205,7 @@ def test_watcher_snapshot_respects_config_loader_sources_exclude(
 ) -> None:
     watcher = _watcher_module()
     root = fake_project["root"]
-    config_path = root / ".spec-grag/config.toml"
+    config_path = root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
             "exclude = []",
@@ -228,7 +228,7 @@ def test_watcher_settings_fail_when_sources_include_matches_no_files(
 ) -> None:
     watcher = _watcher_module()
     root = fake_project["root"]
-    config_path = root / ".spec-grag/config.toml"
+    config_path = root / ".spec-anchor/config.toml"
     config_path.write_text(
         config_path.read_text().replace(
             'include = ["docs/spec/**/*.md"]',
@@ -360,14 +360,14 @@ def _call_heartbeat(heartbeat: Any, *, now_ms: int) -> Any:
 
 
 def _lock_updated_at(project_root: Path) -> int:
-    lock_path = project_root / ".spec-grag/state/core_update.lock.json"
+    lock_path = project_root / ".spec-anchor/state/core_update.lock.json"
     assert lock_path.is_file(), "watcher must hold the shared core-update lock while internal core runs"
     payload = json.loads(lock_path.read_text())
     return int(payload["updated_at_epoch_ms"])
 
 
 def _core_update_lock_path(project_root: Path) -> Path:
-    return project_root / ".spec-grag/state/core_update.lock.json"
+    return project_root / ".spec-anchor/state/core_update.lock.json"
 
 
 def _active_marker_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -735,7 +735,7 @@ def test_stale_watcher_recovery_clears_old_running_freshness_when_idle(
 ) -> None:
     root = fake_project["root"]
     state = fake_project["state"]
-    freshness_path = root / ".spec-grag/state/freshness.json"
+    freshness_path = root / ".spec-anchor/state/freshness.json"
     watcher = _watcher_module()
     snapshot = watcher.collect_source_snapshot(root)
 
@@ -780,7 +780,7 @@ def test_cli_options_override_config_for_one_watch_run(
     fake_project: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    cli = importlib.import_module("spec_grag.cli")
+    cli = importlib.import_module("spec_anchor.cli")
     watcher = _watcher_module()
     calls: list[dict[str, Any]] = []
 
@@ -788,7 +788,7 @@ def test_cli_options_override_config_for_one_watch_run(
         calls.append(kwargs)
         return {"freshness_report": {"status": "fresh", "blocking_reasons": [], "warnings": []}}
 
-    monkeypatch.setattr(watcher, "run_spec_grag_watch", fake_watch, raising=False)
+    monkeypatch.setattr(watcher, "run_spec_anchor_watch", fake_watch, raising=False)
     monkeypatch.setattr(watcher, "run_watcher_once", fake_watch, raising=False)
 
     monkeypatch.chdir(fake_project["root"])
@@ -822,7 +822,7 @@ def test_watcher_calls_internal_core_runner_not_slash_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     watcher = _watcher_module()
-    core = importlib.import_module("spec_grag.core")
+    core = importlib.import_module("spec_anchor.core")
     calls: list[str] = []
 
     def internal_runner(**_: Any) -> dict[str, Any]:
@@ -846,7 +846,7 @@ def test_watcher_internal_core_runner_sees_watcher_running_freshness_artifact(
     fake_project: dict[str, Path],
 ) -> None:
     root = fake_project["root"]
-    freshness_path = root / ".spec-grag/state/freshness.json"
+    freshness_path = root / ".spec-anchor/state/freshness.json"
     observed: list[dict[str, Any]] = []
 
     def core_runner(**_: Any) -> dict[str, Any]:
@@ -880,7 +880,7 @@ def test_watcher_heartbeat_keeps_long_internal_core_from_looking_stale(
         assert _state_updated_at(state) == 1_000_500
 
         manual_result = _call_adaptive(
-            importlib.import_module("spec_grag.core").run_spec_core,
+            importlib.import_module("spec_anchor.core").run_spec_core,
             project_root=root,
             provider=None,
             llm_provider=None,
@@ -911,7 +911,7 @@ def test_watcher_heartbeat_keeps_long_internal_core_from_looking_stale(
     final_state = json.loads(state.read_text())
     assert final_state["last_heartbeat_at_epoch_ms"] == 1_000_500
     assert final_state["last_lock"]["updated_at_epoch_ms"] == 1_000_500
-    assert final_state["last_lock_file"].endswith(".spec-grag/state/core_update.lock.json")
+    assert final_state["last_lock_file"].endswith(".spec-anchor/state/core_update.lock.json")
 
 
 def test_t_r13_continuous_mode_processes_multiple_source_changes(
@@ -948,7 +948,7 @@ def test_t_r13_continuous_mode_processes_multiple_source_changes(
         if interval_sleeps == 1:
             source.write_text("# Main\n\n## Alpha\nSecond continuous update.\n")
 
-    result = watcher.run_spec_grag_watch(
+    result = watcher.run_spec_anchor_watch(
         root,
         once=False,
         max_runs=2,

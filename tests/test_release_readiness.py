@@ -65,7 +65,7 @@ def _base_constraint() -> list[dict[str, object]]:
 
 
 def test_t_r01_root_source_tests_and_docs_do_not_depend_on_archive_or_doc_new() -> None:
-    for source_file in (REPO_ROOT / "spec_grag").glob("*.py"):
+    for source_file in (REPO_ROOT / "spec_anchor").glob("*.py"):
         tree = ast.parse(source_file.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -86,12 +86,12 @@ def test_t_r01_root_source_tests_and_docs_do_not_depend_on_archive_or_doc_new() 
 
 
 def test_t_r02_setup_generated_config_excludes_drafts(tmp_path: Path) -> None:
-    from spec_grag.project_setup import setup_project
+    from spec_anchor.project_setup import setup_project
 
     result = setup_project(tmp_path, agent="codex")
 
     assert result["status"] == "ok"
-    generated_config = tomllib.loads((tmp_path / ".spec-grag" / "config.toml").read_text(encoding="utf-8"))
+    generated_config = tomllib.loads((tmp_path / ".spec-anchor" / "config.toml").read_text(encoding="utf-8"))
     excludes = generated_config["sources"]["exclude"]
     assert excludes == ["**/drafts/**"]
 
@@ -118,10 +118,10 @@ def test_t_r03_external_dependency_tests_are_skipped_only_by_pytest_option() -> 
 
 
 def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -> None:
-    from spec_grag.project_setup import setup_project
+    from spec_anchor.project_setup import setup_project
 
-    executable = shutil.which("spec-grag")
-    assert executable is not None, "spec-grag console script must be installed for release smoke"
+    executable = shutil.which("spec-anchor")
+    assert executable is not None, "spec-anchor console script must be installed for release smoke"
 
     help_result = _run([executable, "--help"], cwd=REPO_ROOT)
     assert help_result.returncode == 0, help_result.stderr or help_result.stdout
@@ -129,7 +129,7 @@ def test_t_r04_release_smoke_uses_temp_project_and_fake_inputs(tmp_path: Path) -
 
     setup_result = setup_project(tmp_path, agent="codex")
     assert setup_result["status"] == "ok"
-    config_path = tmp_path / ".spec-grag" / "config.toml"
+    config_path = tmp_path / ".spec-anchor" / "config.toml"
     real_llm_block = """\
 [llm.providers.codex]
 command = "codex"
@@ -181,8 +181,8 @@ max_retries = 0
             'provider = "memory"',
         )
         .replace(
-            'section_collection = "spec_grag_section"',
-            'section_collection = "spec_grag_release_smoke"',
+            'section_collection = "spec_anchor_section"',
+            'section_collection = "spec_anchor_release_smoke"',
         ),
         encoding="utf-8",
     )

@@ -1,6 +1,6 @@
 """Tests for the inject CLI extensions.
 
-The `spec-grag` CLI ships five helper subcommands:
+The `spec-anchor` CLI ships five helper subcommands:
 
 * `inject-search "<query>"`
 * `inject-section "<id>" [<id>...]`
@@ -9,13 +9,13 @@ The `spec-grag` CLI ships five helper subcommands:
 * `inject-conflicts`
 
 The tests below exercise the Python entry points
-(`spec_grag.inject.run_inject_*`) directly so the assertions stay
-hermetic; the corresponding CLI dispatchers in `spec_grag.cli` are
+(`spec_anchor.inject.run_inject_*`) directly so the assertions stay
+hermetic; the corresponding CLI dispatchers in `spec_anchor.cli` are
 trivial wrappers that just print the JSON.
 
 Each test sets up a small project under `tmp_path` with a
-`.spec-grag/config.toml` and the relevant artifacts in
-`.spec-grag/context/`. Qdrant-backed paths (inject-section,
+`.spec-anchor/config.toml` and the relevant artifacts in
+`.spec-anchor/context/`. Qdrant-backed paths (inject-section,
 inject-search) are not exercised here because they require a live
 service; instead we verify the disabled / fallback behavior
 (structured warnings, no exception).
@@ -36,7 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.inject import (  # noqa: E402
+from spec_anchor.inject import (  # noqa: E402
     run_inject_chapters,
     run_inject_conflicts,
     run_inject_purpose,
@@ -55,8 +55,8 @@ def _write_project(
     config_overrides: str = "",
 ) -> Path:
     project = tmp_path / "project"
-    (project / ".spec-grag" / "context").mkdir(parents=True)
-    (project / ".spec-grag" / "state").mkdir(parents=True)
+    (project / ".spec-anchor" / "context").mkdir(parents=True)
+    (project / ".spec-anchor" / "state").mkdir(parents=True)
     (project / "docs/core").mkdir(parents=True)
     (project / "docs/core/purpose.md").write_text(purpose_text)
     (project / "docs/core/concept.md").write_text(concept_text)
@@ -70,28 +70,28 @@ def _write_project(
         concept_file = "docs/core/concept.md"
 
         [context]
-        storage = ".spec-grag/context"
+        storage = ".spec-anchor/context"
 
         [vector_store]
         provider = "qdrant"
         url = "http://localhost:6333"
-        section_collection = "spec_grag_section"
+        section_collection = "spec_anchor_section"
         {config_overrides}
         """
     )
-    (project / ".spec-grag/config.toml").write_text(config)
+    (project / ".spec-anchor/config.toml").write_text(config)
     # Each inject-* command now runs an internal freshness gate (F-C).
     # Tests that focus on inject-* behavior assume a `fresh` baseline; tests
     # that exercise the gate itself overwrite this file explicitly.
-    (project / ".spec-grag/state/freshness.json").write_text(
+    (project / ".spec-anchor/state/freshness.json").write_text(
         json.dumps({"status": "fresh", "blocking_reasons": [], "warnings": []})
     )
     if chapter_anchors is not None:
-        (project / ".spec-grag/context/chapter_anchors.json").write_text(
+        (project / ".spec-anchor/context/chapter_anchors.json").write_text(
             json.dumps(chapter_anchors)
         )
     if conflict_review_items is not None:
-        (project / ".spec-grag/context/conflict_review_items.json").write_text(
+        (project / ".spec-anchor/context/conflict_review_items.json").write_text(
             json.dumps({"conflict_review_items": conflict_review_items})
         )
     return project
@@ -118,7 +118,7 @@ def test_inject_chapters_returns_artifact_path(tmp_path: Path) -> None:
 
     assert result["command"] == "/spec-inject inject-chapters"
     assert result["status"] == "success"
-    expected_path = (project / ".spec-grag/context/chapter_anchors.json").as_posix()
+    expected_path = (project / ".spec-anchor/context/chapter_anchors.json").as_posix()
     assert result["chapter_anchors_path"] == expected_path
     assert "chapter_anchors" not in result
     assert result["warnings"] == []
@@ -154,12 +154,12 @@ def test_inject_purpose_returns_purpose_full_text_and_concept_path(tmp_path: Pat
 
 def test_inject_purpose_warns_when_purpose_file_unset(tmp_path: Path) -> None:
     project = tmp_path / "project"
-    (project / ".spec-grag" / "context").mkdir(parents=True)
-    (project / ".spec-grag" / "state").mkdir(parents=True)
-    (project / ".spec-grag" / "config.toml").write_text(
+    (project / ".spec-anchor" / "context").mkdir(parents=True)
+    (project / ".spec-anchor" / "state").mkdir(parents=True)
+    (project / ".spec-anchor" / "config.toml").write_text(
         '[core]\nconcept_file = ""\npurpose_file = ""\n'
     )
-    (project / ".spec-grag/state/freshness.json").write_text(
+    (project / ".spec-anchor/state/freshness.json").write_text(
         json.dumps({"status": "fresh", "blocking_reasons": [], "warnings": []})
     )
 
@@ -174,13 +174,13 @@ def test_inject_purpose_warns_when_purpose_file_unset(tmp_path: Path) -> None:
 
 def test_inject_purpose_warns_when_purpose_file_missing(tmp_path: Path) -> None:
     project = tmp_path / "project"
-    (project / ".spec-grag" / "context").mkdir(parents=True)
-    (project / ".spec-grag" / "state").mkdir(parents=True)
-    (project / ".spec-grag" / "config.toml").write_text(
+    (project / ".spec-anchor" / "context").mkdir(parents=True)
+    (project / ".spec-anchor" / "state").mkdir(parents=True)
+    (project / ".spec-anchor" / "config.toml").write_text(
         '[core]\npurpose_file = "docs/core/purpose.md"\n'
         'concept_file = "docs/core/concept.md"\n'
     )
-    (project / ".spec-grag/state/freshness.json").write_text(
+    (project / ".spec-anchor/state/freshness.json").write_text(
         json.dumps({"status": "fresh", "blocking_reasons": [], "warnings": []})
     )
 
@@ -231,7 +231,7 @@ def test_inject_section_returns_empty_for_no_ids(tmp_path: Path) -> None:
     assert result["sections"] == {}
     assert result["found_section_ids"] == []
     assert result["missing_section_ids"] == []
-    assert result["collection"] == "spec_grag_section"
+    assert result["collection"] == "spec_anchor_section"
 
 
 def test_inject_section_warns_when_qdrant_lookup_fails(
@@ -241,7 +241,7 @@ def test_inject_section_warns_when_qdrant_lookup_fails(
 
     project = _write_project(tmp_path)
 
-    import spec_grag.inject as inject_module
+    import spec_anchor.inject as inject_module
 
     def _raise_inject_error(url: str) -> Any:
         raise inject_module.SpecInjectError("qdrant unavailable in test")
@@ -274,8 +274,8 @@ def test_inject_search_returns_source_provenance_for_agentic_search(
 ) -> None:
     project = _write_project(tmp_path)
 
-    import spec_grag.inject as inject_module
-    import spec_grag.retrieval_index as retrieval_module
+    import spec_anchor.inject as inject_module
+    import spec_anchor.retrieval_index as retrieval_module
 
     class _Provider:
         pass
@@ -340,8 +340,8 @@ def test_inject_search_reads_retrieval_section_collection(
         ),
     )
 
-    import spec_grag.inject as inject_module
-    import spec_grag.retrieval_index as retrieval_module
+    import spec_anchor.inject as inject_module
+    import spec_anchor.retrieval_index as retrieval_module
 
     class _Provider:
         pass
@@ -386,20 +386,20 @@ def test_build_hybrid_retriever_constructs_qdrant_hybrid_retriever() -> None:
     constructor.
     """
 
-    from spec_grag.retrieval_index import (
+    from spec_anchor.retrieval_index import (
         FakeBgeM3EmbeddingProvider,
         QdrantHybridRetriever,
     )
-    from spec_grag.inject import _build_hybrid_retriever
+    from spec_anchor.inject import _build_hybrid_retriever
 
     retriever = _build_hybrid_retriever(
         "http://localhost:6333",
-        "spec_grag_section",
+        "spec_anchor_section",
         FakeBgeM3EmbeddingProvider(),
     )
 
     assert isinstance(retriever, QdrantHybridRetriever)
-    assert retriever.collection == "spec_grag_section"
+    assert retriever.collection == "spec_anchor_section"
 
 
 def test_inject_search_warns_when_embedding_provider_unavailable(
@@ -409,7 +409,7 @@ def test_inject_search_warns_when_embedding_provider_unavailable(
 
     project = _write_project(tmp_path)
 
-    import spec_grag.inject as inject_module
+    import spec_anchor.inject as inject_module
 
     def _raise_init(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("simulated FlagEmbedding load failure")

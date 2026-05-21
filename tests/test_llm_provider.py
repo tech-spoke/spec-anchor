@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.llm_provider import (
+from spec_anchor.llm_provider import (
     FakeLlmProvider,
     GenerationCache,
     LlmRequest,
@@ -144,7 +144,7 @@ def test_t_u26_real_provider_can_be_explicitly_disabled_by_tests(
         called = True
         return subprocess.CompletedProcess([], 0, stdout="{}", stderr="")
 
-    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
     provider = SubprocessLlmProvider(command, real_smoke_enabled=False)
 
     with pytest.raises(RealLlmProviderDisabledError):
@@ -156,9 +156,9 @@ def test_t_u26_real_provider_can_be_explicitly_disabled_by_tests(
 def test_t_u26_configured_real_provider_is_enabled_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.llm_provider import build_spec_core_llm_provider
+    from spec_anchor.llm_provider import build_spec_core_llm_provider
 
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
     provider = build_spec_core_llm_provider(
         {
             "providers": {
@@ -202,7 +202,7 @@ def test_t_u26_codex_provider_uses_noninteractive_exec(monkeypatch: pytest.Monke
             stderr="",
         )
 
-    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
     provider = SubprocessLlmProvider(["codex"], real_smoke_enabled=True)
 
     output = provider.generate(_request(model="gpt-test", semantic_hash=None), timeout_sec=3)
@@ -213,7 +213,7 @@ def test_t_u26_codex_provider_uses_noninteractive_exec(monkeypatch: pytest.Monke
     assert command[-1] == "-"
     assert "--json" in command
     assert "--output-schema" in command
-    assert calls[0]["kwargs"]["input"].startswith("You are the SPEC-grag /spec-core")
+    assert calls[0]["kwargs"]["input"].startswith("You are the SPEC-anchor /spec-core")
     assert "CODEX_HOME" not in calls[0]["kwargs"]["env"]
     assert "CODEX_THREAD_ID" not in calls[0]["kwargs"]["env"]
 
@@ -261,7 +261,7 @@ def test_t_u26_codex_provider_uses_batch_sections_schema(
             stderr="",
         )
 
-    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
     provider = SubprocessLlmProvider(["codex"], real_smoke_enabled=True)
     request = LlmRequest(
         task="section_metadata",
@@ -298,7 +298,7 @@ def test_t_u26_claude_provider_uses_print_and_structured_output(
             stderr="",
         )
 
-    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
     provider = SubprocessLlmProvider(["claude"], real_smoke_enabled=True)
 
     output = provider.generate(_request(model="real-smoke"), timeout_sec=3)
@@ -405,12 +405,12 @@ def test_t_i16_generation_cache_misses_on_model_change(tmp_path: Path) -> None:
 
 
 def test_t_u26_llm_config_scope_is_spec_core_only() -> None:
-    import spec_grag.llm_provider as llm_provider
+    import spec_anchor.llm_provider as llm_provider
 
     validate_scope = getattr(llm_provider, "validate_llm_usage_scope", None)
     assert callable(
         validate_scope
-    ), "spec_grag.llm_provider.validate_llm_usage_scope(scope) is required"
+    ), "spec_anchor.llm_provider.validate_llm_usage_scope(scope) is required"
 
     assert validate_scope("/spec-core") == "/spec-core"
     for agent_scope in ("/spec-inject", "/spec-realign", "agent"):
@@ -425,7 +425,7 @@ def test_t_u26_llm_config_scope_is_spec_core_only() -> None:
 def test_t_u26_multi_llm_config_selects_explicit_agent_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
     config = {
         "providers": {
             "codex": {

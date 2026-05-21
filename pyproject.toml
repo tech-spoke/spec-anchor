@@ -3,14 +3,14 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spec-grag"
+name = "spec-anchor"
 version = "0.1.0"
 description = "Lightweight specification context tooling for Agent and LLM workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [
-  { name = "SPEC-grag contributors" }
+  { name = "SPEC-anchor contributors" }
 ]
 dependencies = [
   "markdown-it-py>=3,<5",
@@ -27,22 +27,22 @@ retrieval = [
 ]
 
 [project.scripts]
-spec-grag = "spec_grag.cli:main"
-spec-grag-slash = "spec_grag.cli:slash_main"
-spec-grag-watch = "spec_grag.cli:watch_main"
-spec-grag-setup-project = "spec_grag.cli:setup_project_main"
-spec-grag-setup-system = "spec_grag.cli:setup_system_main"
+spec-anchor = "spec_anchor.cli:main"
+spec-anchor-slash = "spec_anchor.cli:slash_main"
+spec-anchor-watch = "spec_anchor.cli:watch_main"
+spec-anchor-setup-project = "spec_anchor.cli:setup_project_main"
+spec-anchor-setup-system = "spec_anchor.cli:setup_system_main"
 
 [tool.setuptools]
-packages = ["spec_grag"]
+packages = ["spec_anchor"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-spec_grag = [
-  "templates/.codex/skills/spec-grag/*.md",
+spec_anchor = [
+  "templates/.codex/skills/spec-anchor/*.md",
   "templates/.claude/commands/*.md",
-  "templates/.spec-grag/config.toml",
-  "templates/.spec-grag/.gitignore",
+  "templates/.spec-anchor/config.toml",
+  "templates/.spec-anchor/.gitignore",
 ]
 
 [tool.pytest.ini_options]

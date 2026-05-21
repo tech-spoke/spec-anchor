@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.llm_provider import LlmRequest
+from spec_anchor.llm_provider import LlmRequest
 
 
 ALLOWED_RELATION_HINTS = {
@@ -54,7 +54,7 @@ class RelatedSelectionProvider:
 
 
 def _related_module() -> Any:
-    module = importlib.import_module("spec_grag.section_metadata")
+    module = importlib.import_module("spec_anchor.section_metadata")
     return module
 
 
@@ -499,15 +499,15 @@ def test_t_i06_fake_llm_selection_uses_only_candidates_and_builds_related_sectio
 def test_related_sections_configured_provider_runs_without_env_gate_and_reports_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = importlib.import_module("spec_grag.related_sections")
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    module = importlib.import_module("spec_anchor.related_sections")
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:
         calls.append(command)
         return SimpleNamespace(returncode=1, stderr="codex denied", stdout="")
 
-    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
     sections = _fixture_sections()
     candidates = [
         {
@@ -632,7 +632,7 @@ def test_related_sections_are_reference_helpers_not_evidence() -> None:
 
 
 def test_specificity_filter_drops_generic_identifiers() -> None:
-    module = importlib.import_module("spec_grag.related_sections")
+    module = importlib.import_module("spec_anchor.related_sections")
     # generic English & Japanese terms must be filtered out
     assert not module._is_specific_term("user")
     assert not module._is_specific_term("API")  # 3 chars
@@ -647,7 +647,7 @@ def test_specificity_filter_drops_generic_identifiers() -> None:
 
 
 def test_qdrant_section_hybrid_channel_is_present_in_candidate_set() -> None:
-    module = importlib.import_module("spec_grag.related_sections")
+    module = importlib.import_module("spec_anchor.related_sections")
     assert "qdrant_section_hybrid" in module.MVP_CANDIDATE_CHANNELS
     assert module.QDRANT_SECTION_HYBRID == "qdrant_section_hybrid"
 
@@ -659,8 +659,8 @@ def test_qdrant_section_hybrid_uses_retrieval_section_collection(
     The legacy `[vector_store].section_collection` / `[vector_store].collection`
     fallback chain was removed; the single key path is the only contract."""
 
-    module = importlib.import_module("spec_grag.related_sections")
-    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    module = importlib.import_module("spec_anchor.related_sections")
+    retrieval_module = importlib.import_module("spec_anchor.retrieval_index")
     sections = _fixture_sections()
     metadata = _metadata_for(sections)
     captured: dict[str, str] = {}
@@ -697,7 +697,7 @@ def test_qdrant_section_hybrid_uses_retrieval_section_collection(
 
 def test_legacy_channels_are_removed_from_module() -> None:
     """T-Phase-C: regression guard for the deleted pattern-matching channels."""
-    module = importlib.import_module("spec_grag.related_sections")
+    module = importlib.import_module("spec_anchor.related_sections")
     legacy_constants = {"SAME_CHAPTER", "NEIGHBOR_SECTION", "SUMMARY_SEARCH"}
     for name in legacy_constants:
         assert not hasattr(module, name), f"{name} must be removed from related_sections"
@@ -714,7 +714,7 @@ def test_legacy_channels_are_removed_from_module() -> None:
 
 
 def test_qdrant_section_hybrid_candidate_generation_produces_candidates() -> None:
-    module = importlib.import_module("spec_grag.related_sections")
+    module = importlib.import_module("spec_anchor.related_sections")
     sections = _fixture_sections()
     metadata = _metadata_for(sections)
     payload = module.generate_related_section_candidates(
@@ -742,7 +742,7 @@ def test_aud007_qdrant_unconfigured_uses_inmemory_success() -> None:
     """AUD-007: Qdrant 未設定 (`vector_store.provider != "qdrant"`) では
     InMemoryHybridRetriever を最初から使い、`qdrant_backend_failure` は出ない。
     """
-    module = importlib.import_module("spec_grag.related_sections")
+    module = importlib.import_module("spec_anchor.related_sections")
     sections = _fixture_sections()
     metadata = _metadata_for(sections)
 
@@ -773,8 +773,8 @@ def test_aud007_qdrant_backend_initialization_failure_returns_failure_descriptor
     例外を投げた場合、InMemory fallback には落ちず `qdrant_backend_failure`
     descriptor が candidate generation result に乗る (旧 silent fallback 削除)。
     """
-    module = importlib.import_module("spec_grag.related_sections")
-    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    module = importlib.import_module("spec_anchor.related_sections")
+    retrieval_module = importlib.import_module("spec_anchor.retrieval_index")
     sections = _fixture_sections()
     metadata = _metadata_for(sections)
 
@@ -829,8 +829,8 @@ def test_aud007_qdrant_normal_no_fallback_diagnostic(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AUD-007: 正常に Qdrant が動く場合、`qdrant_backend_failure` は None。"""
-    module = importlib.import_module("spec_grag.related_sections")
-    retrieval_module = importlib.import_module("spec_grag.retrieval_index")
+    module = importlib.import_module("spec_anchor.related_sections")
+    retrieval_module = importlib.import_module("spec_anchor.retrieval_index")
     sections = _fixture_sections()
     metadata = _metadata_for(sections)
 
@@ -875,7 +875,7 @@ def test_llm_batch_concurrency_runs_batches_in_parallel() -> None:
     import time
     import importlib
 
-    rs_module = importlib.import_module("spec_grag.related_sections")
+    rs_module = importlib.import_module("spec_anchor.related_sections")
 
     sections_in = [
         {
@@ -979,7 +979,7 @@ def test_llm_batch_concurrency_default_is_parallel() -> None:
     empty inputs verifies the default-fallback path still terminates cleanly."""
     import importlib
 
-    rs_module = importlib.import_module("spec_grag.related_sections")
+    rs_module = importlib.import_module("spec_anchor.related_sections")
     cfg = SimpleNamespace(
         llm=SimpleNamespace(model="fake", effort="low", timeout_sec=5, max_retries=0),
         limits=SimpleNamespace(
@@ -1009,8 +1009,8 @@ def test_pair_level_typing_cache_skips_unchanged_pairs(tmp_path: Path) -> None:
     """
     import importlib
 
-    rs_module = importlib.import_module("spec_grag.related_sections")
-    cache_module = importlib.import_module("spec_grag.related_typing_cache")
+    rs_module = importlib.import_module("spec_anchor.related_sections")
+    cache_module = importlib.import_module("spec_anchor.related_typing_cache")
 
     sections_in = [
         {

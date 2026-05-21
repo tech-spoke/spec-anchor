@@ -1,6 +1,6 @@
 """Config Loader contract tests.
 
-These tests pin the lightweight SPEC-grag config contract before the builder
+These tests pin the lightweight SPEC-anchor config contract before the builder
 implementation exists.  The loader may return dataclasses or dictionaries; the
 assertion helpers below intentionally accept both shapes.
 """
@@ -30,7 +30,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -85,8 +85,8 @@ enabled = true
 interval_ms = 2000
 debounce_ms = 1000
 stale_lock_ms = 300000
-state_file = ".spec-grag/state/watch_state.json"
-queue_file = ".spec-grag/state/watch_queue.json"
+state_file = ".spec-anchor/state/watch_state.json"
+queue_file = ".spec-anchor/state/watch_queue.json"
 """
 
 
@@ -122,9 +122,9 @@ REQUIRED_KEY_CASES = (
 
 
 def _load_config(project_root: Path) -> Any:
-    module = importlib.import_module("spec_grag.config")
+    module = importlib.import_module("spec_anchor.config")
     load_config = getattr(module, "load_config", None)
-    assert callable(load_config), "spec_grag.config.load_config(project_root) is required"
+    assert callable(load_config), "spec_anchor.config.load_config(project_root) is required"
     return load_config(project_root)
 
 
@@ -162,8 +162,8 @@ def _source_files(config: Any) -> list[Path]:
 
 
 def _write_project(project_root: Path, config_text: str = STANDARD_CONFIG) -> None:
-    (project_root / ".spec-grag").mkdir(parents=True)
-    (project_root / ".spec-grag" / "config.toml").write_text(config_text)
+    (project_root / ".spec-anchor").mkdir(parents=True)
+    (project_root / ".spec-anchor" / "config.toml").write_text(config_text)
     (project_root / "docs" / "core").mkdir(parents=True)
     (project_root / "docs" / "core" / "purpose.md").write_text("# Purpose\n")
     (project_root / "docs" / "core" / "concept.md").write_text("# Concept\n")
@@ -194,7 +194,7 @@ def test_t_u05_standard_config_parses_and_resolves_project_relative_paths(
 
     assert _path(_get(config, "core", "purpose_file")) == project_root / "docs/core/purpose.md"
     assert _path(_get(config, "core", "concept_file")) == project_root / "docs/core/concept.md"
-    assert _path(_get(config, "context", "storage")) == project_root / ".spec-grag/context"
+    assert _path(_get(config, "context", "storage")) == project_root / ".spec-anchor/context"
     assert project_root / "docs/spec/main.md" in _source_files(config)
 
 
@@ -220,7 +220,7 @@ def test_t_u05_defaults_are_applied_when_optional_tables_are_omitted(
     config = _load_config(project_root)
 
     assert _get(config, "section", "max_heading_level") == 4
-    assert _path(_get(config, "context", "storage")) == project_root / ".spec-grag/context"
+    assert _path(_get(config, "context", "storage")) == project_root / ".spec-anchor/context"
     assert _get(config, "section_metadata", "summary_enabled") is True
     assert _get(config, "section_metadata", "search_keys_enabled") is True
     assert _get(config, "section_metadata", "related_sections_enabled") is True
@@ -262,7 +262,7 @@ def test_t_u06_missing_config_file_fails_without_parent_directory_search(
     _write_project(parent)
     child.mkdir()
 
-    _assert_config_error(child, ".spec-grag/config.toml")
+    _assert_config_error(child, ".spec-anchor/config.toml")
 
 
 @pytest.mark.parametrize(
@@ -317,7 +317,7 @@ def test_t_u06_type_mismatches_fail(
 
 
 def test_t_r01_root_source_does_not_import_archive_old_implementation() -> None:
-    source_root = REPO_ROOT / "spec_grag"
+    source_root = REPO_ROOT / "spec_anchor"
     forbidden_fragments = (
         "archive.",
         "archive/",

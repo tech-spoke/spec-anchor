@@ -9,7 +9,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_STATE_DIR = REPO_ROOT / ".spec-grag"
+RUNTIME_STATE_DIR = REPO_ROOT / ".spec-anchor"
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -48,20 +48,20 @@ def _default_fake_providers(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests default to in-process fake LLM + fake retrieval so that fixtures
     do not spawn real `codex` / `claude` subprocesses or download FlagEmbedding
     BGE-M3 weights. Real-mode integration tests opt out per concern via
-    ``monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)`` and / or
-    ``monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)``.
+    ``monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)`` and / or
+    ``monkeypatch.delenv("SPEC_ANCHOR_FAKE_RETRIEVAL", raising=False)``.
     """
 
-    monkeypatch.setenv("SPEC_GRAG_FAKE_LLM", "1")
-    monkeypatch.setenv("SPEC_GRAG_FAKE_RETRIEVAL", "1")
+    monkeypatch.setenv("SPEC_ANCHOR_FAKE_LLM", "1")
+    monkeypatch.setenv("SPEC_ANCHOR_FAKE_RETRIEVAL", "1")
 
 
 def _prepend_venv_to_path() -> None:
-    """Make `spec-grag` console scripts visible to `shutil.which` during tests.
+    """Make `spec-anchor` console scripts visible to `shutil.which` during tests.
 
     The repo's `.venv/bin` is the install site for the project's console
-    scripts (`spec-grag`, `spec-grag-watch`, etc.). Without this, T-P02 / T-R04
-    fail with "spec-grag is not installed on PATH" when pytest is invoked from
+    scripts (`spec-anchor`, `spec-anchor-watch`, etc.). Without this, T-P02 / T-R04
+    fail with "spec-anchor is not installed on PATH" when pytest is invoked from
     a shell that has not activated the venv.
     """
 
@@ -76,12 +76,12 @@ def _prepend_venv_to_path() -> None:
 
 
 def _stash_runtime_state_for_session(config: pytest.Config) -> None:
-    """Move repo-root `.spec-grag/` aside while the test session runs.
+    """Move repo-root `.spec-anchor/` aside while the test session runs.
 
     This matches the manual workflow already used during development
-    (`.spec-grag.backup-before-full-suite-*` directories): when the user
-    self-uses `spec-grag` against `テスト用ドキュメント/` from the repo root,
-    runtime artifacts accumulate at `.spec-grag/`. Tests like T-P06 require
+    (`.spec-anchor.backup-before-full-suite-*` directories): when the user
+    self-uses `spec-anchor` against `テスト用ドキュメント/` from the repo root,
+    runtime artifacts accumulate at `.spec-anchor/`. Tests like T-P06 require
     a clean root, so we move the directory aside and restore it at session
     end, even if pytest is interrupted.
     """
@@ -89,10 +89,10 @@ def _stash_runtime_state_for_session(config: pytest.Config) -> None:
     if not RUNTIME_STATE_DIR.exists():
         return
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    stash = REPO_ROOT / f".spec-grag.pytest-stash-{timestamp}"
+    stash = REPO_ROOT / f".spec-anchor.pytest-stash-{timestamp}"
     while stash.exists():
         timestamp = time.strftime("%Y%m%d-%H%M%S-%f")
-        stash = REPO_ROOT / f".spec-grag.pytest-stash-{timestamp}"
+        stash = REPO_ROOT / f".spec-anchor.pytest-stash-{timestamp}"
     shutil.move(str(RUNTIME_STATE_DIR), str(stash))
     config.stash[_STASH_KEY] = stash
 
@@ -102,9 +102,9 @@ def _restore_runtime_state(config: pytest.Config) -> None:
     if stash is None or not Path(stash).exists():
         return
     if RUNTIME_STATE_DIR.exists():
-        # The test run created a fresh `.spec-grag/` (e.g. project_setup tests
+        # The test run created a fresh `.spec-anchor/` (e.g. project_setup tests
         # working in tmp_path that leaked, or a watcher-leak). Keep both.
-        leak_dir = REPO_ROOT / f".spec-grag.test-leak-{time.strftime('%Y%m%d-%H%M%S')}"
+        leak_dir = REPO_ROOT / f".spec-anchor.test-leak-{time.strftime('%Y%m%d-%H%M%S')}"
         shutil.move(str(RUNTIME_STATE_DIR), str(leak_dir))
     shutil.move(str(stash), str(RUNTIME_STATE_DIR))
 

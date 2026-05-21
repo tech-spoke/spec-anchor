@@ -1,11 +1,11 @@
 """Model / effort calibration scaffolding.
 
 These tests exercise the actual `claude` CLI against representative
-SPEC-grag prompts to measure schema validation pass rate, required-field
+SPEC-anchor prompts to measure schema validation pass rate, required-field
 fill rate, and per-call latency for each (stage, model, effort) cell of
 the calibration matrix defined below.
 
-The tests are gated behind `SPEC_GRAG_LOCAL_SERVICE=1` because they
+The tests are gated behind `SPEC_ANCHOR_LOCAL_SERVICE=1` because they
 incur real LLM cost and require the `claude` console script on PATH.
 Run them when calibrating; their results feed the production model /
 effort selection.
@@ -40,7 +40,7 @@ pytestmark = pytest.mark.external
 
 
 def _local_service_enabled() -> bool:
-    return os.environ.get("SPEC_GRAG_LOCAL_SERVICE", "").lower() in {"1", "true", "yes", "on"}
+    return os.environ.get("SPEC_ANCHOR_LOCAL_SERVICE", "").lower() in {"1", "true", "yes", "on"}
 
 
 def _claude_available() -> bool:
@@ -73,7 +73,7 @@ def test_calibrate_stage_model_effort(stage: str, model: str, effort: str) -> No
 
     if not _local_service_enabled():
         pytest.skip(
-            "SPEC_GRAG_LOCAL_SERVICE=1 not set; calibration matrix is documentation-only "
+            "SPEC_ANCHOR_LOCAL_SERVICE=1 not set; calibration matrix is documentation-only "
             "until an operator runs the real-call evaluation"
         )
     if not _claude_available():

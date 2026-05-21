@@ -21,8 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.llm_provider import LlmRequest
-from spec_grag.section_parser import Section, parse_markdown_sections
+from spec_anchor.llm_provider import LlmRequest
+from spec_anchor.section_parser import Section, parse_markdown_sections
 
 
 @dataclass
@@ -127,18 +127,18 @@ def _generate(
     rebuild_all: bool = True,
 ) -> Any:
     try:
-        module = importlib.import_module("spec_grag.section_metadata")
+        module = importlib.import_module("spec_anchor.section_metadata")
     except ModuleNotFoundError as exc:
-        if exc.name == "spec_grag.section_metadata":
+        if exc.name == "spec_anchor.section_metadata":
             pytest.fail(
-                "spec_grag.section_metadata module is required for G-06 "
+                "spec_anchor.section_metadata module is required for G-06 "
                 "Section Metadata generation"
             )
         raise
     generate = getattr(module, "generate_section_metadata", None)
     assert callable(
         generate
-    ), "spec_grag.section_metadata.generate_section_metadata(...) is required"
+    ), "spec_anchor.section_metadata.generate_section_metadata(...) is required"
 
     signature = inspect.signature(generate)
     kwargs: dict[str, Any] = {}
@@ -256,15 +256,15 @@ def test_t_u21_generated_section_metadata_entries_have_required_fields() -> None
 def test_section_metadata_configured_provider_runs_without_env_gate_and_reports_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = importlib.import_module("spec_grag.section_metadata")
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
+    module = importlib.import_module("spec_anchor.section_metadata")
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> SimpleNamespace:
         calls.append(command)
         return SimpleNamespace(returncode=1, stderr="codex denied", stdout="")
 
-    monkeypatch.setattr("spec_grag.llm_provider.subprocess.run", fake_run)
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
 
     result = module.generate_section_metadata_result(
         _sections()[:1],
@@ -441,7 +441,7 @@ def test_search_keys_and_identifiers_are_disjoint() -> None:
 
 
 def test_section_metadata_prompt_includes_role_constraint_instructions() -> None:
-    module = importlib.import_module("spec_grag.section_metadata")
+    module = importlib.import_module("spec_anchor.section_metadata")
     sections = _sections()
     provider = IdentifierLikeSearchKeyProvider()
 
@@ -463,7 +463,7 @@ def test_section_metadata_prompt_includes_role_constraint_instructions() -> None
 
 
 def test_section_metadata_prompt_version_is_v2() -> None:
-    module = importlib.import_module("spec_grag.section_metadata")
+    module = importlib.import_module("spec_anchor.section_metadata")
     assert module.SECTION_METADATA_PROMPT_VERSION == "section-metadata-v2", (
         "Phase R-0 requires the section_metadata prompt_version to be bumped to "
         "section-metadata-v2 so existing caches are invalidated."

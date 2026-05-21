@@ -1,0 +1,86 @@
+[sources]
+include = ["docs/spec/**/*.md"]
+exclude = ["archive/**", "**/drafts/**"]
+
+[core]
+purpose_file = "docs/core/purpose.md"
+concept_file = "docs/core/concept.md"
+
+[context]
+storage = ".spec-anchor/context"
+
+[section]
+max_heading_level = 4
+
+[section_metadata]
+summary_enabled = true
+search_keys_enabled = true
+related_sections_enabled = true
+
+[chapter_anchor]
+enabled = true
+
+[llm.providers.codex]
+command = "codex"
+model = "gpt-5.4-mini"
+effort = "low"
+timeout_sec = 120
+max_retries = 1
+
+[llm.providers.claude_typing]
+command = "claude"
+model = "claude-sonnet-4-6"
+effort = "low"
+timeout_sec = 360
+max_retries = 1
+
+[llm.providers.claude_judge]
+command = "claude"
+model = "claude-sonnet-4-6"
+effort = "low"
+timeout_sec = 360
+max_retries = 1
+
+[llm.stage_routing]
+section_metadata  = "codex"           # gpt-5.4-mini / low (抽出最速)
+related_sections  = "claude_typing"   # sonnet-4-6 / low (recall 0% empty で最良)
+conflict_review   = "claude_judge"    # sonnet-4-6 / low (暫定、conflict fixture で要確認)
+chapter_key_anchor = "codex"          # gpt-5.4-mini / low
+
+[retrieval]
+dense_top_k = 12
+sparse_top_k = 20
+rank_fusion = "rrf"
+section_collection = "spec_anchor_section"
+section_dense_threshold = 0.55
+section_candidate_top_k = 16
+section_final_top_n = 8
+
+[embedding]
+provider = "flagembedding"
+model = "BAAI/bge-m3"
+dense_enabled = true
+sparse_enabled = true
+
+[vector_store]
+provider = "qdrant"
+url = "http://localhost:6333"
+
+[limits]
+section_summary_max_chars = 480
+search_keys_max = 32
+related_candidate_max_per_section = 32
+related_selected_max_per_section = 8
+conflict_pair_max_per_section = 8
+llm_batch_max_sections = 8
+llm_batch_max_chars = 12000
+# Codex Pro 5x + Claude Max 5x 環境で 4 並列。8 でも余裕あり、user 判断で増減可
+llm_batch_concurrency = 4
+
+[watcher]
+enabled = true
+interval_ms = 2000
+debounce_ms = 1000
+stale_lock_ms = 300000
+state_file = ".spec-anchor/state/watch_state.json"
+queue_file = ".spec-anchor/state/watch_queue.json"

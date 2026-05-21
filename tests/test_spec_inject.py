@@ -34,7 +34,7 @@ purpose_file = "docs/core/purpose.md"
 concept_file = "docs/core/concept.md"
 
 [context]
-storage = ".spec-grag/context"
+storage = ".spec-anchor/context"
 
 [section]
 max_heading_level = 4
@@ -156,7 +156,7 @@ class PendingConflictSpecCoreProvider(FakeSpecCoreProvider):
 
 
 def _inject_module() -> Any:
-    return importlib.import_module("spec_grag.inject")
+    return importlib.import_module("spec_anchor.inject")
 
 
 def _run_spec_inject(project_root: Path, **kwargs: Any) -> Any:
@@ -175,7 +175,7 @@ def _run_spec_inject(project_root: Path, **kwargs: Any) -> Any:
 
 
 def _run_spec_core(project_root: Path) -> dict[str, Any]:
-    from spec_grag.core import run_spec_core
+    from spec_anchor.core import run_spec_core
 
     result = run_spec_core(
         project_root=project_root,
@@ -191,8 +191,8 @@ def _run_spec_core(project_root: Path) -> dict[str, Any]:
 
 
 def _write_project(project_root: Path) -> dict[str, Path]:
-    (project_root / ".spec-grag").mkdir(parents=True)
-    (project_root / ".spec-grag" / "config.toml").write_text(CONFIG)
+    (project_root / ".spec-anchor").mkdir(parents=True)
+    (project_root / ".spec-anchor" / "config.toml").write_text(CONFIG)
     (project_root / "docs/core").mkdir(parents=True)
     (project_root / "docs/spec").mkdir(parents=True)
     purpose = project_root / "docs/core/purpose.md"
@@ -398,7 +398,7 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
     project_root = tmp_path / "project"
     _write_conflicting_project(project_root)
 
-    from spec_grag.core import run_spec_core
+    from spec_anchor.core import run_spec_core
 
     core_result = run_spec_core(
         project_root=project_root,
@@ -416,7 +416,7 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
     assert _value(freshness, "status") == "blocked"
     assert _value(freshness, "blocking_reasons") == ["pending_conflict"]
 
-    artifact_path = project_root / ".spec-grag/context/conflict_review_items.json"
+    artifact_path = project_root / ".spec-anchor/context/conflict_review_items.json"
     artifact = json.loads(artifact_path.read_text())
     pending_items = [
         item
@@ -463,7 +463,7 @@ def test_t_u18_blocked_or_failed_inject_stops_without_running_spec_core(
 ) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
-    import spec_grag.core as core_module
+    import spec_anchor.core as core_module
 
     calls: list[Any] = []
 
@@ -517,7 +517,7 @@ def test_spec_inject_reads_freshness_artifact_without_recomputing_core(tmp_path:
     project_root = tmp_path / "project"
     _write_project(project_root)
     _run_spec_core(project_root)
-    freshness_path = project_root / ".spec-grag/state/freshness.json"
+    freshness_path = project_root / ".spec-anchor/state/freshness.json"
     freshness = json.loads(freshness_path.read_text())
     assert freshness["status"] == "fresh"
 

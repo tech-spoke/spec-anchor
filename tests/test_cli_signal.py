@@ -1,6 +1,6 @@
 """Tests for SIGTERM → SystemExit conversion in CLI entry points.
 
-`/spec-core` runs hold a `.spec-grag/state/core_update.lock.json` lock that
+`/spec-core` runs hold a `.spec-anchor/state/core_update.lock.json` lock that
 must be released via `try/finally`. Python's default SIGTERM handler kills
 the process without unwinding the stack, so the lock would leak after a
 ``kill PID``. The CLI installs a SIGTERM handler that calls ``sys.exit``,
@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.cli import _install_termination_handler
+from spec_anchor.cli import _install_termination_handler
 
 
 def test_install_termination_handler_replaces_default(monkeypatch):

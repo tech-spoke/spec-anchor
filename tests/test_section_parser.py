@@ -27,11 +27,11 @@ def _parse_sections(
     max_heading_level: int = 4,
     source_document_id: str = "docs/spec/sample.md",
 ) -> list[Any]:
-    module = importlib.import_module("spec_grag.section_parser")
+    module = importlib.import_module("spec_anchor.section_parser")
     parse_markdown_sections = getattr(module, "parse_markdown_sections", None)
     assert callable(
         parse_markdown_sections
-    ), "spec_grag.section_parser.parse_markdown_sections(...) is required"
+    ), "spec_anchor.section_parser.parse_markdown_sections(...) is required"
     signature = inspect.signature(parse_markdown_sections)
     if "source_document_id" in signature.parameters:
         sections = parse_markdown_sections(

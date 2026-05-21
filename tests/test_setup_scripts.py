@@ -62,7 +62,7 @@ def _run_project_setup(
     force: bool = False,
     no_init_core_files: bool = False,
 ) -> Any:
-    for module_name in ("spec_grag.setup", "spec_grag.cli"):
+    for module_name in ("spec_anchor.setup", "spec_anchor.cli"):
         try:
             module = importlib.import_module(module_name)
         except ModuleNotFoundError:
@@ -112,7 +112,7 @@ def _run_system_setup(
     mode: str = "editable",
     qdrant_url: str | None = None,
 ) -> Any:
-    for module_name in ("spec_grag.setup", "spec_grag.cli"):
+    for module_name in ("spec_anchor.setup", "spec_anchor.cli"):
         try:
             module = importlib.import_module(module_name)
         except ModuleNotFoundError:
@@ -158,7 +158,7 @@ def _project_files(root: Path) -> set[str]:
 
 
 def _config_core_paths(root: Path) -> tuple[Path, Path]:
-    config_path = root / ".spec-grag" / "config.toml"
+    config_path = root / ".spec-anchor" / "config.toml"
     assert config_path.is_file()
     config = tomllib.loads(config_path.read_text())
     core = config["core"]
@@ -166,7 +166,7 @@ def _config_core_paths(root: Path) -> tuple[Path, Path]:
 
 
 def _codex_project_skill_path(root: Path) -> Path:
-    return root / ".codex" / "skills" / "spec-grag" / "SKILL.md"
+    return root / ".codex" / "skills" / "spec-anchor" / "SKILL.md"
 
 
 @pytest.mark.parametrize(
@@ -186,8 +186,8 @@ def test_t_s01_project_setup_creates_agent_specific_files(
     result = _run_project_setup(tmp_path, agent=agent)
 
     _assert_success(result)
-    assert (tmp_path / ".spec-grag" / "config.toml").is_file()
-    assert (tmp_path / ".spec-grag" / ".gitignore").is_file()
+    assert (tmp_path / ".spec-anchor" / "config.toml").is_file()
+    assert (tmp_path / ".spec-anchor" / ".gitignore").is_file()
     for command_name in COMMAND_NAMES:
         assert (tmp_path / ".claude" / "commands" / command_name).is_file() is expect_claude
 
@@ -218,7 +218,7 @@ def test_t_s01_no_init_core_files_leaves_spec_core_clearly_blocked(
     (tmp_path / "docs/spec").mkdir(parents=True, exist_ok=True)
     (tmp_path / "docs/spec/main.md").write_text("# Main\nA source spec exists.\n")
 
-    from spec_grag.core import run_spec_core
+    from spec_anchor.core import run_spec_core
 
     result = run_spec_core(tmp_path, all_mode=True)
     message = json.dumps(result, ensure_ascii=False).lower()
@@ -231,7 +231,7 @@ def test_t_s01_no_init_core_files_leaves_spec_core_clearly_blocked(
 def test_t_s01_setup_does_not_run_spec_core_automatically(tmp_path: Path) -> None:
     _assert_success(_run_project_setup(tmp_path))
 
-    context_dir = tmp_path / ".spec-grag" / "context"
+    context_dir = tmp_path / ".spec-anchor" / "context"
     if context_dir.exists():
         generated = {path.name for path in context_dir.rglob("*") if path.is_file()}
         assert generated.isdisjoint(
@@ -251,8 +251,8 @@ def test_t_s01_dry_run_does_not_modify_target(tmp_path: Path) -> None:
 
     _assert_success(result)
     assert _project_files(tmp_path) == before
-    assert ".codex/skills/spec-grag/SKILL.md" in set(result.get("created", ()))
-    assert result.get("codex_skill_path") == ".codex/skills/spec-grag/SKILL.md"
+    assert ".codex/skills/spec-anchor/SKILL.md" in set(result.get("created", ()))
+    assert result.get("codex_skill_path") == ".codex/skills/spec-anchor/SKILL.md"
 
 
 def test_t_s01_project_setup_rejects_missing_target(tmp_path: Path) -> None:
@@ -269,7 +269,7 @@ def test_t_s01_project_setup_rejects_missing_target(tmp_path: Path) -> None:
 def test_t_s01_existing_files_are_not_silently_overwritten_without_force(
     tmp_path: Path,
 ) -> None:
-    existing = tmp_path / ".spec-grag" / "config.toml"
+    existing = tmp_path / ".spec-anchor" / "config.toml"
     existing.parent.mkdir(parents=True)
     existing.write_text("# human-owned config\nsentinel = true\n")
 
@@ -330,7 +330,7 @@ def test_t_s01_force_does_not_overwrite_absolute_configured_core_files(
     default_purpose_file.write_text(default_purpose)
     default_concept_file.write_text(default_concept)
 
-    config_path = tmp_path / ".spec-grag" / "config.toml"
+    config_path = tmp_path / ".spec-anchor" / "config.toml"
     config_path.parent.mkdir()
     config_path.write_text(
         "\n".join(
@@ -357,7 +357,7 @@ def test_t_s01_force_does_not_overwrite_absolute_configured_core_files(
 def test_t_s01_project_gitignore_contains_runtime_state_paths(tmp_path: Path) -> None:
     _assert_success(_run_project_setup(tmp_path))
 
-    ignore_text = (tmp_path / ".spec-grag" / ".gitignore").read_text()
+    ignore_text = (tmp_path / ".spec-anchor" / ".gitignore").read_text()
     for ignored in ("context/", "cache/", "state/"):
         assert ignored in ignore_text
 
@@ -432,7 +432,7 @@ def _assert_agentic_constraint_workflow_text(text: str) -> None:
 def _assert_realign_answer_workflow_text(text: str) -> None:
     lower = text.lower()
     for expected in (
-        "spec-grag realign",
+        "spec-anchor realign",
         "--answer-json",
         "今回守る制約",
         "今回扱う修正候補または検討対象",
@@ -504,7 +504,7 @@ def test_t_c01_command_and_skill_templates_are_japanese_prose(
     for path in paths:
         text = path.read_text()
         lower = text.lower()
-        assert "spec-grag" in lower
+        assert "spec-anchor" in lower
         assert "人間" in lower
         assert "自動" in lower or "検証" in lower
         assert "purpose" in lower
@@ -519,9 +519,9 @@ def test_t_c01_agent_core_entrypoints_select_their_own_llm_provider(
     claude_core = (tmp_path / ".claude" / "commands" / "spec-core.md").read_text()
     codex_skill = _codex_project_skill_path(tmp_path).read_text()
 
-    assert "spec-grag core" in claude_core
+    assert "spec-anchor core" in claude_core
     assert "stage_routing" in claude_core
-    assert "spec-grag core" in codex_skill
+    assert "spec-anchor core" in codex_skill
     assert "stage_routing" in codex_skill
 
 
@@ -552,7 +552,7 @@ def test_t_c01_claude_command_templates_have_command_frontmatter(
         metadata = _front_matter(text)
         assert "description:" in metadata
         assert "allowed-tools:" in metadata
-        assert "spec-grag" in metadata
+        assert "spec-anchor" in metadata
 
 
 @pytest.mark.parametrize("command_name", ("spec-inject.md", "spec-realign.md"))
@@ -567,10 +567,10 @@ def test_t_c01_inject_and_realign_templates_allow_agentic_search_tools_without_c
     lower = metadata.lower()
     for tool in ("read", "grep", "glob"):
         assert tool in lower
-    assert "bash(spec-grag inject" in lower
+    assert "bash(spec-anchor inject" in lower
     if command_name == "spec-realign.md":
-        assert "bash(spec-grag realign" in lower
-    assert "bash(spec-grag core" not in lower
+        assert "bash(spec-anchor realign" in lower
+    assert "bash(spec-anchor core" not in lower
 
 
 @pytest.mark.parametrize("command_name", ("spec-inject.md", "spec-realign.md"))
@@ -583,8 +583,8 @@ def test_t_c01_inject_and_realign_metadata_do_not_allow_spec_core(
     text = (tmp_path / ".claude" / "commands" / command_name).read_text()
     metadata = _front_matter(text)
     lower_metadata = metadata.lower()
-    assert "spec-grag core" not in lower_metadata
-    assert "bash(spec-grag core" not in lower_metadata
+    assert "spec-anchor core" not in lower_metadata
+    assert "bash(spec-anchor core" not in lower_metadata
 
     lower_text = text.lower()
     assert "`/spec-core` は自動実行しない" in lower_text
@@ -600,13 +600,13 @@ def test_t_c01_codex_skill_has_required_frontmatter_and_no_command_dir(
     metadata = _front_matter(text)
     lower = text.lower()
 
-    assert "name: spec-grag" in metadata
+    assert "name: spec-anchor" in metadata
     assert "description:" in metadata
     assert "short-description:" in metadata
     assert "仕様に基づくコンテキスト" in text
-    assert "spec-grag core" in lower
-    assert "spec-grag inject" in lower
-    assert "spec-grag realign" in lower
+    assert "spec-anchor core" in lower
+    assert "spec-anchor inject" in lower
+    assert "spec-anchor realign" in lower
     assert "pending conflict" in lower or "pending_conflict" in lower
     assert "section summary" in lower
     assert "related sections" in lower
@@ -642,7 +642,7 @@ def test_t_s01_force_no_init_reports_missing_core_files_after_config_update(
     absolute_purpose_file.write_text("# Purpose\n\nExternal custom purpose.\n")
     absolute_concept_file.write_text("# Core Concept\n\nExternal custom invariant.\n")
 
-    config_path = tmp_path / ".spec-grag" / "config.toml"
+    config_path = tmp_path / ".spec-anchor" / "config.toml"
     config_path.parent.mkdir()
     config_path.write_text(
         "\n".join(
@@ -759,7 +759,7 @@ def test_t_s02_non_check_only_returns_preparation_actions_and_availability(
     assert payload["templates"]
     assert all("available" in item for item in payload["templates"])
     template_paths = {item["path"] for item in payload["templates"]}
-    assert "templates/.codex/skills/spec-grag/SKILL.md" in template_paths
+    assert "templates/.codex/skills/spec-anchor/SKILL.md" in template_paths
     assert not any("templates/.codex/commands/" in path for path in template_paths)
     assert isinstance(payload.get("agent_cli_entries"), dict)
     diagnostic_codes = {item["code"] for item in payload.get("diagnostics", [])}
@@ -799,9 +799,9 @@ def test_t_r11_setup_system_reports_production_readiness_dependencies_without_en
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_LOCAL_SERVICE", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_RETRIEVAL", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_LOCAL_SERVICE", raising=False)
 
     payload = _run_system_setup(check_only=True, run_smoke=False)
 
@@ -833,7 +833,7 @@ def test_t_r11_setup_system_qdrant_url_is_explicit_probe_input_not_project_confi
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("SPEC_GRAG_QDRANT_URL", "http://env-qdrant.example:6333")
+    monkeypatch.setenv("SPEC_ANCHOR_QDRANT_URL", "http://env-qdrant.example:6333")
 
     payload = _run_system_setup(
         check_only=True,
@@ -855,8 +855,8 @@ def test_t_r11_setup_system_does_not_require_real_operation_gate_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_LLM", raising=False)
-    monkeypatch.delenv("SPEC_GRAG_FAKE_RETRIEVAL", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_LLM", raising=False)
+    monkeypatch.delenv("SPEC_ANCHOR_FAKE_RETRIEVAL", raising=False)
 
     payload = _run_system_setup(check_only=True, run_smoke=False)
 
@@ -877,7 +877,7 @@ def test_t_r12_setup_project_config_is_production_stack_ready(
     tmp_path: Path,
 ) -> None:
     _assert_success(_run_project_setup(tmp_path, agent="both"))
-    config_path = tmp_path / ".spec-grag" / "config.toml"
+    config_path = tmp_path / ".spec-anchor" / "config.toml"
     parsed = tomllib.loads(config_path.read_text())
 
     # default_provider / fallback_order / providers.claude (haiku-4-5) は dead settings として削除済み

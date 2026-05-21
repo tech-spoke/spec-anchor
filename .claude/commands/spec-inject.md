@@ -1,44 +1,44 @@
 ---
-description: 課題用 SPEC-grag constraints を準備する。回答は出さない
+description: 課題用 SPEC-anchor constraints を準備する。回答は出さない
 argument-hint: "[課題]"
-allowed-tools: Read, Grep, Glob, Bash(spec-grag inject*), Bash(spec-grag realign*)
+allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor realign*)
 ---
 
 # /spec-inject
 
-正本は SPEC-grag の外部 command contract と SPEC-grag CLI の入出力である。この Claude command template は独立した仕様ではない。
+正本は SPEC-anchor の外部 command contract と SPEC-anchor CLI の入出力である。この Claude command template は独立した仕様ではない。
 
 ユーザーが課題固有 constraints を必要としており、まだ最終回答や実装を求めていない場合に `/spec-inject` を使う。
 
 ## 必須手順
 
 1. 明示された argument と現在の会話区間から task を定義する。会話区間は search と constraint generation の補助に使うが、final evidence ではない。
-2. project root で gate probe を実行する: `spec-grag inject "$TASK"`。command が non-zero exit でも JSON を読む。freshness が blocked / failed の場合は停止する。`blocking_reasons` に dirty / stale / watcher 系の理由がある場合、`/spec-core` または watcher を実行・待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict の場合、Conflict Review Items と decision choices を人間に提示する。probe が `needs_agent_constraints` を返した場合は続行する。
+2. project root で gate probe を実行する: `spec-anchor inject "$TASK"`。command が non-zero exit でも JSON を読む。freshness が blocked / failed の場合は停止する。`blocking_reasons` に dirty / stale / watcher 系の理由がある場合、`/spec-core` または watcher を実行・待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict の場合、Conflict Review Items と decision choices を人間に提示する。probe が `needs_agent_constraints` を返した場合は続行する。
 3. task と会話区間から search keys を生成する。
 4. 4 path の Agentic Search を行う。path は必須ではなく許可。課題の性質に応じて組み合わせる。
 
 ### path ① Qdrant section-level retrieval (Source Specs 探索の主経路)
 
-a. search keys で hybrid retrieval を呼ぶ: `spec-grag inject-search "<query>" --top-k 8`
+a. search keys で hybrid retrieval を呼ぶ: `spec-anchor inject-search "<query>" --top-k 8`
 b. 返ってきた hits の payload (heading_path / summary / search_keys / identifiers / related_sections) を読み、制約に関連しそうな候補を選ぶ
-c. 候補 section の related_sections 配列から target_section_id を取得し、payload lookup する: `spec-grag inject-section "<target_id>" [<target_id>...]`
+c. 候補 section の related_sections 配列から target_section_id を取得し、payload lookup する: `spec-anchor inject-section "<target_id>" [<target_id>...]`
 d. 必要なら Source Specs ファイル本文を Read で確認し、制約根拠を抽出する
 e. c-d を再帰的に適用する (最大数 hop)。制約に関係しないと判断できた時点で打ち切る
 
 ### path ② chapter_anchors.json による章単位エントリ
 
-a. 章 anchor を取得する: `spec-grag inject-chapters`
+a. 章 anchor を取得する: `spec-anchor inject-chapters`
 b. 返ってきた chapters の summary / key_topics / important_sections を読み、関係しそうな章を特定する
 c. 特定された章配下の section を path ① と同様に Agentic Search で読み、制約を抽出する
 
 ### path ③ Purpose / Core Concept からの制約抽出
 
-a. Purpose + Core Concept の全文を取得する: `spec-grag inject-purpose`
+a. Purpose + Core Concept の全文を取得する: `spec-anchor inject-purpose`
 b. 課題に該当する制約根拠を抽出する
 
 ### path ④ resolved Conflict Review Items の確認
 
-a. resolved + stale でない items を取得する: `spec-grag inject-conflicts`
+a. resolved + stale でない items を取得する: `spec-anchor inject-conflicts`
 b. valid_scope (global / task_scope) と resolution.referenced_source_refs を確認する
 c. 制約に関係する場合、evidence_origin = "Conflict Review Item" として制約に組み込む
 
@@ -52,7 +52,7 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 | 過去判断の継続 | ④ | ①、③ |
 
 5. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
-6. Agent-generated constraints を CLI で検証する: `spec-grag inject "$TASK" --constraints '<json-array>'`。CLI は supplied constraints を検証し、fallback constraints を生成しない。検証に失敗した場合、constraints を直すか blocker として報告する。
+6. Agent-generated constraints を CLI で検証する: `spec-anchor inject "$TASK" --constraints '<json-array>'`。CLI は supplied constraints を検証し、fallback constraints を生成しない。検証に失敗した場合、constraints を直すか blocker として報告する。
 7. validated constraint set、evidence list、Agentic Search summary だけを出力する。`/spec-inject` では task への回答や最終案を出さない。
 
 ### constraints JSON の作り方
@@ -88,4 +88,4 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 
 Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor は navigation / support 専用である。`support_refs` には入れられるが、constraint の sole evidence にはしない。
 
-Purpose と Core Concept は人間が維持する read-only input である。両ファイルは変更しない。`.spec-grag/config.toml` の `[llm]` provider は使わない。`/spec-inject` はこの command を実行している Agent / LLM が担当する。
+Purpose と Core Concept は人間が維持する read-only input である。両ファイルは変更しない。`.spec-anchor/config.toml` の `[llm]` provider は使わない。`/spec-inject` はこの command を実行している Agent / LLM が担当する。

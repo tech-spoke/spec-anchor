@@ -15,11 +15,11 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def _core_module() -> Any:
-    return importlib.import_module("spec_grag.core")
+    return importlib.import_module("spec_anchor.core")
 
 
 def _retrieval_module() -> Any:
-    return importlib.import_module("spec_grag.retrieval_index")
+    return importlib.import_module("spec_anchor.retrieval_index")
 
 
 class _Point:
@@ -165,7 +165,7 @@ def _verify(
     )
     progress = None
     if progress_root is not None:
-        progress = importlib.import_module("spec_grag.core_progress").read_progress(progress_root)
+        progress = importlib.import_module("spec_anchor.core_progress").read_progress(progress_root)
     return status, diagnostics, progress
 
 

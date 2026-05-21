@@ -25,7 +25,7 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def _retrieval_module() -> Any:
-    return importlib.import_module("spec_grag.retrieval_index")
+    return importlib.import_module("spec_anchor.retrieval_index")
 
 
 def _callable(module: Any, *names: str) -> Any:
@@ -33,7 +33,7 @@ def _callable(module: Any, *names: str) -> Any:
         value = getattr(module, name, None)
         if callable(value):
             return value
-    pytest.fail(f"spec_grag.retrieval_index must expose one of: {', '.join(names)}")
+    pytest.fail(f"spec_anchor.retrieval_index must expose one of: {', '.join(names)}")
 
 
 def _get(value: Any, *path: str) -> Any:
@@ -355,7 +355,7 @@ def test_upsert_stale_delete_recreate_false(monkeypatch: pytest.MonkeyPatch) -> 
         _b3a_sections(section_ids),
         {},
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=_FakeEmbeddingProvider(),
         recreate=False,
     )
@@ -397,13 +397,13 @@ def test_upsert_migration_from_ordinal(
     section_ids = ["doc.md#a", "doc.md#b", "doc.md#c"]
     fake_client = _FakeQdrantClient([0, 1, 2, 3])
     _install_fake_qdrant(monkeypatch, fake_client)
-    caplog.set_level("WARNING", logger="spec_grag.retrieval_index")
+    caplog.set_level("WARNING", logger="spec_anchor.retrieval_index")
 
     artifact = module.upsert_qdrant_section_collection(
         _b3a_sections(section_ids),
         {},
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=_FakeEmbeddingProvider(),
         recreate=False,
     )
@@ -444,7 +444,7 @@ def test_b3b_axis_a_embed_input_size_matches_sections_to_upsert_and_zero_skips(
         sections,
         metadata,
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=provider,
         recreate=False,
         sections_to_upsert=[sections[1], sections[2]],
@@ -465,7 +465,7 @@ def test_b3b_axis_a_embed_input_size_matches_sections_to_upsert_and_zero_skips(
         sections,
         metadata,
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=zero_provider,
         recreate=False,
         sections_to_upsert=[],
@@ -482,7 +482,7 @@ def test_b3b_axis_b_added_changed_removed_upserts_only_diff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _retrieval_module()
-    from spec_grag import core as core_module
+    from spec_anchor import core as core_module
 
     existing_ids = ["doc.md#a", "doc.md#b", "doc.md#c", "doc.md#d"]
     current_ids = ["doc.md#a", "doc.md#b", "doc.md#c", "doc.md#e"]
@@ -551,7 +551,7 @@ def test_b3b_axis_b_added_changed_removed_upserts_only_diff(
         sections,
         metadata,
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=provider,
         recreate=False,
         sections_to_upsert=[sections_by_id[section_id] for section_id in sorted(upsert_ids)],
@@ -579,7 +579,7 @@ def test_b3b_axis_b_added_changed_removed_upserts_only_diff(
 
 def test_b3b_axis_c_vector_input_fingerprint_detects_summary_change() -> None:
     module = _retrieval_module()
-    from spec_grag import core as core_module
+    from spec_anchor import core as core_module
 
     section = _b3a_sections(["doc.md#a"])[0]
     previous_fingerprints = module.build_section_payload_fingerprints(
@@ -621,7 +621,7 @@ def test_b3b_axis_d_related_sections_only_change_does_not_invalidate_payload_fin
     # fingerprint が乖離すると partial 化が real LLM で破綻するため、
     # この test は related_sections だけの変更が diff に上がらないことを固定する。
     module = _retrieval_module()
-    from spec_grag import core as core_module
+    from spec_anchor import core as core_module
 
     section = _b3a_sections(["doc.md#a"])[0]
     metadata_without_related = {
@@ -695,7 +695,7 @@ def test_b3b_axis_e_recreate_ignores_partial_arguments_and_rebuilds_full(
         sections,
         {},
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=provider,
         recreate=True,
         sections_to_upsert=[sections[1]],
@@ -734,7 +734,7 @@ def test_b3b_axis_f_new_args_none_preserves_full_upsert_migration_and_stale_dele
         sections,
         {},
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=stale_provider,
         recreate=False,
     )
@@ -751,7 +751,7 @@ def test_b3b_axis_f_new_args_none_preserves_full_upsert_migration_and_stale_dele
         sections,
         {},
         url="http://fake-qdrant:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         embedding_provider=migration_provider,
         recreate=False,
     )
@@ -766,8 +766,8 @@ def test_fast_path_consistency_with_new_fingerprint(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from spec_grag.artifacts import ContextArtifactStore
-    from spec_grag import core as core_module
+    from spec_anchor.artifacts import ContextArtifactStore
+    from spec_anchor import core as core_module
 
     sections = _b3a_sections(["doc.md#a", "doc.md#b"])
     config = {
@@ -778,11 +778,11 @@ def test_fast_path_consistency_with_new_fingerprint(
             "sparse_enabled": True,
         }
     }
-    store = ContextArtifactStore(tmp_path / ".spec-grag" / "context")
+    store = ContextArtifactStore(tmp_path / ".spec-anchor" / "context")
     expected = core_module._build_retrieval_index_state(
         sections,
         config=config,
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         generated_at="2026-05-13T00:00:00Z",
     )
     monkeypatch.setattr(core_module, "_section_collection_exists", lambda *_args: True)
@@ -797,7 +797,7 @@ def test_fast_path_consistency_with_new_fingerprint(
         expected,
         store=store,
         url="http://localhost:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         run_full=False,
         force_full_recreate=False,
         unchanged_sections=unchanged_sections,
@@ -811,7 +811,7 @@ def test_fast_path_consistency_with_new_fingerprint(
         expected,
         store=store,
         url="http://localhost:6333",
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         run_full=False,
         force_full_recreate=False,
         unchanged_sections=unchanged_sections,
@@ -993,8 +993,8 @@ def test_t_i05_embedding_to_qdrant_roundtrip_uses_real_local_service() -> None:
     dense_vectors = list(encoded["dense_vecs"])
     sparse_vectors = _normalize_sparse(encoded)
 
-    client = qdrant_client.QdrantClient(os.environ.get("SPEC_GRAG_QDRANT_URL", "http://localhost:6333"))
-    collection = f"spec_grag_t_i05_{uuid.uuid4().hex}"
+    client = qdrant_client.QdrantClient(os.environ.get("SPEC_ANCHOR_QDRANT_URL", "http://localhost:6333"))
+    collection = f"spec_anchor_t_i05_{uuid.uuid4().hex}"
     client.recreate_collection(
         collection_name=collection,
         vectors_config={
@@ -1229,7 +1229,7 @@ def test_update_section_collection_related_sections_issues_set_payload_per_secti
 
     diagnostics = module.update_section_collection_related_sections(
         related_by_id,
-        collection="spec_grag_section",
+        collection="spec_anchor_section",
         client=fake,
     )
 
@@ -1239,7 +1239,7 @@ def test_update_section_collection_related_sections_issues_set_payload_per_secti
     assert len(captured) == 2
     seen_section_ids: list[str] = []
     for call in captured:
-        assert call["collection_name"] == "spec_grag_section"
+        assert call["collection_name"] == "spec_anchor_section"
         assert set(call["payload"].keys()) == {"related_sections"}
         must = getattr(call["points"], "must", []) or []
         section_id = ""
@@ -1320,7 +1320,7 @@ def test_section_embeddings_artifact_uses_section_collection() -> None:
         {"doc.md#a": {"summary": "Alpha section."}},
         generated_at="2026-05-08T00:00:00Z",
     )
-    assert artifact["collection"] == "spec_grag_section"
+    assert artifact["collection"] == "spec_anchor_section"
     assert artifact["section_count"] == 1
     assert artifact["embedding"]["model"] == "BAAI/bge-m3"
     assert artifact["sections"][0]["source_section_id"] == "doc.md#a"
@@ -1330,7 +1330,7 @@ def test_section_embeddings_artifact_uses_section_collection() -> None:
 
 def test_section_collection_default_name() -> None:
     module = _retrieval_module()
-    assert module.DEFAULT_SECTION_COLLECTION == "spec_grag_section"
+    assert module.DEFAULT_SECTION_COLLECTION == "spec_anchor_section"
 
 
 def test_section_hybrid_candidates_excludes_self() -> None:

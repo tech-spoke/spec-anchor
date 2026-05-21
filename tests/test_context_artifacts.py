@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from spec_grag.artifacts import (
+from spec_anchor.artifacts import (
     CORE_ARTIFACT_ORDER,
     ARTIFACT_FILENAMES,
     ArtifactError,
@@ -13,7 +13,7 @@ from spec_grag.artifacts import (
     build_empty_chapter_anchors,
     build_section_manifest,
 )
-from spec_grag.section_parser import parse_markdown_sections
+from spec_anchor.section_parser import parse_markdown_sections
 
 
 def _sections() -> list[object]:
@@ -25,7 +25,7 @@ def _sections() -> list[object]:
 
 
 def test_t_u22_chapter_anchor_structure_round_trips(tmp_path: Path) -> None:
-    store = ContextArtifactStore(tmp_path / ".spec-grag/context")
+    store = ContextArtifactStore(tmp_path / ".spec-anchor/context")
     payload = build_empty_chapter_anchors(_sections())
 
     store.write("chapter_anchors", payload)
@@ -48,7 +48,7 @@ def test_t_u22_chapter_anchor_structure_round_trips(tmp_path: Path) -> None:
 
 
 def test_t_i15_context_update_writes_freshness_last(tmp_path: Path) -> None:
-    store = ContextArtifactStore(tmp_path / ".spec-grag/context")
+    store = ContextArtifactStore(tmp_path / ".spec-anchor/context")
     sections = _sections()
     artifacts = {
         "section_manifest": build_section_manifest(sections),
@@ -72,7 +72,7 @@ def test_t_i15_atomic_write_keeps_previous_payload_on_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    store = ContextArtifactStore(tmp_path / ".spec-grag/context")
+    store = ContextArtifactStore(tmp_path / ".spec-anchor/context")
     store.write("freshness", {"status": "fresh"})
     target = store.path_for("freshness")
     before = target.read_text()
@@ -80,7 +80,7 @@ def test_t_i15_atomic_write_keeps_previous_payload_on_failure(
     def fail_replace(_src: object, _dst: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("spec_grag.artifacts.os.replace", fail_replace)
+    monkeypatch.setattr("spec_anchor.artifacts.os.replace", fail_replace)
     with pytest.raises(OSError):
         store.write("freshness", {"status": "failed"})
 
@@ -89,7 +89,7 @@ def test_t_i15_atomic_write_keeps_previous_payload_on_failure(
 
 
 def test_context_artifact_missing_artifacts_diagnostic(tmp_path: Path) -> None:
-    store = ContextArtifactStore(tmp_path / ".spec-grag/context")
+    store = ContextArtifactStore(tmp_path / ".spec-anchor/context")
     store.write("section_manifest", {"sections": []})
 
     assert store.missing_artifacts(("section_manifest", "chapter_anchors")) == [
@@ -98,6 +98,6 @@ def test_context_artifact_missing_artifacts_diagnostic(tmp_path: Path) -> None:
 
 
 def test_context_artifact_unknown_name_fails(tmp_path: Path) -> None:
-    store = ContextArtifactStore(tmp_path / ".spec-grag/context")
+    store = ContextArtifactStore(tmp_path / ".spec-anchor/context")
     with pytest.raises(ArtifactError):
         store.write("unknown", {})

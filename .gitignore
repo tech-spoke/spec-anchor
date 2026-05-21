@@ -20,18 +20,18 @@ dist/
 .playwright-mcp/
 
 # Packaged Agent templates are source files, not local Agent state.
-!spec_grag/templates/.codex/
-!spec_grag/templates/.codex/skills/
-!spec_grag/templates/.codex/skills/spec-grag/
-!spec_grag/templates/.codex/skills/spec-grag/SKILL.md
+!spec_anchor/templates/.codex/
+!spec_anchor/templates/.codex/skills/
+!spec_anchor/templates/.codex/skills/spec-anchor/
+!spec_anchor/templates/.codex/skills/spec-anchor/SKILL.md
 
-# SPEC-grag generated runtime state
-.spec-grag.backup-before-full-suite-*/
-.spec-grag.full-corpus-backup-*/
-.spec-grag.pytest-stash-*/
-.spec-grag/context/
-.spec-grag/cache/
-.spec-grag/state/
+# SPEC-anchor generated runtime state
+.spec-anchor.backup-before-full-suite-*/
+.spec-anchor.full-corpus-backup-*/
+.spec-anchor.pytest-stash-*/
+.spec-anchor/context/
+.spec-anchor/cache/
+.spec-anchor/state/
 
 # Claude Code runtime locks
 .claude/scheduled_tasks.lock
@@ -46,5 +46,5 @@ archive/**/.playwright-mcp/
 archive/**/*.egg-info/
 archive/**/__pycache__/
 archive/**/spike_storage/
-archive/**/.spec-grag/cache/
-archive/**/.spec-grag/state/
+archive/**/.spec-anchor/cache/
+archive/**/.spec-anchor/state/

@@ -17,7 +17,7 @@ def test_stale_lock_eviction_does_not_remove_new_lock_created_after_read(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    from spec_grag import core_lock
+    from spec_anchor import core_lock
 
     project_root = tmp_path / "project"
     lock_path = core_lock.core_update_lock_path(project_root)
@@ -71,7 +71,7 @@ def test_stale_lock_eviction_does_not_remove_new_lock_created_after_read(
 def test_lock_payload_records_pid_and_hostname(tmp_path):
     """Lock file must record holder_pid + holder_hostname for liveness check."""
     import os, socket
-    from spec_grag.core_lock import (
+    from spec_anchor.core_lock import (
         acquire_core_update_lock,
         read_core_update_lock,
         release_core_update_lock,
@@ -92,7 +92,7 @@ def test_lock_is_stale_detects_dead_pid(tmp_path):
     """If the lock holder's pid no longer exists on the same host, treat as stale
     even when within the stale_lock_ms TTL window."""
     import socket
-    from spec_grag.core_lock import lock_is_stale, _now_ms
+    from spec_anchor.core_lock import lock_is_stale, _now_ms
 
     # Build a lock payload as if a recent-but-dead process owns it
     now = _now_ms()
@@ -119,7 +119,7 @@ def test_lock_is_stale_detects_dead_pid(tmp_path):
 
 def test_lock_is_stale_ignores_pid_on_different_host(tmp_path):
     """Cross-host locks should not be auto-cleared by pid check."""
-    from spec_grag.core_lock import lock_is_stale, _now_ms
+    from spec_anchor.core_lock import lock_is_stale, _now_ms
 
     now = _now_ms()
     payload = {

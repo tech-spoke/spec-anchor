@@ -1,4 +1,4 @@
-# spec-grag Agent Guide
+# spec-anchor Agent Guide
 
 このリポジトリで作業する Agent は、まず [CLAUDE.md](CLAUDE.md) を読むこと。
 
@@ -24,16 +24,16 @@
 
 `sidecar` という語は、技術用語としては成立するが、このリポジトリでは単独で使ってはいけない。現時点で `sidecar` と呼びうる状態記録ファイルは少なくとも次の 2 種類があり、`sidecar` だけでは読者がどちらを指すか判別できないためである。
 
-この禁止は、設計書、報告書、TODO、最終報告、進捗報告のすべてに適用する。`.spec-grag/state/retrieval_index_state.json` または `.spec-grag/state/related_sections_state.json` を参照する場合は、毎回 file path、保存する fingerprint の内容、参照する stage / 経路、一致時の挙動、不一致時の fallback 条件を明示する。
+この禁止は、設計書、報告書、TODO、最終報告、進捗報告のすべてに適用する。`.spec-anchor/state/retrieval_index_state.json` または `.spec-anchor/state/related_sections_state.json` を参照する場合は、毎回 file path、保存する fingerprint の内容、参照する stage / 経路、一致時の挙動、不一致時の fallback 条件を明示する。
 
-- `.spec-grag/state/retrieval_index_state.json` (Source Retrieval Index の冪等判定用)
-- `.spec-grag/state/related_sections_state.json` (Related Sections の冪等判定用)
+- `.spec-anchor/state/retrieval_index_state.json` (Source Retrieval Index の冪等判定用)
+- `.spec-anchor/state/related_sections_state.json` (Related Sections の冪等判定用)
 
 設計書・報告書・TODO に書く場合は、原則として「状態記録ファイル」と表現したうえで、対象を具体的に書く。
 
 書くべき要素:
 
-- 具体的な file path (`.spec-grag/state/<name>.json`)
+- 具体的な file path (`.spec-anchor/state/<name>.json`)
 - そのファイルに保存される内容 (何の指紋か)
 - 参照する stage / 経路 (例: `section_collection_upsert`)
 - 一致時の挙動 / 不一致時の fallback 条件
@@ -49,7 +49,7 @@ state sidecar の責務拡大。
 良い例:
 
 ```text
-`.spec-grag/state/retrieval_index_state.json` に保存された
+`.spec-anchor/state/retrieval_index_state.json` に保存された
 Source Retrieval Index の前回状態 (section hash 指紋 + 設定指紋) と、
 現在の section hash / retrieval 設定が一致した場合、
 section_collection_upsert stage は `skipped_unchanged` で終了する。
@@ -59,8 +59,8 @@ section_collection_upsert stage は `skipped_unchanged` で終了する。
 
 ```text
 状態記録ファイル (以下この節では sidecar と呼ぶ):
-- `.spec-grag/state/retrieval_index_state.json`
-- `.spec-grag/state/related_sections_state.json`
+- `.spec-anchor/state/retrieval_index_state.json`
+- `.spec-anchor/state/related_sections_state.json`
 ```
 
 このルールは `CLAUDE.md` の「ルール 12: 報告・設計文書は人間のプロジェクトオーナー向けに書く」の `artifact` / `generated state` を単独で使ってはいけないという要求と整合する。`sidecar` も同じ理由で単独使用禁止対象に含める。

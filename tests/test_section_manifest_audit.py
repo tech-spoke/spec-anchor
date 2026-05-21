@@ -6,8 +6,8 @@ sourced from the freshly built `metadata_entries` and merged into each
 `_section_manifest_entry` via the `_section_manifest_audit_by_id` helper.
 
 These tests verify both helpers directly because they live inside
-`spec_grag/core.py` as module-private functions; covering them here
-avoids relying on a full `spec-grag core` run.
+`spec_anchor/core.py` as module-private functions; covering them here
+avoids relying on a full `spec-anchor core` run.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_grag.core import (  # noqa: E402
+from spec_anchor.core import (  # noqa: E402
     _section_manifest_audit_by_id,
     _section_manifest_entry,
 )

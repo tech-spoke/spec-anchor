@@ -2487,7 +2487,7 @@ wheels = [
 ]
 
 [[package]]
-name = "spec-grag"
+name = "spec-anchor"
 version = "0.1.0"
 source = { editable = "." }
 

@@ -1,6 +1,6 @@
 # Sample Specification
 
-This document is a minimal Source Specs fixture for verifying spec-grag end-to-end behavior in a real LLM + Qdrant environment.
+This document is a minimal Source Specs fixture for verifying spec-anchor end-to-end behavior in a real LLM + Qdrant environment.
 
 ## Authentication
 

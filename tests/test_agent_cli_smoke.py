@@ -75,7 +75,7 @@ def _json_output(result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     return payload
 
 
-def _has_spec_grag_skill_description(prompt_input: str) -> bool:
+def _has_spec_anchor_skill_description(prompt_input: str) -> bool:
     lower = prompt_input.lower()
     return (
         "specification-grounded context" in lower
@@ -88,7 +88,7 @@ def _setup_project(
     *,
     agent: str,
 ) -> dict[str, Any]:
-    from spec_grag.project_setup import setup_project
+    from spec_anchor.project_setup import setup_project
 
     result = setup_project(
         project_root,
@@ -105,7 +105,7 @@ def _codex_prompt_input(
     codex: str,
     cwd: Path,
     env: dict[str, str],
-    prompt: str = "Use spec-grag for this repository task.",
+    prompt: str = "Use spec-anchor for this repository task.",
 ) -> str:
     result = _run(
         [codex, "debug", "prompt-input", prompt],
@@ -134,20 +134,20 @@ def _copy_source_fixture(project_root: Path) -> None:
 def test_t_a01_codex_project_skill_is_visible_in_prompt_input(
     tmp_path: Path,
 ) -> None:
-    codex = _command_from_env("SPEC_GRAG_AGENT_CLI_CODEX_COMMAND", "codex")
+    codex = _command_from_env("SPEC_ANCHOR_AGENT_CLI_CODEX_COMMAND", "codex")
     codex_home = tmp_path / "empty-codex-home"
     project_root = tmp_path / "project"
     project_root.mkdir()
     _setup_project(project_root, agent="codex")
 
-    skill_path = project_root / ".codex" / "skills" / "spec-grag" / "SKILL.md"
+    skill_path = project_root / ".codex" / "skills" / "spec-anchor" / "SKILL.md"
     assert skill_path.is_file()
     codex_home.mkdir(parents=True)
     env = _project_env({"CODEX_HOME": codex_home.as_posix()})
     prompt_input = _codex_prompt_input(codex=codex, cwd=project_root, env=env)
 
-    assert "- spec-grag:" in prompt_input
-    assert _has_spec_grag_skill_description(prompt_input)
+    assert "- spec-anchor:" in prompt_input
+    assert _has_spec_anchor_skill_description(prompt_input)
     assert skill_path.as_posix() in prompt_input
 
 
@@ -155,7 +155,7 @@ def test_t_a01_codex_project_skill_is_visible_in_prompt_input(
 def test_t_a01_claude_project_command_files_are_available_to_claude_cli(
     tmp_path: Path,
 ) -> None:
-    claude = _command_from_env("SPEC_GRAG_AGENT_CLI_CLAUDE_COMMAND", "claude")
+    claude = _command_from_env("SPEC_ANCHOR_AGENT_CLI_CLAUDE_COMMAND", "claude")
     project_root = tmp_path / "project"
     project_root.mkdir()
     _setup_project(project_root, agent="claude")
@@ -167,6 +167,6 @@ def test_t_a01_claude_project_command_files_are_available_to_claude_cli(
         assert command_path.is_file()
         text = command_path.read_text(encoding="utf-8")
         assert "description:" in text
-        assert "spec-grag" in text
+        assert "spec-anchor" in text
 
 
