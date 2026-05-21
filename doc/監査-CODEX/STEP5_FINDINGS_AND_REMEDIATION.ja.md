@@ -61,22 +61,22 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 
 ## §2. 問題点リスト
 
-### §2.1 不整合（外部設計書と実装の食い違い、6 件）
+### §2.1 不整合（外部設計書と実装の食い違い、6 件 → 短期 9 件は ✅ 完了 2026-05-18〜19）
 
-| # | 問題 | 重要度（暫定） | 運用上の影響 |
-|---|---|---|---|
-| F-1 | Qdrant collection 名の 3 段優先順位 | **High** | 設定の漂流。`vector_store.section_collection` を設定したつもりが `retrieval.section_collection` で上書きされる、または逆。デバッグ困難。後方互換性の意図が不明 |
-| F-2 | `<課題プロンプト>` / `--conversation-context` dead 引数 + realign の仕様外実装 | **High** | 外部設計書通りに渡してもサイレント無視。さらに realign 内に `_needs_clarification` / `_default_targets` / `_conversation_text` 等の**仕様外実装**が紛れ込んでおり (§3.2 詳細)、Agent / LLM の責務を CLI が肩代わりしている経路がある。template が `--conversation-context` を渡さないため実運用では dead path だが、保守性とコード理解の混乱の元 |
-| F-9 | **「制約検証」操作全体が仕様外実装** | **High** | §8.4 の「制約検証」操作 (`spec-grag inject "<task>" --constraints '<JSON>'`) は CLI が制約の真偽を判定できない (意味理解が必要)。実態は (a) JSON schema 検証 (Agent 自己点検の代行、§8.5 で Agent 責務と明記) + (b) Conflict Review Item 適格性確認 (`inject-conflicts` で既に実施済みの重複) の 2 つで、いずれも CLI 必須ではない。仕様 §5.3「CLI は最終判断主体ではない」と矛盾。F-2 と同パターンの「LLM 由来の念のため safety net」(§3.10 詳細) |
-| F-A | `--project-root` / `--root` flag が仕様外 | **High** | template / SKILL のどこにも使われておらず、Agent CLI 経由ではカレントディレクトリ前提で動作。test は Python API で代替可能。「test 便利性」を口実に CLI flag として残された LLM 由来の仕様外実装。仕様 §5.3 に照らして「呼び出し元 path の解釈」も CLI が肩代わりする必要なし (§3.11 詳細) |
-| F-7 | `--freshness-json` / `--freshness-file` flag が仕様外 | **High** | 仕様 §3.3「freshness は `/spec-core` または `spec-grag-watch` が生成し、`/spec-inject` / `/spec-realign` は読む」と明記、上書き経路は仕様にない。template / SKILL では使われず、test 用 stub が用途。Python API で代替可能。F-9 と同パターンの「LLM 由来の念のため上書き経路」(§3.12 詳細) |
-| F-B | `--top-k` flag が仕様外 | **High** | 設定 `[retrieval].section_final_top_n` で固定可能、template は常に `--top-k 8` を静的に渡しており「動的調整」は使われていない。test は Python API で代替可能。「動的調整余地」を口実に CLI flag として残された LLM 由来の仕様外実装 (§3.13 詳細) |
-| F-C | `spec-grag inject` サブコマンド (gate probe) が仕様外 + 各 inject-* の gate 不足 | **High** | 仕様 §3.3 / §2.8 / §6.3 は「`/spec-inject` 系全体が freshness / pending conflict / watcher 実行中で停止」を要求。現状は `spec-grag inject` (gate probe) のみが gate を持ち、`inject-search` / `inject-section` 等は gate を持たない。**LLM が「事前 probe を作って事前確認する」という独自設計を入れたが、仕様にこの操作はない**。各 inject-* が gate を持てば事前 probe は不要 (§3.15 詳細) |
-| F-D | `inject-purpose` / `inject-chapters` が artifact 全体を返してコンテキスト圧迫 | **High** | 仕様 §3.4「Source Specs を丸ごと投入しない」原則と矛盾。`inject-purpose` は Purpose + Core Concept 全文、`inject-chapters` は chapter_anchors.json 全体を返す。Core Concept / chapter_anchors は大きくなる可能性があり、Agent コンテキストを圧迫。Purpose は短く目的そのものなので全文返却で良い (§3.16 詳細) |
-| F-3 | `--use-cache` の挙動（廃止予定機能の残骸） | **Medium** | deprecated と書きながら cache clear 条件に影響し、`--all` + `--use-cache` で `--all` 単独と異なる挙動になる。template / test / 利用実態すべて 0 件で完全な dead 機能 |
-| F-4 | `/spec-inject` の人間向け通常出力 | **Medium** | 外部設計書は読みやすい構造を契約、実装は JSON。Agent 側で表示変換が必要だが、その責務が外部設計書に書かれていない |
-| F-5 | 設定項目表に `vector_store.section_collection` / `vector_store.collection` 未列挙 | **High** | F-1 と同根。設定項目表が実装と一致しない |
-| F-6 | 環境変数表に debug env var 未列挙 | **Low** | `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION` / `SPEC_GRAG_DEBUG_RELATED_PROMPT` が外部設計書に出ない。debug 用なので影響小 |
+| # | 問題 | 重要度（暫定） | ステータス | 運用上の影響 |
+|---|---|---|---|---|
+| F-1 | Qdrant collection 名の 3 段優先順位 | **High** | ✅ 完了 2026-05-18 (commit 2ebdbab) | 設定の漂流。`vector_store.section_collection` を設定したつもりが `retrieval.section_collection` で上書きされる、または逆。デバッグ困難。後方互換性の意図が不明 |
+| F-2 | `<課題プロンプト>` / `--conversation-context` dead 引数 + realign の仕様外実装 | **High** | ✅ 完了 2026-05-18 (commit e5799de) | 外部設計書通りに渡してもサイレント無視。さらに realign 内に `_needs_clarification` / `_default_targets` / `_conversation_text` 等の**仕様外実装**が紛れ込んでおり (§3.2 詳細)、Agent / LLM の責務を CLI が肩代わりしている経路がある。template が `--conversation-context` を渡さないため実運用では dead path だが、保守性とコード理解の混乱の元 |
+| F-9 | **「制約検証」操作全体が仕様外実装** | **High** | ✅ 完了 2026-05-19 (commit c0599c0) | §8.4 の「制約検証」操作 (`spec-grag inject "<task>" --constraints '<JSON>'`) は CLI が制約の真偽を判定できない (意味理解が必要)。実態は (a) JSON schema 検証 (Agent 自己点検の代行、§8.5 で Agent 責務と明記) + (b) Conflict Review Item 適格性確認 (`inject-conflicts` で既に実施済みの重複) の 2 つで、いずれも CLI 必須ではない。仕様 §5.3「CLI は最終判断主体ではない」と矛盾。F-2 と同パターンの「LLM 由来の念のため safety net」(§3.10 詳細) |
+| F-A | `--project-root` / `--root` flag が仕様外 | **High** | ✅ 完了 2026-05-18 (commit 00d576c、watch 位置引数も削除) | template / SKILL のどこにも使われておらず、Agent CLI 経由ではカレントディレクトリ前提で動作。test は Python API で代替可能。「test 便利性」を口実に CLI flag として残された LLM 由来の仕様外実装。仕様 §5.3 に照らして「呼び出し元 path の解釈」も CLI が肩代わりする必要なし (§3.11 詳細) |
+| F-7 | `--freshness-json` / `--freshness-file` flag が仕様外 | **High** | ✅ 完了 2026-05-18 (commit b810e9f、Python API は引数残置) | 仕様 §3.3「freshness は `/spec-core` または `spec-grag-watch` が生成し、`/spec-inject` / `/spec-realign` は読む」と明記、上書き経路は仕様にない。template / SKILL では使われず、test 用 stub が用途。Python API で代替可能。F-9 と同パターンの「LLM 由来の念のため上書き経路」(§3.12 詳細) |
+| F-B | `--top-k` flag が仕様外 | **High** | ✅ 完了 2026-05-18 (commit 229b771) | 設定 `[retrieval].section_final_top_n` で固定可能、template は常に `--top-k 8` を静的に渡しており「動的調整」は使われていない。test は Python API で代替可能。「動的調整余地」を口実に CLI flag として残された LLM 由来の仕様外実装 (§3.13 詳細) |
+| F-C | `spec-grag inject` サブコマンド (gate probe) が仕様外 + 各 inject-* の gate 不足 | **High** | ✅ 完了 2026-05-19 (commit f3db2b9) | 仕様 §3.3 / §2.8 / §6.3 は「`/spec-inject` 系全体が freshness / pending conflict / watcher 実行中で停止」を要求。現状は `spec-grag inject` (gate probe) のみが gate を持ち、`inject-search` / `inject-section` 等は gate を持たない。**LLM が「事前 probe を作って事前確認する」という独自設計を入れたが、仕様にこの操作はない**。各 inject-* が gate を持てば事前 probe は不要 (§3.15 詳細) |
+| F-D | `inject-purpose` / `inject-chapters` が artifact 全体を返してコンテキスト圧迫 | **High** | ✅ 完了 2026-05-18 (commit a59345c) | 仕様 §3.4「Source Specs を丸ごと投入しない」原則と矛盾。`inject-purpose` は Purpose + Core Concept 全文、`inject-chapters` は chapter_anchors.json 全体を返す。Core Concept / chapter_anchors は大きくなる可能性があり、Agent コンテキストを圧迫。Purpose は短く目的そのものなので全文返却で良い (§3.16 詳細) |
+| F-3 | `--use-cache` の挙動（廃止予定機能の残骸） | **Medium** | ✅ 完了 2026-05-18 (commit 8fca1b6) | deprecated と書きながら cache clear 条件に影響し、`--all` + `--use-cache` で `--all` 単独と異なる挙動になる。template / test / 利用実態すべて 0 件で完全な dead 機能 |
+| F-4 | `/spec-inject` の人間向け通常出力 | **Medium** | ⏳ 未着手 (§4.2 中期) | 外部設計書は読みやすい構造を契約、実装は JSON。Agent 側で表示変換が必要だが、その責務が外部設計書に書かれていない |
+| F-5 | 設定項目表に `vector_store.section_collection` / `vector_store.collection` 未列挙 | **High** | ✅ 完了 2026-05-18 (F-1 連動で自動解決、commit 2ebdbab) | F-1 と同根。設定項目表が実装と一致しない |
+| F-6 | 環境変数表に debug env var 未列挙 | **Low** | ⏳ 未着手 (§4.2 中期) | `SPEC_GRAG_DEBUG_PROVIDER_INVOCATION` / `SPEC_GRAG_DEBUG_RELATED_PROMPT` が外部設計書に出ない。debug 用なので影響小 |
 
 **重要度の根拠**:
 
@@ -84,25 +84,49 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 - **Medium**: 契約と実装の食い違いがあるが、CLI 利用者の主要経路には直接の影響が小さい
 - **Low**: 内部 debug や運用補助で、誤動作の影響範囲が限定的
 
-### §2.2 過剰（実装にあるが外部設計書に契約なし、2 件）
+### §2.2 過剰（実装にあるが外部設計書に契約なし、2 件 → いずれも中期待ち）
 
-| # | 問題 | 重要度（暫定） | 運用上の影響 |
+| # | 問題 | 重要度（暫定） | ステータス | 運用上の影響 |
+|---|---|---|---|---|
+| E-1 | Section embedding text の構成（raw body 不含、Summary/Search Keys/Identifiers から生成） | **Low** | ⏳ 未着手 (§4.2 中期) | 外部設計書 §12 が embedding provider 実装と hybrid retrieval scoring を対象外と明示している。この粒度なら過剰だが内部最適化として扱える |
+| E-2 | `_debug_*.jsonl`（env var で append、読込 CLI なし） | **Low** | ⏳ 未着手 (§4.2 中期) | デバッグ用ファイル。env var を設定すると `.spec-grag/state/` に append される。利用者が意図せずファイルが増える可能性はあるが、env var 設定時のみ |
+
+### §2.3 未確認（Step 2 範囲限定で判定不能、8 件 → 中期 / 長期）
+
+| # | 問題 | 重要度（暫定） | ステータス | 追加調査の必要性 |
+|---|---|---|---|---|
+| U-1 | 方式呼称「SPEC-grag」と業界用語の対応 | **High（戦略）** | ⏳ 未着手 (§4.3 長期、戦略判断) | プロジェクトの位置づけ判断。コード調査ではなく人間判断 |
+| U-2 | fake provider の状態表現（CoreResult / freshness / diagnostics への表れ方） | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`spec_grag/core.py` / `freshness.py` の fake provider 経路追跡） |
+| U-3 | `source_section_id` の形式（`<file_path>#<heading_slug>`）と一意性 | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`section_parser.py` の id 生成と uniqueness 検査） |
+| U-4 | setup script の実装事実 | **Medium** | ⏳ 未着手 (§4.2 中期) | Step 2 が target 9 CLI 中心。setup script について Step 1-B 相当のフロー追跡が必要 |
+| U-5 | Conflict Review Item decision enum 全件対応 | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`conflict_review.py` の `apply_conflict_decision` 経路） |
+| U-6 | config の親ディレクトリ探索なし | **Low** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`config.py:163-170` の `tomllib` load 経路） |
+| U-7 | 外部設計書 §12 対象外範囲と Step 2 実装事実の境界 | **Medium** | ⏳ 未着手 (§4.2 中期、E-1 / E-2 と連動) | E-1 / E-2 と関連。外部契約に含めるか §12 対象外で線引きするかの判断 |
+| U-8 | 判定対象から外した節（Purpose / Core Concept 中身） | **N/A** | 対象外 (human-managed の正本内容、機械判定不能) | human-managed の正本内容なので機械判定対象外 |
+
+### §2.4 監査 cleanup（短期 9 件 commit 後に発見した残骸、2026-05-19 完了）
+
+短期 9 件 (F-1 〜 F-D) を main に積んだ後、サブエージェント 3 並列 (実装 / テスト / ドキュメント) で残骸監査を実施し、撤去機能の stub / dead helper / 古い記述が残っていることを発見。次の 3 commit で完全に根絶した (CLAUDE.md ルール 15「機能を廃止する場合は根絶する」+ ルール 7「実装完了ガード」)。
+
+| # | 問題 | ステータス | 概要 |
 |---|---|---|---|
-| E-1 | Section embedding text の構成（raw body 不含、Summary/Search Keys/Identifiers から生成） | **Low** | 外部設計書 §12 が embedding provider 実装と hybrid retrieval scoring を対象外と明示している。この粒度なら過剰だが内部最適化として扱える |
-| E-2 | `_debug_*.jsonl`（env var で append、読込 CLI なし） | **Low** | デバッグ用ファイル。env var を設定すると `.spec-grag/state/` に append される。利用者が意図せずファイルが増える可能性はあるが、env var 設定時のみ |
+| CA-1 | `_default_targets` stub が F-2 削除リスト記載済みなのに残置 (spec_grag/realign.py) | ✅ 完了 2026-05-19 (commit d9d981f) | 関数本体 `del inject_result; return []` だけの stub。呼出元を直接 `else []` に書き換え、定義を削除 |
+| CA-2 | `_conflict_review_item_matches` / `_as_list` dead helper (spec_grag/inject.py) | ✅ 完了 2026-05-19 (commit d9d981f) | F-9 で唯一の呼出元 (`_validate_conflict_review_constraint` / `_constraint_warnings`) を撤去済みのため dead 化。完全削除 |
+| CB-1 | README.md コマンド表に削除済機能 (`--use-cache` / `spec-grag inject "<課題>"` / 制約検証 / watch 位置引数) が現役記述として残置 | ✅ 完了 2026-05-19 (commit d0052f5) | 現状の CLI subcommand (core / inject-search / inject-section / inject-chapters / inject-purpose / inject-conflicts / realign / watch) に置き換え。「対象プロジェクトに cd してから実行」を冒頭明記 |
+| CB-2 | DESIGN.ja.md §8 操作表が F-C / F-D / F-9 前のまま (gate probe 行 / 制約検証行 / chapter_anchors 全体返却 / concept_file 全文返却) | ✅ 完了 2026-05-19 (commit d0052f5) | 操作表から gate probe 行と制約検証行を削除、inject-chapters / inject-purpose の戻り値を path 返却に更新、「各 inject-* および realign が内部で gate を通す」を冒頭明示 |
+| CB-3 | DESIGN.ja.md §8 末尾の幻の設定 key `[limits].max_traversal_hops` (CLAUDE.md ルール 17 違反) | ✅ 完了 2026-05-19 (commit d0052f5) | 実装で参照されていない key を仕様に書かない原則に従い、「Agent / LLM の判断で打ち切る」に書き換え |
+| CB-4 | DESIGN.ja.md §3.5 CLI 例「spec-grag inject」+ §4.1 checklist の `inject "<task>"` 列挙 | ✅ 完了 2026-05-19 (commit d0052f5) | 例を `spec-grag core, spec-grag inject-search` に変更、checklist から `inject "<task>"` 削除、F-C 撤去の経緯を追記 |
+| CB-5 | EXTERNAL_DESIGN.ja.md §6.3 spec-grag-watch の位置引数記述 (F-A 完了マークと矛盾) | ✅ 完了 2026-05-19 (commit d0052f5) | 位置引数とオプション表行を削除、「対象プロジェクトはカレントディレクトリ固定」を明示 |
+| CC-1 | tests fixture の `[vector_store].collection = "..."` dead config 4 箇所 (test_spec_core.py × 3 + test_watcher.py × 1) | ✅ 完了 2026-05-19 (commit fdf7d7a) | F-1 単一 key 化で config.py が読まなくなった key の test fixture 残骸。削除 (L1130 の F-1 正規検証 wrong/right ペアは保持) |
+| CC-2 | tests/test_release_readiness.py の release smoke fixture が `[vector_store].collection` で section_collection を上書き | ✅ 完了 2026-05-19 (commit fdf7d7a) | `[retrieval].section_collection` 側に移動 (F-1 単一 key 契約と整合) |
+| CC-3 | tests/test_project_skeleton.py L128 の help assert `"inject" in help_text` が `inject-search` 等の substring にも match (F-C 削除確認として弱い) | ✅ 完了 2026-05-19 (commit fdf7d7a) | expected loop を `inject-conflicts` に変更、`assert 'inject "' not in help_text` の negative assert を追加 |
 
-### §2.3 未確認（Step 2 範囲限定で判定不能、8 件）
+監査エージェントが「正当な記述」と判定した次の項目は本 cleanup では触らない:
 
-| # | 問題 | 重要度（暫定） | 追加調査の必要性 |
-|---|---|---|---|
-| U-1 | 方式呼称「SPEC-grag」と業界用語の対応 | **High（戦略）** | プロジェクトの位置づけ判断。コード調査ではなく人間判断 |
-| U-2 | fake provider の状態表現（CoreResult / freshness / diagnostics への表れ方） | **Medium** | コード追加調査で確定可能（`spec_grag/core.py` / `freshness.py` の fake provider 経路追跡） |
-| U-3 | `source_section_id` の形式（`<file_path>#<heading_slug>`）と一意性 | **Medium** | コード追加調査で確定可能（`section_parser.py` の id 生成と uniqueness 検査） |
-| U-4 | setup script の実装事実 | **Medium** | Step 2 が target 9 CLI 中心。setup script について Step 1-B 相当のフロー追跡が必要 |
-| U-5 | Conflict Review Item decision enum 全件対応 | **Medium** | コード追加調査で確定可能（`conflict_review.py` の `apply_conflict_decision` 経路） |
-| U-6 | config の親ディレクトリ探索なし | **Low** | コード追加調査で確定可能（`config.py:163-170` の `tomllib` load 経路） |
-| U-7 | 外部設計書 §12 対象外範囲と Step 2 実装事実の境界 | **Medium** | E-1 / E-2 と関連。外部契約に含めるか §12 対象外で線引きするかの判断 |
-| U-8 | 判定対象から外した節（Purpose / Core Concept 中身） | **N/A** | human-managed の正本内容なので機械判定対象外 |
+- `pass` (try/except) 9 件: 狭い `FileNotFoundError` 等の cleanup、silent failure ではない
+- `fallback*` 多数 hit: B-7 partial regeneration の正規経路設計、廃止対象でない
+- TODO.ja.md L481 / L762 の grep 引用: 歴史的作業ログとして保持
+- `spec_grag/freshness.py` の独立した `_as_list`: F-9 の dead helper とは別関数
 
 ---
 
