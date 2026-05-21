@@ -1114,23 +1114,32 @@ Claude Code 用 command template (`<project>/.claude/commands/spec-*.md`) と Co
 
 本表で `status = failed` と扱う失敗はすべて、`freshness_report.blocking_reasons` に `failed_required_artifact` が積まれ、`freshness_report.status` も `failed` になる。結果として `/spec-inject` と `/spec-realign` は freshness gate (§3.3) で停止し、利用者は復旧 (例: `spec-anchor core --rebuild`、Qdrant 再起動、Source Specs / Purpose / Core Concept の修正など) を行ったうえで `/spec-core` を再実行する必要がある。`/spec-core` 自身は新しい canonical artifact を上書きせず、前回値を残すため、復旧時の比較基準として使える。
 
-| 状態 | 期待動作 |
-|---|---|
-| `.spec-anchor/config.toml` が見つからない | エラー終了し、設定ファイル作成を促す |
-| Purpose が見つからない | エラー終了する |
-| Core Concept が見つからない | エラー終了する |
-| Source Specs が見つからない | エラー終了する |
-| Section Metadata 更新に一部失敗 | 失敗 Section を出力し、必須 artifact が揃う場合は `status = degraded` として扱う |
-| Chapter Key Anchor 更新に一部失敗 | 失敗 chapter を出力し、`status = failed` として扱う。canonical `chapter_anchors.json` は更新せず、前回の値を残す |
-| Related Sections の retrieval backend に到達できない (Qdrant を期待した設定で初期化失敗) | `status = failed` として扱い、Section Metadata 内の関連先一覧と検索 backend 側の関連先 payload を更新しない。前回の値を残す。Qdrant 未設定の InMemory 構成は対象外 |
-| embedding / retrieval index 更新に失敗 | `status = failed` として扱い、古い index を新しいものとして採用しない |
-| dirty / stale / watcher 系 blocking reason がある | `/spec-inject` / `/spec-realign` は自動更新せず、watcher の完了、`/spec-core`、または `/spec-core --all` を促して停止する |
-| `pending_conflict` だけが blocking reason として残っている | `/spec-inject` / `/spec-realign` は制約生成 / Answer 生成を行わず、Conflict Review Item と判断肢を提示する |
-| watcher running / queued changes が残っている | `/spec-inject` / `/spec-realign` は制約生成 / Answer 生成を行わず、watcher の完了を待つ |
-| Project Setup Script の target が存在しない | 明示オプションなしでは作成せず、作成するかどうかを人間に委ねる |
-| Project Setup Script の配置先に既存ファイルがある | 黙って上書きせず、差分または衝突ファイル一覧を出して停止する。`--force` がある場合だけ更新する |
-| System Setup Script の依存ツールが見つからない | 失敗または warning として diagnostics に出し、足りない command / package / service を示す |
-| System Setup Script の Agent CLI 認識性チェックで Codex skill / Claude command が認識されない | warning として diagnostics に出す。setup-project の出力先と Agent CLI version を提示し、手作業対応手順を案内する |
+外部契約コマンドは次の 6 種類で、本表の各エラー行が「どのコマンドで起きるか」を「対応コマンド」列に明示する。
+
+- `/spec-core` (= `spec-anchor core`)
+- `/spec-inject` (= `spec-anchor inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` の総称、§8)
+- `/spec-realign` (= `spec-anchor realign`、§9)
+- `spec-anchor-watch` (§6.3)
+- `spec-anchor-setup-system` (§6.2)
+- `spec-anchor-setup-project` (§6.2)
+
+| 状態 | 対応コマンド | 期待動作 |
+|---|---|---|
+| `.spec-anchor/config.toml` が見つからない | `/spec-core` / `/spec-inject` / `/spec-realign` / `spec-anchor-watch` | エラー終了し、設定ファイル作成 (`spec-anchor-setup-project`) を促す |
+| Purpose が見つからない | `/spec-core` | エラー終了する |
+| Core Concept が見つからない | `/spec-core` | エラー終了する |
+| Source Specs が見つからない | `/spec-core` | エラー終了する |
+| Section Metadata 更新に一部失敗 | `/spec-core` | 失敗 Section を出力し、必須 artifact が揃う場合は `status = degraded` として扱う |
+| Chapter Key Anchor 更新に一部失敗 | `/spec-core` | 失敗 chapter を出力し、`status = failed` として扱う。canonical `chapter_anchors.json` は更新せず、前回の値を残す |
+| Related Sections の retrieval backend に到達できない (Qdrant を期待した設定で初期化失敗) | `/spec-core` | `status = failed` として扱い、Section Metadata 内の関連先一覧と検索 backend 側の関連先 payload を更新しない。前回の値を残す。Qdrant 未設定の InMemory 構成は対象外 |
+| embedding / retrieval index 更新に失敗 | `/spec-core` | `status = failed` として扱い、古い index を新しいものとして採用しない |
+| dirty / stale / watcher 系 blocking reason がある | `/spec-inject` / `/spec-realign` | 自動更新せず、watcher の完了、`/spec-core`、または `/spec-core --all` を促して停止する |
+| `pending_conflict` だけが blocking reason として残っている | `/spec-inject` / `/spec-realign` | 制約生成 / Answer 生成を行わず、Conflict Review Item と判断肢を提示する |
+| watcher running / queued changes が残っている | `/spec-inject` / `/spec-realign` | 制約生成 / Answer 生成を行わず、watcher の完了を待つ |
+| Project Setup Script の target が存在しない | `spec-anchor-setup-project` | 明示オプションなしでは作成せず、作成するかどうかを人間に委ねる |
+| Project Setup Script の配置先に既存ファイルがある | `spec-anchor-setup-project` | 黙って上書きせず、差分または衝突ファイル一覧を出して停止する。`--force` がある場合だけ更新する |
+| System Setup Script の依存ツールが見つからない | `spec-anchor-setup-system` | 失敗または warning として diagnostics に出し、足りない command / package / service を示す |
+| System Setup Script の Agent CLI 認識性チェックで Codex skill / Claude command が認識されない | `spec-anchor-setup-system` | warning として diagnostics に出す。setup-project の出力先と Agent CLI version を提示し、手作業対応手順を案内する |
 
 ## 12. 外部設計で扱わないこと
 
