@@ -88,7 +88,7 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 
 | # | 問題 | 重要度（暫定） | ステータス | 運用上の影響 |
 |---|---|---|---|---|
-| E-1 | Section embedding text の構成（raw body 不含、Summary/Search Keys/Identifiers から生成） | **Low** | ⏳ 未着手 (§4.2 中期) | 外部設計書 §12 が embedding provider 実装と hybrid retrieval scoring を対象外と明示している。この粒度なら過剰だが内部最適化として扱える |
+| E-1 | Section embedding text の構成（raw body 不含、Summary/Search Keys/Identifiers から生成） | **Low** | ✅ 完了 2026-05-19 (§3.6 選択肢 B 採用、内部方式を契約に明示) | プロジェクトオーナーが設計判断として採用した方式 (長文の embedding 品質劣化回避 + 検索キーと embedding 入力の語彙一致による retrieval 精度安定)。`/spec-core` は raw body を embed せず、heading_path / Summary / Search Keys (上限 8) / Identifiers (上限 8) を結合した短い text を BGE-M3 に渡す |
 | E-2 | `_debug_*.jsonl`（env var で append、読込 CLI なし） | **Low** | ⏳ 未着手 (§4.2 中期) | デバッグ用ファイル。env var を設定すると `.spec-grag/state/` に append される。利用者が意図せずファイルが増える可能性はあるが、env var 設定時のみ |
 
 ### §2.3 未確認（Step 2 範囲限定で判定不能、8 件 → 中期 / 長期）
@@ -329,7 +329,13 @@ F-3 は F-1 と同類の「廃止予定機能の残骸」パターンだが、**
 | B | **外部設計書に内部方式として記述**: 「Section embedding text は heading_path / summary / search_keys / identifiers から構成する」と §4.1 等に追加 | 透明性が上がる。外部設計書のスコープが広がる |
 | C | **現状のまま記述しない**: §12 にも追加しない | 最小工数だが、過剰実装として残り続ける |
 
-**Claude 推奨**: **A（§12 対象外として明示）**。理由: 外部設計書 §12 は既に embedding provider 実装を対象外としており、その粒度の整合上、embedding 入力 text の構成も内部方式として扱うのが自然。
+**Claude 推奨（当初）**: A（§12 対象外として明示）。理由: 外部設計書 §12 は既に embedding provider 実装を対象外としており、その粒度の整合上、embedding 入力 text の構成も内部方式として扱うのが自然。
+
+**プロジェクトオーナー判断 (2026-05-19): B 採用**。embedding する text 対象を外部仕様書に明示することで、retrieval 結果の根拠を外部利用者に対しても透明にする。これは長文 Section の embedding 品質劣化回避と、検索キーと embedding 入力の語彙一致による retrieval 精度安定を狙ったプロジェクトオーナーの設計判断であり、内部最適化ではなく外部契約として位置づける。
+
+**実施内容 (2026-05-19、commit 反映予定)**: `doc/EXTERNAL_DESIGN.ja.md` §4.1 「検索管理 (Qdrant)」の bullet として次を追加:
+
+> 1 Section の embedding 入力 text は、`heading_path` を ` / ` で結合した見出し列、Section Summary、Section Search Keys (上限 8 件、半角空白で結合)、Section Identifiers (上限 8 件、半角空白で結合) を ` | ` で並べた短い text である。Source Specs 本文 (raw body) は embedding 入力に含めない。これにより、長い Section でも 1 Section = 1 BGE-M3 vector に収まり、検索キーと embedding 入力の語彙が一致して retrieval 精度が安定する。Source Specs 本文を確認したい場合、Agent は `spec-grag inject-search` の hit で得た `source_section_id` と `source_span` から Source Specs の file を `Read` する経路を取る。
 
 ### §3.7 E-2: `_debug_*.jsonl`
 
@@ -726,7 +732,7 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 | # | 問題 | 推奨選択肢 | 工数感（暫定）|
 |---|---|---|---|
 | F-4 | `/spec-inject` の人間向け通常出力 | C（slash command / skill 側で表示変換と明示） | 低（設計書改訂のみ） |
-| E-1 | Section embedding text の構成 | A（§12 対象外として明示） | 低（設計書 §12 改訂） |
+| ~~E-1~~ | ~~Section embedding text の構成~~ | **B（内部方式を契約に明示）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.6) | 低（設計書 §4.1 改訂のみ）|
 | E-2 / F-6 | `_debug_*.jsonl` と環境変数表 | B（§12 対象外として明示） | 低（設計書 §12 改訂） |
 | U-2〜U-7 | 未確認項目の追加コード調査 | 個別実施 | 中（U-4 setup script が最大工数） |
 
