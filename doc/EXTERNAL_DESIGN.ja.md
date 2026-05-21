@@ -1123,9 +1123,11 @@ Claude Code 用 command template (`<project>/.claude/commands/spec-*.md`) と Co
 - `spec-anchor-setup-system` (§6.2)
 - `spec-anchor-setup-project` (§6.2)
 
-exit code の方針は対応コマンドで非対称である。`/spec-core` / `/spec-realign` / `spec-anchor-setup-project` / `spec-anchor-setup-system` は `status = failed` / `error` / `conflict` のときに exit code 1 を返し、shell スクリプトや CI から失敗を検知できる。`/spec-inject inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` と `spec-anchor-watch` は **exit code 0 固定**であり、停止状態は JSON 戻り値 (`should_stop` / `blocking_reasons` / `status`) で表現する (Agent CLI が exit code を見ずに JSON を parse する責務を持つ)。
+本システムは **slash command (Claude Code の `/spec-core` / `/spec-inject` / `/spec-realign`) または skill (Codex の SPEC-anchor skill) が、内部で `spec-anchor` CLI (= `spec-anchor core` / `inject-*` / `realign` / `spec-anchor-watch` / `spec-anchor-setup-*`) を子プロセスとして実行する** 構成である。本表の「CLI exit code」は、`spec-anchor` CLI を子プロセスとして起動した呼び出し元 (Agent CLI / shell / CI) が観測する exit code を指す。slash command や skill が Agent ユーザーに最終的に返す表示・終了挙動はそれぞれの Agent CLI 仕様に従う。
 
-| 状態 | 対応コマンド | exit code | 期待動作 |
+CLI exit code の方針は対応コマンドで非対称である。`spec-anchor core` / `spec-anchor realign` / `spec-anchor-setup-project` / `spec-anchor-setup-system` は `status = failed` / `error` / `conflict` のときに CLI exit code 1 を返し、shell スクリプトや CI、または slash command / skill の wrapper から失敗を検知できる。`spec-anchor inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` と `spec-anchor-watch` は **CLI exit code 0 固定** であり、停止状態は JSON 戻り値 (`should_stop` / `blocking_reasons` / `status`) で表現する (呼び出し元は CLI exit code を見ずに JSON を parse する責務を持つ)。
+
+| 状態 | 対応コマンド | CLI exit code | 期待動作 |
 |---|---|---|---|
 | `.spec-anchor/config.toml` が見つからない | `/spec-core` / `/spec-inject` / `/spec-realign` / `spec-anchor-watch` | `/spec-core`: 1、`/spec-realign`: 1、`/spec-inject`: 0 (JSON で報告)、`spec-anchor-watch`: 0 (JSON で報告) | エラー終了し、設定ファイル作成 (`spec-anchor-setup-project`) を促す |
 | Purpose が見つからない | `/spec-core` | 1 | エラー終了する |
