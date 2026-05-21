@@ -96,11 +96,11 @@ spec-grag の現状実装は、外部設計書 (`doc/EXTERNAL_DESIGN.ja.md`) と
 | # | 問題 | 重要度（暫定） | ステータス | 追加調査の必要性 |
 |---|---|---|---|---|
 | U-1 | 方式呼称「SPEC-grag」と業界用語の対応 | **High（戦略）** | ✅ 完了 2026-05-19 (§3.8 選択肢 A 採用、§1.1 に方式分類を明示) | プロジェクトオーナーが「Hybrid RAG + lightweight related-section retrieval に分類される」と判断、外部設計書 §1.1 として方式分類節を新設 (rename 後は SPEC-anchor と読み替え) |
-| U-2 | fake provider の状態表現（CoreResult / freshness / diagnostics への表れ方） | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`spec_grag/core.py` / `freshness.py` の fake provider 経路追跡） |
-| U-3 | `source_section_id` の形式（`<file_path>#<heading_slug>`）と一意性 | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`section_parser.py` の id 生成と uniqueness 検査） |
-| U-4 | setup script の実装事実 | **Medium** | ⏳ 未着手 (§4.2 中期) | Step 2 が target 9 CLI 中心。setup script について Step 1-B 相当のフロー追跡が必要 |
-| U-5 | Conflict Review Item decision enum 全件対応 | **Medium** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`conflict_review.py` の `apply_conflict_decision` 経路） |
-| U-6 | config の親ディレクトリ探索なし | **Low** | ⏳ 未着手 (§4.2 中期) | コード追加調査で確定可能（`config.py:163-170` の `tomllib` load 経路） |
+| U-2 | fake provider の状態表現（CoreResult / freshness / diagnostics への表れ方） | **Medium** | ✅ 完了 2026-05-19 (調査完了、外部設計書 §10.3 で `SPEC_ANCHOR_FAKE_LLM` 自体は F-6 で記載済み、fake 挙動の詳細は内部実装事実として記録) | 起動: `llm_provider.py:310` で truthy 判定し `FakeLlmProvider` に切替。挙動: 常に成功 (deterministic な fake output)、診断は `LlmGenerationArtifact.provider == "fake"` でフィルタ可。CoreResult.status は通常実行と同じロジック (fake は失敗が出にくいため "updated" 寄り) |
+| U-3 | `source_section_id` の形式（`<file_path>#<ordinal>-<heading_slug>`）と一意性 | **Medium** | ✅ 完了 2026-05-19 (§2.4 を実装に合わせて修正、ordinal 4 桁 zero-padded を明示) | 実装: `section_parser.py:157` で `f"{document_id}#{ordinal:04d}-{slug}"` を生成。ordinal は出現順 1 始まり、slug は英数字 / アンダースコア / 日本語を保持・他を `-` に置換・小文字化。同一 file 内の同名 heading は ordinal で区別 |
+| U-4 | setup script の実装事実 | **Medium** | ✅ 完了 2026-05-19 (調査完了、外部設計書 §6.2 で大枠記載済み、戻り値 JSON shape の詳細は内部実装事実として記録) | `setup_project`: 6 種類のファイル配置 (config.toml / .gitignore / 3× Claude command / 1× Codex skill) + Purpose / Core Concept 雛形 (human_owned 保護、--force でも上書きしない)。conflict / dry_run / force / no_init_core_files の各モード対応。`setup_system`: 9 項目 readiness check (qdrant_service / flagembedding / qdrant_client / agent_cli / 5× console_scripts) |
+| U-5 | Conflict Review Item decision enum 全件対応 | **Medium** | ✅ 完了 2026-05-19 (実装と設計書 §2.8 が完全一致、改訂不要) | 7 decision: `prefer_a` / `prefer_b` / `conditional` / `dismiss` / `needs_source_update` / `defer` / `task_scope_resolution`。すべて §2.8 (L685-693) に記載済みで実装 (`conflict_review.py:488-561 apply_conflict_decision`) と一致 |
+| U-6 | config の親ディレクトリ探索なし | **Low** | ✅ 完了 2026-05-19 (実装と設計書 §10.1 が完全一致、改訂不要) | `load_config()` (config.py:158-209) は `<project_root>/.spec-anchor/config.toml` 直下のみ探索、不在で `ConfigError`。§10.1 (L893) で「親ディレクトリへの自動探索はしない」と明示済みで実装と一致 |
 | U-7 | 外部設計書 §12 対象外範囲と Step 2 実装事実の境界 | **Medium** | ✅ 完了 2026-05-19 (E-1 / E-2 確定で自動解決、§12 改訂不要) | E-1 (§4.1 で embedding 入力 text の構成を明示) と E-2 / F-6 (§10.3 で debug env var を明示) の判断結果として、§12 対象外範囲は拡大しないことが確定。既存の §12 (embedding provider 実装 / hybrid retrieval 内部 scoring / LLM provider subprocess 実装 / slash command プロンプト本文 / property graph 等) はそのままで整合済み |
 | U-8 | 判定対象から外した節（Purpose / Core Concept 中身） | **N/A** | 対象外 (human-managed の正本内容、機械判定不能) | human-managed の正本内容なので機械判定対象外 |
 
@@ -767,7 +767,11 @@ d. Core Concept は path として返るので、課題に関連する箇所を 
 | ~~F-6~~ | ~~環境変数表に debug env var 未列挙~~ | **A（外部設計書 §10.3 に追記）— 2026-05-19 確定** ✅ 完了 2026-05-19 (§3.5) | 低（設計書 §10.3 改訂のみ、env var 4 件追加）|
 | ~~E-2~~ | ~~`_debug_*.jsonl`（env var で append、読込 CLI なし）~~ | **F-6 A 採用に連動して契約明示** ✅ 完了 2026-05-19 (§3.5、F-6 と同 commit、default 出力先 `.spec-grag/state/_debug_*.jsonl` が §10.3 env var 説明に明記される) | 0（F-6 に同梱）|
 | ~~U-7~~ | ~~外部設計書 §12 対象外範囲の整理~~ | **E-1 / E-2 確定で自動解決** ✅ 完了 2026-05-19 (§3.9、§12 本文は改訂なし) | 0（E-1 / F-6 に同梱、独立工数なし）|
-| U-2〜U-6 | 未確認項目の追加コード調査 (fake provider / source_section_id / setup script / decision enum / config 探索) | 個別実施 | 中（U-4 setup script が最大工数） |
+| ~~U-2~~ | ~~fake provider の状態表現~~ | **調査完了、§10.3 で env var 記載済 (F-6)** ✅ 完了 2026-05-19 | 0（実装事実を STEP5 に記録、設計書改訂なし）|
+| ~~U-3~~ | ~~`source_section_id` の形式と一意性~~ | **§2.4 を `<file_path>#<ordinal>-<heading_slug>` に修正** ✅ 完了 2026-05-19 | 低（§2.4 改訂 1 箇所）|
+| ~~U-4~~ | ~~setup script の実装事実~~ | **調査完了、§6.2 で大枠記載済** ✅ 完了 2026-05-19 | 0（実装事実を STEP5 に記録、設計書改訂なし）|
+| ~~U-5~~ | ~~Conflict Review Item decision enum~~ | **§2.8 と実装が完全一致** ✅ 完了 2026-05-19 (改訂不要) | 0 |
+| ~~U-6~~ | ~~config の親ディレクトリ探索なし~~ | **§10.1 と実装が完全一致** ✅ 完了 2026-05-19 (改訂不要) | 0 |
 
 ### §4.3 長期（戦略判断を要する）
 
