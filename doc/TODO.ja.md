@@ -157,6 +157,83 @@ C. **既存 pytest の合格**
   - chapter_anchors / related_sections 用の scroll 経路: 本 task では section collection の payload scroll のみ
   - Qdrant client の connection pool / 永続化: spec-anchor 外の Qdrant 運用に属する
 
+### T-retroactive-verification-level: 旧 Phase 完了 test に verification_level marker を遡及付与して field 級 evidence に格上げ
+
+#### 背景
+
+`doc/e2eテスト/test_plan.ja.md` §4.2.2 の Phase 表を 2026-05-22 (本セッション) に `✓` 表記から `N/M` 表記へ書き換えた際、field 級 evidence (`evidence_map.jsonl` の `verification_level` field) で N=0 になる Phase が多数判明した。
+
+- P1 §5 = 0/15 (旧 passed 15 件あるが verification_level field なし)
+- P1 §10 = 0/69 (旧 passed 69 件あるが field なし)
+- P2 §6 = 0/37 (同上)
+- P3 §7 unit = 37/118 / hybrid = 81/118 (本セッション commit `42854c8` で `tests/test_spec_core_acceptance.py` の §7 markers に `verification_level="hybrid_verified"` を付与した分のみ。残 `test_*.py` には未付与)
+
+原因: `verification_level` field を `evidence_map.jsonl` に書き出す harness 実装 (`spec_anchor/testing/evidence.py` の `_VERIFICATION_LEVEL_RE` parse と `record()` 内 emission) は本セッション commit `42854c8` で初めて入れた。それ以前の Phase 完了時 (commit `fc48a7f` / `57f7fdd` / `da7fd59` / `56ddb61`) の test runner は `verification_level` を書き出していない。
+
+#### 真因 / 仮説
+
+真因 (確定): 旧 harness は `SPEC_REF` / `PROFILE` / `METHOD` の 3 field のみ parse する設計で、`VERIFICATION_LEVEL` は parse 対象外だった。tests/conftest.py の `spec_ref` marker 定義も同じ 3 kwarg のみ。
+
+仮説 (未確定):
+- (i) 既存 test の SPEC_REF marker に `verification_level=...` kwarg を追加するだけで field 級昇格できる (test 本体改修不要)
+- (ii) 一部の test は実 runner setup と `verification_level` 主張が一致せず再分類が必要 (例: P1 §10 setup-system 系は技術的に NA、`tests/test_setup_scripts.py` の一部は hybrid)
+- (iii) test 再実行を伴うため flaky / regression が新規発生する可能性 (本セッションの `test_responsibility_boundary` のような 1/4 fail のような事例)
+
+#### 目的
+
+旧 Phase の test 群に `verification_level` marker を遡及付与し、`evidence_map.jsonl` の field 級 entry に変換する。これにより §4.2.2 表の N/M cell の N が現実に近づき、進捗 reporting の honest 度が上がる。
+
+合格基準: P1 §5 / P1 §10 / P2 §6 の各 N が、対応する spec doc 件数の最低 80% を超える (`unit` or `NA` の合計)。P3 §7 の unit + hybrid 合計が 118/118 に達する。
+
+#### 実装方針
+
+1. 各 Phase 担当 test file の SPEC_REF marker / docstring を grep で列挙し、`verification_level=` kwarg または docstring `VERIFICATION_LEVEL:` line が無いものを抽出
+2. 各 test を分類:
+   - LLM stub のみ呼ぶ pure subprocess test → `unit_verified`
+   - real Qdrant / real BGE-M3 を呼ぶ subprocess test → `hybrid_verified`
+   - config loader / argparse / dataclass 直接 assert → `unit_verified`
+   - 技術的に real LLM 不要な構造 test (例: config key existence) → `unit_verified` (NA ではない、unit に該当)
+   - 真に NA (例: §10 で config loader 単体テスト) → `verification_level=null` で marker は付与せず、Phase 注記で NA 明示
+3. `tests/test_config_loader.py` / `tests/test_setup_scripts.py` / `tests/test_section_metadata_generation.py` 等の主要 file を順に手作業で marker 付与
+4. `pytest --skip-external` を再実行して各 Phase 用 evidence_map.jsonl を新規生成 (既存 evidence と区別するため `doc/e2eテスト/evidence/<日付>-retroactive/` に新規 dir)
+5. `doc/e2eテスト/test_plan.ja.md` §4.2.2 の N/M cell を新 evidence で更新
+
+#### 検証条件
+
+A. **marker 付与後の field 級記録**
+- `evidence_map.jsonl` で `verification_level` field を持つ entry 数が各 Phase の合格基準 (上記目的の数値) を満たす
+
+B. **regression なし**
+- `pytest --skip-external` 全 pass 維持 (現状 571 passed)
+- 新規 fail / skip が 0 件 (再分類過程で test 改修した場合は別 commit で説明)
+
+C. **§4.2.2 表更新**
+- N/M cell の N が新 evidence と一致
+- 旧 "field 未付与 passed" 列が 0 (または大幅減) になる
+
+#### 触れる主なファイル
+
+- [tests/test_config_loader.py](tests/test_config_loader.py): §10 設定ファイル test の marker 付与
+- [tests/test_setup_scripts.py](tests/test_setup_scripts.py): §6 setup-script test の marker 付与
+- [tests/test_responsibility_boundary.py](tests/test_responsibility_boundary.py): §5 責務境界 test の marker 付与
+- [tests/test_section_metadata_generation.py](tests/test_section_metadata_generation.py) ほか §7 test 群: §7 残 marker 付与
+- [tests/conftest.py](tests/conftest.py): `spec_ref` marker docstring に追加が必要な場合
+- [doc/e2eテスト/test_plan.ja.md](doc/e2eテスト/test_plan.ja.md) §4.2.2: N/M cell の N 値更新
+
+#### 完了条件
+
+- 上記合格基準の N が達成され、§4.2.2 表が新 evidence と一致
+- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因・実装方針・検証条件・各 file の marker 付与件数・更新後 N 値の記録を保持)
+
+#### 依存 / scope 外
+
+- **依存**: 本セッション commit `42854c8` (verification_level harness 実装) が先行必要 (達成済)
+- **scope 外**:
+  - real-smoke / production E2E verification の本実施 (P3b / P7 phase の別 task)
+  - §11.2 19 ✅ の revert 判断 (§11.1.5 と同じ author-assertion 問題、別判断 task)
+  - 新規 test 追加 (本 task は既存 test への marker 付与のみ)
+- **trigger**: 優先度は中。P3b / P4 / P5 / P6 着手前に完了することで、各 Phase の honest baseline が確定する
+
 ### T-flaky-responsibility-boundary: test_responsibility_boundary 1 件の再発時調査と fixture isolation 補強
 
 #### 背景
