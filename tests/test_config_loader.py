@@ -257,6 +257,13 @@ def test_t_u05_multi_llm_provider_config_rejects_invalid_provider_references(
 def test_t_u06_missing_config_file_fails_without_parent_directory_search(
     tmp_path: Path,
 ) -> None:
+    """Parent directory search for `.spec-anchor/config.toml` is forbidden.
+
+    SPEC_REF: §10.1 L1009
+    PROFILE: fake
+    METHOD: 入出力比較
+    """
+
     parent = tmp_path / "parent"
     child = parent / "child"
     _write_project(parent)

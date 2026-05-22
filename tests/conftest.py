@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from spec_anchor.testing.evidence import EvidenceCollector
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_STATE_DIR = REPO_ROOT / ".spec-anchor"
@@ -41,6 +43,25 @@ def pytest_unconfigure(config: pytest.Config) -> None:
 def pytest_runtest_setup(item: pytest.Item) -> None:
     if item.config.getoption("--skip-external") and item.get_closest_marker("external"):
         pytest.skip("--skip-external was specified; external dependency test not run")
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    """Capture test outcome for the evidence map.
+
+    SPEC_REF / PROFILE / METHOD parsing happens inside ``EvidenceCollector``
+    so this hook can stay terse and side-effect free in the failure path.
+    """
+
+    outcome = yield
+    report = outcome.get_result()
+    EvidenceCollector.instance().record(item, report)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Persist ``evidence_map.jsonl`` once the session ends."""
+
+    EvidenceCollector.instance().flush()
 
 
 @pytest.fixture(autouse=True)

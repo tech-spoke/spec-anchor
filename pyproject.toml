@@ -34,7 +34,7 @@ spec-anchor-setup-project = "spec_anchor.cli:setup_project_main"
 spec-anchor-setup-system = "spec_anchor.cli:setup_system_main"
 
 [tool.setuptools]
-packages = ["spec_anchor"]
+packages = ["spec_anchor", "spec_anchor.testing"]
 include-package-data = true
 
 [tool.setuptools.package-data]
