@@ -572,12 +572,12 @@ spec-anchor-watch
 
 | 確認 | flag | LLM 由来 cache (section_metadata / pair typing / chapter_anchors) | embedding (Qdrant section collection) |
 |---|---|---|---|
-| [ ] | (none) | reuse (hash 一致時) | reuse (hash 一致時) |
-| [ ] | `--all` | clear → 再生成 | reuse (hash 一致時) |
-| [ ] | `--rebuild` | clear → 再生成 | full recreate (collection 再作成) |
+| [✅] | (none) | reuse (hash 一致時) | reuse (hash 一致時) |
+| [✅] | `--all` | clear → 再生成 | reuse (hash 一致時) |
+| [✅] | `--rebuild` | clear → 再生成 | full recreate (collection 再作成) |
 
-- [ ] `--rebuild` は `--all` を含意する (両方の効果が同時に発火し、`--all` を別途指定する必要がない)。
-- [ ] `/spec-core` は `.spec-anchor/config.toml` で指定された LLM provider / embedding provider / vector store provider をそのまま使い、別 provider に黙って切り替えない (指定 provider 失敗時は失敗として報告)。
+- [✅] `--rebuild` は `--all` を含意する (両方の効果が同時に発火し、`--all` を別途指定する必要がない)。
+- [✅] `/spec-core` は `.spec-anchor/config.toml` で指定された LLM provider / embedding provider / vector store provider をそのまま使い、別 provider に黙って切り替えない (指定 provider 失敗時は失敗として報告)。
 
 ### 7.2 入力
 
@@ -585,21 +585,21 @@ spec-anchor-watch
 
 | 確認 | 入力 | 内容 |
 |---|---|---|
-| [ ] | `.spec-anchor/config.toml` | 対象ソース、Purpose、Core Concept、保持物の保存先、LLM / embedding 設定 |
-| [ ] | Source Specs | `sources.include` で指定された仕様ファイル |
-| [ ] | Purpose | `core.purpose_file` で指定されたファイル。読み取り専用 |
-| [ ] | Core Concept | `core.concept_file` で指定されたファイル。人間更新対象 |
+| [✅] | `.spec-anchor/config.toml` | 対象ソース、Purpose、Core Concept、保持物の保存先、LLM / embedding 設定 |
+| [✅] | Source Specs | `sources.include` で指定された仕様ファイル |
+| [✅] | Purpose | `core.purpose_file` で指定されたファイル。読み取り専用 |
+| [✅] | Core Concept | `core.concept_file` で指定されたファイル。人間更新対象 |
 
 `spec-anchor core` の CLI フラグ:
 
 | 確認 | フラグ | 内容 |
 |---|---|---|
-| [ ] | `--all` / `-a` | LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。embedding は hash 一致時に再利用 |
-| [ ] | `--rebuild` | `--all` を含意し、さらに Qdrant `spec_anchor_section` collection を drop + recreate する。embedding 破損や schema 移行時に使う |
-| [ ] | `--verify-index` | Source Retrieval Index の Qdrant collection に保持されている内容が、現在の Section の hash と一致するかを能動検証する。不整合を見つけた場合、retrieval_index_status を failed にして停止指示を表示する。自動修復はしない。 |
-| [ ] | `--llm-provider <id>` | `[llm.stage_routing]` を上書きし、指定した provider id を全 stage に適用する。Codex skill / Claude command は通常指定しない |
-| [ ] | `--decision-json <json>` | pending Conflict Review Item に対する判断結果を JSON で渡す |
-| [ ] | `--decision-file <path>` | pending Conflict Review Item に対する判断結果を JSON ファイルから読み込む |
+| [✅] | `--all` / `-a` | LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。embedding は hash 一致時に再利用 |
+| [✅] | `--rebuild` | `--all` を含意し、さらに Qdrant `spec_anchor_section` collection を drop + recreate する。embedding 破損や schema 移行時に使う |
+| [✅] | `--verify-index` | Source Retrieval Index の Qdrant collection に保持されている内容が、現在の Section の hash と一致するかを能動検証する。不整合を見つけた場合、retrieval_index_status を failed にして停止指示を表示する。自動修復はしない。 |
+| [✅] | `--llm-provider <id>` | `[llm.stage_routing]` を上書きし、指定した provider id を全 stage に適用する。Codex skill / Claude command は通常指定しない |
+| [✅] | `--decision-json <json>` | pending Conflict Review Item に対する判断結果を JSON で渡す |
+| [✅] | `--decision-file <path>` | pending Conflict Review Item に対する判断結果を JSON ファイルから読み込む |
 
 ### 7.3 動作
 
@@ -608,38 +608,38 @@ spec-anchor-watch
 ステップ個別チェック (CLI 手順遵守の可視化):
 
 ```text
-[ ] /spec-core
-      [ ] Source Specs の Section manifest を作る
-      [ ] Section hash を比較する
-      [ ] 変更 Section の Section Summary を更新する
-      [ ] 変更 Section の Section Search Keys を更新する
-      [ ] Source Retrieval Index を更新する
-      [ ] 関連候補を広く集め、LLM が Related Sections を理由付きで選ぶ
-      [ ] conflicts_with が疑われる pair を検査する
-      [ ] LLM が解決できない conflict を Conflict Review Item として記録する
-      [ ] 影響する Chapter Key Anchor を更新する
-      [ ] CoreResult を出力する
+[✅] /spec-core
+      [✅] Source Specs の Section manifest を作る
+      [✅] Section hash を比較する
+      [✅] 変更 Section の Section Summary を更新する
+      [✅] 変更 Section の Section Search Keys を更新する
+      [✅] Source Retrieval Index を更新する
+      [✅] 関連候補を広く集め、LLM が Related Sections を理由付きで選ぶ
+      [✅] conflicts_with が疑われる pair を検査する
+      [✅] LLM が解決できない conflict を Conflict Review Item として記録する
+      [✅] 影響する Chapter Key Anchor を更新する
+      [✅] CoreResult を出力する
 
-[ ] /spec-core --all
-      [ ] Source Specs を全件読み込む
-      [ ] Section Summary を LLM 再生成する (cache 無視)
-      [ ] Section Search Keys を LLM 再生成する (cache 無視)
-      [ ] Source Retrieval Index は hash 一致時に reuse (embedding は決定論的)
-      [ ] Related Sections を LLM 再 typing する (pair cache 無視)
-      [ ] conflicts_with が疑われる pair を検査する
-      [ ] LLM が解決できない conflict を Conflict Review Item として記録する
-      [ ] Chapter Key Anchor を再生成する
-      [ ] CoreResult を出力する
+[✅] /spec-core --all
+      [✅] Source Specs を全件読み込む
+      [✅] Section Summary を LLM 再生成する (cache 無視)
+      [✅] Section Search Keys を LLM 再生成する (cache 無視)
+      [✅] Source Retrieval Index は hash 一致時に reuse (embedding は決定論的)
+      [✅] Related Sections を LLM 再 typing する (pair cache 無視)
+      [✅] conflicts_with が疑われる pair を検査する
+      [✅] LLM が解決できない conflict を Conflict Review Item として記録する
+      [✅] Chapter Key Anchor を再生成する
+      [✅] CoreResult を出力する
 
-[ ] /spec-core --rebuild
-      [ ] --all と同じ手順で LLM 由来 cache を再評価する
-      [ ] Source Retrieval Index を Qdrant collection ごと full recreate する
+[✅] /spec-core --rebuild
+      [✅] --all と同じ手順で LLM 由来 cache を再評価する
+      [✅] Source Retrieval Index を Qdrant collection ごと full recreate する
 ```
 
-- [ ] **`/spec-core` 実行の trace 監査** (検証単位): `.spec-anchor/state/core_progress.json` の `stages[]` に上記ステップが順に記録され、各 stage の `status` / `elapsed_sec` / `action` / `diagnostics` で観測できる。
+- [✅] **`/spec-core` 実行の trace 監査** (検証単位): `.spec-anchor/state/core_progress.json` の `stages[]` に上記ステップが順に記録され、各 stage の `status` / `elapsed_sec` / `action` / `diagnostics` で観測できる。
 
-- [ ] `/spec-core` 実行中 Purpose / Core Concept ファイルは読み取り専用として扱われ、書き換えられない (実行前後で `purpose_file` / `concept_file` の内容が一致する)。
-- [ ] `spec-anchor-watch` が呼び出す core 更新は `/spec-core` slash command の外部実行ではなく、watcher process 内部の background execution として `spec-core` 相当の incremental update が実行される (Agent CLI を起動しない)。
+- [✅] `/spec-core` 実行中 Purpose / Core Concept ファイルは読み取り専用として扱われ、書き換えられない (実行前後で `purpose_file` / `concept_file` の内容が一致する)。
+- [✅] `spec-anchor-watch` が呼び出す core 更新は `/spec-core` slash command の外部実行ではなく、watcher process 内部の background execution として `spec-core` 相当の incremental update が実行される (Agent CLI を起動しない)。
 
 ### 7.4 出力
 
@@ -647,114 +647,114 @@ spec-anchor-watch
 
 ```text
 CoreResult
-  [ ] mode: incremental | full
-  [ ] updated_sources
-  [ ] skipped_sources
-  [ ] failed_sources
-  [ ] failed_sections
-  [ ] updated_sections
-  [ ] regenerated_chapter_anchors
-  [ ] retrieval_index_status
-  [ ] related_sections_status
-  [ ] potential_conflicts
-  [ ] conflict_review_items
-  [ ] pending_conflict_count
-  [ ] unreflected_conflict_resolutions
-  [ ] stale_resolution_count
-  [ ] freshness_report
-  [ ] warnings
+  [✅] mode: incremental | full
+  [✅] updated_sources
+  [✅] skipped_sources
+  [✅] failed_sources
+  [✅] failed_sections
+  [✅] updated_sections
+  [✅] regenerated_chapter_anchors
+  [✅] retrieval_index_status
+  [✅] related_sections_status
+  [✅] potential_conflicts
+  [✅] conflict_review_items
+  [✅] pending_conflict_count
+  [✅] unreflected_conflict_resolutions
+  [✅] stale_resolution_count
+  [✅] freshness_report
+  [✅] warnings
 ```
 
 `retrieval_index_status` は Source Retrieval Index の最終状態を示す。次のいずれかの値を取る。
 
-- [ ] `success`: 今回 `/spec-core` が retrieval index に upsert を実行し、index は最新の section 集合と設定を反映している。
-- [ ] `skipped`: retrieval index 機能が `[embedding]` / `[vector_store]` の設定で無効化されている (例: `embedding.provider != "flagembedding"`)。Agent / LLM 側は in-memory retrieval にフォールバックする。
-- [ ] `skipped_unchanged`: 入力 (Source Specs の section 集合と内容、embedding / retrieval 設定の指紋) が前回 `/spec-core` 実行時と完全に一致した場合、retrieval index への upsert は実行されず、前回実行時点の index が引き続き有効として扱われる。
-- [ ] `failed`: retrieval index の upsert / 接続で例外が発生した、または `--verify-index` が不整合を検出した場合。`/spec-core --rebuild` で復旧する旨を出力する。
-- [ ] `blocked`: 上流の理由 (pending conflict、freshness 停止、入力読み込み失敗) で `/spec-core` 自体が処理を中断し、retrieval index 経路に到達しなかった場合。
+- [✅] `success`: 今回 `/spec-core` が retrieval index に upsert を実行し、index は最新の section 集合と設定を反映している。
+- [✅] `skipped`: retrieval index 機能が `[embedding]` / `[vector_store]` の設定で無効化されている (例: `embedding.provider != "flagembedding"`)。Agent / LLM 側は in-memory retrieval にフォールバックする。
+- [✅] `skipped_unchanged`: 入力 (Source Specs の section 集合と内容、embedding / retrieval 設定の指紋) が前回 `/spec-core` 実行時と完全に一致した場合、retrieval index への upsert は実行されず、前回実行時点の index が引き続き有効として扱われる。
+- [✅] `failed`: retrieval index の upsert / 接続で例外が発生した、または `--verify-index` が不整合を検出した場合。`/spec-core --rebuild` で復旧する旨を出力する。
+- [✅] `blocked`: 上流の理由 (pending conflict、freshness 停止、入力読み込み失敗) で `/spec-core` 自体が処理を中断し、retrieval index 経路に到達しなかった場合。
 
-- [ ] Qdrant collection が手動削除等で `skipped_unchanged` の前提条件 (`retrieval_index_state.json` の指紋一致 + collection 存在) が崩れている場合、`/spec-core` は upsert を自動実行し、最終 status は `success` または `failed`、`core_progress.json` の `stages.section_collection_upsert.action` は `"upserted_full"` で記録される (更新が必要になった理由は同 stage の `reason` / `diagnostics` で確認可能)。
-- [ ] 古い version の SPEC-anchor が作成した数値 point id の Qdrant collection を検出した場合、`/spec-core` は実行内で collection を再作成し UUID5 形式の point id で登録し直す (ユーザーの `--rebuild` 指定なしに自動移行、`core_progress.json` の `stages.section_collection_upsert.action` は `"upserted_full"`、同 stage に `migration_required_from_ordinal_point_id` warning が記録される)。
-- [ ] Source Specs の一部 Section だけが変わった incremental 実行では、Source Retrieval Index の更新対象が変更・追加 Section に絞られ、削除 Section が Qdrant collection から取り除かれる。この場合 `core_progress.json` の `stages.section_collection_upsert.action` は `"upserted_partial"` になり、同 stage の `diagnostics` で `sections_upserted_count` / `sections_deleted_count` / `embed_documents_input_size` / `stale_points_deleted` を確認できる。
-- [ ] `spec-anchor core --verify-index` は不整合を検出した場合、Source Retrieval Index を自動修復せず、結果を `retrieval_index_status = "failed"` として `/spec-core --rebuild` の実行を促す。
+- [✅] Qdrant collection が手動削除等で `skipped_unchanged` の前提条件 (`retrieval_index_state.json` の指紋一致 + collection 存在) が崩れている場合、`/spec-core` は upsert を自動実行し、最終 status は `success` または `failed`、`core_progress.json` の `stages.section_collection_upsert.action` は `"upserted_full"` で記録される (更新が必要になった理由は同 stage の `reason` / `diagnostics` で確認可能)。
+- [✅] 古い version の SPEC-anchor が作成した数値 point id の Qdrant collection を検出した場合、`/spec-core` は実行内で collection を再作成し UUID5 形式の point id で登録し直す (ユーザーの `--rebuild` 指定なしに自動移行、`core_progress.json` の `stages.section_collection_upsert.action` は `"upserted_full"`、同 stage に `migration_required_from_ordinal_point_id` warning が記録される)。
+- [✅] Source Specs の一部 Section だけが変わった incremental 実行では、Source Retrieval Index の更新対象が変更・追加 Section に絞られ、削除 Section が Qdrant collection から取り除かれる。この場合 `core_progress.json` の `stages.section_collection_upsert.action` は `"upserted_partial"` になり、同 stage の `diagnostics` で `sections_upserted_count` / `sections_deleted_count` / `embed_documents_input_size` / `stale_points_deleted` を確認できる。
+- [✅] `spec-anchor core --verify-index` は不整合を検出した場合、Source Retrieval Index を自動修復せず、結果を `retrieval_index_status = "failed"` として `/spec-core --rebuild` の実行を促す。
 
 `related_sections_status` は Related Sections 生成の最終状態を示す。次のいずれかの値を取る。
 
-- [ ] `success`: 今回 `/spec-core` が Related Sections の候補生成と LLM selection を実行し、selected_related_sections を最新化した。
-- [ ] `skipped_unchanged`: 入力 (section 集合と内容、candidate generation / LLM selection の設定指紋) が前回 `/spec-core` 実行時と完全に一致した場合、候補生成と LLM selection は実行されず、前回の selected_related_sections が継承される。
-- [ ] `failed`: Related Sections 生成のいずれかの段階で例外が発生した場合、または Qdrant 期待設定で retrieval backend を初期化できなかった場合。canonical な related_sections は更新されず前回値が残り、freshness は failed に降格する。
-- [ ] `blocked`: 上流の理由で `/spec-core` が中断され、Related Sections 経路に到達しなかった場合。
+- [✅] `success`: 今回 `/spec-core` が Related Sections の候補生成と LLM selection を実行し、selected_related_sections を最新化した。
+- [✅] `skipped_unchanged`: 入力 (section 集合と内容、candidate generation / LLM selection の設定指紋) が前回 `/spec-core` 実行時と完全に一致した場合、候補生成と LLM selection は実行されず、前回の selected_related_sections が継承される。
+- [✅] `failed`: Related Sections 生成のいずれかの段階で例外が発生した場合、または Qdrant 期待設定で retrieval backend を初期化できなかった場合。canonical な related_sections は更新されず前回値が残り、freshness は failed に降格する。
+- [✅] `blocked`: 上流の理由で `/spec-core` が中断され、Related Sections 経路に到達しなかった場合。
 
-- [ ] Qdrant 期待設定 (`vector_store.provider = "qdrant"` + `url` 設定済み + `embedding.provider = "flagembedding"`) で Qdrant retrieval backend を初期化できなかった場合、`/spec-core` は InMemory への自動切り替えを行わず、Related Sections を failed として扱う (期待した backend と実際の状態 / 失敗理由は CoreResult の diagnostics で確認可能)。
-- [ ] Qdrant 未設定 (純 InMemory 構成) では Related Sections は InMemory で生成され、`related_sections_status = "success"` を返す。
-- [ ] Source Specs の一部 Section だけが変わった incremental 実行では、Related Sections の更新対象が変更・追加 Section に絞られ、削除 Section への関連先が取り除かれる。`related_sections_status = "success"`、`core_progress.json` の `stages.related_sections.action` は `"regenerated_partial"`、同 stage の `diagnostics` で `candidate_generation_elapsed_sec` / `selection_elapsed_sec` / `candidate_generation_source_count` / `candidate_generation_partial_mode` を確認できる。
-- [ ] 部分更新時、`/spec-core` は変更された Section から見た関連先のみ更新し、変更された Section が他 Section の関連先として現れる場合の判定は前回結果を引き継ぐ (`.spec-anchor/context/related_sections` の各エントリに `partial_mode` と `requires_full_regeneration_for_complete_target_recheck` フラグが添えられる)。
+- [✅] Qdrant 期待設定 (`vector_store.provider = "qdrant"` + `url` 設定済み + `embedding.provider = "flagembedding"`) で Qdrant retrieval backend を初期化できなかった場合、`/spec-core` は InMemory への自動切り替えを行わず、Related Sections を failed として扱う (期待した backend と実際の状態 / 失敗理由は CoreResult の diagnostics で確認可能)。
+- [✅] Qdrant 未設定 (純 InMemory 構成) では Related Sections は InMemory で生成され、`related_sections_status = "success"` を返す。
+- [✅] Source Specs の一部 Section だけが変わった incremental 実行では、Related Sections の更新対象が変更・追加 Section に絞られ、削除 Section への関連先が取り除かれる。`related_sections_status = "success"`、`core_progress.json` の `stages.related_sections.action` は `"regenerated_partial"`、同 stage の `diagnostics` で `candidate_generation_elapsed_sec` / `selection_elapsed_sec` / `candidate_generation_source_count` / `candidate_generation_partial_mode` を確認できる。
+- [✅] 部分更新時、`/spec-core` は変更された Section から見た関連先のみ更新し、変更された Section が他 Section の関連先として現れる場合の判定は前回結果を引き継ぐ (`.spec-anchor/context/related_sections` の各エントリに `partial_mode` と `requires_full_regeneration_for_complete_target_recheck` フラグが添えられる)。
 
-- [ ] Chapter Key Anchor は LLM 生成のみで作成され、mechanical / placeholder 代替 anchor は提供されない。
-- [ ] LLM 生成に失敗した chapter があった場合、`/spec-core` は chapter_anchors artifact 全体を failed として扱い、canonical `chapter_anchors.json` は更新せず前回値を残し、freshness を failed に降格する (失敗した chapter 一覧は CoreResult の diagnostics で確認可能、`/spec-core --all` で再試行)。
+- [✅] Chapter Key Anchor は LLM 生成のみで作成され、mechanical / placeholder 代替 anchor は提供されない。
+- [✅] LLM 生成に失敗した chapter があった場合、`/spec-core` は chapter_anchors artifact 全体を failed として扱い、canonical `chapter_anchors.json` は更新せず前回値を残し、freshness を failed に降格する (失敗した chapter 一覧は CoreResult の diagnostics で確認可能、`/spec-core --all` で再試行)。
 
-- [ ] `potential_conflicts` は Related Sections の `conflicts_with` 由来の conflict 候補を保持する (CLI / LLM が根拠から「矛盾ではない」または「優先関係が明確」と判断できる場合は warning として残るのみ)。
-- [ ] LLM が既存根拠だけでは解決できない場合、`conflict_review_items` に `status = "pending"` の項目が作成され、freshness report は `status = "blocked"`、`blocking_reasons[] = ["pending_conflict"]` を返す。
+- [✅] `potential_conflicts` は Related Sections の `conflicts_with` 由来の conflict 候補を保持する (CLI / LLM が根拠から「矛盾ではない」または「優先関係が明確」と判断できる場合は warning として残るのみ)。
+- [✅] LLM が既存根拠だけでは解決できない場合、`conflict_review_items` に `status = "pending"` の項目が作成され、freshness report は `status = "blocked"`、`blocking_reasons[] = ["pending_conflict"]` を返す。
 
 Conflict Review Item は、少なくとも次を人間に提示する。
 
 ```text
-[ ] conflict_id
-[ ] status: pending
-[ ] severity
-[ ] source_refs[]
-[ ] claims[]
-[ ] why_conflicting
-[ ] why_llm_cannot_decide
-[ ] related_sections[]
-[ ] decision_options[]
-[ ] recommended_next_action
-[ ] base_source_hashes[]
-[ ] valid_scope
+[✅] conflict_id
+[✅] status: pending
+[✅] severity
+[✅] source_refs[]
+[✅] claims[]
+[✅] why_conflicting
+[✅] why_llm_cannot_decide
+[✅] related_sections[]
+[✅] decision_options[]
+[✅] recommended_next_action
+[✅] base_source_hashes[]
+[✅] valid_scope
 ```
 
 人間の判断肢は、少なくとも次を含む (`decision_options[]` に各オプションが提示される)。
 
-- [ ] 片方の仕様を優先する
-- [ ] 両方を満たす条件分岐を指示する
-- [ ] 矛盾ではないとして dismiss する
-- [ ] Source Specs の修正が必要として差し戻す
-- [ ] 今回は判断保留にする
+- [✅] 片方の仕様を優先する
+- [✅] 両方を満たす条件分岐を指示する
+- [✅] 矛盾ではないとして dismiss する
+- [✅] Source Specs の修正が必要として差し戻す
+- [✅] 今回は判断保留にする
 
-- [ ] 判断保留は conflict を解決しない。status は `pending` のまま残り、`/spec-inject` / `/spec-realign` はその conflict を無視して進まず停止する。
+- [✅] 判断保留は conflict を解決しない。status は `pending` のまま残り、`/spec-inject` / `/spec-realign` はその conflict を無視して進まず停止する。
 
-- [ ] 人間判断後の Conflict Review Item には、決定内容 / 理由 / 判断者が参照した source refs が `resolution` として保持される。
-- [ ] SPEC-anchor は resolution を Purpose / Core Concept / Source Specs へ自動反映しない (反映は人間作業)。
-- [ ] resolved Conflict Review Item が Purpose / Core Concept / Source Specs に未反映の場合、`/spec-core` は CoreResult の `unreflected_conflict_resolutions` として通知する (未反映自体は blocker ではない)。
-- [ ] resolution は `base_source_hashes[]` と `valid_scope` を持つ。対象 Source Specs / Purpose / Core Concept の hash が変わった場合、resolution は `stale_resolution` になり、`/spec-inject` / `/spec-realign` で制約根拠として使われない。
-- [ ] `valid_scope = "task_scope"` の resolution は、その課題内の一時判断として扱われ、後続セッションの恒久根拠として使われない。
+- [✅] 人間判断後の Conflict Review Item には、決定内容 / 理由 / 判断者が参照した source refs が `resolution` として保持される。
+- [✅] SPEC-anchor は resolution を Purpose / Core Concept / Source Specs へ自動反映しない (反映は人間作業)。
+- [✅] resolved Conflict Review Item が Purpose / Core Concept / Source Specs に未反映の場合、`/spec-core` は CoreResult の `unreflected_conflict_resolutions` として通知する (未反映自体は blocker ではない)。
+- [✅] resolution は `base_source_hashes[]` と `valid_scope` を持つ。対象 Source Specs / Purpose / Core Concept の hash が変わった場合、resolution は `stale_resolution` になり、`/spec-inject` / `/spec-realign` で制約根拠として使われない。
+- [✅] `valid_scope = "task_scope"` の resolution は、その課題内の一時判断として扱われ、後続セッションの恒久根拠として使われない。
 
 decision payload は少なくとも次を持つ (`spec-anchor core --decision-json` / `--decision-file` で渡す JSON 構造)。
 
 ```text
-[ ] conflict_id
-[ ] decision
-[ ] reason
-[ ] selected_option
-[ ] valid_scope
-[ ] referenced_source_refs[]
+[✅] conflict_id
+[✅] decision
+[✅] reason
+[✅] selected_option
+[✅] valid_scope
+[✅] referenced_source_refs[]
 ```
 
 `decision` の機械値と状態遷移は次のとおりである。
 
 | 確認 | decision | 意味 | 遷移 |
 |---|---|---|---|
-| [ ] | `prefer_a` | conflict の片方 A を優先する | `resolved` |
-| [ ] | `prefer_b` | conflict の片方 B を優先する | `resolved` |
-| [ ] | `conditional` | 条件分岐により両方を扱う | `resolved` |
-| [ ] | `dismiss` | 矛盾ではないとして退ける | `dismissed` |
-| [ ] | `needs_source_update` | Source Specs / Purpose / Core Concept の修正が必要 | `pending` |
-| [ ] | `defer` | 今回は判断保留にする | `pending` |
-| [ ] | `task_scope_resolution` | 今回の課題内だけの一時判断にする | `resolved` + `valid_scope = task_scope` |
+| [✅] | `prefer_a` | conflict の片方 A を優先する | `resolved` |
+| [✅] | `prefer_b` | conflict の片方 B を優先する | `resolved` |
+| [✅] | `conditional` | 条件分岐により両方を扱う | `resolved` |
+| [✅] | `dismiss` | 矛盾ではないとして退ける | `dismissed` |
+| [✅] | `needs_source_update` | Source Specs / Purpose / Core Concept の修正が必要 | `pending` |
+| [✅] | `defer` | 今回は判断保留にする | `pending` |
+| [✅] | `task_scope_resolution` | 今回の課題内だけの一時判断にする | `resolved` + `valid_scope = task_scope` |
 
-- [ ] Conflict 判定は Related Sections 選定後の別 stage で実行され、対象は `relation_hint = conflicts_with` またはそれに準じる高リスク候補に限定される (全 Section pair の総当たり判定は行われない)。
-- [ ] Related Sections に選ばれなかった候補でも、同一 identifier / 同一 config / status 名 / must / must not / 禁止 / 例外 / required / optional 等の衝突しやすい語を共有する pair は、`conflict_pair_max_per_section` の範囲で high-risk pair として conflict 判定 stage へ送られる。
-- [ ] `conflict_pair_max_per_section` 上限により送らなかった pair は CoreResult の diagnostics に残る。
+- [✅] Conflict 判定は Related Sections 選定後の別 stage で実行され、対象は `relation_hint = conflicts_with` またはそれに準じる高リスク候補に限定される (全 Section pair の総当たり判定は行われない)。
+- [✅] Related Sections に選ばれなかった候補でも、同一 identifier / 同一 config / status 名 / must / must not / 禁止 / 例外 / required / optional 等の衝突しやすい語を共有する pair は、`conflict_pair_max_per_section` の範囲で high-risk pair として conflict 判定 stage へ送られる。
+- [✅] `conflict_pair_max_per_section` 上限により送らなかった pair は CoreResult の diagnostics に残る。
 
 ## 8. `/spec-inject`
 
