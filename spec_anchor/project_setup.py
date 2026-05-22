@@ -686,7 +686,7 @@ def _qdrant_service_check(*, qdrant_url: str | None = None) -> dict[str, Any]:
             if isinstance(payload, dict):
                 version = payload.get("version")
             error = None
-    except (OSError, urllib.error.URLError) as exc:
+    except (OSError, urllib.error.URLError, ValueError) as exc:
         available = False
         error = exc.__class__.__name__
 

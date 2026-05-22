@@ -471,12 +471,13 @@ spec-anchor-setup-system
 - [ ] 全て揃っている場合: stdout JSON の `production_readiness.status` が `"ready"` になる。
 - [ ] 不足がある場合: `production_readiness.status` が `"blocked"`、不足理由が `diagnostics[]` に含まれる。
 
-- [ ] exit code: ready なら 0、blocked なら非 0。
+- [ ] exit code: 常に 0 (warning level)。`status` が `"error"` / `"failed"` の場合のみ非 0。`production_readiness.status="blocked"` は exit code 0 で返す。
 
 オプション:
 
 - [ ] `--check-only`: 確認のみ行い、ファイル / 設定への変更を一切しない (`.spec-anchor/` や config への書き込みが発生しない)。
 - [ ] `--qdrant-url <url>`: Qdrant 接続先を指定。省略時の default は `http://localhost:6333`。
+- [ ] `--run-smoke`: Agent CLI 認識性の smoke probe を実行する。`agent_cli_entries` に `project_skill_path` / `project_command_path` が追加される。認識失敗は `production_readiness.blocking_reasons` に含めず warning 扱い。
 
 - [ ] System Setup Script は対象プロジェクトの Source Specs / Purpose / Core Concept / 生成済み保持物を変更しない (実行前後で `docs/spec/`、`docs/SPEC-anchor/core/`、`.spec-anchor/context/` の内容が一致する)。
 
@@ -554,7 +555,7 @@ spec-anchor-watch
 | [ ] | `--stale-lock-sec <秒>` | 300 | lock file がこの秒数を超えたら stale とみなして回収する |
 | [ ] | `--max-runs <回数>` | 無制限 | 指定回数だけ update したら終了する |
 
-- [ ] 出力: 各 update の結果を JSON で標準出力に出す。
+- [ ] 出力: 1 つの JSON object を標準出力に出す。object 内に `cycles[]` 配列を持ち、各要素が 1 update サイクルの CoreResult 相当の結果を含む。`--once` の場合は `cycle_count=1`。top-level に集計情報 (`cycle_count` / `run_count` / `freshness_report` / `settings` ほか) が付く。
 - [ ] watcher 実行中は freshness gate が `status = blocked` (`watcher_running`) になり、`/spec-inject` と `/spec-realign` は停止する (§3.3)。
 
 ## 7. `/spec-core [--all|-a]`
@@ -653,6 +654,7 @@ spec-anchor-watch
 
 ```text
 CoreResult
+  [ ] status: updated | degraded | failed | error
   [ ] mode: incremental | full
   [ ] updated_sources
   [ ] skipped_sources
@@ -862,8 +864,8 @@ CLI は外部契約として次の参照操作を提供する。
 
 | 確認 | 操作 | コマンド | 戻り値 |
 |---|---|---|---|
-| [ ] | section-level hybrid retrieval | `spec-anchor inject-search "<query>"` | top-K の Section payload (source_document_id / source_section_id / source_span / heading / summary / search_keys / identifiers / related_sections / score) |
-| [ ] | Section payload lookup (related 辿り) | `spec-anchor inject-section "<id>" [<id>...]` | 指定 section_id の payload 一括取得 |
+| [ ] | section-level hybrid retrieval | `spec-anchor inject-search "<query>"` | `hits[]` 配列として top-K の Section payload を返す (各 hit に source_document_id / source_section_id / source_span / heading / summary / search_keys / identifiers / related_sections / score)。top-level に `query` / `collection` / `top_k` も含む |
+| [ ] | Section payload lookup (related 辿り) | `spec-anchor inject-section "<id>" [<id>...]` | `sections` (dict、id をキー) + `found_section_ids[]` + `missing_section_ids[]` + `requested_section_ids[]` として返す。未存在 ID はエラーにならず `missing_section_ids` で通知 |
 | [ ] | 章 anchor 取得 | `spec-anchor inject-chapters` | `chapter_anchors.json` の path。Agent は path を `Read` で読み、課題に関連しそうな章を特定する |
 | [ ] | Purpose / Core Concept 取得 | `spec-anchor inject-purpose` | `purpose` (Purpose 全文、短いので注入) + `core_concept_path` (Core Concept の path、Agent が `Read` で必要箇所を抽出) |
 | [ ] | Conflict Review Items 取得 | `spec-anchor inject-conflicts` | `status = resolved` かつ stale でない items |
@@ -1388,9 +1390,9 @@ B) **例外経由** (内部エラー):
 | [ ] | 配置対象 path に既存ファイルがあり内容が異なる状態で `spec-anchor-setup-project --target <path>` を実行 (`--force` 無し) | CLI exit code 1。stdout JSON (§11.1.3): `status="conflict"`、`exit_code=1`、`applied=false`、`conflicts=[{"path":<rel>, "reason":"would_overwrite_existing_file", "diff":<unified diff>}, ...]` (UTF-8 でない場合は `"reason":"existing_file_is_not_utf8_text"`、配置先が directory / symlink で file でない場合は `"reason":"destination_exists_and_is_not_file"`、最後 2 つの reason では `diff` field なし)。`docs/core/purpose.md` / `docs/core/concept.md` は `--force` の有無に関わらず常に `protected` として `skipped` に入り、`conflicts` には載らない |
 | [ ] | 同上の状態で `spec-anchor-setup-project --target <path> --force` を実行 | CLI exit code 0。stdout JSON: `status="ok"`、`applied=true`、`created=[<新規 path>]`、`updated=[<既存 path で内容差し替えた>]`、`protected=[<Purpose / Core Concept など --force でも上書きされない path>]`、`conflicts=[]` |
 | [ ] | Qdrant service が `localhost:6333` で起動していない状態で `spec-anchor-setup-system [--check-only]` を実行 | CLI exit code 0 (warning level、`status` は `"ok"` or `"degraded"`)。stdout JSON (§11.1.4): `production_readiness.status="blocked"`、`production_readiness.blocking_reasons=["qdrant_service_unavailable"]`、`production_readiness.checks=[{"name":"qdrant_service", "status":"failed", "reason_code":"qdrant_service_unavailable"}, ...]`、`providers=[{"name":"qdrant", "kind":"vector_store_service", "available":false, "url":<probed URL>, "error":"URLError" (or "OSError" 等の exception class 名のみ)}, ...]` |
-| [ ] | `FlagEmbedding` / `qdrant_client` の Python package が import 不可で `spec-anchor-setup-system` を実行 | CLI exit code 0。stdout JSON: `production_readiness.status="blocked"`、`production_readiness.blocking_reasons=["flagembedding_missing"]` / `["qdrant_client_missing"]` (両方欠落時は両 reason を含む)、`providers=[{"name":"FlagEmbedding", "kind":"embedding_provider", "available":false, "version":null, "required":false}, ...]` |
-| [ ] | `codex` / `claude` CLI が `PATH` 上に無い状態で `spec-anchor-setup-system` を実行 | CLI exit code 0。stdout JSON: `production_readiness.blocking_reasons=["agent_cli_unavailable"]` (codex/claude の少なくとも 1 つが不在の時に 1 件発火)、`agent_cli_entries.codex.cli.path=null` / `agent_cli_entries.claude.cli.path=null`、`agent_cli_entries.<agent>.cli.version=null` |
-| [ ] | `spec-anchor` / `spec-anchor-watch` / `spec-anchor-setup-project` / `spec-anchor-setup-system` / `spec-anchor-slash` の console script のいずれかが `PATH` 上に無い状態で `spec-anchor-setup-system` を実行 | CLI exit code 0 (warning)。stdout JSON: `production_readiness.blocking_reasons=["console_script_missing", ...]` (不在 script 1 件につき 1 reason、合計件数は不在 script 数)、`console_scripts=[{"name":<name>, "available":false, "path":null}, ...]` (不在 script の名前は `console_scripts[]` 配列から識別) |
+| [ ] | `FlagEmbedding` / `qdrant_client` の Python package が import 不可で `spec-anchor-setup-system` を実行 | CLI exit code 0。stdout JSON: `production_readiness.status="blocked"`、`production_readiness.blocking_reasons=["flagembedding_package_unavailable"]` / `["qdrant_client_package_unavailable"]` (両方欠落時は両 reason を含む)、`providers=[{"name":"FlagEmbedding", "kind":"embedding_provider", "available":false, "version":null, "required":false}, ...]` |
+| [ ] | `codex` / `claude` CLI が `PATH` 上に無い状態で `spec-anchor-setup-system` を実行 | CLI exit code 0。stdout JSON: `production_readiness.blocking_reasons=["agent_cli_codex_unavailable"]` / `["agent_cli_claude_unavailable"]` (不在 CLI ごとに 1 件発火)、`agent_cli_entries.codex.cli.path=null` / `agent_cli_entries.claude.cli.path=null`、`agent_cli_entries.<agent>.cli.version=null` |
+| [ ] | `spec-anchor` / `spec-anchor-watch` / `spec-anchor-setup-project` / `spec-anchor-setup-system` / `spec-anchor-slash` の console script のいずれかが `PATH` 上に無い状態で `spec-anchor-setup-system` を実行 | CLI exit code 0 (warning)。stdout JSON: `production_readiness.blocking_reasons=["console_script_<name>_unavailable", ...]` (不在 script 1 件につき 1 reason、`<name>` は script 名)、`console_scripts=[{"name":<name>, "available":false, "path":null}, ...]` (不在 script の名前は `console_scripts[]` 配列から識別) |
 | [ ] | Setup-project 適用後で Agent CLI が skill / command を認識しない状態で `spec-anchor-setup-system --run-smoke` を実行 (Codex skill path mismatch / Claude command file 不在等) | CLI exit code 0 (warning のみ)。stdout JSON: `status="ok"` or `"degraded"`、`production_readiness.status="ready"` (Agent CLI 認識性は readiness check に含めず warning 扱い)、`diagnostics=[{"reason_code":<具体>, "message":<warning 文>, "agent_cli_entries":{...}}, ...]`、`agent_cli_entries.codex.project_skill_path=<期待 path>` / `agent_cli_entries.claude.project_command_path=<期待 path>`、`providers[<codex/claude>].version=<取得した CLI version>` |
 
 ### 11.2 slash command / skill レイヤーのエラー契約 (入力 / 出力)

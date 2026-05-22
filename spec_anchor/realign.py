@@ -130,10 +130,17 @@ def run_spec_realign(
             inject_result=inject_payload,
         )
 
-    structured_answer = structure_realign_answer(
-        selected_answer,
-        inject_result=inject_payload,
-    )
+    try:
+        structured_answer = structure_realign_answer(
+            selected_answer,
+            inject_result=inject_payload,
+        )
+    except SpecRealignError:
+        return _needs_answer_result(
+            project_root=project,
+            generated_at=generated_at,
+            inject_result=inject_payload,
+        )
 
     return {
         "command": "/spec-realign",
