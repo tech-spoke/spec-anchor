@@ -396,24 +396,24 @@ Agent / LLM は次を担当する。
 
 CLI / SPEC-anchor は次を担当する。
 
-- [ ] `.spec-anchor/config.toml` を読み込み、設定値で動作する。
-- [ ] Source Specs の Section hash を管理し、差分検出に利用する (`section_manifest.json`)。
-- [ ] Section Metadata を生成・保持する (`/spec-core`)。
-- [ ] Conflict Review Item を生成・保持する (`conflict_review_items.json`)。
-- [ ] Chapter Key Anchor を生成・保持する (`chapter_anchors.json`)。
-- [ ] Source Retrieval Index を生成・保持する (Qdrant section collection)。
-- [ ] freshness を判定する (`freshness.json` を生成)。
-- [ ] Agent / LLM が渡した検索キーに対して検索結果を返す (`spec-anchor inject-search`)。
-- [ ] 指定された Section payload を返す (`spec-anchor inject-section`)。
+- ✅ `.spec-anchor/config.toml` を読み込み、設定値で動作する。
+- ✅ Source Specs の Section hash を管理し、差分検出に利用する (`section_manifest.json`)。
+- ✅ Section Metadata を生成・保持する (`/spec-core`)。
+- ✅ Conflict Review Item を生成・保持する (`conflict_review_items.json`)。
+- ✅ Chapter Key Anchor を生成・保持する (`chapter_anchors.json`)。
+- ✅ Source Retrieval Index を生成・保持する (Qdrant section collection)。
+- ✅ freshness を判定する (`freshness.json` を生成)。
+- ✅ Agent / LLM が渡した検索キーに対して検索結果を返す (`spec-anchor inject-search`)。
+- ✅ 指定された Section payload を返す (`spec-anchor inject-section`)。
 
 CLI / SPEC-anchor は次を担当しない (negative test):
 
-- [ ] 会話区間を最終解釈しない (CLI が会話 transcript を引数として受理しないことで検証)。
-- [ ] Agentic Search の探索方針を自律的に決めない (自動探索 / 多段 traversal の CLI コマンドが存在しない)。
-- [ ] 今回の課題に必要な制約を最終生成しない (`spec-anchor inject` は constraints を fallback 生成せず、Agent が `--constraints '<json>'` で渡したものを検証するのみ)。
-- [ ] conflict を人間抜きで最終裁定しない (`pending` Conflict Review Item の status を CLI が自動 `resolved` 化しない)。
-- [ ] Answer を自由生成しない (CLI は `spec-anchor realign --answer-json '<json>'` で Agent から受け取った answer の整形のみ行い、独自に answer 本文を生成しない)。
-- [ ] Purpose / Core Concept を自動更新しない (`/spec-core` 実行で `purpose_file` / `concept_file` が書き換えられない)。
+- ✅ 会話区間を最終解釈しない (CLI が会話 transcript を引数として受理しないことで検証)。
+- ✅ Agentic Search の探索方針を自律的に決めない (自動探索 / 多段 traversal の CLI コマンドが存在しない)。
+- ✅ 今回の課題に必要な制約を最終生成しない (`spec-anchor inject` は constraints を fallback 生成せず、Agent が `--constraints '<json>'` で渡したものを検証するのみ)。
+- ✅ conflict を人間抜きで最終裁定しない (`pending` Conflict Review Item の status を CLI が自動 `resolved` 化しない)。
+- ✅ Answer を自由生成しない (CLI は `spec-anchor realign --answer-json '<json>'` で Agent から受け取った answer の整形のみ行い、独自に answer 本文を生成しない)。
+- ✅ Purpose / Core Concept を自動更新しない (`/spec-core` 実行で `purpose_file` / `concept_file` が書き換えられない)。
 
 ## 6. コマンド体系
 

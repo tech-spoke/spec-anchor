@@ -180,6 +180,13 @@ def _assert_config_error(project_root: Path, expected_text: str) -> None:
 def test_t_u05_standard_config_parses_and_resolves_project_relative_paths(
     tmp_path: Path,
 ) -> None:
+    """CLI loads ``.spec-anchor/config.toml`` and resolves relative paths.
+
+    SPEC_REF: §5.3 L399
+    PROFILE: fake
+    METHOD: 入出力比較
+    """
+
     project_root = tmp_path / "project"
     _write_project(project_root)
 

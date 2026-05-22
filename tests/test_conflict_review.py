@@ -345,6 +345,13 @@ def _assert_rejected(func: Any, **kwargs: Any) -> None:
 
 
 def test_t_i04_unresolved_conflicts_with_creates_pending_item() -> None:
+    """`/spec-core` generates Conflict Review Items as `conflict_review_items.json`.
+
+    SPEC_REF: §5.3 L402
+    PROFILE: fake
+    METHOD: artifact 内容確認
+    """
+
     module = _module()
     evaluate = _required_function(
         module,
