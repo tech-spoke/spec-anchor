@@ -3,6 +3,10 @@
 最終更新: 2026-05-22 (P2 完了時点)
 作成セッション: P0 / P1 / P2 担当
 
+> **追記 (2026-05-22 P3 セッション完了後)**:
+> 本書は P3 着手前の状態を記述している。P3 は **hybrid_verified (real Qdrant + real BGE-M3 + fake LLM)** までを完了させたが、**real_smoke_verified / production_e2e_verified には到達していない**。本書 §4 / §10 で言及している "real-smoke 必須" は **未実施** である。
+> 検証レベルの正本は `test_plan.ja.md` §4.2.1 / §4.2.2 / §4.2.3 を参照。real Codex / Claude 経由の `/spec-core` 経路は **P7 (横串 real production E2E phase)** で踏む計画に再定義した (`test_plan.ja.md` §4.2.4)。
+
 このセッションでは **§7 (`/spec-core`) の 118 件の検証単位** を E2E テストで `[ ]` → `✅` 化することが目標です。前セッション (P0 / P1 / P2) の成果と前提を本書で引き継ぐ。
 
 ## 1. 最初に読むもの
