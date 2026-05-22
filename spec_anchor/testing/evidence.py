@@ -41,6 +41,9 @@ EVIDENCE_ROOT = REPO_ROOT / "doc" / "e2eテスト" / "evidence"
 _SPEC_REF_RE = re.compile(r"^\s*SPEC_REF:\s*(?P<section>§[^\s]+)\s+L(?P<line>\d+)\s*$")
 _PROFILE_RE = re.compile(r"^\s*PROFILE:\s*(?P<profile>\S+)\s*$")
 _METHOD_RE = re.compile(r"^\s*METHOD:\s*(?P<method>.+?)\s*$")
+_VERIFICATION_LEVEL_RE = re.compile(
+    r"^\s*VERIFICATION_LEVEL:\s*(?P<level>\S+)\s*$"
+)
 
 _ALLOWED_PROFILES = {"none", "fake", "local-service", "real-smoke"}
 _ALLOWED_METHODS = {
@@ -48,6 +51,12 @@ _ALLOWED_METHODS = {
     "artifact 内容確認",
     "Agent 出力文言確認",
     "tool call trace 監査",
+}
+_ALLOWED_VERIFICATION_LEVELS = {
+    "unit_verified",
+    "hybrid_verified",
+    "real_smoke_verified",
+    "production_e2e_verified",
 }
 
 
@@ -65,26 +74,32 @@ class _TestRecord:
     refs: list[SpecRef]
     profile: str | None
     method: str | None
+    verification_level: str | None
     result: str = "pending"
     duration_sec: float = 0.0
     executed_at: str = ""
     failure_message: str | None = None
 
 
-def _parse_docstring(doc: str | None) -> tuple[list[SpecRef], str | None, str | None]:
-    """Extract ``SPEC_REF`` / ``PROFILE`` / ``METHOD`` from a test docstring.
+def _parse_docstring(
+    doc: str | None,
+) -> tuple[list[SpecRef], str | None, str | None, str | None]:
+    """Extract ``SPEC_REF`` / ``PROFILE`` / ``METHOD`` / ``VERIFICATION_LEVEL``
+    from a test docstring.
 
-    Returns ``([], None, None)`` if the docstring is absent or contains no
-    ``SPEC_REF`` line. This is not an error: many tests pre-date the
-    evidence schema and will be backfilled gradually.
+    Returns ``([], None, None, None)`` if the docstring is absent or contains
+    no ``SPEC_REF`` line. ``VERIFICATION_LEVEL`` is optional; tests that do
+    not carry it are recorded with ``verification_level = null`` and are
+    ineligible for ``✅`` promotion per test_plan §8.1.
     """
 
     if not doc:
-        return [], None, None
+        return [], None, None, None
 
     refs: list[SpecRef] = []
     profile: str | None = None
     method: str | None = None
+    verification_level: str | None = None
 
     for raw_line in doc.splitlines():
         if (m := _SPEC_REF_RE.match(raw_line)) is not None:
@@ -99,8 +114,10 @@ def _parse_docstring(doc: str | None) -> tuple[list[SpecRef], str | None, str | 
             profile = m.group("profile")
         elif (m := _METHOD_RE.match(raw_line)) is not None:
             method = m.group("method")
+        elif (m := _VERIFICATION_LEVEL_RE.match(raw_line)) is not None:
+            verification_level = m.group("level")
 
-    return refs, profile, method
+    return refs, profile, method, verification_level
 
 
 def _load_checkbox_text(line_no: int) -> str:
@@ -151,15 +168,15 @@ class EvidenceCollector:
         # bound function for pytest function-style tests.
         obj = getattr(item, "obj", None)
         doc = getattr(obj, "__doc__", None) if obj is not None else None
-        refs, profile, method = _parse_docstring(doc)
+        refs, profile, method, verification_level = _parse_docstring(doc)
 
         # Per-param SPEC_REF markers override docstring refs. This lets a
         # ``@pytest.mark.parametrize`` test attach a row-specific
-        # SPEC_REF / PROFILE / METHOD via
+        # SPEC_REF / PROFILE / METHOD / VERIFICATION_LEVEL via
         # ``pytest.param(..., marks=[pytest.mark.spec_ref(section, line,
-        # profile=..., method=...)])``. When a marker is present, the
-        # docstring-derived refs are replaced entirely so each parametrize
-        # row maps to its own checkbox.
+        # profile=..., method=..., verification_level=...)])``. When a marker
+        # is present, the docstring-derived refs are replaced entirely so
+        # each parametrize row maps to its own checkbox.
         marker = item.get_closest_marker("spec_ref")
         if marker is not None:
             try:
@@ -174,6 +191,9 @@ class EvidenceCollector:
                 refs = [SpecRef(section=section, line=line)]
                 profile = marker.kwargs.get("profile", profile)
                 method = marker.kwargs.get("method", method)
+                verification_level = marker.kwargs.get(
+                    "verification_level", verification_level
+                )
 
         if not refs:
             # Test has no SPEC_REF. Not an error: legacy tests not yet
@@ -196,11 +216,24 @@ class EvidenceCollector:
             )
             self._malformed_count += 1
 
+        if (
+            verification_level is not None
+            and verification_level not in _ALLOWED_VERIFICATION_LEVELS
+        ):
+            warnings.warn(
+                f"evidence: {item.nodeid}: VERIFICATION_LEVEL "
+                f"{verification_level!r} is not in "
+                f"{sorted(_ALLOWED_VERIFICATION_LEVELS)}",
+                stacklevel=2,
+            )
+            self._malformed_count += 1
+
         record = _TestRecord(
             test_id=item.nodeid,
             refs=refs,
             profile=profile,
             method=method,
+            verification_level=verification_level,
             result=report.outcome,
             duration_sec=report.duration,
             executed_at=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
@@ -237,6 +270,7 @@ class EvidenceCollector:
                         "test_id": record.test_id,
                         "profile": record.profile,
                         "method": record.method,
+                        "verification_level": record.verification_level,
                         "result": record.result,
                         "duration_sec": round(record.duration_sec, 4),
                         "executed_at": record.executed_at,

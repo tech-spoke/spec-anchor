@@ -34,9 +34,11 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     config.addinivalue_line(
         "markers",
-        "spec_ref(section, line, profile=None, method=None): attach a "
-        "per-parametrize-row SPEC_REF used by the evidence collector when "
-        "docstring-level SPEC_REF is too coarse",
+        "spec_ref(section, line, profile=None, method=None, verification_level=None): "
+        "attach a per-parametrize-row SPEC_REF used by the evidence collector when "
+        "docstring-level SPEC_REF is too coarse. ``verification_level`` is one of "
+        "``unit_verified`` / ``hybrid_verified`` / ``real_smoke_verified`` / "
+        "``production_e2e_verified`` and gates ``✅`` promotion per test_plan §8.1",
     )
     _prepend_venv_to_path()
     _stash_runtime_state_for_session(config)
