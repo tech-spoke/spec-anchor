@@ -59,6 +59,43 @@ _ALLOWED_VERIFICATION_LEVELS = {
     "production_e2e_verified",
 }
 
+_EVIDENCE_SCHEMA_VERSION = 2
+
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _is_truthy(val: str | None) -> bool:
+    return (val or "").strip().lower() in _TRUTHY
+
+
+def _validate_profile_consistency(
+    nodeid: str, verification_level: str
+) -> None:
+    """Warn if the claimed verification_level contradicts the runner env."""
+    fake_llm = os.environ.get("SPEC_ANCHOR_FAKE_LLM")
+    fake_ret = os.environ.get("SPEC_ANCHOR_FAKE_RETRIEVAL")
+
+    if verification_level == "hybrid_verified":
+        if not _is_truthy(fake_llm):
+            warnings.warn(
+                f"evidence: {nodeid}: verification_level=hybrid_verified but "
+                f"SPEC_ANCHOR_FAKE_LLM is not set (hybrid requires LLM stub)",
+                stacklevel=3,
+            )
+    elif verification_level in ("real_smoke_verified", "production_e2e_verified"):
+        if _is_truthy(fake_llm):
+            warnings.warn(
+                f"evidence: {nodeid}: verification_level={verification_level} but "
+                f"SPEC_ANCHOR_FAKE_LLM is truthy (real-smoke/prod-e2e requires real LLM)",
+                stacklevel=3,
+            )
+        if _is_truthy(fake_ret):
+            warnings.warn(
+                f"evidence: {nodeid}: verification_level={verification_level} but "
+                f"SPEC_ANCHOR_FAKE_RETRIEVAL is truthy (real-smoke/prod-e2e requires real retrieval)",
+                stacklevel=3,
+            )
+
 
 @dataclass(frozen=True)
 class SpecRef:
@@ -228,6 +265,9 @@ class EvidenceCollector:
             )
             self._malformed_count += 1
 
+        if verification_level is not None:
+            _validate_profile_consistency(item.nodeid, verification_level)
+
         record = _TestRecord(
             test_id=item.nodeid,
             refs=refs,
@@ -264,6 +304,7 @@ class EvidenceCollector:
             for record in self._records.values():
                 for ref in record.refs:
                     row = {
+                        "schema_version": _EVIDENCE_SCHEMA_VERSION,
                         "spec_section": ref.section,
                         "spec_line": ref.line,
                         "checkbox_text": _load_checkbox_text(ref.line),
