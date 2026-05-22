@@ -410,7 +410,7 @@ CLI / SPEC-anchor は次を担当しない (negative test):
 
 - ✅ 会話区間を最終解釈しない (CLI が会話 transcript を引数として受理しないことで検証)。
 - ✅ Agentic Search の探索方針を自律的に決めない (自動探索 / 多段 traversal の CLI コマンドが存在しない)。
-- ✅ 今回の課題に必要な制約を最終生成しない (`spec-anchor inject` は constraints を fallback 生成せず、Agent が `--constraints '<json>'` で渡したものを検証するのみ)。
+- ✅ 今回の課題に必要な制約を最終生成しない (`spec-anchor inject-*` (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts`) は retrieval payload / 章 anchor path / Purpose 全文 / Conflict Review Item 一覧を返すのみで、constraint statement の最終生成は Agent / LLM の責務である。CLI 出力に fabricated な `constraints[]` / `statement` field が現れない)。
 - ✅ conflict を人間抜きで最終裁定しない (`pending` Conflict Review Item の status を CLI が自動 `resolved` 化しない)。
 - ✅ Answer を自由生成しない (CLI は `spec-anchor realign --answer-json '<json>'` で Agent から受け取った answer の整形のみ行い、独自に answer 本文を生成しない)。
 - ✅ Purpose / Core Concept を自動更新しない (`/spec-core` 実行で `purpose_file` / `concept_file` が書き換えられない)。

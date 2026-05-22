@@ -144,14 +144,19 @@ def test_cli_does_not_expose_auto_exploration_command() -> None:
 
 
 def test_inject_search_output_does_not_contain_fabricated_constraints(tmp_path: Path) -> None:
-    """`spec-anchor inject-search` returns raw retrieval payload, not
-    fabricated constraint statements.
+    """`spec-anchor inject-*` returns raw retrieval payload, not fabricated
+    constraint statements.
 
-    The contract per §5.3 L413 is that the CLI provides retrieval data
-    (heading_path / summary / search_keys / identifiers / related_sections /
-    score) and the Agent composes constraint statements. The CLI's output
-    must therefore contain no ``"statement":`` / ``"constraints":`` field
-    populated with synthesised text.
+    The contract per §5.3 L413 is that the ``inject-*`` family
+    (``inject-search`` / ``inject-section`` / ``inject-chapters`` /
+    ``inject-purpose`` / ``inject-conflicts``) returns retrieval data
+    (heading_path / summary / search_keys / identifiers /
+    related_sections / score for ``inject-search``; analogous payloads
+    for the others). Constraint ``statement`` composition is the Agent /
+    LLM's job. The CLI output must therefore contain no
+    ``"statement":`` / ``"constraints":`` field populated with
+    synthesised text. This test uses ``inject-search`` as the
+    representative entry point.
 
     SPEC_REF: §5.3 L413
     PROFILE: fake
