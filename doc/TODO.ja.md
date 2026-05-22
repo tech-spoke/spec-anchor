@@ -157,6 +157,79 @@ C. **既存 pytest の合格**
   - chapter_anchors / related_sections 用の scroll 経路: 本 task では section collection の payload scroll のみ
   - Qdrant client の connection pool / 永続化: spec-anchor 外の Qdrant 運用に属する
 
+### T-flaky-responsibility-boundary: test_responsibility_boundary 1 件の再発時調査と fixture isolation 補強
+
+#### 背景
+
+中断 P3 session `57267382-b6ec-474d-b546-8ef50eeadda0` の full pytest run (所要 9:31) で [tests/test_responsibility_boundary.py:288](tests/test_responsibility_boundary.py#L288) (`test_spec_core_does_not_modify_purpose_or_concept_files`) が 1 件 FAIL を観測した。working tree state は HEAD `8d71934` + 先行セッション §11 stream uncommitted edits + 本セッションの P3 verification_level 編集途中。
+
+本セッション `1bf9db33-9216-4b0a-8c61-dfc0694fe23b` で同 working tree state を 3 回 (単体 16s / file 単独 17s / full suite 5:49 + 6:08) 再実行し、いずれも PASS。失敗率 1/4。中断時 run は 9:31 と異常に遅く、本セッション 5:49〜6:08 と顕著な差。並行する別 session 編集 / prior dev run の残置 artifact / Qdrant / BGE-M3 cache state のいずれかが寄与した可能性があるが、切り分けできていない。
+
+本 test は `doc/EXTERNAL_DESIGN.ja.md` §5.3 L416 (`/spec-core` は Purpose / Core Concept ファイルを変更してはならない) を verify する production-critical test。真の失敗 (実 production code が §5.3 違反) と、test 環境 / fixture / 順序由来の偽陽性とで意味が真逆になる。現状の 3 pass / 1 fail だけでは切り分けできない。
+
+#### 真因 / 仮説
+
+仮説 (未確定、いずれも同等の可能性):
+
+- (i) `_setup_project()` または周辺 fixture が `tmp_path` 外に `.spec-anchor/` を残し、prior 試運転の Purpose / Core Concept state が test に流入した
+- (ii) earlier test (order 依存) が `purpose_file` / `concept_file` を session-scoped fixture 経由で mutate
+- (iii) `/spec-core` が真に Purpose / Core Concept を mutate した (= §5.3 L416 違反、production code bug)
+
+未確認:
+
+- 1 失敗時の test 直前 / 直後の `purpose_file` / `concept_file` の sha256 diff
+- 同じ tmp_path tree の dump
+- `.spec-anchor/state/core_progress.json` で どの stage が書き換えた可能性があるか
+- 中断 session 9:31 vs 本セッション 5:49〜6:08 の所要時間差の原因 (並行プロセス / Qdrant 応答時間 / FlagEmbedding cache miss 等)
+
+#### 目的
+
+再発時に (i)(ii)(iii) を切り分け可能にする。特に (iii) なら §5.3 L416 違反の重大 bug として即修正へ、(i)(ii) なら fixture isolation を補強する。
+
+合格基準: 再発 1 件で root cause class を確定できる diagnostic を `test_spec_core_does_not_modify_purpose_or_concept_files` の失敗時に自動収集する。
+
+#### 実装方針
+
+1. test 関数に `_run_spec_anchor("core", ...)` 前後の snapshot 取得を追加:
+   - `purpose_file` / `concept_file` の sha256 + 全文 (短いので)
+   - `tmp_path` 配下の tree (`os.walk` で path 一覧 + 各 file の sha256)
+   - `.spec-anchor/state/core_progress.json` (存在すれば、どの stage が走ったか)
+2. assert 失敗時にこれらを `assert ... == ..., msg` の msg に含める。失敗 traceback から原因 class が即時判定できるようにする
+3. `tests/conftest.py` に autouse fixture を追加 (オプション): `_setup_project()` 内で `tmp_path` 外への書き込みが起きないことを teardown 時に検証
+4. `pytest -p no:randomly` で実行順を固定して再実行する手順を [doc/e2eテスト/test_plan.ja.md](doc/e2eテスト/test_plan.ja.md) §4.2.2 Phase 別注記に追加
+
+#### 検証条件
+
+A. **diagnostic 追加後の動作**
+- diagnostic 追加のみで test は引き続き PASS (regression なし)
+- `pytest --skip-external` 全 pass 維持
+
+B. **再発時の切り分け力 (実証は再発まで保留)**
+- 再発時に上記 4 種の snapshot が failure traceback に乗ること
+- (i) / (ii) / (iii) のいずれの hypothesis に該当するか即時判定できること
+
+C. **既存 pytest の合格**
+- `--skip-external` 全 pass 維持
+- 追加 fixture が他 test に副作用を起こさないこと
+
+#### 触れる主なファイル
+
+- [tests/test_responsibility_boundary.py:288](tests/test_responsibility_boundary.py#L288): 該当 test に snapshot 取得を追加
+- [tests/conftest.py](tests/conftest.py): autouse isolation guard (オプション)
+- [doc/e2eテスト/test_plan.ja.md](doc/e2eテスト/test_plan.ja.md): 再発時 procedure を Phase 別注記に追加
+
+#### 完了条件
+
+- diagnostic snapshot 4 種が実装され、`--skip-external` 全 pass を維持
+- 本項を「## 完了確認済み」配下へ移動 (中身は背景・真因仮説・実装方針・検証条件・追加した diagnostic の説明・再発しなかった (or 再発して切り分けに成功した) 観察記録を保持)
+
+#### 依存 / scope 外
+
+- **依存**: なし。本セッションでの観測 (commit `42854c8`) がそのまま trigger
+- **scope 外**: 真因 (iii) production code bug の修正そのもの (再発時に切り分けてから別 task として実装する)
+- **trigger 性質**: 再発を待たず diagnostic 実装してもよい (推奨)。優先度は B-6 と並列、ただし B-6 は計測 task で本 task は test infrastructure 強化なので干渉しない
+- **flaky 判定の限界**: 本 task が立っている理由そのものが「flaky と判定」の不十分さを示す事例。memory `feedback_flaky_judgment_protocol.md` と相互参照
+
 ## 完了確認済み
 
 ### B-2: incremental no-change の固定費削減
