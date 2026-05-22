@@ -13,6 +13,40 @@
 - 実装順序と依存関係を明示し、書き始めてから「前提が無い」で迷走することを防ぐ
 - profile 分類 (`none` / `fake` / `local-service` / `real-smoke`) で必要な外部依存を分け、本運用検証と単体検証を混ぜない
 
+### 1.1.1 検証方針: real-smoke 優先
+
+**E2E テストである以上、可能な限り real-smoke (実 Qdrant / 実 BGE-M3 / 実 Codex / 実 Claude CLI) で検証する。** fake-only で済ませると spec ↔ 実装の乖離 (P1 §5.3 L413 で発生したような) を見逃すため。各検証単位の profile 選定は次の優先順位で行う。
+
+1. **`real-smoke`** が可能なら最優先 (実環境で観測する振る舞いを直接検証)
+2. **`local-service`** (Qdrant のみ必要、Agent CLI 不要なケース)
+3. **`fake`** (file 操作のみ、外部 dep を呼ばないケース)
+4. **`none`** (option 存在確認、構造的 negative test 等、CLI 起動不要なケース)
+
+`fake` / `none` は実 dep を呼ばないため高速だが、real な振る舞い検証として弱い。argparse-level の option 存在確認や、CLI が触らないことを確認する negative test 等、real-smoke でも fake でも結果が同じになる項目に限って `fake` / `none` を採用する。
+
+### 1.1.2 テスト用 artifact / 環境前提
+
+本セッション着手時点で本リポジトリには次のテスト資産が揃っている (`<repo>` = `/home/kazuki/public_html/spec-anchor/`)。
+
+- **テスト用 Source Specs**:
+  - `<repo>/docs/spec/sample.md` (minimal な実 Source Specs)
+  - `<repo>/docs/core/purpose.md` / `<repo>/docs/core/concept.md` (実 Purpose / Core Concept)
+  - `<repo>/テスト用ドキュメント/` (大規模な実例文書群、25+ ファイル)
+- **Qdrant**: `http://localhost:6333` で常駐 (`/home/kazuki/.local/bin/qdrant`)
+- **Agent CLI**: `codex` (0.125.0) と `claude` (2.1.147 / Claude Code) がいずれも PATH 上
+- **FlagEmbedding**: `qdrant-client` package 同梱、BGE-M3 model は初回 download 後 cache 済
+
+### 1.1.3 テスト実行時の破壊的操作の許容範囲
+
+本プロジェクトは未本番運用のため、テスト実行時に次の破壊的操作を許容する。
+
+- **Qdrant collection (`spec_anchor_section` ほか) の drop / recreate**: setup-system / `/spec-core --rebuild` 系テストが実 Qdrant に対して collection を削除・再作成してよい
+- **`<repo>/.spec-anchor/` ディレクトリの削除・再生成**: 全 artifact 状態を初期化する一括テスト等で削除してよい
+- **`<repo>/docs/spec/` の追加・更新**: テスト fixture で新規 Source Specs を追加してよい (ただし既存 `sample.md` の意味的変更は避ける、必要なら `docs/spec/test-*.md` のような prefix で分離)
+- **`<repo>/docs/core/purpose.md` / `concept.md`**: human-managed 文書なのでテストで書き換えない (read-only 扱い、変更を要するテストは tmp_path で別 project root を作る)
+
+本番運用開始後は本節を見直す。それまでは「テスト前のスナップショットを取らない」「テスト後のクリーンアップは best-effort」で運用する。
+
 ### 1.2 前提となる外部設計書のマーク
 
 外部設計書 §0「凡例」で定義した検証進捗マーク (`[ ]` 未検証 / `✅` 検証済) を、本計画書では「テスト実装単位」として扱う。
