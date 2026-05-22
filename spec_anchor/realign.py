@@ -78,6 +78,27 @@ def run_spec_realign(
 
     project = _project_root(project_root, root=root, cwd=cwd)
 
+    config_path = project / ".spec-anchor" / "config.toml"
+    if not config_path.is_file():
+        from spec_anchor.config import ConfigError
+
+        message = f".spec-anchor/config.toml not found under {project.as_posix()}"
+        return {
+            "command": "/spec-realign",
+            "project_root": project.as_posix(),
+            "status": "error",
+            "should_stop": True,
+            "stops": True,
+            "blocked": True,
+            "can_continue": False,
+            "constraints": [],
+            "error": {
+                "code": "command_error",
+                "type": ConfigError.__name__,
+                "message": message,
+            },
+        }
+
     try:
         inject_result = run_spec_inject(
             project_root=project,
@@ -239,6 +260,12 @@ def _stopped_from_inject(
     project_root: Path,
     generated_at: str | None,
 ) -> dict[str, Any]:
+    from spec_anchor.freshness import recommend_next_action
+
+    realign_next_action = recommend_next_action(
+        inject_result.get("freshness_report") or {},
+        command="realign",
+    )
     result = {
         **deepcopy(dict(inject_result)),
         "command": "/spec-realign",
@@ -249,6 +276,7 @@ def _stopped_from_inject(
         "blocked": True,
         "can_continue": False,
         "constraints": [],
+        "recommended_next_action": realign_next_action,
         "inject_result": deepcopy(dict(inject_result)),
     }
     result.pop("answer", None)

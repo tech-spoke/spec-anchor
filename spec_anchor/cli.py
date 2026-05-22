@@ -260,15 +260,31 @@ def watch_main(argv: Sequence[str] | None = None) -> int:
 
 def _run_watch_from_args(args: argparse.Namespace) -> int:
     import spec_anchor.watcher as watcher
+    from spec_anchor.config import ConfigError
 
-    result = watcher.run_spec_anchor_watch(
-        project_root=str(Path.cwd()),
-        once=args.once,
-        interval_sec=args.interval_sec,
-        debounce_sec=args.debounce_sec,
-        stale_lock_sec=args.stale_lock_sec,
-        max_runs=args.max_runs,
-    )
+    project_root = str(Path.cwd())
+    try:
+        result = watcher.run_spec_anchor_watch(
+            project_root=project_root,
+            once=args.once,
+            interval_sec=args.interval_sec,
+            debounce_sec=args.debounce_sec,
+            stale_lock_sec=args.stale_lock_sec,
+            max_runs=args.max_runs,
+        )
+    except (ConfigError, watcher.WatcherError) as exc:
+        underlying = exc.__cause__ if isinstance(exc, watcher.WatcherError) and exc.__cause__ is not None else exc
+        result = {
+            "command": "/spec-anchor-watch",
+            "project_root": project_root,
+            "status": "error",
+            "watcher_started": False,
+            "error": {
+                "code": "command_error",
+                "type": type(underlying).__name__,
+                "message": str(exc),
+            },
+        }
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
@@ -409,7 +425,23 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
     except Exception as exc:
         result = _exception_result("/spec-realign", project_root=project_root, exc=exc)
     print(_dumps_json(result))
-    return _command_exit_code(result)
+    return _realign_exit_code(result)
+
+
+def _realign_exit_code(result: Mapping[str, Any]) -> int:
+    """Exit code rule for `spec-anchor realign`.
+
+    Per EXTERNAL_DESIGN.ja.md §11.1.5 行 15 (realign side), realign returns
+    exit 0 even when the freshness gate stops with `status="failed"`. Only
+    structured `error` objects (§11.1.2 B, e.g. config absent, missing
+    Agent answer) propagate to exit code 1.
+    """
+
+    if "exit_code" in result:
+        return int(result.get("exit_code") or 0)
+    if result.get("error"):
+        return 1
+    return 0
 
 
 def _resolved_project_root() -> Path:

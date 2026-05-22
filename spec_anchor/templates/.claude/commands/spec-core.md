@@ -17,3 +17,14 @@ project root で `spec-anchor core` を実行する。`--all` または `-a` は
 pending Conflict Review Items が残る場合、`conflict_id`, `severity`, `source_refs`, `claims`, `why_conflicting`, `why_llm_cannot_decide`, `decision_options`, `recommended_next_action` を人間判断用に提示する。pending conflict を Agent が決めない。
 
 Purpose と Core Concept は人間が維持する read-only input である。この command から `/spec-inject` や `/spec-realign` を自動実行しない。CLI result と、人間判断が必要な pending Conflict Review Items を返す。
+
+## エラー時の復旧手順を明示する規約
+
+CLI が失敗を返した場合、ユーザー向けの復旧手順は具体的な command 名で提示する。略称や類似 command を提案しない。
+
+- `.spec-anchor/config.toml not found under {root}` のとき → `spec-anchor-setup-project --target <project_root>` を提案する (例: `spec-anchor-setup-project --target /path/to/project`)。`spec-anchor init` のような存在しない command を提案しない。
+- `core.purpose_file not found: ...` / `core.concept_file not found: ...` のとき → 該当ファイル (`docs/core/purpose.md` 等) を人間が作成して再実行することを提案する。Agent は Purpose / Core Concept を書かない。
+- `sources.include did not match any Source Specs` のとき → `.spec-anchor/config.toml` の `[sources].include` glob を修正するか、Source Specs を該当 path に配置することを提案する。
+- `Chapter Anchors LLM generation failed for {N} chapter(s); ...` のとき → `spec-anchor core --all` (または `/spec-core --all`) で再試行を提案する。
+- `Related Sections retrieval backend failure: ...` のとき → Qdrant service の起動状態を確認し、`spec-anchor core --rebuild` (または `/spec-core --rebuild`) で再構築を提案する。
+- `Source Retrieval Index update failed` / `Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild` のとき → `spec-anchor core --rebuild` (または `/spec-core --rebuild`) を提案する。

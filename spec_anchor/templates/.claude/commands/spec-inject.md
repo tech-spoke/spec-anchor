@@ -114,3 +114,14 @@ CLI の JSON を生のまま会話に貼らない。ユーザーが意図して 
 Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor は navigation / support 専用である。`support_refs` には入れられるが、constraint の sole evidence にはしない。
 
 Purpose と Core Concept は人間が維持する read-only input である。両ファイルは変更しない。`.spec-anchor/config.toml` の `[llm]` provider は使わない。`/spec-inject` はこの command を実行している Agent / LLM が担当する。
+
+## エラー時の復旧手順を明示する規約
+
+CLI が `should_stop=true` または `status="error"` を返した場合、ユーザー向けの復旧手順は具体的な command 名で提示する。
+
+- `.spec-anchor/config.toml not found under {root}` のとき → `spec-anchor-setup-project --target <project_root>` で project skeleton を初期化することを提案する (例: `spec-anchor-setup-project --target /path/to/project`)。`spec-anchor init` のような存在しない command を提案しない。Agentic Search は実行しない旨を明示する。
+- `blocking_reasons` に `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` が含まれるとき → CLI が返す `recommended_next_action` (例: `"run /spec-core before /spec-inject"`) をそのまま提示し、人間判断を促す。`/spec-core` は自動実行しない。
+- `blocking_reasons=["pending_conflict"]` のとき → CLI 出力の `pending_conflict_items` の各 item の `conflict_id` / `severity` / `claims` / `why_conflicting` / `why_llm_cannot_decide` / `decision_options` / `source_refs` / `recommended_next_action` を人間判断用に提示する。Agent は conflict を決めない。
+- `blocking_reasons=["failed_required_artifact"]` のとき → CLI が返す `recommended_next_action` (`"run /spec-core or /spec-core --all before /spec-inject"`) と `warnings` の失敗詳細を提示し、`/spec-core --all` の実行を提案する。
+
+CLI の `recommended_next_action` field は CLI 自身が出力する文字列をそのまま使う。Agent が再構成して別 command を提案しない。

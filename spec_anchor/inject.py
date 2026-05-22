@@ -255,6 +255,41 @@ def _gate_stop_for_command(project: Path, command: str) -> dict[str, Any] | None
     return result
 
 
+def _config_missing_error_result(
+    project: Path, command: str
+) -> dict[str, Any] | None:
+    """Return §11.1.2 B error shape when `.spec-anchor/config.toml` is missing.
+
+    Per EXTERNAL_DESIGN.ja.md §11.1.5 行 2-3, `spec-anchor inject-*` and
+    `spec-anchor realign` must surface config absence as a structured
+    `command_error` (status="error") so the Agent can present the recovery
+    path (`spec-anchor-setup-project`) to the user. The freshness gate is
+    not entered when the config is absent.
+    """
+
+    config_path = project / ".spec-anchor" / "config.toml"
+    if config_path.is_file():
+        return None
+    from spec_anchor.config import ConfigError
+
+    message = f".spec-anchor/config.toml not found under {project.as_posix()}"
+    return {
+        "command": command,
+        "project_root": project.as_posix(),
+        "status": "error",
+        "should_stop": True,
+        "stops": True,
+        "blocked": True,
+        "can_continue": False,
+        "constraints": [],
+        "error": {
+            "code": "command_error",
+            "type": ConfigError.__name__,
+            "message": message,
+        },
+    }
+
+
 def run_inject_section(
     project_root: str | Path = ".",
     *,
@@ -279,6 +314,9 @@ def run_inject_section(
     )
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    config_missing = _config_missing_error_result(project, "/spec-inject inject-section")
+    if config_missing is not None:
+        return config_missing
     gate = _gate_stop_for_command(project, "/spec-inject inject-section")
     if gate is not None:
         return gate
@@ -338,6 +376,9 @@ def run_inject_chapters(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    config_missing = _config_missing_error_result(project, "/spec-inject inject-chapters")
+    if config_missing is not None:
+        return config_missing
     gate = _gate_stop_for_command(project, "/spec-inject inject-chapters")
     if gate is not None:
         return gate
@@ -375,6 +416,9 @@ def run_inject_purpose(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    config_missing = _config_missing_error_result(project, "/spec-inject inject-purpose")
+    if config_missing is not None:
+        return config_missing
     gate = _gate_stop_for_command(project, "/spec-inject inject-purpose")
     if gate is not None:
         return gate
@@ -430,6 +474,9 @@ def run_inject_conflicts(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    config_missing = _config_missing_error_result(project, "/spec-inject inject-conflicts")
+    if config_missing is not None:
+        return config_missing
     gate = _gate_stop_for_command(project, "/spec-inject inject-conflicts")
     if gate is not None:
         return gate
@@ -489,6 +536,9 @@ def run_inject_search(
     """
 
     project = _project_root(project_root, root=root, cwd=cwd)
+    config_missing = _config_missing_error_result(project, "/spec-inject inject-search")
+    if config_missing is not None:
+        return config_missing
     gate = _gate_stop_for_command(project, "/spec-inject inject-search")
     if gate is not None:
         return gate

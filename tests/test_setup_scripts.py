@@ -762,7 +762,7 @@ def test_t_s02_non_check_only_returns_preparation_actions_and_availability(
     assert "templates/.codex/skills/spec-anchor/SKILL.md" in template_paths
     assert not any("templates/.codex/commands/" in path for path in template_paths)
     assert isinstance(payload.get("agent_cli_entries"), dict)
-    diagnostic_codes = {item["code"] for item in payload.get("diagnostics", [])}
+    diagnostic_codes = {item["reason_code"] for item in payload.get("diagnostics", [])}
     assert "codex_skill_entrypoint" in diagnostic_codes
     assert "claude_command_entrypoint" in diagnostic_codes
 

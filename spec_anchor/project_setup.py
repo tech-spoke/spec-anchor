@@ -239,7 +239,7 @@ def setup_system(
         result["status"] = "error"
         result["diagnostics"].append(
             {
-                "code": "invalid_mode",
+                "reason_code": "invalid_mode",
                 "severity": "error",
                 "message": f"unsupported setup mode: {mode}",
             }
@@ -375,7 +375,7 @@ def _error_result(result: dict[str, Any], code: str, message: str) -> dict[str, 
     result["exit_code"] = 1
     result["diagnostics"].append(
         {
-            "code": code,
+            "reason_code": code,
             "severity": "error",
             "message": message,
         }
@@ -518,7 +518,7 @@ def _add_protected_core_skip(
     result["protected"].append(rel_name)
     result["diagnostics"].append(
         {
-            "code": "human_owned_core_file_protected",
+            "reason_code": "human_owned_core_file_protected",
             "severity": "info",
             "message": "Human-owned Purpose / Core Concept file was left unchanged.",
             "path": rel_name,
@@ -564,7 +564,7 @@ def _add_no_init_core_diagnostic(
         return
     result["diagnostics"].append(
         {
-            "code": "core_files_not_initialized",
+            "reason_code": "core_files_not_initialized",
             "severity": "warning",
             "message": (
                 "Purpose / Core Concept placeholders were not created; "
@@ -813,7 +813,7 @@ def _add_availability_diagnostics(result: dict[str, Any]) -> None:
         if not script["available"]:
             result["diagnostics"].append(
                 {
-                    "code": "console_script_missing",
+                    "reason_code": "console_script_missing",
                     "severity": "warning",
                     "message": f"console script is not on PATH: {script['name']}",
                     "name": script["name"],
@@ -824,7 +824,7 @@ def _add_availability_diagnostics(result: dict[str, Any]) -> None:
         if not template["available"]:
             result["diagnostics"].append(
                 {
-                    "code": "template_missing",
+                    "reason_code": "template_missing",
                     "severity": "error",
                     "message": f"packaged template is missing: {template['path']}",
                     "path": template["path"],
@@ -838,7 +838,7 @@ def _add_availability_diagnostics(result: dict[str, Any]) -> None:
         severity = "error" if provider["required"] else "warning"
         result["diagnostics"].append(
             {
-                "code": "provider_unavailable",
+                "reason_code": "provider_unavailable",
                 "severity": severity,
                 "message": f"{provider['kind']} is unavailable: {provider['name']}",
                 "name": provider["name"],
@@ -857,7 +857,7 @@ def _add_agent_cli_entry_diagnostics(result: dict[str, Any]) -> None:
     if isinstance(codex, Mapping):
         result["diagnostics"].append(
             {
-                "code": "codex_skill_entrypoint",
+                "reason_code": "codex_skill_entrypoint",
                 "severity": "info",
                 "message": (
                     "Codex uses skill entrypoints under <project>/.codex/skills/spec-anchor; "
@@ -870,7 +870,7 @@ def _add_agent_cli_entry_diagnostics(result: dict[str, Any]) -> None:
     if isinstance(claude, Mapping):
         result["diagnostics"].append(
             {
-                "code": "claude_command_entrypoint",
+                "reason_code": "claude_command_entrypoint",
                 "severity": "info",
                 "message": "Claude Code uses project command entrypoints under .claude/commands.",
                 "project_command_path": claude.get("project_command_path"),

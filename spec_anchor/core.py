@@ -2600,6 +2600,7 @@ def _generate_related_sections(
             action="failed",
             reason=str(fast_path.get("reason") or "generation_failed"),
         )
+        qdrant_backend_failure = _detect_qdrant_backend_failure(exc, config=config)
         return {
             "status": "failed",
             "related_section_candidates": [],
@@ -2612,8 +2613,48 @@ def _generate_related_sections(
                     "message": str(exc),
                 }
             ],
+            "qdrant_backend_failure": qdrant_backend_failure,
             "generated_at": generated_at,
         }
+
+
+def _detect_qdrant_backend_failure(exc: Exception, *, config: Any) -> dict[str, Any] | None:
+    """Classify whether `exc` looks like a Qdrant connection failure.
+
+    Per EXTERNAL_DESIGN.ja.md §11.1.5 行 10, when `[vector_store].provider="qdrant"`
+    and the service is unreachable, the result should expose
+    `diagnostics.related_sections.qdrant_backend_failure={"failure_reason":<具体>, ...}`
+    so the Agent can present recovery hints to the user.
+    """
+
+    vector_store = config.get("vector_store") if isinstance(config, Mapping) else None
+    provider = (vector_store or {}).get("provider") if isinstance(vector_store, Mapping) else None
+    url = (vector_store or {}).get("url") if isinstance(vector_store, Mapping) else None
+    if provider != "qdrant":
+        return None
+    text = f"{type(exc).__name__}: {exc}"
+    # Common connection failure signatures from httpx/urllib3/socket.
+    markers = (
+        "Connection refused",
+        "Errno 111",
+        "Errno 61",
+        "Failed to establish a new connection",
+        "Max retries exceeded",
+        "Name or service not known",
+        "Temporary failure in name resolution",
+        "Connection reset by peer",
+        "ConnectError",
+        "ConnectTimeout",
+        "ReadTimeout",
+    )
+    if not any(marker in text for marker in markers):
+        return None
+    return {
+        "failure_reason": str(exc),
+        "exception_type": type(exc).__name__,
+        "provider": "qdrant",
+        "url": url,
+    }
 
 
 def _related_sections_status(payload: Any) -> str:
