@@ -32,6 +32,12 @@ def pytest_configure(config: pytest.Config) -> None:
         "external: test requires external dependencies such as Agent CLI, Qdrant, "
         "FlagEmbedding BGE-M3, or native service readiness checks",
     )
+    config.addinivalue_line(
+        "markers",
+        "spec_ref(section, line, profile=None, method=None): attach a "
+        "per-parametrize-row SPEC_REF used by the evidence collector when "
+        "docstring-level SPEC_REF is too coarse",
+    )
     _prepend_venv_to_path()
     _stash_runtime_state_for_session(config)
 

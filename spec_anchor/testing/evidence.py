@@ -153,6 +153,28 @@ class EvidenceCollector:
         doc = getattr(obj, "__doc__", None) if obj is not None else None
         refs, profile, method = _parse_docstring(doc)
 
+        # Per-param SPEC_REF markers override docstring refs. This lets a
+        # ``@pytest.mark.parametrize`` test attach a row-specific
+        # SPEC_REF / PROFILE / METHOD via
+        # ``pytest.param(..., marks=[pytest.mark.spec_ref(section, line,
+        # profile=..., method=...)])``. When a marker is present, the
+        # docstring-derived refs are replaced entirely so each parametrize
+        # row maps to its own checkbox.
+        marker = item.get_closest_marker("spec_ref")
+        if marker is not None:
+            try:
+                section, line = marker.args[0], int(marker.args[1])
+            except (IndexError, ValueError, TypeError):
+                warnings.warn(
+                    f"evidence: {item.nodeid}: malformed @spec_ref marker "
+                    f"args={marker.args!r}; expected (section, line, ...)",
+                    stacklevel=2,
+                )
+            else:
+                refs = [SpecRef(section=section, line=line)]
+                profile = marker.kwargs.get("profile", profile)
+                method = marker.kwargs.get("method", method)
+
         if not refs:
             # Test has no SPEC_REF. Not an error: legacy tests not yet
             # backfilled. Skip recording.

@@ -139,6 +139,14 @@ def test_stage_routing_resolves_to_correct_provider() -> None:
 
 
 def test_stage_routing_falls_back_to_first_provider() -> None:
+    """Omitted stage_routing falls back to first `[llm.providers]` definition.
+
+    SPEC_REF: §10.2 L1086
+    SPEC_REF: §10.2 L1087
+    PROFILE: fake
+    METHOD: 入出力比較
+    """
+
     providers = {
         "claude": LlmProviderConfig(
             name="claude",
@@ -156,6 +164,13 @@ def test_stage_routing_falls_back_to_first_provider() -> None:
 
 
 def test_stage_routing_rejects_unknown_stage(tmp_path: Path) -> None:
+    """Unrecognised stage keys (e.g., misspelled) raise ConfigError.
+
+    SPEC_REF: §10.2 L1091
+    PROFILE: fake
+    METHOD: 入出力比較
+    """
+
     bad = CONFIG_WITH_ROUTING.replace(
         "section_metadata = \"claude\"", "unknown_stage = \"claude\"", 1
     )
@@ -166,6 +181,13 @@ def test_stage_routing_rejects_unknown_stage(tmp_path: Path) -> None:
 
 
 def test_stage_routing_rejects_unknown_provider(tmp_path: Path) -> None:
+    """stage_routing referencing an undefined provider id is rejected.
+
+    SPEC_REF: §10.2 L1090
+    PROFILE: fake
+    METHOD: 入出力比較
+    """
+
     bad = CONFIG_WITH_ROUTING.replace(
         "section_metadata = \"claude\"",
         "section_metadata = \"missing_provider\"",
