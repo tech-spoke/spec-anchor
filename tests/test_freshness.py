@@ -270,10 +270,6 @@ def _gate(command: str, freshness_report: Any) -> Any:
 
 def test_t_u03_fresh_report_has_no_reasons() -> None:
     """CLI determines freshness and writes the report to `freshness.json`.
-
-    SPEC_REF: §5.3 L405
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     report = _freshness(_base_state())

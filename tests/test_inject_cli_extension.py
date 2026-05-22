@@ -225,10 +225,6 @@ def test_inject_conflicts_returns_empty_for_missing_artifact(tmp_path: Path) -> 
 
 def test_inject_section_returns_empty_for_no_ids(tmp_path: Path) -> None:
     """`spec-anchor inject-section` returns Section payloads for requested ids.
-
-    SPEC_REF: §5.3 L407
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = _write_project(tmp_path)
@@ -280,10 +276,6 @@ def test_inject_search_returns_source_provenance_for_agentic_search(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """`spec-anchor inject-search` returns retrieval results to the Agent.
-
-    SPEC_REF: §5.3 L406
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = _write_project(tmp_path)

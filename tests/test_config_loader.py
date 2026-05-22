@@ -181,10 +181,6 @@ def test_t_u05_standard_config_parses_and_resolves_project_relative_paths(
     tmp_path: Path,
 ) -> None:
     """CLI loads ``.spec-anchor/config.toml`` and resolves relative paths.
-
-    SPEC_REF: §5.3 L399
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project_root = tmp_path / "project"
@@ -265,10 +261,6 @@ def test_t_u06_missing_config_file_fails_without_parent_directory_search(
     tmp_path: Path,
 ) -> None:
     """Parent directory search for `.spec-anchor/config.toml` is forbidden.
-
-    SPEC_REF: §10.1 L1009
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     parent = tmp_path / "parent"

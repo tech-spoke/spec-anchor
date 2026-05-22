@@ -44,10 +44,6 @@ def _section(section_id: str) -> dict[str, Any]:
 
 def test_audit_by_id_collects_provider_status_prompt_version_and_generated_at() -> None:
     """Phase R-4: audit fields land in section_manifest by section_id.
-
-    SPEC_REF: §5.3 L400
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     metadata_entries = [

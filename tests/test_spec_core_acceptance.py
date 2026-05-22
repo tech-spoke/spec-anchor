@@ -373,7 +373,6 @@ _FLAG_TABLE_CASES = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.1", case[0], profile="fake", method="入出力比較", verification_level="hybrid_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _FLAG_TABLE_CASES
@@ -388,9 +387,6 @@ def test_flag_interaction_table(
     request: pytest.FixtureRequest,
 ) -> None:
     """L575-577: flag combinations select expected ``mode`` and retrieval status.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     snapshot = request.getfixturevalue(fixture_name)
@@ -404,27 +400,19 @@ def test_flag_interaction_table(
     )
 
 
-@pytest.mark.spec_ref("§7.1", 579, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_rebuild_implies_all(core_fake_rebuild: dict[str, Any]) -> None:
     """L579: --rebuild implies --all (mode reflects full regeneration).
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     assert core_fake_rebuild["result"]["mode"] == "full"
 
 
-@pytest.mark.spec_ref("§7.1", 580, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_provider_failure_is_reported_not_swapped(tmp_path: Path) -> None:
     """L580: failure of configured provider is reported (not silently swapped).
 
     We point ``[llm.providers.codex].command`` at a non-existent binary and
     disable fake-LLM so a real codex subprocess would be required.  Expect a
     non-zero exit + warning surface, not a silent fallback to another provider.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "bad_provider"
@@ -470,7 +458,6 @@ _INPUT_TABLE_CASES = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.2", case[0], profile="fake", method="入出力比較", verification_level="hybrid_verified")],
             id=f"L{case[0]}",
         )
         for case in _INPUT_TABLE_CASES
@@ -485,9 +472,6 @@ def test_input_table_consumed(
     ``/spec-core`` ran to ``status="updated"`` confirms they were all
     consumable (purpose / concept are also asserted unchanged in
     ``test_purpose_concept_read_only``).
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = core_fake_fresh["project"]
@@ -510,7 +494,6 @@ _CLI_FLAG_CASES = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.2", case[0], profile="fake", method="入出力比較", verification_level="hybrid_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _CLI_FLAG_CASES
@@ -520,9 +503,6 @@ def test_cli_flag_accepted(
     tmp_path: Path, spec_line: int, flag: str, kind: str
 ) -> None:
     """L597-602: each documented CLI flag is accepted by ``spec-anchor core``.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     help_out = subprocess.run(
@@ -582,7 +562,6 @@ _STEP_FIXTURE_CASES: list[tuple[int, str, str]] = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.3", case[0], profile="fake", method="tool call trace 監査", verification_level="hybrid_verified")],
             id=f"L{case[0]}-{case[2] or 'top'}",
         )
         for case in _STEP_FIXTURE_CASES
@@ -595,9 +574,6 @@ def test_step_trace_recorded(
     request: pytest.FixtureRequest,
 ) -> None:
     """L611-636: each documented step appears in ``core_progress.json``.
-
-    PROFILE: fake
-    METHOD: tool call trace 監査
     """
 
     snapshot = request.getfixturevalue(fixture_name)
@@ -614,12 +590,8 @@ def test_step_trace_recorded(
     assert stages[stage].get("stage") == stage
 
 
-@pytest.mark.spec_ref("§7.3", 639, profile="fake", method="tool call trace 監査", verification_level="hybrid_verified")
 def test_trace_audit_stage_order(core_fake_fresh: dict[str, Any]) -> None:
     """L639: stages[] preserves the documented order with per-stage diagnostics.
-
-    PROFILE: fake
-    METHOD: tool call trace 監査
     """
 
     progress = core_fake_fresh["progress"]
@@ -640,25 +612,17 @@ def test_trace_audit_stage_order(core_fake_fresh: dict[str, Any]) -> None:
         assert name in progress["stages"], f"stage {name} missing from progress"
 
 
-@pytest.mark.spec_ref("§7.3", 641, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_purpose_concept_read_only(core_fake_fresh: dict[str, Any]) -> None:
     """L641: Purpose / Core Concept files are unchanged before vs after /spec-core.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     assert core_fake_fresh["purpose_before"] == core_fake_fresh["purpose_after"]
     assert core_fake_fresh["concept_before"] == core_fake_fresh["concept_after"]
 
 
-@pytest.mark.spec_ref("§7.3", 642, profile="fake", method="tool call trace 監査", verification_level="hybrid_verified")
 def test_watcher_uses_internal_update_path(tmp_path: Path) -> None:
     """L642: ``spec-anchor-watch --once`` performs core update internally
     (no nested ``codex`` / ``claude`` subprocess required).
-
-    PROFILE: fake
-    METHOD: tool call trace 監査
     """
 
     project = tmp_path / "watcher_proj"
@@ -720,7 +684,6 @@ _CORE_RESULT_FIELDS = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="hybrid_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _CORE_RESULT_FIELDS
@@ -733,9 +696,6 @@ def test_core_result_field(
     expected_type: type,
 ) -> None:
     """L650-665: CoreResult exposes each documented field with the right type.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     result = core_fake_fresh["result"]
@@ -764,7 +724,6 @@ _RETRIEVAL_STATUS_CASES = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="hybrid_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _RETRIEVAL_STATUS_CASES
@@ -777,9 +736,6 @@ def test_retrieval_index_status_value(
     request: pytest.FixtureRequest,
 ) -> None:
     """L670-673: each retrieval_index_status enum value is actually produced.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     snapshot = request.getfixturevalue(fixture_name)
@@ -789,16 +745,12 @@ def test_retrieval_index_status_value(
     )
 
 
-@pytest.mark.spec_ref("§7.4", 674, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_retrieval_index_status_blocked_when_freshness_blocked(tmp_path: Path) -> None:
     """L674: blocked status surfaces when upstream pending_conflict / freshness halts /spec-core.
 
     We seed a pending Conflict Review Item directly into the artifact so the
     next ``/spec-core`` run sees a pre-existing pending conflict and refuses
     to recompute downstream stages.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "blocked_proj"
@@ -871,21 +823,16 @@ def test_retrieval_index_status_blocked_when_freshness_blocked(tmp_path: Path) -
     assert result["retrieval_index_status"] in {"blocked", "skipped_unchanged", "success"}
 
 
-@pytest.mark.spec_ref("§7.4", 676, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_retrieval_index_upsert_action_recorded(
     core_fake_fresh: dict[str, Any],
 ) -> None:
     """L676: section_collection_upsert.action is recorded with the upsert path.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     upsert_stage = core_fake_fresh["progress"]["stages"]["section_collection_upsert"]
     assert upsert_stage.get("action") in {"upserted_full", "upserted_partial", "skipped_unchanged", "success", "skipped"}
 
 
-@pytest.mark.spec_ref("§7.4", 677, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_retrieval_index_supports_uuid5_point_ids(
     core_fake_fresh: dict[str, Any],
 ) -> None:
@@ -897,9 +844,6 @@ def test_retrieval_index_supports_uuid5_point_ids(
     exercised whenever the legacy collection is encountered.  Here we
     confirm the artifact carries the upsert state so the migration branch
     is observable from ``core_progress.json``.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     state_path = (
@@ -910,14 +854,10 @@ def test_retrieval_index_supports_uuid5_point_ids(
     assert isinstance(state, dict) and state, "state should be non-empty mapping"
 
 
-@pytest.mark.spec_ref("§7.4", 678, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_retrieval_index_partial_upsert_on_incremental(
     core_fake_incremental_after_edit: dict[str, Any],
 ) -> None:
     """L678: incremental edit produces upserted_partial with per-stage diagnostics.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     stage = core_fake_incremental_after_edit["progress"]["stages"]["section_collection_upsert"]
@@ -935,7 +875,6 @@ def test_retrieval_index_partial_upsert_on_incremental(
     )
 
 
-@pytest.mark.spec_ref("§7.4", 679, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_verify_index_does_not_self_repair(core_fake_verify_index: dict[str, Any]) -> None:
     """L679: ``--verify-index`` records its execution in core_progress.json.
 
@@ -943,9 +882,6 @@ def test_verify_index_does_not_self_repair(core_fake_verify_index: dict[str, Any
     ``retrieval_index_status=failed`` on inconsistency.  Since the fixture
     runs verify-index on a freshly-built (consistent) collection, we assert
     the verify_index stage executed and that no automatic recreate happened.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     verify_stage = core_fake_verify_index["progress"]["stages"]["verify_index"]
@@ -974,7 +910,6 @@ _RELATED_STATUS_CASES = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="hybrid_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _RELATED_STATUS_CASES
@@ -987,9 +922,6 @@ def test_related_sections_status_value(
     request: pytest.FixtureRequest,
 ) -> None:
     """L683-685: related_sections_status takes each documented value.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     snapshot = request.getfixturevalue(fixture_name)
@@ -997,12 +929,8 @@ def test_related_sections_status_value(
     assert actual == expected_status
 
 
-@pytest.mark.spec_ref("§7.4", 686, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_related_sections_blocked_when_upstream_blocks(tmp_path: Path) -> None:
     """L686: related_sections_status reaches ``blocked`` when /spec-core aborts upstream.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "rel_blocked"
@@ -1019,41 +947,29 @@ def test_related_sections_blocked_when_upstream_blocks(tmp_path: Path) -> None:
     assert blocked, f"expected blocked outcome, got {result!r}"
 
 
-@pytest.mark.spec_ref("§7.4", 688, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_related_sections_no_silent_fallback_to_inmemory(
     core_fake_retrieval_failed: dict[str, Any],
 ) -> None:
     """L688: when Qdrant initialisation fails, related_sections is marked failed
     rather than silently falling back to InMemory.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     assert core_fake_retrieval_failed["result"]["related_sections_status"] == "failed"
 
 
-@pytest.mark.spec_ref("§7.4", 689, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_related_sections_inmemory_returns_success(
     core_fake_retrieval_disabled: dict[str, Any],
 ) -> None:
     """L689: pure InMemory config (no Qdrant) yields related_sections_status=success.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     assert core_fake_retrieval_disabled["result"]["related_sections_status"] == "success"
 
 
-@pytest.mark.spec_ref("§7.4", 690, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_related_sections_partial_regeneration_diagnostics(
     core_fake_incremental_after_edit: dict[str, Any],
 ) -> None:
     """L690: incremental related_sections records regenerated_partial + diagnostics.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     stage = core_fake_incremental_after_edit["progress"]["stages"]["related_sections"]
@@ -1070,15 +986,11 @@ def test_related_sections_partial_regeneration_diagnostics(
     assert isinstance(diagnostics, list)
 
 
-@pytest.mark.spec_ref("§7.4", 691, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_related_sections_partial_mode_flags(
     core_fake_incremental_after_edit: dict[str, Any],
 ) -> None:
     """L691: per-entry partial_mode / requires_full_regeneration_for_complete_target_recheck
     is written under ``.spec-anchor/context/related_sections/``.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     related_dir = (
@@ -1118,12 +1030,8 @@ def test_related_sections_partial_mode_flags(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§7.4", 693, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_chapter_key_anchor_llm_only(core_fake_fresh: dict[str, Any]) -> None:
     """L693: Chapter Key Anchor is generated by LLM only — no mechanical fallback.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     chapter_path = (
@@ -1141,13 +1049,9 @@ def test_chapter_key_anchor_llm_only(core_fake_fresh: dict[str, Any]) -> None:
             assert ch.get("origin") != "mechanical_fallback"
 
 
-@pytest.mark.spec_ref("§7.4", 694, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_chapter_anchor_failure_keeps_prior_value(core_fake_fresh: dict[str, Any]) -> None:
     """L694: on LLM failure, chapter_anchors artifact is marked failed and prior
     canonical value is retained (no partial overwrite).
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     chapter_stage = core_fake_fresh["progress"]["stages"]["chapter_anchors"]
@@ -1165,27 +1069,19 @@ def test_chapter_anchor_failure_keeps_prior_value(core_fake_fresh: dict[str, Any
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§7.4", 696, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_potential_conflicts_is_list(core_fake_fresh: dict[str, Any]) -> None:
     """L696: potential_conflicts is a list of conflict candidates (may be empty).
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     assert isinstance(core_fake_fresh["result"]["potential_conflicts"], list)
 
 
-@pytest.mark.spec_ref("§7.4", 697, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_pending_conflict_blocks_freshness() -> None:
     """L697: when LLM cannot resolve, a pending Conflict Review Item is created
     and freshness blocks on ``pending_conflict``.
 
     We exercise this via direct ``apply_conflict_decision`` / pending state
     rather than triggering the fake judge to emit a pending verdict.
-
-    PROFILE: fake
-    METHOD: tool call trace 監査
     """
 
     import importlib
@@ -1233,7 +1129,6 @@ _CONFLICT_REVIEW_FIELDS = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="unit_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _CONFLICT_REVIEW_FIELDS
@@ -1241,9 +1136,6 @@ _CONFLICT_REVIEW_FIELDS = [
 )
 def test_conflict_review_item_field(spec_line: int, field: str) -> None:
     """L702-713: validated Conflict Review Item exposes each documented field.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1295,7 +1187,6 @@ _HUMAN_OPTION_CASES_DEDUP = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="unit_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _HUMAN_OPTION_CASES_DEDUP
@@ -1303,9 +1194,6 @@ _HUMAN_OPTION_CASES_DEDUP = [
 )
 def test_decision_option_offered(spec_line: int, option_id: str) -> None:
     """L718-722: each documented human option is present in decision_options.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1321,12 +1209,8 @@ def test_decision_option_offered(spec_line: int, option_id: str) -> None:
     assert option_id in offered, f"L{spec_line}: option {option_id!r} not offered"
 
 
-@pytest.mark.spec_ref("§7.4", 724, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_defer_decision_keeps_status_pending() -> None:
     """L724: a ``defer`` decision keeps status=pending (does not resolve).
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1355,12 +1239,8 @@ def test_defer_decision_keeps_status_pending() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§7.4", 726, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_resolution_carries_decision_reason_refs() -> None:
     """L726: resolved item carries decision / reason / referenced source refs.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1389,15 +1269,11 @@ def test_resolution_carries_decision_reason_refs() -> None:
     assert resolution.get("referenced_source_refs")
 
 
-@pytest.mark.spec_ref("§7.4", 727, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_resolution_not_auto_propagated(core_fake_fresh: dict[str, Any]) -> None:
     """L727: resolution does not auto-write Purpose / Core Concept / Source Specs.
 
     We verify /spec-core does not mutate purpose / concept files even after a
     second invocation.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = core_fake_fresh["project"]
@@ -1407,24 +1283,16 @@ def test_resolution_not_auto_propagated(core_fake_fresh: dict[str, Any]) -> None
     assert purpose_first == purpose_second
 
 
-@pytest.mark.spec_ref("§7.4", 728, profile="fake", method="入出力比較", verification_level="hybrid_verified")
 def test_unreflected_conflict_resolutions_surface(core_fake_fresh: dict[str, Any]) -> None:
     """L728: unreflected_conflict_resolutions is reported in CoreResult.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     assert "unreflected_conflict_resolutions" in core_fake_fresh["result"]
     assert isinstance(core_fake_fresh["result"]["unreflected_conflict_resolutions"], list)
 
 
-@pytest.mark.spec_ref("§7.4", 729, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_resolution_has_base_hashes_and_scope() -> None:
     """L729: resolution carries base_source_hashes[] and valid_scope.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1443,12 +1311,8 @@ def test_resolution_has_base_hashes_and_scope() -> None:
     assert base["valid_scope"] in {"global", "source_pair", "section_pair", "task_scope"}
 
 
-@pytest.mark.spec_ref("§7.4", 730, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_task_scope_resolution_marks_scope() -> None:
     """L730: task_scope_resolution sets valid_scope=task_scope.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1493,7 +1357,6 @@ _DECISION_PAYLOAD_FIELDS = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="unit_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _DECISION_PAYLOAD_FIELDS
@@ -1502,9 +1365,6 @@ _DECISION_PAYLOAD_FIELDS = [
 def test_decision_payload_field_consumed(spec_line: int, field: str) -> None:
     """L735-740: each documented decision-payload field is consumed by
     ``apply_conflict_decision``.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1562,7 +1422,6 @@ _DECISION_ENUM_CASES = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§7.4", case[0], profile="fake", method="入出力比較", verification_level="unit_verified")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _DECISION_ENUM_CASES
@@ -1572,9 +1431,6 @@ def test_decision_enum_transition(
     spec_line: int, decision: str, expected_status: str, expected_scope: str
 ) -> None:
     """L747-753: each decision enum value transitions to the documented state.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1610,12 +1466,8 @@ def test_decision_enum_transition(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§7.4", 755, profile="fake", method="tool call trace 監査", verification_level="hybrid_verified")
 def test_conflict_evaluation_is_separate_stage(core_fake_fresh: dict[str, Any]) -> None:
     """L755: conflict evaluation runs in its own stage after related_sections.
-
-    PROFILE: fake
-    METHOD: tool call trace 監査
     """
 
     progress = core_fake_fresh["progress"]
@@ -1623,13 +1475,9 @@ def test_conflict_evaluation_is_separate_stage(core_fake_fresh: dict[str, Any]) 
     assert stage_order.index("conflict_evaluation") > stage_order.index("related_sections")
 
 
-@pytest.mark.spec_ref("§7.4", 756, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_conflict_pair_selection_uses_high_risk_words() -> None:
     """L756: pair selection considers identifier overlap / conflict words even
     for pairs not picked by related_sections.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib
@@ -1663,13 +1511,9 @@ def test_conflict_pair_selection_uses_high_risk_words() -> None:
     assert matched, f"expected high-risk pair, got pairs={pairs}"
 
 
-@pytest.mark.spec_ref("§7.4", 757, profile="fake", method="入出力比較", verification_level="unit_verified")
 def test_conflict_pair_cap_recorded_in_diagnostics() -> None:
     """L757: pairs dropped by ``conflict_pair_max_per_section`` are tracked in
     diagnostics (so users can see how many pairs were filtered out).
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     import importlib

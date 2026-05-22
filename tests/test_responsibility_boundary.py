@@ -84,10 +84,6 @@ def test_cli_does_not_accept_conversation_transcript_argument() -> None:
     a single argument. The contract is that the Agent interprets the
     conversation and feeds structured inputs (a search query, a section
     id, or a constructed answer JSON) to the CLI.
-
-    SPEC_REF: §5.3 L411
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     forbidden_flags = {
@@ -122,10 +118,6 @@ def test_cli_does_not_expose_auto_exploration_command() -> None:
     / ``inject-purpose`` / ``inject-conflicts``) plus ``core`` / ``realign``
     / ``watch``, and exposes no ``auto-explore`` / ``walk`` / ``traverse``
     style subcommand. Recursive related-section lookup is the Agent's job.
-
-    SPEC_REF: §5.3 L412
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     help_text = _cli_help_text()
@@ -157,10 +149,6 @@ def test_inject_search_output_does_not_contain_fabricated_constraints(tmp_path: 
     ``"statement":`` / ``"constraints":`` field populated with
     synthesised text. This test uses ``inject-search`` as the
     representative entry point.
-
-    SPEC_REF: §5.3 L413
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "no-fallback-probe"
@@ -205,10 +193,6 @@ def test_inject_conflicts_does_not_auto_resolve_pending_status(tmp_path: Path) -
     Seeds ``conflict_review_items.json`` with a ``status: pending`` entry,
     runs ``spec-anchor inject-conflicts``, and verifies the on-disk
     artifact is unchanged afterwards.
-
-    SPEC_REF: §5.3 L414
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "conflict-autoresolve-probe"
@@ -251,10 +235,6 @@ def test_realign_without_answer_does_not_generate_free_form_answer(tmp_path: Pat
     Invokes ``spec-anchor realign`` without any ``--answer*`` flag. The CLI
     must report a needs-answer signal rather than emit a populated
     ``answer`` field in the output JSON.
-
-    SPEC_REF: §5.3 L415
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "realign-noanswer"
@@ -292,10 +272,6 @@ def test_spec_core_does_not_modify_purpose_or_concept_files(tmp_path: Path) -> N
     ``spec-anchor core`` against a setup project, and asserts byte-for-byte
     equality afterwards. ``/spec-core`` should only generate state /
     context artifacts under ``.spec-anchor/``.
-
-    SPEC_REF: §5.3 L416
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "core-readonly-probe"

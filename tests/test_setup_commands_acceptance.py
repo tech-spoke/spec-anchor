@@ -107,7 +107,6 @@ _COMMAND_TABLE_CASES: list[tuple[int, str, list[str]]] = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§6", case[0], profile="none", method="入出力比較")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _COMMAND_TABLE_CASES
@@ -115,9 +114,6 @@ _COMMAND_TABLE_CASES: list[tuple[int, str, list[str]]] = [
 )
 def test_command_table_entrypoint_help_works(spec_line: int, label: str, cmd: list[str]) -> None:
     """Each documented command/script in §6 exposes a working `--help`.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
@@ -135,12 +131,8 @@ def test_command_table_entrypoint_help_works(spec_line: int, label: str, cmd: li
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.1", 437, profile="fake", method="artifact 内容確認")
 def test_claude_entrypoint_is_command_template_under_dot_claude_commands(tmp_path: Path) -> None:
     """`--agent claude` places command templates under `<project>/.claude/commands/`.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "claude-only"
@@ -153,12 +145,8 @@ def test_claude_entrypoint_is_command_template_under_dot_claude_commands(tmp_pat
         assert (cmd_dir / name).is_file(), f"missing {name} under {cmd_dir}"
 
 
-@pytest.mark.spec_ref("§6.1", 438, profile="fake", method="artifact 内容確認")
 def test_codex_entrypoint_is_skill_under_dot_codex_skills_spec_anchor(tmp_path: Path) -> None:
     """`--agent codex` places a SKILL.md under `<project>/.codex/skills/spec-anchor/`.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "codex-only"
@@ -169,13 +157,9 @@ def test_codex_entrypoint_is_skill_under_dot_codex_skills_spec_anchor(tmp_path: 
     assert skill.is_file(), f"missing SKILL.md at {skill}"
 
 
-@pytest.mark.spec_ref("§6.1", 440, profile="fake", method="artifact 内容確認")
 def test_agent_target_does_not_swap_entry_format(tmp_path: Path) -> None:
     """`--agent claude` never places a skill under `.codex/`, and
     `--agent codex` never places command templates under `.claude/`.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     for agent, allowed, forbidden in [
@@ -214,7 +198,6 @@ _SETUP_SYSTEM_CHECK_CASES: list[tuple[int, str, str]] = [
             *case,
             marks=[
                 pytest.mark.external,
-                pytest.mark.spec_ref("§6.2.1", case[0], profile="real-smoke", method="入出力比較"),
             ],
             id=f"L{case[0]}-{case[1].replace(' ', '_').replace('/', '_')}",
         )
@@ -226,9 +209,6 @@ def test_setup_system_real_probes_documented_dependencies(
 ) -> None:
     """Each documented setup-system probe target appears in
     ``production_readiness.checks[]``.
-
-    PROFILE: real-smoke
-    METHOD: 入出力比較
     """
 
     result = _setup_system_real(["--check-only"])
@@ -246,12 +226,8 @@ def test_setup_system_real_probes_documented_dependencies(
 
 
 @pytest.mark.external
-@pytest.mark.spec_ref("§6.2.1", 465, profile="real-smoke", method="入出力比較")
 def test_setup_system_ready_status_when_all_deps_available() -> None:
     """`production_readiness.status == "ready"` when all deps are present.
-
-    PROFILE: real-smoke
-    METHOD: 入出力比較
     """
 
     result = _setup_system_real(["--check-only"])
@@ -262,13 +238,9 @@ def test_setup_system_ready_status_when_all_deps_available() -> None:
     )
 
 
-@pytest.mark.spec_ref("§6.2.1", 466, profile="fake", method="入出力比較")
 def test_setup_system_blocked_status_when_qdrant_unreachable(monkeypatch) -> None:
     """`production_readiness.status == "blocked"` with diagnostics when a
     documented dep (Qdrant here) is unreachable.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     # Override the probe URL to an unreachable port to force blocked.
@@ -299,12 +271,8 @@ def test_setup_system_blocked_status_when_qdrant_unreachable(monkeypatch) -> Non
 
 
 @pytest.mark.external
-@pytest.mark.spec_ref("§6.2.1", 468, profile="real-smoke", method="入出力比較")
 def test_setup_system_exit_code_zero_on_ready() -> None:
     """Exit code is 0 when status is ready.
-
-    PROFILE: real-smoke
-    METHOD: 入出力比較
     """
 
     env = os.environ.copy()
@@ -325,12 +293,8 @@ def test_setup_system_exit_code_zero_on_ready() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.2.1", 472, profile="fake", method="artifact 内容確認")
 def test_setup_system_check_only_does_not_write(tmp_path: Path) -> None:
     """`--check-only` performs no writes anywhere (no created/updated entries).
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     env = os.environ.copy()
@@ -348,15 +312,11 @@ def test_setup_system_check_only_does_not_write(tmp_path: Path) -> None:
     assert payload.get("updated") == [], "--check-only updated entries should be empty"
 
 
-@pytest.mark.spec_ref("§6.2.1", 473, profile="none", method="入出力比較")
 def test_setup_system_qdrant_url_default() -> None:
     """`--qdrant-url` default is `http://localhost:6333`.
 
     Verified by `--help` text showing the documented default endpoint;
     the actual probe URL is asserted via the spec/spec-anchor source.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     proc = subprocess.run(
@@ -389,13 +349,9 @@ def test_setup_system_qdrant_url_default() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.2.1", 475, profile="fake", method="artifact 内容確認")
 def test_setup_system_does_not_modify_project_state(tmp_path: Path) -> None:
     """setup-system does not touch project Source Specs / Purpose / Core
     Concept / generated artifacts.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     # Create a project, capture state hashes, run setup-system, check unchanged.
@@ -449,7 +405,6 @@ _SETUP_PROJECT_OPTION_CASES: list[tuple[int, str]] = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§6.2.2", case[0], profile="none", method="入出力比較")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _SETUP_PROJECT_OPTION_CASES
@@ -457,9 +412,6 @@ _SETUP_PROJECT_OPTION_CASES: list[tuple[int, str]] = [
 )
 def test_setup_project_exposes_documented_option(spec_line: int, flag: str) -> None:
     """Each documented setup-project flag appears in `--help`.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     proc = subprocess.run(
@@ -476,12 +428,8 @@ def test_setup_project_exposes_documented_option(spec_line: int, flag: str) -> N
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.2.2", 497, profile="fake", method="artifact 内容確認")
 def test_setup_project_creates_config_toml_and_gitignore(tmp_path: Path) -> None:
     """setup-project creates `.spec-anchor/config.toml` and `.spec-anchor/.gitignore`.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "p"
@@ -491,13 +439,9 @@ def test_setup_project_creates_config_toml_and_gitignore(tmp_path: Path) -> None
     assert (project / ".spec-anchor" / ".gitignore").is_file()
 
 
-@pytest.mark.spec_ref("§6.2.2", 498, profile="fake", method="artifact 内容確認")
 def test_setup_project_initializes_purpose_and_core_concept(tmp_path: Path) -> None:
     """setup-project creates Purpose / Core Concept placeholders by default,
     and `--no-init-core-files` suppresses them.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     default_project = tmp_path / "default"
@@ -513,13 +457,9 @@ def test_setup_project_initializes_purpose_and_core_concept(tmp_path: Path) -> N
     assert not (suppressed_project / "docs" / "core" / "concept.md").exists()
 
 
-@pytest.mark.spec_ref("§6.2.2", 499, profile="fake", method="artifact 内容確認")
 def test_setup_project_places_agent_entry_per_agent_flag(tmp_path: Path) -> None:
     """`--agent claude` / `codex` / `both` controls which agent entry files
     are placed.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     for agent in ("claude", "codex", "both"):
@@ -537,12 +477,8 @@ def test_setup_project_places_agent_entry_per_agent_flag(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.2.2", 501, profile="fake", method="入出力比較")
 def test_setup_project_emits_json_with_correct_exit_code(tmp_path: Path) -> None:
     """setup-project emits a JSON object to stdout and exits 0 on success.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "p"
@@ -570,12 +506,8 @@ def test_setup_project_emits_json_with_correct_exit_code(tmp_path: Path) -> None
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.2.2", 505, profile="fake", method="入出力比較")
 def test_setup_project_refuses_to_overwrite_without_force(tmp_path: Path) -> None:
     """Existing files are not silently overwritten without `--force`.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "p"
@@ -594,13 +526,9 @@ def test_setup_project_refuses_to_overwrite_without_force(tmp_path: Path) -> Non
         assert "# manual edit" in after
 
 
-@pytest.mark.spec_ref("§6.2.2", 506, profile="fake", method="artifact 内容確認")
 def test_setup_project_does_not_run_spec_core_automatically(tmp_path: Path) -> None:
     """setup-project does not run `/spec-core`: no state/context artifacts
     are present after setup.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "p"
@@ -641,7 +569,6 @@ _WATCHER_OPTION_CASES: list[tuple[int, str]] = [
     [
         pytest.param(
             *case,
-            marks=[pytest.mark.spec_ref("§6.3", case[0], profile="none", method="入出力比較")],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _WATCHER_OPTION_CASES
@@ -649,9 +576,6 @@ _WATCHER_OPTION_CASES: list[tuple[int, str]] = [
 )
 def test_watcher_exposes_documented_option(spec_line: int, flag: str) -> None:
     """Each documented watcher flag appears in `--help`.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     proc = subprocess.run(
@@ -668,12 +592,8 @@ def test_watcher_exposes_documented_option(spec_line: int, flag: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§6.3", 551, profile="fake", method="入出力比較")
 def test_watcher_once_emits_json(tmp_path: Path) -> None:
     """`spec-anchor-watch --once` emits JSON to stdout.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "p"
@@ -694,7 +614,6 @@ def test_watcher_once_emits_json(tmp_path: Path) -> None:
         pytest.fail(f"watcher --once stdout is not JSON: {exc}\n{proc.stdout!r}")
 
 
-@pytest.mark.spec_ref("§6.3", 552, profile="fake", method="artifact 内容確認")
 def test_watcher_running_blocks_inject_via_freshness(tmp_path: Path) -> None:
     """While watcher is running, freshness becomes `status=blocked` with
     `watcher_running` reason, blocking `/spec-inject` / `/spec-realign`.
@@ -704,9 +623,6 @@ def test_watcher_running_blocks_inject_via_freshness(tmp_path: Path) -> None:
     the watcher state directly (faster than spinning a real watcher);
     the contract under test is the freshness gate output, not the
     watcher scheduler.
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "p"

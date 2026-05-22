@@ -236,10 +236,6 @@ def test_t_u19_limits_are_applied_to_metadata_and_llm_batches() -> None:
 
 def test_t_u21_generated_section_metadata_entries_have_required_fields() -> None:
     """`/spec-core` generates Section Metadata with required fields.
-
-    SPEC_REF: §5.3 L401
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     sections = _sections()

@@ -72,12 +72,8 @@ def _setup_project(target: Path) -> None:
 # ----- §10.1 L1008 ---------------------------------------------------------
 
 
-@pytest.mark.spec_ref("§10.1", 1008, profile="fake", method="入出力比較")
 def test_spec_anchor_commands_read_config_from_project_root(tmp_path: Path) -> None:
     """`spec-anchor` family loads `<project_root>/.spec-anchor/config.toml`.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "proj"
@@ -94,15 +90,11 @@ def test_spec_anchor_commands_read_config_from_project_root(tmp_path: Path) -> N
 # ----- §10.2 L1066: stage_routing scope ------------------------------------
 
 
-@pytest.mark.spec_ref("§10.2", 1066, profile="fake", method="入出力比較")
 def test_inject_path_does_not_consume_llm_providers_or_stage_routing(
     tmp_path: Path,
 ) -> None:
     """`[llm.providers]` / `[llm.stage_routing]` are not referenced by
     ``inject-*`` / ``realign`` code paths.
-
-    PROFILE: fake
-    METHOD: tool call trace 監査
     """
 
     inject_src = (SPEC_ANCHOR_PKG / "inject.py").read_text(encoding="utf-8")
@@ -121,13 +113,9 @@ def test_inject_path_does_not_consume_llm_providers_or_stage_routing(
 # ----- §10.2 L1070: template does not pass --llm-provider ------------------
 
 
-@pytest.mark.spec_ref("§10.2", 1070, profile="none", method="artifact 内容確認")
 def test_templates_do_not_pass_llm_provider_flag() -> None:
     """Claude command and Codex skill templates instruct the Agent not to
     pass ``--llm-provider``.
-
-    PROFILE: none
-    METHOD: artifact 内容確認
     """
 
     targets = [
@@ -150,12 +138,8 @@ def test_templates_do_not_pass_llm_provider_flag() -> None:
 # ----- §10.2 L1085: providers required -------------------------------------
 
 
-@pytest.mark.spec_ref("§10.2", 1085, profile="fake", method="入出力比較")
 def test_zero_providers_rejected(tmp_path: Path) -> None:
     """Config with zero ``[llm.providers.<id>]`` is rejected as ConfigError.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     config_module = importlib.import_module("spec_anchor.config")
@@ -193,12 +177,8 @@ provider = "qdrant"
 # ----- §10.2 L1088 / L1089: --llm-provider CLI behaviour --------------------
 
 
-@pytest.mark.spec_ref("§10.2", 1088, profile="none", method="入出力比較")
 def test_core_cli_accepts_llm_provider_flag() -> None:
     """`spec-anchor core` argparse exposes ``--llm-provider`` flag.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     help_text = subprocess.run(
@@ -213,16 +193,12 @@ def test_core_cli_accepts_llm_provider_flag() -> None:
     )
 
 
-@pytest.mark.spec_ref("§10.2", 1089, profile="none", method="入出力比較")
 def test_no_silent_fallback_to_alt_provider_in_source() -> None:
     """Source code does not contain a silent fallback when a configured
     provider fails: failure must be reported.
 
     Verified by searching ``llm_provider.py`` for a fallback path that
     swaps providers on exception without raising.
-
-    PROFILE: none
-    METHOD: artifact 内容確認
     """
 
     src = (SPEC_ANCHOR_PKG / "llm_provider.py").read_text(encoding="utf-8")
@@ -240,16 +216,12 @@ def test_no_silent_fallback_to_alt_provider_in_source() -> None:
 # ----- §10.2 L1093: initial config expansion -------------------------------
 
 
-@pytest.mark.spec_ref("§10.2", 1093, profile="fake", method="artifact 内容確認")
 def test_setup_project_writes_initial_config_with_required_keys(
     tmp_path: Path,
 ) -> None:
     """`spec-anchor-setup-project` writes ``.spec-anchor/config.toml`` with
     the documented initial config (required keys present + standard
     defaults).
-
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     project = tmp_path / "fresh"
@@ -273,7 +245,6 @@ def test_setup_project_writes_initial_config_with_required_keys(
 # ----- §10.3 L1193: SPEC_ANCHOR_DEBUG_* observable-only --------------------
 
 
-@pytest.mark.spec_ref("§10.3", 1193, profile="none", method="artifact 内容確認")
 def test_debug_envvars_are_not_referenced_outside_diagnostic_paths() -> None:
     """``SPEC_ANCHOR_DEBUG_*`` env vars only affect optional append-mode
     diagnostic logs.
@@ -281,9 +252,6 @@ def test_debug_envvars_are_not_referenced_outside_diagnostic_paths() -> None:
     Verified by grepping ``spec_anchor/`` for references and asserting
     each reference is in a code path comment-marked or function-named as
     diagnostic / debug (not in core control flow).
-
-    PROFILE: none
-    METHOD: artifact 内容確認
     """
 
     matches: list[tuple[Path, int, str]] = []
@@ -313,13 +281,9 @@ def test_debug_envvars_are_not_referenced_outside_diagnostic_paths() -> None:
 # ----- §10.3 L1197 / L1198 / L1199: .env loading ---------------------------
 
 
-@pytest.mark.spec_ref("§10.3", 1197, profile="none", method="入出力比較")
 def test_env_file_is_loaded_into_os_environ(tmp_path: Path, monkeypatch) -> None:
     """A ``.env`` file at project root is loaded into ``os.environ`` by
     ``load_config``.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "envproj"
@@ -333,14 +297,10 @@ def test_env_file_is_loaded_into_os_environ(tmp_path: Path, monkeypatch) -> None
     assert os.environ.get("SPEC_ANCHOR_TEST_FROM_DOTENV") == "hello-from-dotenv"
 
 
-@pytest.mark.spec_ref("§10.3", 1198, profile="none", method="入出力比較")
 def test_env_file_does_not_overwrite_existing_shell_var(
     tmp_path: Path, monkeypatch
 ) -> None:
     """If a shell variable is already exported, ``.env`` does not override it.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     project = tmp_path / "envproj"
@@ -356,13 +316,9 @@ def test_env_file_does_not_overwrite_existing_shell_var(
     )
 
 
-@pytest.mark.spec_ref("§10.3", 1199, profile="none", method="入出力比較")
 def test_env_channels_are_equivalent(tmp_path: Path, monkeypatch) -> None:
     """Env injected via shell / .env / CI export is observed identically
     by ``spec-anchor`` runtime.
-
-    PROFILE: none
-    METHOD: 入出力比較
     """
 
     project_a = tmp_path / "via-shell"
@@ -412,9 +368,6 @@ _ENVVAR_CASES: list[tuple[int, str]] = [
     [
         pytest.param(
             *case,
-            marks=[
-                pytest.mark.spec_ref("§10.3", case[0], profile="none", method="artifact 内容確認"),
-            ],
             id=f"L{case[0]}-{case[1]}",
         )
         for case in _ENVVAR_CASES
@@ -425,9 +378,6 @@ def test_documented_envvar_is_referenced_in_source(
 ) -> None:
     """Each env var documented in the §10.3 table is referenced by name
     somewhere in ``spec_anchor/`` source.
-
-    PROFILE: none
-    METHOD: artifact 内容確認
     """
 
     found = False

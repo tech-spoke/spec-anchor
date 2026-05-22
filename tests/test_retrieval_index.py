@@ -319,10 +319,6 @@ def _b3a_sections(section_ids: Iterable[str]) -> list[dict[str, Any]]:
 
 def test_stable_section_point_id_deterministic() -> None:
     """`/spec-core` generates Source Retrieval Index entries with stable UUID5 ids.
-
-    SPEC_REF: §5.3 L404
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     module = _retrieval_module()

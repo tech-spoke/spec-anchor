@@ -115,10 +115,6 @@ def _metadata_entries() -> list[dict[str, Any]]:
 
 def test_generate_chapter_anchors_returns_one_anchor_per_chapter() -> None:
     """`/spec-core` generates Chapter Key Anchor in `chapter_anchors.json`.
-
-    SPEC_REF: §5.3 L403
-    PROFILE: fake
-    METHOD: artifact 内容確認
     """
 
     provider = RecordingChapterAnchorsProvider()

@@ -158,9 +158,6 @@ def _make_optional_param(case: tuple[int, tuple[str, ...], Any]) -> pytest.param
         spec_line,
         attr_path,
         expected,
-        marks=[
-            pytest.mark.spec_ref("§10.2", spec_line, profile="fake", method="入出力比較"),
-        ],
         id=f"L{spec_line}-{'.'.join(attr_path)}",
     )
 
@@ -170,9 +167,6 @@ def _make_stage_param(case: tuple[int, str]) -> pytest.param:
     return pytest.param(
         spec_line,
         stage_key,
-        marks=[
-            pytest.mark.spec_ref("§10.2", spec_line, profile="fake", method="入出力比較"),
-        ],
         id=f"L{spec_line}-stage_routing.{stage_key}",
     )
 
@@ -181,9 +175,6 @@ def _make_required_param(case: tuple[int, str, str]) -> pytest.param:
     spec_line, key_label, _ = case
     return pytest.param(
         *case,
-        marks=[
-            pytest.mark.spec_ref("§10.2", spec_line, profile="fake", method="入出力比較"),
-        ],
         id=f"L{spec_line}-required-{key_label.replace('.', '_')}",
     )
 
@@ -202,9 +193,6 @@ def test_optional_key_default_is_applied(
 
     Per-row SPEC_REF is supplied via ``@pytest.mark.spec_ref`` (see
     ``conftest.py``); this docstring intentionally omits SPEC_REF.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / f"project-{spec_line}"
@@ -237,9 +225,6 @@ def test_stage_routing_omitted_falls_back_to_first_provider(
 ) -> None:
     """Omitting an ``[llm.stage_routing]`` key leaves it unset; runtime
     consumers fall back to the first ``[llm.providers]`` definition.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     project = tmp_path / f"stage-{stage_key}"
@@ -272,9 +257,6 @@ def test_required_key_missing_raises_config_error(
     tmp_path: Path,
 ) -> None:
     """Removing a required key must raise ``ConfigError`` from the loader.
-
-    PROFILE: fake
-    METHOD: 入出力比較
     """
 
     # Remove the snippet identifying the required key. If the snippet
