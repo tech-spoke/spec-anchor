@@ -1,0 +1,41 @@
+{
+  "reviewed_at": "2026-05-23",
+  "source_artifact": "artifacts/assertions.json",
+  "review_note": "The top-level summary.provider_invocations.contains_fake_or_stub field is a broad text scan and is not the authoritative P3b provider verdict. It matched non-provider text. The authoritative stage-level check is checks.scenario_1_incremental.progress_providers.",
+  "authoritative_stage_provider_check": {
+    "source_json_path": "checks.scenario_1_incremental.progress_providers",
+    "providers_by_stage": {
+      "section_metadata": [
+        "codex"
+      ],
+      "related_sections": [
+        "claude"
+      ],
+      "chapter_anchors": [
+        "claude"
+      ]
+    },
+    "models_by_stage": {
+      "section_metadata": [
+        "gpt-5.4-mini"
+      ],
+      "related_sections": [
+        "claude-sonnet-4-6"
+      ],
+      "chapter_anchors": [
+        "claude-sonnet-4-6"
+      ]
+    },
+    "contains_codex": true,
+    "contains_claude": true,
+    "contains_fake_or_stub": false
+  },
+  "conclusion": {
+    "run_id": "2026-05-23-P3b",
+    "scenario_count": 5,
+    "all_passed": true,
+    "verification_level": "real_smoke_verified",
+    "fake_env_unset": true,
+    "real_provider_stage_routing_passed": true
+  }
+}

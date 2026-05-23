@@ -1,0 +1,56 @@
+{
+  "source_document_id": "docs/spec/runtime.md",
+  "source_section_id": "docs/spec/runtime.md#0002-session-runtime-contract",
+  "stable_section_uid": "ce55f2dbd0158e55",
+  "stable_chunk_uid": "ce55f2dbd0158e55",
+  "heading_path": [
+    "Runtime Specification",
+    "Session Runtime Contract"
+  ],
+  "source_span": {
+    "start_line": 3,
+    "end_line": 13,
+    "start_offset": 53,
+    "end_offset": 491
+  },
+  "source_hash": "a012723c646ab7fbe75bbbd3cb042f0d8f79b5d71bf43b1e8f7562d70d541dfc",
+  "semantic_hash": "f5c1ea2f6c47980b8d03bd185d54fb040c73385375e994266dc2f724f3d252db",
+  "summary": "Session runtime contract with operator retrieval maintenance.",
+  "search_keys": [
+    "session runtime retrieval",
+    "operator maintenance",
+    "natural language discovery",
+    "Runtime Specification",
+    "Session Runtime Contract"
+  ],
+  "identifiers": [
+    "AUTH_TOKEN",
+    "bindContext",
+    "spec-anchor core --rebuild",
+    ".spec-anchor/config.toml",
+    "config.toml",
+    "productStoreGroup.replace",
+    "runtime.md",
+    "spec-anchor",
+    "--rebuild",
+    "ProductStore",
+    "stale"
+  ],
+  "related_sections": [
+    {
+      "target_section_id": "docs/spec/runtime.md#0003-search-evidence-boundary",
+      "relation_hint": "depends_on",
+      "confidence": "high",
+      "reason": "The runtime section points to the evidence boundary.",
+      "evidence_terms": [
+        "EVIDENCE_SOURCE_REQUIRED"
+      ],
+      "channels": [
+        "shared_identifier"
+      ],
+      "possible_conflict": false,
+      "generated_at": "1970-01-01T00:00:00Z"
+    }
+  ],
+  "text": "Runtime Specification / Session Runtime Contract | Session runtime contract with operator retrieval maintenance. | session runtime retrieval operator maintenance natural language discovery Runtime Specification Session Runtime Contract | AUTH_TOKEN bindContext spec-anchor core --rebuild .spec-anchor/config.toml config.toml productStoreGroup.replace runtime.md spec-anchor"
+}

@@ -1,0 +1,13 @@
+{
+  "artifact_schema_version": 1,
+  "collection_name": "spec_anchor_section_p3b_20260523",
+  "dense_enabled": true,
+  "embedding_model": "BAAI/bge-m3",
+  "embedding_provider": "flagembedding",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "retrieval_schema_pin_fingerprint": "6dc8d63bf216c0906e65f82945c5438c8b780047e364045941ca4afb35f790a3",
+  "schema_version": 1,
+  "section_count": 7,
+  "section_hash_fingerprint": "9fa1f665c04c2c4e955b4426f27207cb31b95928e7338668b3044ef24b85b4f9",
+  "sparse_enabled": true
+}

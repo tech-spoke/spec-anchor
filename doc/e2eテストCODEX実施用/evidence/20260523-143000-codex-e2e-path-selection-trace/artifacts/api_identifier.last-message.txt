@@ -1,0 +1,27 @@
+**今回守る制約**
+- 管理者ログインでは `MFA_REQUIRED_ON_ADMIN_LOGIN` を必須とし、MFA 成功まで管理画面セッションを発行しない。根拠: Source Specs `docs/spec/login.md#0002-admin-login-mfa`、Purpose。
+- 管理者ログインの成功時と失敗時には `AUDIT_EVENT_REQUIRED` を記録する。記録項目は `actor_id`, `source_ip`, `result`, `mfa_result`, `occurred_at`。根拠: Source Specs `docs/spec/login.md#0003-audit-event-required`。
+- `AUDIT_EVENT_REQUIRED` の保存先は `audit_log_stream` とする。根拠: Source Specs `docs/spec/audit.md#0002-audit-storage-boundary`。
+- MFA 成功前に管理画面セッションを発行しない制約を優先する。根拠: Conflict Review Item `conflict-login-audit-human-resolution`。
+
+**今回見るべき対象**
+- `docs/spec/login.md#0002-admin-login-mfa`
+- `docs/spec/login.md#0003-audit-event-required`
+- `docs/spec/audit.md#0002-audit-storage-boundary`
+- `docs/core/concept.md#Audit First`
+- `docs/core/concept.md#Data Boundary`
+
+**関連先として確認したもの**
+- Purpose: ログイン監査では `MFA_REQUIRED_ON_ADMIN_LOGIN` を最優先の目的制約として扱い、回答や実装ではなく制約と根拠だけを提示する。
+- Core Concept: 管理者ログインは audit-first の対象であり、監査証跡と人間確認が必要な点を明示する。
+- Related Sections: `docs/spec/login.md#0003-audit-event-required` は `mfa_result` を含むため MFA 制約と直接関連する。
+- Related Sections: `docs/spec/audit.md#0002-audit-storage-boundary` は `AUDIT_EVENT_REQUIRED` の保存先と保持期間の未確定状態に関連する。
+
+**採用しなかったもの**
+- `docs/spec/login.md#0004-password-reset-out-of-scope`: パスワードリセットは管理者ログイン MFA 制約として採用しない。
+- `docs/spec/audit.md#0003-marketing-tracking-irrelevant`: `MARKETING_PIXEL_LOGIN_PAGE` は認証制約や監査制約に採用しない。
+
+**不確実性 / 人間確認**
+- `RETENTION_DAYS_FOR_AUTH_LOG` は未確定であり、人間確認が必要。
+- 認証ログの保持期間は法務確認待ちであり、Agent が日数を決めてはならない。
+- Conflict Review Item `conflict-login-audit-human-resolution` は resolved かつ non-stale だが、reflection_status は `unreflected`。

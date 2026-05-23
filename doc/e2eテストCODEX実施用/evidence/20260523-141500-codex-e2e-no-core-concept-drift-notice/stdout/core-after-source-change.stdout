@@ -1,0 +1,365 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 6.8455583570030285,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 2,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 4,
+          "cache_rejected_hits": 0,
+          "cache_size": 6,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        },
+        {
+          "added_or_changed_source_section_ids": [
+            "docs/spec/policy.md#0002-existing-policy",
+            "docs/spec/policy.md#0003-source-specs-evolved"
+          ],
+          "batch_count": 1,
+          "candidate_count": 4,
+          "candidate_count_for_selection": 4,
+          "candidate_generation_elapsed_sec": 6.8455583570030285,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 2,
+          "changed_source_section_ids": [
+            "docs/spec/policy.md#0002-existing-policy",
+            "docs/spec/policy.md#0003-source-specs-evolved"
+          ],
+          "changed_target_relations_inherited": true,
+          "changed_target_section_ids": [
+            "docs/spec/policy.md#0002-existing-policy",
+            "docs/spec/policy.md#0003-source-specs-evolved"
+          ],
+          "fallback_regenerated": false,
+          "inherited_source_count": 1,
+          "inherited_source_section_ids": [
+            "docs/spec/policy.md#0001-policy-spec"
+          ],
+          "llm_calls": 1,
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "partial_mode": "source_changed_only",
+          "partial_regeneration": true,
+          "reason_code": "related_sections_partial_regenerated",
+          "removed_source_count": 0,
+          "removed_source_exclusion": true,
+          "removed_source_section_ids": [],
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "selection_elapsed_sec": 0.03187017500749789,
+          "selection_source_count": 2,
+          "severity": "info",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "stage": "related_sections",
+          "unchanged_source_inheritance": true
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "no-concept-drift-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Policy Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "policy",
+            "human-owned concept notice absence",
+            "docs/spec/policy.md#0001-policy-spec",
+            "Policy Spec"
+          ],
+          "section_id": "docs/spec/policy.md#0001-policy-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/policy.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/policy.md#0001-policy-spec",
+          "stable_section_uid": "ba8990597dc3295f",
+          "summary": "Summary for docs/spec/policy.md#0001-policy-spec."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Policy Spec",
+            "Existing Policy"
+          ],
+          "identifiers": [
+            "ALPHA_POLICY"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "policy",
+            "human-owned concept notice absence",
+            "docs/spec/policy.md#0002-existing-policy",
+            "Policy Spec",
+            "Existing Policy"
+          ],
+          "section_id": "docs/spec/policy.md#0002-existing-policy",
+          "semantic_hash": "4236bd7c4cc265bd7b6c9c72fa2fbefa361150ffb9697ebf8bfb22e65f181aea",
+          "source_document_id": "docs/spec/policy.md",
+          "source_hash": "9e20c598fc7a27a50f10ed4101adfea9df2a1a6f28bb5d7c7bf36f5b05ec7b9a",
+          "source_section_id": "docs/spec/policy.md#0002-existing-policy",
+          "stable_section_uid": "10fd7e97d8ec3525",
+          "summary": "Summary for docs/spec/policy.md#0002-existing-policy."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Policy Spec",
+            "Source Specs Evolved"
+          ],
+          "identifiers": [
+            "BETA_POLICY",
+            "SPEC"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "policy",
+            "human-owned concept notice absence",
+            "docs/spec/policy.md#0003-source-specs-evolved",
+            "Policy Spec",
+            "Source Specs Evolved"
+          ],
+          "section_id": "docs/spec/policy.md#0003-source-specs-evolved",
+          "semantic_hash": "6917edecbaaeeb6f234b915a9295d948af3ac9213aba5b768a9f2c5b7103cf17",
+          "source_document_id": "docs/spec/policy.md",
+          "source_hash": "7821a84ddaf20d197ddbef89b4bab88843eb7c9b52fcbc36b780515e067f1582",
+          "source_section_id": "docs/spec/policy.md#0003-source-specs-evolved",
+          "stable_section_uid": "be113eccdeb4b4da",
+          "summary": "Summary for docs/spec/policy.md#0003-source-specs-evolved."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        1
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 2,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/policy.md#0003-source-specs-evolved"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [
+        "docs/spec/policy.md#0001-policy-spec",
+        "docs/spec/policy.md#0002-existing-policy"
+      ],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 6.8455583570030285,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 4,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          },
+          {
+            "added_or_changed_source_section_ids": [
+              "docs/spec/policy.md#0002-existing-policy",
+              "docs/spec/policy.md#0003-source-specs-evolved"
+            ],
+            "batch_count": 1,
+            "candidate_count": 4,
+            "candidate_count_for_selection": 4,
+            "candidate_generation_elapsed_sec": 6.8455583570030285,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "changed_source_section_ids": [
+              "docs/spec/policy.md#0002-existing-policy",
+              "docs/spec/policy.md#0003-source-specs-evolved"
+            ],
+            "changed_target_relations_inherited": true,
+            "changed_target_section_ids": [
+              "docs/spec/policy.md#0002-existing-policy",
+              "docs/spec/policy.md#0003-source-specs-evolved"
+            ],
+            "fallback_regenerated": false,
+            "inherited_source_count": 1,
+            "inherited_source_section_ids": [
+              "docs/spec/policy.md#0001-policy-spec"
+            ],
+            "llm_calls": 1,
+            "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+            "partial_mode": "source_changed_only",
+            "partial_regeneration": true,
+            "reason_code": "related_sections_partial_regenerated",
+            "removed_source_count": 0,
+            "removed_source_exclusion": true,
+            "removed_source_section_ids": [],
+            "requires_full_regeneration_for_complete_target_recheck": true,
+            "selection_elapsed_sec": 0.03187017500749789,
+            "selection_source_count": 2,
+            "severity": "info",
+            "source_centric_partial": true,
+            "source_centric_partial_regeneration": true,
+            "stage": "related_sections",
+            "unchanged_source_inheritance": true
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 2,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/policy.md#0003-source-specs-evolved"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [
+          "docs/spec/policy.md#0001-policy-spec",
+          "docs/spec/policy.md#0002-existing-policy"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/policy.md#policy-spec"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [
+    {
+      "section_id": "docs/spec/policy.md#0001-policy-spec",
+      "source_section_id": "docs/spec/policy.md#0001-policy-spec"
+    },
+    {
+      "section_id": "docs/spec/policy.md#0002-existing-policy",
+      "source_section_id": "docs/spec/policy.md#0002-existing-policy"
+    }
+  ],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/policy.md#0003-source-specs-evolved",
+      "source_section_id": "docs/spec/policy.md#0003-source-specs-evolved"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/policy.md"
+  ],
+  "warnings": []
+}

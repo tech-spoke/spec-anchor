@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "conflict_review_items": [
+    {
+      "conflict_id": "conflict-payment-timeout-human-resolution",
+      "status": "resolved",
+      "severity": "high",
+      "source_refs": [
+        "docs/spec/payment.md#0001-payment-timeout-spec",
+        "docs/spec/payment.md#0002-default-timeout"
+      ],
+      "claims": [
+        {
+          "source_ref": "docs/spec/payment.md#0002-default-timeout",
+          "claim": "決済 timeout は人間判断済みの値を使う"
+        },
+        {
+          "source_ref": "docs/spec/payment.md#0003-retry-policy",
+          "claim": "Agent は timeout を推測しない"
+        }
+      ],
+      "why_conflicting": "timeout value を Agent が推測する案と、人間判断済み値を使う案が衝突する。",
+      "why_llm_cannot_decide": "値の採否は仕様判断であり、人間の決定を根拠にする必要がある。",
+      "decision_options": [
+        {"id": "adopt_a", "label": "人間判断済み値を採用する"},
+        {"id": "adopt_b", "label": "Agent 推測値を採用する"},
+        {"id": "needs_source_update", "label": "Source Specs を更新する"},
+        {"id": "dismiss", "label": "競合ではないとして閉じる"},
+        {"id": "defer", "label": "判断を保留する"},
+        {"id": "task_scope_resolution", "label": "今回の課題内だけの判断にする"}
+      ],
+      "recommended_next_action": "Use this resolved human decision as a constraint only while it is non-stale.",
+      "valid_scope": "global",
+      "reflection_status": "unreflected",
+      "reflected_refs": [],
+      "stale_resolution": false,
+      "base_source_hashes": [
+        {"source_ref": "docs/spec/payment.md#0002-default-timeout", "hash": "hash-default-timeout-v1"}
+      ],
+      "resolution": {
+        "decision": "adopt_a",
+        "reason": "人間は PAYMENT_TIMEOUT_SECONDS を 45 秒として扱い、Agent が独自値を推測しない方針を採用した。",
+        "selected_option": "adopt_a",
+        "valid_scope": "global",
+        "referenced_source_refs": [
+          "docs/spec/payment.md#0002-default-timeout",
+          "docs/spec/payment.md#0003-retry-policy"
+        ]
+      },
+      "created_at": "2026-05-23T14:20:00+09:00",
+      "updated_at": "2026-05-23T14:20:00+09:00"
+    },
+    {
+      "conflict_id": "conflict-payment-timeout-stale-resolution",
+      "status": "resolved",
+      "severity": "medium",
+      "source_refs": ["docs/spec/payment.md#0002-default-timeout"],
+      "claims": [],
+      "why_conflicting": "stale fixture",
+      "why_llm_cannot_decide": "stale fixture",
+      "decision_options": [
+        {"id": "adopt_a", "label": "A"},
+        {"id": "adopt_b", "label": "B"},
+        {"id": "needs_source_update", "label": "Update"},
+        {"id": "dismiss", "label": "Dismiss"},
+        {"id": "defer", "label": "Defer"},
+        {"id": "task_scope_resolution", "label": "Task scope"}
+      ],
+      "recommended_next_action": "Do not cite stale resolution.",
+      "valid_scope": "global",
+      "reflection_status": "unreflected",
+      "stale_resolution": true,
+      "resolution": {
+        "decision": "adopt_b",
+        "reason": "stale resolution must be excluded",
+        "selected_option": "adopt_b",
+        "valid_scope": "global",
+        "referenced_source_refs": ["docs/spec/payment.md#0002-default-timeout"]
+      }
+    }
+  ]
+}

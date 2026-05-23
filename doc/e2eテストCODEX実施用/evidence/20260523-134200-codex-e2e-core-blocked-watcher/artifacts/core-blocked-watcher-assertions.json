@@ -1,0 +1,38 @@
+{
+  "run_id": "20260523-134200-codex-e2e-core-blocked-watcher",
+  "checks": {
+    "exit_zero": true,
+    "status_blocked": true,
+    "retrieval_index_status_blocked": true,
+    "related_sections_status_blocked": true,
+    "freshness_watcher_running": true,
+    "no_downstream_updates": true,
+    "diagnostics_identify_watcher_state": true
+  },
+  "core_summary": {
+    "status": "blocked",
+    "retrieval_index_status": "blocked",
+    "related_sections_status": "blocked",
+    "freshness_report": {
+      "blocking_reasons": [
+        "watcher_running"
+      ],
+      "status": "blocked",
+      "warnings": []
+    },
+    "diagnostics": {
+      "blocked_by": "watcher_running",
+      "lock_file": "/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project/.spec-anchor/state/core_update.lock.json",
+      "watcher_state": {
+        "owner": "watcher",
+        "run_id": "codex-e2e-active-watcher",
+        "started_at": "2026-05-23T04:42:00Z",
+        "started_at_epoch_ms": 1779509472762,
+        "updated_at": "2026-05-23T04:42:01Z",
+        "updated_at_epoch_ms": 1779509473762
+      },
+      "watcher_state_file": "/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project/.spec-anchor/state/watch_state.json"
+    }
+  },
+  "passed_all": true
+}

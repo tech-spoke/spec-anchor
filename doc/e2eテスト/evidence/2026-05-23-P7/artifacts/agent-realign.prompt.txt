@@ -1,0 +1,4 @@
+Use the spec-anchor skill. Run the /spec-realign style workflow in the current project.
+First use `/spec-inject` style constraints for product catalog and checkout. Then call `spec-anchor realign --answer-file` or `spec-anchor realign --answer-json` with a four-section answer candidate.
+Final output must contain only these four §9.3 sections: 今回守る制約, 今回扱う修正候補または検討対象, 競合 / 不確実性 / 人間レビューが必要な点, 課題プロンプトへの回答または修正案.
+Do not output raw JSON or implementation code.

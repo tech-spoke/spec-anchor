@@ -1,0 +1,7 @@
+{
+  "chapter_anchors_path": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/.spec-anchor/context/chapter_anchors.json",
+  "command": "/spec-inject inject-chapters",
+  "project_root": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project",
+  "status": "success",
+  "warnings": []
+}

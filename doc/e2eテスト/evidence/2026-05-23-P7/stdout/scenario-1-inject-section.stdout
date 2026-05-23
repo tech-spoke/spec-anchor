@@ -1,0 +1,92 @@
+{
+  "collection": "spec_anchor_section_p3b_20260523",
+  "command": "/spec-inject inject-section",
+  "found_section_ids": [
+    "docs/spec/runtime.md#0002-product-catalog-runtime"
+  ],
+  "missing_section_ids": [],
+  "project_root": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project",
+  "requested_section_ids": [
+    "docs/spec/runtime.md#0002-product-catalog-runtime"
+  ],
+  "sections": {
+    "docs/spec/runtime.md#0002-product-catalog-runtime": {
+      "heading_path": [
+        "Runtime Source Spec",
+        "Product Catalog Runtime"
+      ],
+      "identifiers": [
+        "ProductStore",
+        "productStoreGroup.replace"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "runtime source spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Product Catalog Runtime is a child of Runtime Source Spec; the parent provides governing context.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/runtime.md#0001-runtime-source-spec"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "runtime source spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Checkout Integration consumes validated catalog entries produced by the Product Catalog Runtime; catalog stability directly affects checkout correctness.",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/runtime.md#0004-checkout-integration"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "runtime source spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Both are sibling runtime sections under Runtime Source Spec, together defining the full runtime contract.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+        }
+      ],
+      "search_keys": [
+        "product catalog runtime behavior",
+        "stable product identifiers",
+        "search and checkout consistency",
+        "catalog update migration hook",
+        "runtime catalog preservation",
+        "Runtime Source Spec",
+        "Product Catalog Runtime"
+      ],
+      "semantic_hash": "1e53925d2c11a929385837a0a224d37b315be8d33345999b8b77390af10ecda5",
+      "source_document_id": "docs/spec/runtime.md",
+      "source_hash": "d13e5a75f2e2a08947c8193f152838d3b38cd0add7686795a1decb4eb300b8d8",
+      "source_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 240,
+        "start_line": 3,
+        "start_offset": 50
+      },
+      "stable_chunk_uid": "ce55f2dbd0158e55",
+      "stable_section_uid": "ce55f2dbd0158e55",
+      "summary": "Describes the runtime behavior of the product catalog, keeping product identifiers stable across search and checkout while preserving migration hooks.",
+      "text": "Runtime Source Spec / Product Catalog Runtime | Describes the runtime behavior of the product catalog, keeping product identifiers stable across search and checkout while preserving migration hooks. | product catalog runtime behavior stable product identifiers search and checkout consistency catalog update migration hook runtime catalog preservation Runtime Source Spec Product Catalog Runtime | ProductStore productStoreGroup.replace"
+    }
+  },
+  "warnings": []
+}

@@ -1,0 +1,72 @@
+Ran `spec-anchor core` in the current project root only. No files were edited and no setup was run.
+
+**Status**
+`degraded`
+
+**failed_sections**
+```json
+[
+  {
+    "section_id": "docs/spec/flow.md#0003-broken-metadata-section",
+    "source_section_id": "docs/spec/flow.md#0003-broken-metadata-section"
+  }
+]
+```
+
+**warnings**
+```json
+[
+  "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section",
+  "degraded_optional_artifact"
+]
+```
+
+**diagnostics.section_metadata_generation**
+```json
+{
+  "batch_sizes": [1, 1, 1, 1],
+  "blocking_reasons": ["degraded_optional_artifact"],
+  "cache_hits": 0,
+  "failed_sections": ["docs/spec/flow.md#0003-broken-metadata-section"],
+  "freshness_status": "degraded",
+  "generated_section_ids": [
+    "docs/spec/flow.md#0001-login-flow",
+    "docs/spec/flow.md#0002-successful-login",
+    "docs/spec/flow.md#0003-broken-metadata-section",
+    "docs/spec/flow.md#0004-logout"
+  ],
+  "llm_calls": 4,
+  "reused_section_ids": [],
+  "warnings": [
+    "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section"
+  ],
+  "diagnostics": {
+    "docs/spec/flow.md#0003-broken-metadata-section": [
+      {
+        "severity": "error",
+        "reason_code": "validation_error",
+        "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+        "stage": "section_metadata",
+        "model": "partial-section-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "",
+        "section_ids": ["docs/spec/flow.md#0003-broken-metadata-section"],
+        "source_hash": "80ef938c27a30f6aa5897091175afbf8a57c8432343749f1c2e03599e3363e40"
+      }
+    ]
+  }
+}
+```
+
+**freshness_report**
+Status is `degraded`, with blocking reason `degraded_optional_artifact`. Count: `degraded_optional_artifact_count = 1`.
+
+Freshness diagnostics show:
+- `section_metadata` is the degraded optional artifact.
+- `chapter_anchors.status`: `success`
+- `related_sections.status`: `success`
+- `retrieval_index.status`: `success`
+- `verify_index`: not executed, reason `not_requested`
+- `section_metadata_generation`: same degraded section metadata failure shown above.
+
+Because `status=degraded`, required artifacts are available, so `/spec-inject` and `/spec-realign` can continue. Failed sections can be regenerated with `/spec-core --all`.

@@ -1,0 +1,24 @@
+**今回守る制約**
+- statement: `PAYMENT_TIMEOUT_SECONDS` は 45 秒として扱い、Agent は独自の timeout 値を推測しない。
+  evidence_origin: Conflict Review Item
+  evidence_ref: conflict-payment-timeout-human-resolution
+  support_refs: `docs/spec/payment.md#0002-default-timeout`, `docs/spec/payment.md#0003-retry-policy`
+  applicability: `PAYMENT_TIMEOUT_SECONDS` または決済 timeout 値の扱いに関わる今回の作業全体。valid_scope は `global`。
+  uncertainty: `reflection_status` は `unreflected` のため、Source Specs 本体へ反映済みとは扱わない。今回の制約根拠は non-stale の解決済み Conflict Review Item として扱う。
+
+**今回見るべき対象**
+- `PAYMENT_TIMEOUT_SECONDS`
+- 決済 timeout の既定値
+- Agent が timeout 値を推測しないこと
+
+**関連先として確認したもの**
+- `spec-anchor inject-conflicts` の返却結果
+- 解決済みかつ non-stale の Conflict Review Item: `conflict-payment-timeout-human-resolution`
+- support refs: `docs/spec/payment.md#0002-default-timeout`, `docs/spec/payment.md#0003-retry-policy`
+
+**採用しなかったもの**
+- stale と判定された Conflict Review Item は、今回の制約根拠として採用しない。
+- Source Specs 本文は読まず、今回の根拠にはしない。
+
+**不確実性 / 人間確認**
+- 該当なし。`conflict-payment-timeout-human-resolution` は resolved かつ `stale_resolution: false` として返却されている。

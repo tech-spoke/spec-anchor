@@ -1,0 +1,70 @@
+## `spec-anchor core --verify-index` 結果
+
+### 全体ステータス: **failed**
+
+---
+
+### retrieval_index_status
+
+```
+failed
+```
+
+### warnings
+
+```
+Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild
+```
+
+---
+
+### diagnostics.retrieval_index
+
+```json
+{ "status": "failed" }
+```
+
+### diagnostics.verify_index（不整合の詳細）
+
+| 項目 | 値 |
+|------|-----|
+| checked_count | 2 |
+| hash_mismatch_count | 0 |
+| missing_point_count | **1** |
+| stale_point_count | 0 |
+
+**検出された issue:**
+
+| reason_code | section_id |
+|-------------|------------|
+| `missing_point` | `docs/spec/audit.md#0003-logout-audit` |
+
+`docs/spec/audit.md#0003-logout-audit` が Source Retrieval Index に存在しません（ハッシュ不一致ではなく、エントリ自体の欠落）。
+
+---
+
+### freshness_report
+
+```
+status: failed
+blocking_reasons: ["failed_required_artifact"]
+failed_required_artifacts: ["retrieval_index"]
+```
+
+section_metadata 生成自体は `fresh`（3 sections 全てキャッシュヒット）、chapter_anchors・related_sections は `success` です。retrieval_index の失敗のみが全体ステータスを `failed` に引き上げています。
+
+---
+
+### 対処手順
+
+**前回の collection はこの verify 失敗によって drop されていません。** 既存データは保持されたままです。
+
+不整合を解消するには、以下のコマンドで section collection を作り直してください:
+
+```bash
+spec-anchor core --rebuild
+```
+
+または同等のスキル呼び出し: `/spec-core --rebuild`
+
+これにより Retrieval Index が全セクションを対象に再構築され、`docs/spec/audit.md#0003-logout-audit` の欠落も解消されます。

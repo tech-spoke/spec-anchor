@@ -1,0 +1,344 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 7.652681877007126,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 4,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 12,
+          "cache_rejected_hits": 0,
+          "cache_size": 12,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "conflict-provider-warning",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-131632-codex-e2e-conflict-review-generation.projects/warning/tools/conflict-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-131632-codex-e2e-conflict-review-generation.projects/warning/tools/conflict-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "Conflict Specification"
+          ],
+          "section_id": "docs/spec/conflict.md#0001-conflict-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/conflict.md#0001-conflict-specification",
+          "stable_section_uid": "1427d5b3d11667f0",
+          "summary": "summary for docs/spec/conflict.md#0001-conflict-specification"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification",
+            "Alpha Requirement"
+          ],
+          "identifiers": [
+            "FEATURE_GATE",
+            "ALPHA_REQUIREMENT_FLAG"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-131632-codex-e2e-conflict-review-generation.projects/warning/tools/conflict-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "shared_identifier"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "FEATURE_GATE",
+                "must",
+                "must not"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": true,
+              "reason": "Both sections mention FEATURE_GATE and opposing enabled requirements.",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/conflict.md#0003-beta-prohibition"
+            }
+          ],
+          "search_keys": [
+            "must enabled login",
+            "alpha requirement",
+            "Conflict Specification",
+            "Alpha Requirement"
+          ],
+          "section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+          "semantic_hash": "f90aafd1bdc2dce66403e1fd32ab745f1066d3fffd846b062548dce3ca99dfcc",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "37a47d34960a6669ce0651d1bed4fe750e3c3b3181a67964cf6cc1e9669e5b7c",
+          "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+          "stable_section_uid": "da4561730de08cc6",
+          "summary": "FEATURE_GATE must be enabled for login processing."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification",
+            "Beta Prohibition"
+          ],
+          "identifiers": [
+            "FEATURE_GATE",
+            "BETA_PROHIBITION_FLAG"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-131632-codex-e2e-conflict-review-generation.projects/warning/tools/conflict-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must not enabled logout",
+            "beta prohibition",
+            "Conflict Specification",
+            "Beta Prohibition"
+          ],
+          "section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+          "semantic_hash": "8ec0bd2bdfa083d1315a5b06da75965e687fbcb1d01d745c76c36a1d5216ab1b",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "50cdb9f2265b8a91a96a00987d403e792b46edec9594d435f3f18957c20157fa",
+          "source_section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+          "stable_section_uid": "c06d87894db7464a",
+          "summary": "FEATURE_GATE must not be enabled for logout processing."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification",
+            "Gamma Optional"
+          ],
+          "identifiers": [
+            "FEATURE_GATE",
+            "GAMMA_OPTIONAL_FLAG",
+            "optional"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-131632-codex-e2e-conflict-review-generation.projects/warning/tools/conflict-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "optional audit",
+            "gamma optional",
+            "Conflict Specification",
+            "Gamma Optional"
+          ],
+          "section_id": "docs/spec/conflict.md#0004-gamma-optional",
+          "semantic_hash": "4562c9195af11c4c557f1c9318aa9936e07c5b646aff33ccfcc87b92ea2f9dac",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "9188881de8ed530c31f61386ce036e72457dcb00a4376732d0113f694ac66e56",
+          "source_section_id": "docs/spec/conflict.md#0004-gamma-optional",
+          "stable_section_uid": "af4fa1d808699a39",
+          "summary": "FEATURE_GATE is optional for audit logging."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        4
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/conflict.md#0001-conflict-specification",
+        "docs/spec/conflict.md#0002-alpha-requirement",
+        "docs/spec/conflict.md#0003-beta-prohibition",
+        "docs/spec/conflict.md#0004-gamma-optional"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 7.652681877007126,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 4,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 12,
+            "cache_rejected_hits": 0,
+            "cache_size": 12,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          4
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/conflict.md#0001-conflict-specification",
+          "docs/spec/conflict.md#0002-alpha-requirement",
+          "docs/spec/conflict.md#0003-beta-prohibition",
+          "docs/spec/conflict.md#0004-gamma-optional"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [
+    {
+      "kind": "potential_conflict",
+      "level": "warning",
+      "outcome": "not_conflict",
+      "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+      "target_section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+      "warning": "Conflict candidate was reviewed and retained only as a warning."
+    },
+    {
+      "kind": "potential_conflict",
+      "level": "warning",
+      "outcome": "not_conflict",
+      "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+      "target_section_id": "docs/spec/conflict.md#0004-gamma-optional",
+      "warning": "Conflict candidate was reviewed and retained only as a warning."
+    }
+  ],
+  "regenerated_chapter_anchors": [
+    "docs/spec/conflict.md#conflict-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/conflict.md#0001-conflict-specification",
+      "source_section_id": "docs/spec/conflict.md#0001-conflict-specification"
+    },
+    {
+      "section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+      "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement"
+    },
+    {
+      "section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+      "source_section_id": "docs/spec/conflict.md#0003-beta-prohibition"
+    },
+    {
+      "section_id": "docs/spec/conflict.md#0004-gamma-optional",
+      "source_section_id": "docs/spec/conflict.md#0004-gamma-optional"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/conflict.md"
+  ],
+  "warnings": []
+}

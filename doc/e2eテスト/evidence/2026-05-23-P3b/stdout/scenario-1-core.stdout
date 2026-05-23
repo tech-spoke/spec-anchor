@@ -1,0 +1,715 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 11.033667889001663,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 7,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 20,
+          "cache_rejected_hits": 0,
+          "cache_size": 20,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v3",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Operations Source Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "operations source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Maintenance Workflow is a direct child section that defines the operational procedures under the Operations Source Spec.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/operations.md#0002-maintenance-workflow"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "operations source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Agent Output Boundary is a direct child section defining output constraints under the Operations Source Spec.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/operations.md#0003-agent-output-boundary"
+            }
+          ],
+          "search_keys": [
+            "Operations Source Spec"
+          ],
+          "section_id": "docs/spec/operations.md#0001-operations-source-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/operations.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/operations.md#0001-operations-source-spec",
+          "stable_section_uid": "30ea4b72e895e8a7",
+          "summary": "Operations Source Spec"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Operations Source Spec",
+            "Maintenance Workflow"
+          ],
+          "identifiers": [
+            "spec-anchor core",
+            "spec-anchor core --all",
+            "spec-anchor core --rebuild",
+            "--all",
+            "--rebuild"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "shared_identifier",
+                "qdrant_section_hybrid"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "spec-anchor core --rebuild",
+                "--rebuild"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Both sections share the identifier `spec-anchor core --rebuild` and `--rebuild`; the maintenance workflow command is the recovery mechanism prescribed in the session runtime contract.",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "operations source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Parent section grouping; maintenance workflow is defined within the Operations Source Spec scope.",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/operations.md#0001-operations-source-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "operations source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Sibling section within Operations Source Spec; both govern operator-facing behavior.",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/operations.md#0003-agent-output-boundary"
+            }
+          ],
+          "search_keys": [
+            "incremental maintenance after spec changes",
+            "full refresh of source spec context",
+            "collection rebuild for retrieval data",
+            "operator workflow for keeping specs current",
+            "refreshing indexed spec evidence",
+            "Operations Source Spec",
+            "Maintenance Workflow"
+          ],
+          "section_id": "docs/spec/operations.md#0002-maintenance-workflow",
+          "semantic_hash": "ea518229fdf5a4042cdd7b6d57fb188ba12de98f27c9422b77f638c61f186e06",
+          "source_document_id": "docs/spec/operations.md",
+          "source_hash": "9a0e3224974cb9ea212a40aef741815eb335f208a032d1757c23cfbee03fe9a5",
+          "source_section_id": "docs/spec/operations.md#0002-maintenance-workflow",
+          "stable_section_uid": "4c0c31794e20b959",
+          "summary": "Describes the operator maintenance flow for refreshing retrieved source spec context after spec changes, including incremental runs, full refreshes, and complete collection rebuilds."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Operations Source Spec",
+            "Agent Output Boundary"
+          ],
+          "identifiers": [
+            "JSON"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "operations source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Parent section; agent output boundary rules are scoped under Operations Source Spec.",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/operations.md#0001-operations-source-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "operations source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Sibling section within Operations Source Spec governing related operator-facing concerns.",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/operations.md#0002-maintenance-workflow"
+            }
+          ],
+          "search_keys": [
+            "agent-facing summary boundary",
+            "constraint and target summary",
+            "related sections and uncertainty",
+            "discarded paths in output",
+            "raw evidence kept internal",
+            "Operations Source Spec",
+            "Agent Output Boundary"
+          ],
+          "section_id": "docs/spec/operations.md#0003-agent-output-boundary",
+          "semantic_hash": "2108685d1df10f22b9ddf2e57ab4db70f5c1b4525b41f4a4523317cfd836fff6",
+          "source_document_id": "docs/spec/operations.md",
+          "source_hash": "41abf0707db89a69e9af18e1555bbf8ddd5c0f280d46e3450b070c094b6d5b99",
+          "source_section_id": "docs/spec/operations.md#0003-agent-output-boundary",
+          "stable_section_uid": "c9a5b55e02e43c93",
+          "summary": "Defines the boundary for agent-facing output: it should summarize constraints, targets, related sections, discarded paths, and uncertainty, while keeping raw internal evidence out of user-facing responses unless requested."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Product Catalog Runtime is a direct child section under the Runtime Source Spec.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session Runtime Contract is a direct child section under the Runtime Source Spec.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Checkout Integration is a direct child section under the Runtime Source Spec.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/runtime.md#0004-checkout-integration"
+            }
+          ],
+          "search_keys": [
+            "Runtime Source Spec"
+          ],
+          "section_id": "docs/spec/runtime.md#0001-runtime-source-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/runtime.md#0001-runtime-source-spec",
+          "stable_section_uid": "205eca4028d52159",
+          "summary": "Runtime Source Spec"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec",
+            "Product Catalog Runtime"
+          ],
+          "identifiers": [
+            "ProductStore",
+            "productStoreGroup.replace"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Parent section; product catalog runtime rules are scoped under Runtime Source Spec.",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/runtime.md#0001-runtime-source-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Checkout Integration consumes validated catalog entries from the product catalog; catalog stability directly affects checkout behavior.",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/runtime.md#0004-checkout-integration"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Sibling runtime section; both define runtime constraints though with distinct concerns.",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+            }
+          ],
+          "search_keys": [
+            "product catalog runtime behavior",
+            "stable product identifiers",
+            "search and checkout consistency",
+            "catalog update migration hook",
+            "preserving catalog identity across updates",
+            "Runtime Source Spec",
+            "Product Catalog Runtime"
+          ],
+          "section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "semantic_hash": "1e53925d2c11a929385837a0a224d37b315be8d33345999b8b77390af10ecda5",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "d13e5a75f2e2a08947c8193f152838d3b38cd0add7686795a1decb4eb300b8d8",
+          "source_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "stable_section_uid": "ce55f2dbd0158e55",
+          "summary": "Covers runtime behavior for the product catalog, emphasizing stable product identifiers across search and checkout and preserving migration hooks during catalog updates."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec",
+            "Session Runtime Contract"
+          ],
+          "identifiers": [
+            "AUTH_TOKEN",
+            "spec-anchor core --rebuild",
+            "--rebuild",
+            "stale"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "shared_identifier",
+                "qdrant_section_hybrid"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "spec-anchor core --rebuild",
+                "--rebuild"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session runtime contract explicitly prescribes running `spec-anchor core --rebuild` as the recovery procedure; this is defined in the maintenance workflow.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/operations.md#0002-maintenance-workflow"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Parent section; session runtime contract is scoped under Runtime Source Spec.",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/runtime.md#0001-runtime-source-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Sibling runtime section sharing the same parent spec scope.",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Valid authenticated sessions are a prerequisite for checkout integration to function correctly.",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/runtime.md#0004-checkout-integration"
+            }
+          ],
+          "search_keys": [
+            "authenticated session contract",
+            "bearer token renewal",
+            "missing or stale session token",
+            "session guard failure and recovery",
+            "rebuild after fixing source state",
+            "Runtime Source Spec",
+            "Session Runtime Contract"
+          ],
+          "section_id": "docs/spec/runtime.md#0003-session-runtime-contract",
+          "semantic_hash": "397b6a3c99eb49f469fb182140ef5bcb44b781739d26fecc7f9f2a3e7e86aeeb",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "b57717076c243f3350f839fe0bdb0a1348724c1e70dc76633e931636219de8d8",
+          "source_section_id": "docs/spec/runtime.md#0003-session-runtime-contract",
+          "stable_section_uid": "0349f5d324fa897d",
+          "summary": "Describes the authenticated session contract, including bearer token renewal, detection of missing or stale session tokens, and recovery by rebuilding source state after fixes."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec",
+            "Checkout Integration"
+          ],
+          "identifiers": [
+            "resolved"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Checkout Integration explicitly consumes validated catalog entries; it depends on the product catalog runtime.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Checkout requires authenticated sessions managed by the session runtime contract.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "runtime source spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Parent section; checkout integration is scoped under Runtime Source Spec.",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/runtime.md#0001-runtime-source-spec"
+            }
+          ],
+          "search_keys": [
+            "checkout uses validated catalog entries",
+            "retrieval aid navigation support",
+            "source spec as constraint evidence",
+            "resolved conflict review items",
+            "checkout integration with catalog validation",
+            "Runtime Source Spec",
+            "Checkout Integration"
+          ],
+          "section_id": "docs/spec/runtime.md#0004-checkout-integration",
+          "semantic_hash": "c2d1fd533ec85b72726c505b5fee9a7bb12f28dd0b980e473c4ce9179ded6a3f",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "b8d7d2dcd569a0948057bc7eb5274b7531ce92ff5df9c195b44c2bc3700edc8d",
+          "source_section_id": "docs/spec/runtime.md#0004-checkout-integration",
+          "stable_section_uid": "35605918e406e8c8",
+          "summary": "Explains checkout integration with validated catalog entries and notes that retrieval aids support navigation, while source specs and resolved conflict items remain the governing evidence."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        7
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/operations.md#0001-operations-source-spec",
+        "docs/spec/operations.md#0002-maintenance-workflow",
+        "docs/spec/operations.md#0003-agent-output-boundary",
+        "docs/spec/runtime.md#0001-runtime-source-spec",
+        "docs/spec/runtime.md#0002-product-catalog-runtime",
+        "docs/spec/runtime.md#0003-session-runtime-contract",
+        "docs/spec/runtime.md#0004-checkout-integration"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 11.033667889001663,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 7,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 20,
+            "cache_rejected_hits": 0,
+            "cache_size": 20,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          7
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/operations.md#0001-operations-source-spec",
+          "docs/spec/operations.md#0002-maintenance-workflow",
+          "docs/spec/operations.md#0003-agent-output-boundary",
+          "docs/spec/runtime.md#0001-runtime-source-spec",
+          "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "docs/spec/runtime.md#0003-session-runtime-contract",
+          "docs/spec/runtime.md#0004-checkout-integration"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/operations.md#0001-operations-source-spec",
+      "source_section_id": "docs/spec/operations.md#0001-operations-source-spec"
+    },
+    {
+      "section_id": "docs/spec/operations.md#0002-maintenance-workflow",
+      "source_section_id": "docs/spec/operations.md#0002-maintenance-workflow"
+    },
+    {
+      "section_id": "docs/spec/operations.md#0003-agent-output-boundary",
+      "source_section_id": "docs/spec/operations.md#0003-agent-output-boundary"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0001-runtime-source-spec",
+      "source_section_id": "docs/spec/runtime.md#0001-runtime-source-spec"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+      "source_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0003-session-runtime-contract",
+      "source_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0004-checkout-integration",
+      "source_section_id": "docs/spec/runtime.md#0004-checkout-integration"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/operations.md",
+    "docs/spec/runtime.md"
+  ],
+  "warnings": []
+}

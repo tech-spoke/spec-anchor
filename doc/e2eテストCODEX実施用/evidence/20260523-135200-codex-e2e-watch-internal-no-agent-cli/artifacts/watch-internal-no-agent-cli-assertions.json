@@ -1,0 +1,44 @@
+{
+  "run_id": "20260523-135200-codex-e2e-watch-internal-no-agent-cli",
+  "checks": {
+    "agent_cli_absent_from_path": true,
+    "initial_core_exit_zero": true,
+    "watch_exit_zero": true,
+    "watch_ran_core_internally": true,
+    "watch_lock_owner_is_watcher": true,
+    "watch_core_updated_added_section": true,
+    "provider_used_project_script_not_agent_cli": true
+  },
+  "watch_summary": {
+    "status": "updated",
+    "ran_core": true,
+    "last_lock": {
+      "acquired_at": "2026-05-23T04:15:47.305000Z",
+      "acquired_at_epoch_ms": 1779509747305,
+      "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+      "owner": "watcher",
+      "reason": "watcher_running",
+      "run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+      "updated_at": "2026-05-23T04:16:02.393000Z",
+      "updated_at_epoch_ms": 1779509762393
+    },
+    "core_result_status": "updated",
+    "updated_sections": [
+      {
+        "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+        "source_section_id": "docs/spec/watch.md#0003-watch-added-policy"
+      }
+    ],
+    "retrieval_index_status": "success",
+    "related_sections_status": "success"
+  },
+  "provider_stages": [
+    "section_metadata",
+    "related_section_selection",
+    "chapter_key_anchor",
+    "section_metadata",
+    "related_section_selection",
+    "chapter_key_anchor"
+  ],
+  "passed_all": true
+}

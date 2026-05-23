@@ -1,0 +1,47 @@
+{
+  "run_id": "20260523-142500-codex-trace-raw-context-boundary",
+  "source_run_id": "20260523-101202-codex-e2e-inject-output",
+  "checks": {
+    "source_trace_exists": true,
+    "inject_search_before_source_reads": true,
+    "inject_section_before_source_reads": true,
+    "inject_purpose_before_concept_read": true,
+    "source_reads_are_selected_files": true,
+    "no_chapter_anchor_body_read": true,
+    "no_broad_raw_text_dump_commands": true,
+    "final_has_constraints_not_raw_json": true
+  },
+  "source_reads": [
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/login.md\"",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/login.md\"",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/audit.md\"",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/audit.md\""
+  ],
+  "concept_reads": [
+    "/bin/bash -lc \"sed -n '1,200p' docs/core/concept.md\"",
+    "/bin/bash -lc \"sed -n '1,200p' docs/core/concept.md\""
+  ],
+  "commands_seen": [
+    "/bin/bash -lc \"sed -n '1,240p' /tmp/20260523-101202-codex-e2e-inject-output.project/.codex/skills/spec-anchor/SKILL.md\"",
+    "/bin/bash -lc \"sed -n '1,240p' /tmp/20260523-101202-codex-e2e-inject-output.project/.codex/skills/spec-anchor/SKILL.md\"",
+    "/bin/bash -lc 'spec-anchor inject-search \"管理者ログイン監査 admin login audit\"'",
+    "/bin/bash -lc 'spec-anchor inject-search \"管理者ログイン監査 admin login audit\"'",
+    "/bin/bash -lc 'spec-anchor inject-section \"docs/spec/login.md#0002-admin-login-mfa\"'",
+    "/bin/bash -lc 'spec-anchor inject-section \"docs/spec/login.md#0002-admin-login-mfa\"'",
+    "/bin/bash -lc 'spec-anchor inject-section \"docs/spec/login.md#0003-audit-event-required\"'",
+    "/bin/bash -lc 'spec-anchor inject-section \"docs/spec/login.md#0003-audit-event-required\"'",
+    "/bin/bash -lc 'spec-anchor inject-section \"docs/spec/audit.md#0002-audit-storage-boundary\"'",
+    "/bin/bash -lc 'spec-anchor inject-section \"docs/spec/audit.md#0002-audit-storage-boundary\"'",
+    "/bin/bash -lc 'spec-anchor inject-purpose'",
+    "/bin/bash -lc 'spec-anchor inject-purpose'",
+    "/bin/bash -lc \"sed -n '1,200p' docs/core/concept.md\"",
+    "/bin/bash -lc \"sed -n '1,200p' docs/core/concept.md\"",
+    "/bin/bash -lc 'spec-anchor inject-conflicts'",
+    "/bin/bash -lc 'spec-anchor inject-conflicts'",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/login.md\"",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/login.md\"",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/audit.md\"",
+    "/bin/bash -lc \"sed -n '1,120p' docs/spec/audit.md\""
+  ],
+  "passed_all": true
+}

@@ -1,0 +1,15 @@
+{
+  "今回守る制約": [
+    "ProductStore identifier remains stable across search and checkout.",
+    "Checkout consumes validated catalog entries."
+  ],
+  "今回扱う修正候補または検討対象": [
+    "Catalog update and checkout integration handling."
+  ],
+  "競合 / 不確実性 / 人間レビューが必要な点": [
+    "No pending conflict in the P3b project."
+  ],
+  "課題プロンプトへの回答または修正案": [
+    "Keep ProductStore stable and route checkout through validated catalog entries."
+  ]
+}

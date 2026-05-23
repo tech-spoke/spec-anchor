@@ -1,0 +1,106 @@
+{
+  "finished_at": "2026-05-23T04:16:02.399897Z",
+  "finished_at_epoch_ms": 1779509762399,
+  "is_running": false,
+  "last_error": null,
+  "last_heartbeat_at": "2026-05-23T04:16:02.393000Z",
+  "last_heartbeat_at_epoch_ms": 1779509762393,
+  "last_lock": {
+    "acquired_at": "2026-05-23T04:15:47.305000Z",
+    "acquired_at_epoch_ms": 1779509747305,
+    "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+    "owner": "watcher",
+    "reason": "watcher_running",
+    "run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+    "updated_at": "2026-05-23T04:16:02.393000Z",
+    "updated_at_epoch_ms": 1779509762393
+  },
+  "last_lock_acquired_at": "2026-05-23T04:15:47.305000Z",
+  "last_lock_acquired_at_epoch_ms": 1779509747305,
+  "last_lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+  "last_lock_updated_at": "2026-05-23T04:16:02.393000Z",
+  "last_lock_updated_at_epoch_ms": 1779509762393,
+  "last_owner": "watcher",
+  "last_queue_count_at_start": 3,
+  "last_result": {
+    "failed_sections": [],
+    "failed_sources": [],
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "related_sections_status": "success",
+    "retrieval_index_status": "success",
+    "skipped_sources": [],
+    "stale_resolution_count": 0,
+    "updated_sections": [
+      {
+        "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+        "source_section_id": "docs/spec/watch.md#0003-watch-added-policy"
+      }
+    ],
+    "updated_sources": [
+      "docs/spec/watch.md"
+    ]
+  },
+  "last_run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+  "last_snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779509732191765812,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "3f8dea754bbc904c873c2234b596c0d8d458351df8260a4afb8255b7af928b08",
+        "size": 111
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779509732191765812,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "cec1dde13869eb168e3c1fd087b979e5f07d323822e847c23772e61cde7362f1",
+        "size": 94
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779509747180484359,
+        "path": "docs/spec/watch.md",
+        "relative_path": "docs/spec/watch.md",
+        "sha256": "a1d80acd2d3f31dccf879b56dfa216cd765403b888efa1be30b3e79440042a5b",
+        "size": 163
+      }
+    ],
+    "fingerprint": "24bac3243801b534098074d0be3e1c75d83bcebf94762c82a1d18268a23fc0b9",
+    "schema_version": 1
+  },
+  "last_started_at": "2026-05-23T04:15:48.316930Z",
+  "last_started_at_epoch_ms": 1779509747305,
+  "last_success_artifact_revision": null,
+  "last_success_at": "2026-05-23T04:16:02.399947Z",
+  "last_success_at_epoch_ms": 1779509762399,
+  "last_success_result": {
+    "failed_sections": [],
+    "failed_sources": [],
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "related_sections_status": "success",
+    "retrieval_index_status": "success",
+    "skipped_sources": [],
+    "stale_resolution_count": 0,
+    "updated_sections": [
+      {
+        "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+        "source_section_id": "docs/spec/watch.md#0003-watch-added-policy"
+      }
+    ],
+    "updated_sources": [
+      "docs/spec/watch.md"
+    ]
+  },
+  "project_root": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project",
+  "queue_count": 0,
+  "running": false,
+  "schema_version": 1,
+  "updated_at": "2026-05-23T04:16:02.399905Z",
+  "updated_at_epoch_ms": 1779509762399
+}

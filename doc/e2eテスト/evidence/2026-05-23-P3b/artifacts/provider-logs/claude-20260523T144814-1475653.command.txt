@@ -1,0 +1,27 @@
+/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude --print --effort low --no-session-persistence --disable-slash-commands --exclude-dynamic-system-prompt-sections --tools  --output-format json --json-schema {"type": "object", "properties": {"summary": {"type": "string"}, "key_topics": {"type": "array", "items": {"type": "string"}}, "important_sections": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "array", "items": {"type": "string"}}}, "required": ["summary", "key_topics", "important_sections", "notes"], "additionalProperties": false} --model claude-sonnet-4-6 You are the SPEC-anchor /spec-core generation provider. Return only one JSON object. No markdown, no prose. The JSON object must include array field "sections". Each item must include string field "section_id", string field "summary", and array field "search_keys". Return exactly one item in "sections" for every section in the input "sections" array. Use the exact "section_id" value from the input. Do not omit, add, rename, or merge sections. If a section is unclear, return an empty "summary" and empty "search_keys" for that item but keep the item in the output.
+
+Request JSON:
+{
+  "context_hashes": {
+    "artifact_role": "edd6ad65d06ad412212017ffba82a385153fcaed28a351a535acf1775856e6c0",
+    "prompt_version": "1bf1eadc46ce55627619d7bb43b4b94297a6932b6174f9d63d32ffc65c0e4db8"
+  },
+  "effort": "low",
+  "input_hashes": {
+    "concept_text": "99454e1aef795bb59261a1d5d5b6b1d6a9fbedeb172580c6a60666309d370c8e"
+  },
+  "metadata_version": 1,
+  "model": "claude-sonnet-4-6",
+  "prompt": "{\"artifact_role\":\"agentic_search_entry_not_evidence\",\"chapter\":{\"chapter_id\":\"docs/spec/operations.md#operations-source-spec\",\"heading_path\":[\"Operations Source Spec\"],\"sections\":[{\"heading_path\":[\"Operations Source Spec\"],\"identifiers\":[],\"related_sections\":[],\"search_keys\":[\"Operations Source Spec\"],\"section_id\":\"docs/spec/operations.md#0001-operations-source-spec\",\"summary\":\"Operations Source Spec\"},{\"heading_path\":[\"Operations Source Spec\",\"Maintenance Workflow\"],\"identifiers\":[\"spec-anchor core\",\"spec-anchor core --all\",\"spec-anchor core --rebuild\",\"--all\",\"--rebuild\"],\"related_sections\":[],\"search_keys\":[\"incremental index refresh\",\"full refresh after spec changes\",\"collection rebuild\",\"operator maintenance workflow\",\"source spec updates\",\"Operations Source Spec\",\"Maintenance Workflow\"],\"section_id\":\"docs/spec/operations.md#0002-maintenance-workflow\",\"summary\":\"Operators refresh the source-spec index after documentation changes, using incremental runs for routine updates and broader refreshes when a full rebuild is needed.\"},{\"heading_path\":[\"Operations Source Spec\",\"Agent Output Boundary\"],\"identifiers\":[\"JSON\"],\"related_sections\":[],\"search_keys\":[\"agent-facing summary boundary\",\"constraints and targets\",\"related sections and uncertainty\",\"discarded paths\",\"internal evidence only\",\"Operations Source Spec\",\"Agent Output Boundary\"],\"section_id\":\"docs/spec/operations.md#0003-agent-output-boundary\",\"summary\":\"Agent-facing output should stay at the level of constraints, targets, related sections, discarded paths, and uncertainty, while raw internal evidence remains internal unless explicitly requested.\"}]},\"core_concept\":\"# Core Concept\\n\\nSPEC-anchor treats Purpose, Core Concept, Source Specs, and resolved Conflict\\nReview Items as evidence. Section Metadata, Search Keys, Related Sections, and\\nChapter Key Anchors are retrieval aids for navigation and triage.\\n\\nThe normal chain is `/spec-core` first, then `/spec-inject`, then\\n`/spec-realign`. Fake providers are only for tests and smoke checks.\\n\",\"instructions\":\"Generate a Chapter Key Anchor that helps an Agent decide whether to enter this chapter for a task. summary must capture the chapter's intent in 2-3 sentences (natural language). key_topics must be 3-6 short natural-language phrases that describe the chapter's themes (no code symbols / API names). important_sections must be section_ids drawn from the input, listing the sections an Agent should read first (max 5). notes must be 0-3 cautions the Agent should keep in mind when applying constraints derived from this chapter. Output JSON only.\",\"return_shape\":{\"important_sections\":[\"string\"],\"key_topics\":[\"string\"],\"notes\":[\"string\"],\"summary\":\"string\"},\"task\":\"chapter_anchors\"}",
+  "prompt_version": "chapter-anchors-v1",
+  "section_hashes": {
+    "docs/spec/operations.md#0001-operations-source-spec": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/spec/operations.md#0002-maintenance-workflow": "9a0e3224974cb9ea212a40aef741815eb335f208a032d1757c23cfbee03fe9a5",
+    "docs/spec/operations.md#0003-agent-output-boundary": "41abf0707db89a69e9af18e1555bbf8ddd5c0f280d46e3450b070c094b6d5b99"
+  },
+  "section_id": "docs/spec/operations.md#operations-source-spec",
+  "semantic_hash": "18af75852d1d7d579276fa6d76fac8a7a361890eeece81e2308837922f4f77b8",
+  "source_hash": "18af75852d1d7d579276fa6d76fac8a7a361890eeece81e2308837922f4f77b8",
+  "stage": "chapter_key_anchor",
+  "task": "chapter_anchors"
+}

@@ -1,0 +1,7 @@
+{
+  "chapter_anchors_path": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project/.spec-anchor/context/chapter_anchors.json",
+  "command": "/spec-inject inject-chapters",
+  "project_root": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project",
+  "status": "success",
+  "warnings": []
+}

@@ -581,10 +581,21 @@ def _run_spec_core_unlocked(
             concept_hash=concept_hash,
             llm_config=_config_get(conflict_llm_config, ("llm",), {}),
         ),
-        config=None,
+        config=config,
         generated_at=generated_at,
     )
     emit("core_conflict_evaluation_done")
+    if progress_tracker is not None:
+        from types import SimpleNamespace
+        _record_llm_call_stats(
+            progress_tracker,
+            "conflict_evaluation",
+            [
+                SimpleNamespace(attempts=1, status="success", artifact=None, usage=u)
+                for u in getattr(conflict_result, "usage_list", [])
+                if u
+            ],
+        )
     conflict_payload = conflict_result.to_dict() if hasattr(conflict_result, "to_dict") else dict(conflict_result)
     new_items = [
         dict(item)
@@ -608,6 +619,7 @@ def _run_spec_core_unlocked(
     )
     conflict_summary = summarize_conflict_review_state(conflict_review_items=conflict_review_items)
     potential_conflicts = list(conflict_payload.get("potential_conflicts") or conflict_payload.get("diagnostics") or [])
+    conflict_selection_diagnostics = list(conflict_payload.get("selection_diagnostics") or [])
     pending_conflict_count = int(conflict_summary.get("pending_conflict_count", 0))
     stale_resolution_count = int(conflict_summary.get("stale_resolution_count", 0))
     unreflected_conflicts = [
@@ -679,6 +691,11 @@ def _run_spec_core_unlocked(
             "qdrant_backend_failure": related_sections_qdrant_backend_failure,
         },
     }
+    if conflict_selection_diagnostics:
+        generation_diagnostics["conflict_review"] = {
+            "status": "success",
+            "diagnostics": conflict_selection_diagnostics,
+        }
 
     section_manifest_audit_by_id = _section_manifest_audit_by_id(
         metadata_entries,
@@ -717,7 +734,7 @@ def _run_spec_core_unlocked(
         sections,
         metadata_entries,
         generated_at,
-        config=config,
+        config=chapter_anchor_llm_config,
         provider=chapter_anchor_provider,
         cache_dir=cache_dir,
         concept_text=concept_text,
@@ -852,20 +869,24 @@ def _record_llm_call_stats(
         "cache_read_input_tokens": 0,
         "total_cost_usd": 0.0,
         "providers_seen": [],
+        "models_seen": [],
     }
     for index, result in enumerate(llm_results):
         attempts = int(getattr(result, "attempts", 1) or 1)
         total_calls += attempts
         total_retries += max(0, attempts - 1)
         status = getattr(result, "status", "")
+        artifact = getattr(result, "artifact", None)
         if status != "success":
-            artifact = getattr(result, "artifact", None)
             section_id = (
                 getattr(artifact, "section_id", None)
                 if artifact is not None
                 else None
             )
             failed_batch_ids.append(str(section_id or f"{stage}-batch-{index}"))
+        model_name = str(getattr(artifact, "model", None) or "")
+        if model_name and model_name not in usage_totals["models_seen"]:
+            usage_totals["models_seen"].append(model_name)
         usage = getattr(result, "usage", None) or {}
         if usage:
             provider_name = str(usage.get("provider") or "")

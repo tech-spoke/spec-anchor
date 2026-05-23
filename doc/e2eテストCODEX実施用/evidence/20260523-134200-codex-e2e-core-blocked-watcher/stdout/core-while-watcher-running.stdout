@@ -1,0 +1,42 @@
+{
+  "blocked": true,
+  "conflict_review_items": [],
+  "diagnostics": {
+    "blocked_by": "watcher_running",
+    "lock_file": "/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project/.spec-anchor/state/core_update.lock.json",
+    "watcher_state": {
+      "owner": "watcher",
+      "run_id": "codex-e2e-active-watcher",
+      "started_at": "2026-05-23T04:42:00Z",
+      "started_at_epoch_ms": 1779509472762,
+      "updated_at": "2026-05-23T04:42:01Z",
+      "updated_at_epoch_ms": 1779509473762
+    },
+    "watcher_state_file": "/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project/.spec-anchor/state/watch_state.json"
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "watcher_running"
+    ],
+    "status": "blocked",
+    "warnings": []
+  },
+  "generated_at": "1970-01-01T00:00:00Z",
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "project_root": "/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project",
+  "regenerated_chapter_anchors": [],
+  "related_sections_status": "blocked",
+  "retrieval_index_status": "blocked",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "blocked",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": []
+}

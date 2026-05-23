@@ -1,0 +1,162 @@
+{
+  "summary": {
+    "run_id": "20260523-144000-codex-e2e-remaining-23",
+    "production_or_agent_trace_checks_passed": true,
+    "smoke_fake_separate_checks_passed": true,
+    "production_or_agent_trace_check_count": 13,
+    "smoke_fake_separate_check_count": 4,
+    "all_processed": true
+  },
+  "checks": {
+    "run_id": "20260523-144000-codex-e2e-remaining-23",
+    "line_48_no_graph_standard_path": {
+      "passed": true,
+      "evidence": [
+        "stdout/standard-core-rebuild.stdout",
+        "stdout/standard-help.stdout",
+        "artifacts/standard-spec-anchor-files.txt"
+      ]
+    },
+    "line_49_no_concept_auto_update_or_execution_mode_branch": {
+      "passed": true,
+      "purpose_hash_before": "c6d9c9565c5dda2f17347854c82fb3eea36606cfa6aa2287ebc98dc9fb129a7e",
+      "purpose_hash_after": "c6d9c9565c5dda2f17347854c82fb3eea36606cfa6aa2287ebc98dc9fb129a7e",
+      "concept_hash_before": "ef54d7cbd5239d224e44ff674d15f5d95dd206cb04400bf4e781e24fdc62a664",
+      "concept_hash_after": "ef54d7cbd5239d224e44ff674d15f5d95dd206cb04400bf4e781e24fdc62a664",
+      "evidence": [
+        "stdout/standard-core-rebuild.stdout",
+        "stdout/standard-core-help.stdout"
+      ]
+    },
+    "line_50_pending_conflict_blocks_inject_and_realign": {
+      "passed": true,
+      "evidence": [
+        "stdout/pending-core-rebuild.stdout",
+        "stdout/pending-inject-search.stdout",
+        "stdout/pending-realign.stdout"
+      ]
+    },
+    "line_62_hybrid_rag_qdrant_dense_sparse_rrf_search": {
+      "passed": true,
+      "evidence": [
+        "artifacts/standard-qdrant-collection.json",
+        "stdout/standard-inject-search.stdout"
+      ]
+    },
+    "line_63_lightweight_related_section_payload_lookup": {
+      "passed": true,
+      "evidence": [
+        "artifacts/standard-runtime-payload.json",
+        "stdout/standard-inject-section-runtime.stdout"
+      ]
+    },
+    "line_67_related_sections_are_payload_field_not_graph_traversal": {
+      "passed": true,
+      "evidence": [
+        "artifacts/standard-runtime-payload.json",
+        "stdout/standard-help.stdout"
+      ]
+    },
+    "line_143_search_keys_are_natural_language_only": {
+      "passed": true,
+      "search_keys": [
+        "Runtime Specification",
+        "Session Runtime Contract",
+        "natural language discovery",
+        "operator maintenance",
+        "session runtime retrieval"
+      ],
+      "filtered_bad_terms": [],
+      "evidence": [
+        "artifacts/standard-runtime-payload.json"
+      ]
+    },
+    "line_144_identifiers_are_separated": {
+      "passed": true,
+      "identifiers_sample": [
+        "--rebuild",
+        ".spec-anchor/config.toml",
+        "AUTH_TOKEN",
+        "ProductStore",
+        "bindContext",
+        "config.toml",
+        "productStoreGroup.replace",
+        "runtime.md",
+        "spec-anchor",
+        "spec-anchor core --rebuild",
+        "stale"
+      ],
+      "evidence": [
+        "artifacts/standard-runtime-payload.json"
+      ]
+    },
+    "line_148_search_keys_not_constraint_evidence": {
+      "passed": true,
+      "evidence": [
+        "stdout/standard-core-rebuild.stdout",
+        "../20260523-101202-codex-e2e-inject-output/artifacts/codex-skill-inject-8-5.last-message.txt"
+      ]
+    },
+    "line_154_identifiers_are_machine_extracted": {
+      "passed": true,
+      "evidence": [
+        "stdout/standard-core-rebuild.stdout",
+        "artifacts/standard-runtime-payload.json"
+      ]
+    },
+    "line_163_identifiers_not_constraint_evidence": {
+      "passed": true,
+      "evidence": [
+        "stdout/standard-core-rebuild.stdout",
+        "../20260523-101202-codex-e2e-inject-output/artifacts/codex-skill-inject-8-5.last-message.txt",
+        "../20260523-142000-codex-e2e-conflict-review-item-trace/artifacts/codex-conflict-trace.last-message.txt"
+      ]
+    },
+    "lines_817_822_path1_step_visualization": {
+      "passed": true,
+      "evidence": [
+        "../20260523-143000-codex-e2e-path-selection-trace/artifacts/path-selection-trace-assertions.json",
+        "../20260523-142500-codex-trace-raw-context-boundary/artifacts/raw-context-boundary-assertions.json"
+      ]
+    },
+    "lines_832_833_path2_step_visualization": {
+      "passed": true,
+      "evidence": [
+        "../20260523-143000-codex-e2e-path-selection-trace/artifacts/path-selection-trace-assertions.json"
+      ]
+    },
+    "line_495_run_smoke_separate_contract": {
+      "production_e2e_verified": false,
+      "passed_smoke_contract": true,
+      "reason": "Agent CLI recognition smoke is an opt-in smoke check and is not counted as production E2E.",
+      "evidence": [
+        "stdout/smoke-setup-system-run-smoke.stdout"
+      ]
+    },
+    "line_1226_fake_llm_separate_contract": {
+      "production_e2e_verified": false,
+      "passed_fake_contract": true,
+      "reason": "SPEC_ANCHOR_FAKE_LLM selects the in-process FakeLlmProvider and is not counted as production E2E.",
+      "evidence": [
+        "stdout/fake-llm-provider-direct.stdout"
+      ]
+    },
+    "line_1227_fake_retrieval_separate_contract": {
+      "production_e2e_verified": false,
+      "passed_fake_contract": true,
+      "reason": "Direct fake retrieval guard and standard /spec-core allowance were checked, but fake env checks are not counted as production E2E.",
+      "evidence": [
+        "stdout/fake-retrieval-direct-block.stdout",
+        "stdout/fake-retrieval-standard-core.stdout"
+      ]
+    },
+    "line_1411_run_smoke_agent_cli_warning_separate_contract": {
+      "production_e2e_verified": false,
+      "passed_smoke_contract": true,
+      "reason": "The --run-smoke output includes Agent CLI entrypoint paths and remains a smoke/warning-level contract, not production E2E.",
+      "evidence": [
+        "stdout/smoke-setup-system-run-smoke.stdout"
+      ]
+    }
+  }
+}

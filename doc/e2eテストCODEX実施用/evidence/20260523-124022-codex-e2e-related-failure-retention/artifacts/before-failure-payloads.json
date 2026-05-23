@@ -1,0 +1,123 @@
+{
+  "collection": "spec_anchor_sections_20260523_124022_related_failure",
+  "payloads": [
+    {
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0001-flow-specification",
+      "stable_section_uid": "e6b04bd74571836c",
+      "stable_chunk_uid": "e6b04bd74571836c",
+      "heading_path": [
+        "Flow Specification"
+      ],
+      "source_span": {
+        "start_line": 1,
+        "end_line": 2,
+        "start_offset": 21,
+        "end_offset": 22
+      },
+      "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "summary": "summary for docs/spec/flow.md#0001-flow-specification",
+      "search_keys": [
+        "login boundary",
+        "session boundary",
+        "Flow Specification"
+      ],
+      "identifiers": [],
+      "related_sections": [],
+      "text": "Flow Specification | summary for docs/spec/flow.md#0001-flow-specification | login boundary session boundary Flow Specification"
+    },
+    {
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0003-session-boundary",
+      "stable_section_uid": "2c6359d1b32ffa07",
+      "stable_chunk_uid": "2c6359d1b32ffa07",
+      "heading_path": [
+        "Flow Specification",
+        "Session Boundary"
+      ],
+      "source_span": {
+        "start_line": 10,
+        "end_line": 14,
+        "start_offset": 195,
+        "end_offset": 269
+      },
+      "source_hash": "c63b9f4ef4cf2703a8a8076f808752ad3ce1e31526b9a4484331aca5f8975f1c",
+      "semantic_hash": "7c5fddd8702da891e041a896b4081ee4c4c5d4a4986dac27584d99eb9e676720",
+      "summary": "summary for docs/spec/flow.md#0003-session-boundary",
+      "search_keys": [
+        "login boundary",
+        "session boundary",
+        "Flow Specification",
+        "Session Boundary"
+      ],
+      "identifiers": [
+        "SESSION_BOUNDARY"
+      ],
+      "related_sections": [
+        {
+          "target_section_id": "docs/spec/flow.md#0002-login-boundary",
+          "relation_hint": "see_also",
+          "confidence": "medium",
+          "reason": "Session Boundary is referenced by Login Boundary.",
+          "evidence_terms": [
+            "LOGIN_BOUNDARY"
+          ],
+          "channels": [
+            "shared_identifier"
+          ],
+          "possible_conflict": false,
+          "generated_at": "1970-01-01T00:00:00Z"
+        }
+      ],
+      "text": "Flow Specification / Session Boundary | summary for docs/spec/flow.md#0003-session-boundary | login boundary session boundary Flow Specification Session Boundary | SESSION_BOUNDARY"
+    },
+    {
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0002-login-boundary",
+      "stable_section_uid": "8468d9c9e21afdf9",
+      "stable_chunk_uid": "8468d9c9e21afdf9",
+      "heading_path": [
+        "Flow Specification",
+        "Login Boundary"
+      ],
+      "source_span": {
+        "start_line": 3,
+        "end_line": 9,
+        "start_offset": 40,
+        "end_offset": 175
+      },
+      "source_hash": "b4dd0c863ee74dc0f09f52e5e51445e83be6094891663a6bdb3bfa9f387dbc6c",
+      "semantic_hash": "4493f3890d6fa5f460cd075a2b3c4155e848984d3685b46bdbb5a1154d6451b8",
+      "summary": "summary for docs/spec/flow.md#0002-login-boundary",
+      "search_keys": [
+        "login boundary",
+        "session boundary",
+        "Flow Specification",
+        "Login Boundary"
+      ],
+      "identifiers": [
+        "flow.md",
+        "LOGIN_BOUNDARY",
+        "SESSION_BOUNDARY"
+      ],
+      "related_sections": [
+        {
+          "target_section_id": "docs/spec/flow.md#0003-session-boundary",
+          "relation_hint": "depends_on",
+          "confidence": "high",
+          "reason": "Login Boundary explicitly links to Session Boundary.",
+          "evidence_terms": [
+            "SESSION_BOUNDARY"
+          ],
+          "channels": [
+            "markdown_link"
+          ],
+          "possible_conflict": false,
+          "generated_at": "1970-01-01T00:00:00Z"
+        }
+      ],
+      "text": "Flow Specification / Login Boundary | summary for docs/spec/flow.md#0002-login-boundary | login boundary session boundary Flow Specification Login Boundary | flow.md LOGIN_BOUNDARY SESSION_BOUNDARY"
+    }
+  ]
+}

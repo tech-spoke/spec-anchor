@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO=/home/kazuki/public_html/spec-anchor
+RUN_ID=20260523-123006-codex-e2e-agent-degraded-core
+EVID="$REPO/doc/e2eテストCODEX実施用/evidence/$RUN_ID"
+PROJECT=/tmp/${RUN_ID}.project
+COLLECTION=spec_anchor_sections_20260523_123006_agent_degraded_core
+
+export PATH="$REPO/.venv/bin:$PATH"
+unset SPEC_ANCHOR_FAKE_LLM
+unset SPEC_ANCHOR_FAKE_RETRIEVAL
+
+mkdir -p "$EVID/stdout" "$EVID/stderr" "$EVID/artifacts"
+
+{
+  echo "run_id=$RUN_ID"
+  echo "repo=$REPO"
+  echo "project=$PROJECT"
+  echo "collection=$COLLECTION"
+  echo "date=$(date -Is)"
+  echo "SPEC_ANCHOR_FAKE_LLM=${SPEC_ANCHOR_FAKE_LLM-<unset>}"
+  echo "SPEC_ANCHOR_FAKE_RETRIEVAL=${SPEC_ANCHOR_FAKE_RETRIEVAL-<unset>}"
+} > "$EVID/artifacts/environment.txt"
+
+rm -rf "$PROJECT"
+mkdir -p "$PROJECT"
+(
+  cd "$PROJECT"
+  spec-anchor-setup-project --target "$PROJECT" --agent both --force
+) > "$EVID/stdout/setup.stdout" 2> "$EVID/stderr/setup.stderr"
+
+mkdir -p "$PROJECT/docs/core" "$PROJECT/docs/spec" "$PROJECT/tools"
+cat > "$PROJECT/docs/core/purpose.md" <<'DOC'
+# Purpose
+
+この隔離 project は、Agent が /spec-core の degraded 結果を利用者へ伝達することを確認する。
+DOC
+cat > "$PROJECT/docs/core/concept.md" <<'DOC'
+# Core Concept
+
+必須 artifact が揃っている場合、一部 Section Metadata 生成失敗は degraded warning として伝達し、後続の /spec-inject / /spec-realign は継続可能にする。
+DOC
+cat > "$PROJECT/docs/spec/flow.md" <<'DOC'
+# Login Flow
+
+## Successful Login
+
+source id: successful-login
+
+LOGIN_SUCCESS_AUDIT を記録し、利用者を認証済みとして扱う。
+
+## Broken Metadata Section
+
+source id: broken-metadata-section
+
+この section は Section Metadata provider の一部失敗を再現するための入力である。
+BROKEN_METADATA_SENTINEL はこの section にだけ存在する。
+
+## Logout
+
+source id: logout
+
+LOGOUT_AUDIT を記録し、active session を無効化する。
+DOC
+
+cat > "$PROJECT/tools/partial-section-provider.py" <<'PY'
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import sys
+
+payload = json.loads(sys.stdin.read() or "{}")
+stage = payload.get("stage") or payload.get("task")
+section_ids = list((payload.get("section_hashes") or {}).keys())
+
+if stage == "section_metadata":
+    sections = []
+    for section_id in section_ids:
+        if "broken-metadata-section" in section_id:
+            print(json.dumps({"invalid": "missing sections"}, ensure_ascii=False))
+            raise SystemExit(0)
+        sections.append(
+            {
+                "section_id": section_id,
+                "summary": f"summary for {section_id}",
+                "search_keys": ["login audit", "session boundary"],
+            }
+        )
+    print(json.dumps({"sections": sections}, ensure_ascii=False))
+elif stage == "chapter_key_anchor":
+    print(
+        json.dumps(
+            {
+                "summary": "chapter anchor summary",
+                "key_topics": ["login", "audit"],
+                "important_sections": section_ids[:3],
+                "notes": [],
+            },
+            ensure_ascii=False,
+        )
+    )
+elif stage == "related_section_selection":
+    print(json.dumps({"sections": []}, ensure_ascii=False))
+else:
+    print(json.dumps({"summary": "ok", "search_keys": ["ok"], "sections": []}, ensure_ascii=False))
+PY
+chmod +x "$PROJECT/tools/partial-section-provider.py"
+
+python3 - "$PROJECT/.spec-anchor/config.toml" "$COLLECTION" "$PROJECT/tools/partial-section-provider.py" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+collection = sys.argv[2]
+provider = sys.argv[3]
+text = path.read_text(encoding="utf-8")
+for key in ("section_collection", "collection"):
+    text = text.replace(f'{key} = "spec_anchor_sections"', f'{key} = "{collection}"')
+    text = text.replace(f'{key} = "spec_anchor_section"', f'{key} = "{collection}"')
+text = text.replace("llm_batch_max_sections = 8", "llm_batch_max_sections = 1")
+text = text.replace(
+    '[llm.providers.codex]\ncommand = "codex"',
+    f'[llm.providers.partial_section]\ncommand = "{provider}"\nmodel = "partial-section-provider"\neffort = "low"\ntimeout_sec = 30\nmax_retries = 0\n\n[llm.providers.codex]\ncommand = "codex"',
+)
+text = text.replace('section_metadata   = "codex"', 'section_metadata   = "partial_section"')
+text = text.replace('related_sections   = "claude_typing"', 'related_sections   = "partial_section"')
+text = text.replace('conflict_review    = "claude_judge"', 'conflict_review    = "partial_section"')
+text = text.replace('chapter_key_anchor = "codex"', 'chapter_key_anchor = "partial_section"')
+path.write_text(text, encoding="utf-8")
+PY
+
+printf '%s\n' "$PROJECT" > "$EVID/artifacts/project-path.txt"
+cp "$PROJECT/.spec-anchor/config.toml" "$EVID/artifacts/config.toml"
+find "$PROJECT" -maxdepth 4 -type f | sort > "$EVID/artifacts/project-files-before-agent.txt"

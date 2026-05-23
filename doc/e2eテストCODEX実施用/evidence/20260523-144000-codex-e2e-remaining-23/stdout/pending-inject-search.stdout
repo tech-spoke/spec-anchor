@@ -1,0 +1,215 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "pending_conflict"
+  ],
+  "can_continue": false,
+  "command": "/spec-inject inject-search",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "pending_conflict"
+    ],
+    "counts": {
+      "pending_conflict_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 9.453391561008175,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 6,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 14,
+            "cache_rejected_hits": 0,
+            "cache_size": 14,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          6
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/conflict.md#0001-conflict-specification",
+          "docs/spec/conflict.md#0002-feature-gate-required",
+          "docs/spec/conflict.md#0003-feature-gate-forbidden",
+          "docs/spec/runtime.md#0001-runtime-specification",
+          "docs/spec/runtime.md#0002-session-runtime-contract",
+          "docs/spec/runtime.md#0003-search-evidence-boundary"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "pending_conflict_count": 1,
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": []
+  },
+  "generated_at": null,
+  "pending_conflict_count": 1,
+  "pending_conflict_items": [
+    {
+      "base_source_hashes": [
+        {
+          "hash": "7f605e23e970d3119437815c203e241ab6f1758d46b3c0c1abb7e389677acec8",
+          "source_ref": "docs/spec/conflict.md#0002-feature-gate-required"
+        },
+        {
+          "hash": "0fef7b20e06435c56e913eb29e25493a4883fab366340f86b7083bc34359a42b",
+          "source_ref": "docs/spec/conflict.md#0003-feature-gate-forbidden"
+        },
+        {
+          "hash": "c6d9c9565c5dda2f17347854c82fb3eea36606cfa6aa2287ebc98dc9fb129a7e",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "ef54d7cbd5239d224e44ff674d15f5d95dd206cb04400bf4e781e24fdc62a664",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        "FEATURE_GATE must be enabled.",
+        "FEATURE_GATE must not be enabled."
+      ],
+      "conflict_id": "conflict-docs-spec-conflict.md-0002-feature-gate-required--docs-spec-conflict.md-0003-feature-gate-forbidden",
+      "created_at": "1970-01-01T00:00:00Z",
+      "decision_options": [
+        {
+          "id": "prefer_a",
+          "label": "Prefer source A"
+        },
+        {
+          "id": "prefer_b",
+          "label": "Prefer source B"
+        },
+        {
+          "id": "conditional",
+          "label": "Use a conditional rule"
+        },
+        {
+          "id": "dismiss",
+          "label": "Dismiss as not a conflict"
+        },
+        {
+          "id": "needs_source_update",
+          "label": "Update source specs"
+        },
+        {
+          "id": "defer",
+          "label": "Defer decision"
+        },
+        {
+          "id": "task_scope_resolution",
+          "label": "Resolve for this task only"
+        }
+      ],
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "reflected_refs": [],
+      "reflection_status": "unreflected",
+      "related_sections": [
+        {
+          "candidate_score": 93.0,
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "conflict_route": "possible_conflict_flag",
+          "evidence_snippets": [
+            "docs/spec/conflict.md#0003-feature-gate-forbidden Conflict Specification / Feature Gate Forbidden FEATURE_GATE must not be enabled for login processing."
+          ],
+          "evidence_terms": [
+            "feature_gate",
+            "conflict specification",
+            "login processing",
+            "section_similarity:0.0323",
+            "FEATURE_GATE",
+            "must",
+            "must not"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": true,
+          "reason": "Both sections mention FEATURE_GATE with opposing requirements.",
+          "relation_hint": "conflicts_with",
+          "source": "candidate_generation",
+          "source_section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+          "target_section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden"
+        }
+      ],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "7f605e23e970d3119437815c203e241ab6f1758d46b3c0c1abb7e389677acec8",
+          "source_section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 138,
+            "start_line": 3,
+            "start_offset": 51
+          }
+        },
+        {
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "0fef7b20e06435c56e913eb29e25493a4883fab366340f86b7083bc34359a42b",
+          "source_section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden",
+          "source_span": {
+            "end_line": 13,
+            "end_offset": 255,
+            "start_line": 9,
+            "start_offset": 164
+          }
+        }
+      ],
+      "stale_resolution": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Both Source Specs are authoritative and cannot both be satisfied.",
+      "why_llm_cannot_decide": "A human must choose which requirement has priority."
+    }
+  ],
+  "project_root": "/tmp/20260523-144000-codex-e2e-remaining-23/pending.project",
+  "reasons": [
+    "pending_conflict"
+  ],
+  "recommended_next_action": "resolve pending Conflict Review Items",
+  "should_stop": true,
+  "status": "blocked",
+  "stop_reason": "pending_conflict",
+  "stops": true,
+  "warnings": []
+}

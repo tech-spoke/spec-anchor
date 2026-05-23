@@ -1,0 +1,411 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 9.680273555000895,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 6,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 14,
+          "cache_rejected_hits": 0,
+          "cache_size": 14,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "remaining-standard",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "runtime",
+            "Conflict Specification"
+          ],
+          "section_id": "docs/spec/conflict.md#0001-conflict-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/conflict.md#0001-conflict-specification",
+          "stable_section_uid": "1427d5b3d11667f0",
+          "summary": "summary for docs/spec/conflict.md#0001-conflict-specification"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification",
+            "Feature Gate Required"
+          ],
+          "identifiers": [
+            "FEATURE_GATE",
+            "required"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "feature gate required",
+            "login processing",
+            "Conflict Specification",
+            "Feature Gate Required"
+          ],
+          "section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+          "semantic_hash": "b11ec9bb197fa011f2032ed6538bf80da2d0402fbfe4d8d3be34bb58b9afe6a6",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "7f605e23e970d3119437815c203e241ab6f1758d46b3c0c1abb7e389677acec8",
+          "source_section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+          "stable_section_uid": "da4561730de08cc6",
+          "summary": "FEATURE_GATE must be enabled for login processing."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Specification",
+            "Feature Gate Forbidden"
+          ],
+          "identifiers": [
+            "FEATURE_GATE"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "feature gate forbidden",
+            "login processing",
+            "Conflict Specification",
+            "Feature Gate Forbidden"
+          ],
+          "section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden",
+          "semantic_hash": "ffdb04ac7e2b86984f8c88dcf9190a36762ce7f4993fcad9c65f5bae51e28e36",
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "0fef7b20e06435c56e913eb29e25493a4883fab366340f86b7083bc34359a42b",
+          "source_section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden",
+          "stable_section_uid": "c06d87894db7464a",
+          "summary": "FEATURE_GATE must not be enabled for login processing."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "runtime",
+            "Runtime Specification"
+          ],
+          "section_id": "docs/spec/runtime.md#0001-runtime-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/runtime.md#0001-runtime-specification",
+          "stable_section_uid": "205eca4028d52159",
+          "summary": "summary for docs/spec/runtime.md#0001-runtime-specification"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Specification",
+            "Session Runtime Contract"
+          ],
+          "identifiers": [
+            "AUTH_TOKEN",
+            "bindContext",
+            "spec-anchor core --rebuild",
+            ".spec-anchor/config.toml",
+            "config.toml",
+            "productStoreGroup.replace",
+            "runtime.md",
+            "spec-anchor",
+            "--rebuild",
+            "ProductStore",
+            "stale"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "shared_identifier"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "EVIDENCE_SOURCE_REQUIRED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "The runtime section points to the evidence boundary.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/runtime.md#0003-search-evidence-boundary"
+            }
+          ],
+          "search_keys": [
+            "session runtime retrieval",
+            "operator maintenance",
+            "natural language discovery",
+            "Runtime Specification",
+            "Session Runtime Contract"
+          ],
+          "section_id": "docs/spec/runtime.md#0002-session-runtime-contract",
+          "semantic_hash": "f5c1ea2f6c47980b8d03bd185d54fb040c73385375e994266dc2f724f3d252db",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "a012723c646ab7fbe75bbbd3cb042f0d8f79b5d71bf43b1e8f7562d70d541dfc",
+          "source_section_id": "docs/spec/runtime.md#0002-session-runtime-contract",
+          "stable_section_uid": "ce55f2dbd0158e55",
+          "summary": "Session runtime contract with operator retrieval maintenance."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Specification",
+            "Search Evidence Boundary"
+          ],
+          "identifiers": [
+            "EVIDENCE_SOURCE_REQUIRED",
+            "resolved",
+            "stale"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project/tools/remaining-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "search aid boundary",
+            "constraint evidence",
+            "source spec confirmation",
+            "Runtime Specification",
+            "Search Evidence Boundary"
+          ],
+          "section_id": "docs/spec/runtime.md#0003-search-evidence-boundary",
+          "semantic_hash": "2a45a091989eb36bf7621ce94210b9e72ab5297d15bec780d880c68221e359cd",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "2ea052dd3a2bc13f725326f84095b633383d63c041d34bb5268c71b360951c06",
+          "source_section_id": "docs/spec/runtime.md#0003-search-evidence-boundary",
+          "stable_section_uid": "0349f5d324fa897d",
+          "summary": "Search aids must be confirmed against authoritative evidence before constraints."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        6
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/conflict.md#0001-conflict-specification",
+        "docs/spec/conflict.md#0002-feature-gate-required",
+        "docs/spec/conflict.md#0003-feature-gate-forbidden",
+        "docs/spec/runtime.md#0001-runtime-specification",
+        "docs/spec/runtime.md#0002-session-runtime-contract",
+        "docs/spec/runtime.md#0003-search-evidence-boundary"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 9.680273555000895,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 6,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 14,
+            "cache_rejected_hits": 0,
+            "cache_size": 14,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          6
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/conflict.md#0001-conflict-specification",
+          "docs/spec/conflict.md#0002-feature-gate-required",
+          "docs/spec/conflict.md#0003-feature-gate-forbidden",
+          "docs/spec/runtime.md#0001-runtime-specification",
+          "docs/spec/runtime.md#0002-session-runtime-contract",
+          "docs/spec/runtime.md#0003-search-evidence-boundary"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [
+    {
+      "kind": "potential_conflict",
+      "level": "warning",
+      "outcome": "not_conflict",
+      "source_section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+      "target_section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden",
+      "warning": "Reviewed as non-conflict for the standard project."
+    }
+  ],
+  "regenerated_chapter_anchors": [
+    "docs/spec/conflict.md#conflict-specification",
+    "docs/spec/runtime.md#runtime-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/conflict.md#0001-conflict-specification",
+      "source_section_id": "docs/spec/conflict.md#0001-conflict-specification"
+    },
+    {
+      "section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+      "source_section_id": "docs/spec/conflict.md#0002-feature-gate-required"
+    },
+    {
+      "section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden",
+      "source_section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0001-runtime-specification",
+      "source_section_id": "docs/spec/runtime.md#0001-runtime-specification"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0002-session-runtime-contract",
+      "source_section_id": "docs/spec/runtime.md#0002-session-runtime-contract"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0003-search-evidence-boundary",
+      "source_section_id": "docs/spec/runtime.md#0003-search-evidence-boundary"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/conflict.md",
+    "docs/spec/runtime.md"
+  ],
+  "warnings": []
+}

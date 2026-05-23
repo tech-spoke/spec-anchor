@@ -1,0 +1,7 @@
+{
+  "command": "/spec-inject inject-purpose",
+  "core_concept_path": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project/docs/core/concept.md",
+  "project_root": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project",
+  "purpose": "# Purpose\n\nKeep implementation work grounded in Source Specs while preserving a short,\nauditable context path for Agents.\n",
+  "warnings": []
+}

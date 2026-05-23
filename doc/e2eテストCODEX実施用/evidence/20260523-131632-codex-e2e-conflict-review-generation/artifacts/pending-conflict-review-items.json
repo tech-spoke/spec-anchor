@@ -1,0 +1,243 @@
+{
+  "conflict_review_items": [
+    {
+      "base_source_hashes": [
+        {
+          "hash": "37a47d34960a6669ce0651d1bed4fe750e3c3b3181a67964cf6cc1e9669e5b7c",
+          "source_ref": "docs/spec/conflict.md#0002-alpha-requirement"
+        },
+        {
+          "hash": "50cdb9f2265b8a91a96a00987d403e792b46edec9594d435f3f18957c20157fa",
+          "source_ref": "docs/spec/conflict.md#0003-beta-prohibition"
+        },
+        {
+          "hash": "20f1b6ff3bad6a9c6cfde97bb577c0848e25d2a095e509e32bb57e6943a88b9b",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "54e8c8af50b15a01fa6daa0f2974fba2ae50efde38c3284316a399274dc3c14b",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        "FEATURE_GATE must be enabled.",
+        "FEATURE_GATE must not be enabled."
+      ],
+      "conflict_id": "conflict-docs-spec-conflict.md-0002-alpha-requirement--docs-spec-conflict.md-0003-beta-prohibition",
+      "created_at": "1970-01-01T00:00:00Z",
+      "decision_options": [
+        {
+          "id": "prefer_a",
+          "label": "Prefer source A"
+        },
+        {
+          "id": "prefer_b",
+          "label": "Prefer source B"
+        },
+        {
+          "id": "conditional",
+          "label": "Use a conditional rule"
+        },
+        {
+          "id": "dismiss",
+          "label": "Dismiss as not a conflict"
+        },
+        {
+          "id": "needs_source_update",
+          "label": "Update source specs"
+        },
+        {
+          "id": "defer",
+          "label": "Defer decision"
+        },
+        {
+          "id": "task_scope_resolution",
+          "label": "Resolve for this task only"
+        }
+      ],
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "reflected_refs": [],
+      "reflection_status": "unreflected",
+      "related_sections": [
+        {
+          "candidate_score": 92.75,
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "conflict_route": "possible_conflict_flag",
+          "evidence_snippets": [
+            "docs/spec/conflict.md#0003-beta-prohibition Conflict Specification / Beta Prohibition FEATURE_GATE must not be enabled for logout processing."
+          ],
+          "evidence_terms": [
+            "feature_gate",
+            "conflict specification",
+            "section_similarity:0.0323",
+            "FEATURE_GATE",
+            "must",
+            "must not"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": true,
+          "reason": "Both sections mention FEATURE_GATE and opposing enabled requirements.",
+          "relation_hint": "conflicts_with",
+          "source": "candidate_generation",
+          "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+          "target_section_id": "docs/spec/conflict.md#0003-beta-prohibition"
+        }
+      ],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "37a47d34960a6669ce0651d1bed4fe750e3c3b3181a67964cf6cc1e9669e5b7c",
+          "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 179,
+            "start_line": 3,
+            "start_offset": 47
+          }
+        },
+        {
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "50cdb9f2265b8a91a96a00987d403e792b46edec9594d435f3f18957c20157fa",
+          "source_section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+          "source_span": {
+            "end_line": 16,
+            "end_offset": 335,
+            "start_line": 10,
+            "start_offset": 199
+          }
+        }
+      ],
+      "stale_resolution": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "The current Source Specs contain opposing requirements for FEATURE_GATE.",
+      "why_llm_cannot_decide": "Both Source Specs are authoritative and require a human priority decision."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "37a47d34960a6669ce0651d1bed4fe750e3c3b3181a67964cf6cc1e9669e5b7c",
+          "source_ref": "docs/spec/conflict.md#0002-alpha-requirement"
+        },
+        {
+          "hash": "9188881de8ed530c31f61386ce036e72457dcb00a4376732d0113f694ac66e56",
+          "source_ref": "docs/spec/conflict.md#0004-gamma-optional"
+        },
+        {
+          "hash": "20f1b6ff3bad6a9c6cfde97bb577c0848e25d2a095e509e32bb57e6943a88b9b",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "54e8c8af50b15a01fa6daa0f2974fba2ae50efde38c3284316a399274dc3c14b",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        "FEATURE_GATE must be enabled.",
+        "FEATURE_GATE must not be enabled."
+      ],
+      "conflict_id": "conflict-docs-spec-conflict.md-0002-alpha-requirement--docs-spec-conflict.md-0004-gamma-optional",
+      "created_at": "1970-01-01T00:00:00Z",
+      "decision_options": [
+        {
+          "id": "prefer_a",
+          "label": "Prefer source A"
+        },
+        {
+          "id": "prefer_b",
+          "label": "Prefer source B"
+        },
+        {
+          "id": "conditional",
+          "label": "Use a conditional rule"
+        },
+        {
+          "id": "dismiss",
+          "label": "Dismiss as not a conflict"
+        },
+        {
+          "id": "needs_source_update",
+          "label": "Update source specs"
+        },
+        {
+          "id": "defer",
+          "label": "Defer decision"
+        },
+        {
+          "id": "task_scope_resolution",
+          "label": "Resolve for this task only"
+        }
+      ],
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "reflected_refs": [],
+      "reflection_status": "unreflected",
+      "related_sections": [
+        {
+          "candidate_score": 92.75,
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "conflict_route": "pattern_signal_legacy",
+          "evidence_snippets": [
+            "docs/spec/conflict.md#0004-gamma-optional Conflict Specification / Gamma Optional FEATURE_GATE is optional for audit logging."
+          ],
+          "evidence_terms": [
+            "feature_gate",
+            "conflict specification",
+            "section_similarity:0.0317",
+            "requirement",
+            "must",
+            "optional"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "reason": "Related Sections candidate has conflicting requirement, prohibition, or optionality language in the linked Source Specs.",
+          "relation_hint": "conflicts_with",
+          "source": "candidate_generation",
+          "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+          "target_section_id": "docs/spec/conflict.md#0004-gamma-optional"
+        }
+      ],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "37a47d34960a6669ce0651d1bed4fe750e3c3b3181a67964cf6cc1e9669e5b7c",
+          "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 179,
+            "start_line": 3,
+            "start_offset": 47
+          }
+        },
+        {
+          "source_document_id": "docs/spec/conflict.md",
+          "source_hash": "9188881de8ed530c31f61386ce036e72457dcb00a4376732d0113f694ac66e56",
+          "source_section_id": "docs/spec/conflict.md#0004-gamma-optional",
+          "source_span": {
+            "end_line": 22,
+            "end_offset": 472,
+            "start_line": 17,
+            "start_offset": 353
+          }
+        }
+      ],
+      "stale_resolution": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "The current Source Specs contain opposing requirements for FEATURE_GATE.",
+      "why_llm_cannot_decide": "Both Source Specs are authoritative and require a human priority decision."
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00Z",
+  "schema_version": 1
+}

@@ -1,0 +1,6 @@
+run_id=20260523-134200-codex-e2e-core-blocked-watcher
+repo=/home/kazuki/public_html/spec-anchor
+project=/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project
+date=2026-05-23T13:11:13+09:00
+SPEC_ANCHOR_FAKE_LLM=<unset>
+SPEC_ANCHOR_FAKE_RETRIEVAL=<unset>

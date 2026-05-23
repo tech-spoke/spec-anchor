@@ -1,0 +1,63 @@
+## spec-anchor core 実行結果
+
+**全体 status: `degraded`**
+
+---
+
+### 失敗 section
+
+| section_id | 原因 |
+|---|---|
+| `docs/spec/flow.md#0003-broken-metadata-section` | `section_metadata` LLM 出力に `sections` / `summary` / `search_keys` が含まれていなかった（`validation_error`） |
+
+---
+
+### diagnostics.section_metadata_generation
+
+- `freshness_status`: `degraded`
+- `blocking_reasons`: `["degraded_optional_artifact"]`
+- LLM 呼び出し数: 4（キャッシュヒット: 0）
+- 成功した section: `#0001-login-flow`, `#0002-successful-login`, `#0004-logout`（3件）
+- 失敗した section: `#0003-broken-metadata-section`（1件）
+
+**失敗ログ:**
+```
+reason_code: validation_error
+message: section_metadata LLM output did not contain sections, summary, or search_keys
+model: partial-section-provider
+stage: section_metadata
+```
+
+---
+
+### freshness_report
+
+- `status`: `degraded`
+- `degraded_optional_artifacts`: `["section_metadata"]`
+- `degraded_optional_artifact_count`: 1
+- warnings:
+  - `LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section`
+  - `degraded_optional_artifact`
+
+---
+
+### その他の artifact 状態（正常）
+
+| artifact | status |
+|---|---|
+| related_sections | success |
+| retrieval_index | success |
+| chapter_anchors | success |
+| pending_conflict_count | 0 |
+
+---
+
+### 継続可否について
+
+`degraded` は `section_metadata`（オプション artifact）の一部失敗によるものです。必須 artifact（retrieval_index / related_sections / chapter_anchors）はすべて正常に揃っているため、**`/spec-inject` および `/spec-realign` はそのまま継続可能**です。
+
+`#0003-broken-metadata-section` の section_metadata を再生成したい場合は、以下を実行してください:
+
+```
+/spec-core --all
+```

@@ -1,0 +1,30 @@
+Ran `spec-anchor core --verify-index` in `/tmp/20260523-123504-codex-e2e-agent-verify-index.project`.
+
+**Result**
+- `status`: `failed`
+- `warnings`: `Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild`
+- `retrieval_index_status`: `failed`
+- `diagnostics.retrieval_index`: `{ "status": "failed" }`
+
+**Freshness Report**
+- `status`: `failed`
+- `blocking_reasons`: `["failed_required_artifact"]`
+- `required_artifact_problem_count`: `1`
+- `failed_required_artifacts`: `["retrieval_index"]`
+- `warnings`: `Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild`
+
+Verification details reported one missing retrieval point:
+- `section_id`: `docs/spec/audit.md#0003-logout-audit`
+- `reason_code`: `missing_point`
+- `checked_count`: `2`
+- `missing_point_count`: `1`
+- `hash_mismatch_count`: `0`
+- `stale_point_count`: `0`
+
+Because Source Retrieval Index verification failed, run:
+
+```bash
+spec-anchor core --rebuild
+```
+
+That will recreate the section collection. The previous collection was not dropped by this verify failure.

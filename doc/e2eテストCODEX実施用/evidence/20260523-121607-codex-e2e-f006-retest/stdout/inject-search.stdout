@@ -1,0 +1,108 @@
+{
+  "collection": "spec_anchor_sections_20260523_121607_f006_retest",
+  "command": "/spec-inject inject-search",
+  "hits": [
+    {
+      "heading_path": [
+        "Login Flow"
+      ],
+      "identifiers": [],
+      "related_sections": [],
+      "score": 0.03252247488101534,
+      "search_keys": [
+        "login audit",
+        "session boundary",
+        "Login Flow"
+      ],
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0001-login-flow",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 14,
+        "start_line": 1,
+        "start_offset": 13
+      },
+      "summary": "summary for docs/spec/flow.md#0001-login-flow"
+    },
+    {
+      "heading_path": [
+        "Login Flow",
+        "Successful Login"
+      ],
+      "identifiers": [
+        "LOGIN_SUCCESS_AUDIT"
+      ],
+      "related_sections": [],
+      "score": 0.032266458495966696,
+      "search_keys": [
+        "login audit",
+        "session boundary",
+        "Login Flow",
+        "Successful Login"
+      ],
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0002-successful-login",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 105,
+        "start_line": 3,
+        "start_offset": 34
+      },
+      "summary": "summary for docs/spec/flow.md#0002-successful-login"
+    },
+    {
+      "heading_path": [
+        "Login Flow",
+        "Logout"
+      ],
+      "identifiers": [
+        "LOGOUT_AUDIT"
+      ],
+      "related_sections": [],
+      "score": 0.03200204813108039,
+      "search_keys": [
+        "login audit",
+        "session boundary",
+        "Login Flow",
+        "Logout"
+      ],
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0004-logout",
+      "source_span": {
+        "end_line": 20,
+        "end_offset": 346,
+        "start_line": 16,
+        "start_offset": 285
+      },
+      "summary": "summary for docs/spec/flow.md#0004-logout"
+    },
+    {
+      "heading_path": [
+        "Login Flow",
+        "Broken Metadata Section"
+      ],
+      "identifiers": [
+        "BROKEN_METADATA_SENTINEL"
+      ],
+      "related_sections": [],
+      "score": 0.015625,
+      "search_keys": [],
+      "source_document_id": "docs/spec/flow.md",
+      "source_section_id": "docs/spec/flow.md#0003-broken-metadata-section",
+      "source_span": {
+        "end_line": 15,
+        "end_offset": 275,
+        "start_line": 9,
+        "start_offset": 132
+      },
+      "summary": ""
+    }
+  ],
+  "project_root": "/tmp/20260523-121607-codex-e2e-f006-retest.project",
+  "query": "login audit",
+  "top_k": 8,
+  "warnings": [
+    "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section",
+    "degraded_optional_artifact"
+  ]
+}

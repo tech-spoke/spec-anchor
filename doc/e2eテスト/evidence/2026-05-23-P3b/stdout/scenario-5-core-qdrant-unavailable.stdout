@@ -1,0 +1,426 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "kind": "related_sections_generation_failed",
+          "level": "warning",
+          "message": "[Errno 111] Connection refused"
+        }
+      ],
+      "qdrant_backend_failure": {
+        "exception_type": "ResponseHandlingException",
+        "failure_reason": "[Errno 111] Connection refused",
+        "provider": "qdrant",
+        "url": "http://127.0.0.1:1"
+      },
+      "status": "failed"
+    },
+    "retrieval_index": {
+      "status": "failed"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v3",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Operations Source Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "Operations Source Spec"
+          ],
+          "section_id": "docs/spec/operations.md#0001-operations-source-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/operations.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/operations.md#0001-operations-source-spec",
+          "stable_section_uid": "30ea4b72e895e8a7",
+          "summary": "Operations Source Spec"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Operations Source Spec",
+            "Maintenance Workflow"
+          ],
+          "identifiers": [
+            "spec-anchor core",
+            "spec-anchor core --all",
+            "spec-anchor core --rebuild",
+            "--all",
+            "--rebuild"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "incremental index refresh",
+            "full refresh after spec changes",
+            "collection rebuild",
+            "operator maintenance workflow",
+            "source spec updates",
+            "Operations Source Spec",
+            "Maintenance Workflow"
+          ],
+          "section_id": "docs/spec/operations.md#0002-maintenance-workflow",
+          "semantic_hash": "ea518229fdf5a4042cdd7b6d57fb188ba12de98f27c9422b77f638c61f186e06",
+          "source_document_id": "docs/spec/operations.md",
+          "source_hash": "9a0e3224974cb9ea212a40aef741815eb335f208a032d1757c23cfbee03fe9a5",
+          "source_section_id": "docs/spec/operations.md#0002-maintenance-workflow",
+          "stable_section_uid": "4c0c31794e20b959",
+          "summary": "Operators refresh the source-spec index after documentation changes, using incremental runs for routine updates and broader refreshes when a full rebuild is needed."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Operations Source Spec",
+            "Agent Output Boundary"
+          ],
+          "identifiers": [
+            "JSON"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "agent-facing summary boundary",
+            "constraints and targets",
+            "related sections and uncertainty",
+            "discarded paths",
+            "internal evidence only",
+            "Operations Source Spec",
+            "Agent Output Boundary"
+          ],
+          "section_id": "docs/spec/operations.md#0003-agent-output-boundary",
+          "semantic_hash": "2108685d1df10f22b9ddf2e57ab4db70f5c1b4525b41f4a4523317cfd836fff6",
+          "source_document_id": "docs/spec/operations.md",
+          "source_hash": "41abf0707db89a69e9af18e1555bbf8ddd5c0f280d46e3450b070c094b6d5b99",
+          "source_section_id": "docs/spec/operations.md#0003-agent-output-boundary",
+          "stable_section_uid": "c9a5b55e02e43c93",
+          "summary": "Agent-facing output should stay at the level of constraints, targets, related sections, discarded paths, and uncertainty, while raw internal evidence remains internal unless explicitly requested."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "Runtime Source Spec"
+          ],
+          "section_id": "docs/spec/runtime.md#0001-runtime-source-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/runtime.md#0001-runtime-source-spec",
+          "stable_section_uid": "205eca4028d52159",
+          "summary": "Runtime Source Spec"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec",
+            "Product Catalog Runtime"
+          ],
+          "identifiers": [
+            "ProductStore",
+            "productStoreGroup.replace"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "product catalog stability",
+            "stable product identity",
+            "search and checkout consistency",
+            "catalog update migration",
+            "preserve identifier",
+            "Runtime Source Spec",
+            "Product Catalog Runtime"
+          ],
+          "section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "semantic_hash": "1e53925d2c11a929385837a0a224d37b315be8d33345999b8b77390af10ecda5",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "d13e5a75f2e2a08947c8193f152838d3b38cd0add7686795a1decb4eb300b8d8",
+          "source_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "stable_section_uid": "ce55f2dbd0158e55",
+          "summary": "The product catalog keeps product identifiers stable across search and checkout, and catalog updates must preserve identity during migration or replacement flows."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec",
+            "Session Runtime Contract"
+          ],
+          "identifiers": [
+            "AUTH_TOKEN",
+            "spec-anchor core --rebuild",
+            "--rebuild",
+            "stale"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "authenticated session renewal",
+            "missing authentication token",
+            "stale token warning",
+            "session guard recovery",
+            "rebuild after fixing source state",
+            "Runtime Source Spec",
+            "Session Runtime Contract"
+          ],
+          "section_id": "docs/spec/runtime.md#0003-session-runtime-contract",
+          "semantic_hash": "397b6a3c99eb49f469fb182140ef5bcb44b781739d26fecc7f9f2a3e7e86aeeb",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "b57717076c243f3350f839fe0bdb0a1348724c1e70dc76633e931636219de8d8",
+          "source_section_id": "docs/spec/runtime.md#0003-session-runtime-contract",
+          "stable_section_uid": "0349f5d324fa897d",
+          "summary": "Authenticated sessions rely on bearer token renewal, and the session guard must report missing or stale authentication tokens so operators can recover by rebuilding source state after fixes."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Runtime Source Spec",
+            "Checkout Integration"
+          ],
+          "identifiers": [
+            "resolved"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "checkout uses validated entries",
+            "navigation support for retrieval aids",
+            "authoritative constraint evidence",
+            "source specs and purpose",
+            "resolved review items",
+            "Runtime Source Spec",
+            "Checkout Integration"
+          ],
+          "section_id": "docs/spec/runtime.md#0004-checkout-integration",
+          "semantic_hash": "c2d1fd533ec85b72726c505b5fee9a7bb12f28dd0b980e473c4ce9179ded6a3f",
+          "source_document_id": "docs/spec/runtime.md",
+          "source_hash": "b8d7d2dcd569a0948057bc7eb5274b7531ce92ff5df9c195b44c2bc3700edc8d",
+          "source_section_id": "docs/spec/runtime.md#0004-checkout-integration",
+          "stable_section_uid": "35605918e406e8c8",
+          "summary": "Checkout consumes validated catalog entries, and retrieval aids should support navigation while source specs, purpose, core concept, and resolved review items remain the authoritative constraint evidence."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        7
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/operations.md#0001-operations-source-spec",
+        "docs/spec/operations.md#0002-maintenance-workflow",
+        "docs/spec/operations.md#0003-agent-output-boundary",
+        "docs/spec/runtime.md#0001-runtime-source-spec",
+        "docs/spec/runtime.md#0002-product-catalog-runtime",
+        "docs/spec/runtime.md#0003-session-runtime-contract",
+        "docs/spec/runtime.md#0004-checkout-integration"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "retrieval_index",
+        "related_sections"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "kind": "related_sections_generation_failed",
+            "level": "warning",
+            "message": "[Errno 111] Connection refused"
+          }
+        ],
+        "qdrant_backend_failure": {
+          "exception_type": "ResponseHandlingException",
+          "failure_reason": "[Errno 111] Connection refused",
+          "provider": "qdrant",
+          "url": "http://127.0.0.1:1"
+        },
+        "status": "failed"
+      },
+      "retrieval_index": {
+        "status": "failed"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          7
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/operations.md#0001-operations-source-spec",
+          "docs/spec/operations.md#0002-maintenance-workflow",
+          "docs/spec/operations.md#0003-agent-output-boundary",
+          "docs/spec/runtime.md#0001-runtime-source-spec",
+          "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "docs/spec/runtime.md#0003-session-runtime-contract",
+          "docs/spec/runtime.md#0004-checkout-integration"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 2,
+    "status": "failed",
+    "warnings": [
+      "Source Retrieval Index update failed",
+      "Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild."
+    ]
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/operations.md#operations-source-spec",
+    "docs/spec/runtime.md#runtime-source-spec"
+  ],
+  "related_sections_status": "failed",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/operations.md#0001-operations-source-spec",
+      "source_section_id": "docs/spec/operations.md#0001-operations-source-spec"
+    },
+    {
+      "section_id": "docs/spec/operations.md#0002-maintenance-workflow",
+      "source_section_id": "docs/spec/operations.md#0002-maintenance-workflow"
+    },
+    {
+      "section_id": "docs/spec/operations.md#0003-agent-output-boundary",
+      "source_section_id": "docs/spec/operations.md#0003-agent-output-boundary"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0001-runtime-source-spec",
+      "source_section_id": "docs/spec/runtime.md#0001-runtime-source-spec"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0002-product-catalog-runtime",
+      "source_section_id": "docs/spec/runtime.md#0002-product-catalog-runtime"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0003-session-runtime-contract",
+      "source_section_id": "docs/spec/runtime.md#0003-session-runtime-contract"
+    },
+    {
+      "section_id": "docs/spec/runtime.md#0004-checkout-integration",
+      "source_section_id": "docs/spec/runtime.md#0004-checkout-integration"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/operations.md",
+    "docs/spec/runtime.md"
+  ],
+  "warnings": [
+    "Source Retrieval Index update failed",
+    "Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild."
+  ]
+}

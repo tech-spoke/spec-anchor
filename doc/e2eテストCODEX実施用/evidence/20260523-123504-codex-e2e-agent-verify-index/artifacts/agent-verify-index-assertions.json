@@ -1,0 +1,34 @@
+{
+  "run_id": "20260523-123504-codex-e2e-agent-verify-index",
+  "exitcodes": {
+    "initial_core_rebuild": 0,
+    "claude_verify": 0,
+    "codex_verify": 0
+  },
+  "deleted_point": {
+    "collection": "spec_anchor_sections_20260523_123504_agent_verify_index",
+    "deleted_point_id": "580bc617-c459-5ca2-aefd-40935acf12da",
+    "source_section_id": "docs/spec/audit.md#0003-logout-audit"
+  },
+  "claude_verify": {
+    "ran_spec_core_verify": true,
+    "reports_failed_status": true,
+    "reports_retrieval_index_failed": true,
+    "reports_verify_inconsistency": true,
+    "reports_rebuild_action": true,
+    "reports_collection_not_dropped": true,
+    "no_setup_autorun": true
+  },
+  "codex_verify": {
+    "ran_spec_core_verify": true,
+    "reports_failed_status": true,
+    "reports_retrieval_index_failed": true,
+    "reports_verify_inconsistency": true,
+    "reports_rebuild_action": true,
+    "reports_collection_not_dropped": true,
+    "no_setup_autorun": true
+  },
+  "passed_claude_verify_agent_layer": true,
+  "passed_codex_verify_agent_layer": true,
+  "passed_all": true
+}

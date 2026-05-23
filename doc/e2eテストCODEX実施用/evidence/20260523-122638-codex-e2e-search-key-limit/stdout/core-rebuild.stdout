@@ -1,0 +1,295 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 7.469070006001857,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 3,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 6,
+          "cache_rejected_hits": 0,
+          "cache_size": 6,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "search-key-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-122638-codex-e2e-search-key-limit.project/tools/search-key-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Search Limit Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-122638-codex-e2e-search-key-limit.project/tools/search-key-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "logout limit key",
+            "session boundary",
+            "Search Limit Specification"
+          ],
+          "section_id": "docs/spec/limit.md#0001-search-limit-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/limit.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/limit.md#0001-search-limit-specification",
+          "stable_section_uid": "307f71f4cae88c6b",
+          "summary": "summary for docs/spec/limit.md#0001-search-limit-specification"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Search Limit Specification",
+            "Login Limit"
+          ],
+          "identifiers": [
+            "AUTH_LIMIT_SYMBOL_01",
+            "AUTH_LIMIT_SYMBOL_02",
+            "AUTH_LIMIT_SYMBOL_03",
+            "AUTH_LIMIT_SYMBOL_04",
+            "AUTH_LIMIT_SYMBOL_05",
+            "AUTH_LIMIT_SYMBOL_06",
+            "AUTH_LIMIT_SYMBOL_07",
+            "AUTH_LIMIT_SYMBOL_08",
+            "AUTH_LIMIT_SYMBOL_09",
+            "AUTH_LIMIT_SYMBOL_10",
+            "AUTH_LIMIT_SYMBOL_11",
+            "AUTH_LIMIT_SYMBOL_12"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-122638-codex-e2e-search-key-limit.project/tools/search-key-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "limit search key 01",
+            "limit search key 02",
+            "limit search key 03",
+            "limit search key 04",
+            "limit search key 05",
+            "limit search key 06",
+            "limit search key 07",
+            "limit search key 08",
+            "limit search key 09",
+            "limit search key 10",
+            "limit search key 11",
+            "limit search key 12",
+            "Search Limit Specification",
+            "Login Limit"
+          ],
+          "section_id": "docs/spec/limit.md#0002-login-limit",
+          "semantic_hash": "77c0977df1fc5742abf2ca8639ff4c1d44c5a5adc62194ea7297fcf7db64448a",
+          "source_document_id": "docs/spec/limit.md",
+          "source_hash": "a35cc13572aaa58da674b08eedbfd1fe747102a4c5ebca082c218260a5252f29",
+          "source_section_id": "docs/spec/limit.md#0002-login-limit",
+          "stable_section_uid": "81d7cbafd42d93cf",
+          "summary": "login limit summary with many search keys"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Search Limit Specification",
+            "Logout Limit"
+          ],
+          "identifiers": [
+            "LOGOUT_LIMIT_MARKER"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-122638-codex-e2e-search-key-limit.project/tools/search-key-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "logout limit key",
+            "session boundary",
+            "Search Limit Specification",
+            "Logout Limit"
+          ],
+          "section_id": "docs/spec/limit.md#0003-logout-limit",
+          "semantic_hash": "9a135b3eadfb23785cbbf9eac8cce2da6a5aa7e18e5755b8173a74e39e3b684a",
+          "source_document_id": "docs/spec/limit.md",
+          "source_hash": "5334ac1d244ecd9bff597d3cbb885c525e02b052b6133344372807de303598c3",
+          "source_section_id": "docs/spec/limit.md#0003-logout-limit",
+          "stable_section_uid": "b08e09762ace2488",
+          "summary": "summary for docs/spec/limit.md#0003-logout-limit"
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        3
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/limit.md#0001-search-limit-specification",
+        "docs/spec/limit.md#0002-login-limit",
+        "docs/spec/limit.md#0003-logout-limit"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 7.469070006001857,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 3,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 6,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          3
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/limit.md#0001-search-limit-specification",
+          "docs/spec/limit.md#0002-login-limit",
+          "docs/spec/limit.md#0003-logout-limit"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/limit.md#search-limit-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/limit.md#0001-search-limit-specification",
+      "source_section_id": "docs/spec/limit.md#0001-search-limit-specification"
+    },
+    {
+      "section_id": "docs/spec/limit.md#0002-login-limit",
+      "source_section_id": "docs/spec/limit.md#0002-login-limit"
+    },
+    {
+      "section_id": "docs/spec/limit.md#0003-logout-limit",
+      "source_section_id": "docs/spec/limit.md#0003-logout-limit"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/limit.md"
+  ],
+  "warnings": []
+}

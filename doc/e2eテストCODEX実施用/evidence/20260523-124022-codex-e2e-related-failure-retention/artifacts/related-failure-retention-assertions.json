@@ -1,0 +1,42 @@
+{
+  "run_id": "20260523-124022-codex-e2e-related-failure-retention",
+  "exitcodes": {
+    "initial_core_rebuild": 0,
+    "broken_qdrant_core": 1,
+    "inject_after_failure": 0,
+    "realign_after_failure": 0
+  },
+  "initial_success": {
+    "status_updated": true,
+    "related_sections_success": true,
+    "retrieval_index_success": true,
+    "before_related_nonempty": true
+  },
+  "failure_status": {
+    "status_failed": true,
+    "related_sections_failed": true,
+    "freshness_failed": true,
+    "failed_required_artifact": true,
+    "warning_mentions_related_backend": true
+  },
+  "retention": {
+    "after_payload_found": true,
+    "after_related_nonempty": true,
+    "related_sections_unchanged": true
+  },
+  "downstream_stop": {
+    "inject_status_failed": true,
+    "inject_should_stop": true,
+    "inject_failed_required_artifact": true,
+    "inject_recommends_core": true,
+    "realign_status_failed": true,
+    "realign_should_stop": true,
+    "realign_failed_required_artifact": true,
+    "realign_recommends_core": true
+  },
+  "passed_initial": true,
+  "passed_failure_status": true,
+  "passed_retention": true,
+  "passed_downstream_stop": true,
+  "passed_all": true
+}

@@ -1,0 +1,1 @@
+2026-05-23T05:47:57.086625Z  WARN codex_core::file_watcher: failed to unwatch /home/kazuki/.codex/skills/.system: No watch was found. about ["/home/kazuki/.codex/skills/.system"]

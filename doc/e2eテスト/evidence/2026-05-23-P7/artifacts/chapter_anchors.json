@@ -1,0 +1,71 @@
+{
+  "chapters": [
+    {
+      "chapter_id": "docs/spec/operations.md#operations-source-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "important_sections": [
+        "docs/spec/operations.md#0002-maintenance-workflow",
+        "docs/spec/operations.md#0003-agent-output-boundary"
+      ],
+      "key_topics": [
+        "operator maintenance of retrieval data",
+        "incremental and full refresh workflows",
+        "collection rebuild triggers",
+        "agent output constraints",
+        "separating summaries from raw evidence",
+        "uncertainty and discarded paths in output"
+      ],
+      "notes": [
+        "Raw evidence and internal retrieval data must never appear in agent-facing output; only summaries derived from them are permitted.",
+        "Incremental refresh and full rebuild are distinct operations with different triggers — do not conflate them when advising operators.",
+        "Uncertainty and discarded reasoning paths may be noted in summaries but must not be presented as conclusions."
+      ],
+      "source_section_ids": [
+        "docs/spec/operations.md#0001-operations-source-spec",
+        "docs/spec/operations.md#0002-maintenance-workflow",
+        "docs/spec/operations.md#0003-agent-output-boundary"
+      ],
+      "summary": "This chapter defines how operators maintain SPEC-anchor retrieval data after source specs change, and constrains what agent-facing output may contain. It covers the lifecycle of generated retrieval data from incremental updates through full collection rebuilds, and establishes a clear boundary between user-visible summaries and raw internal evidence that agents must not expose."
+    },
+    {
+      "chapter_id": "docs/spec/runtime.md#runtime-source-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "important_sections": [
+        "docs/spec/runtime.md#0002-product-catalog-runtime",
+        "docs/spec/runtime.md#0003-session-runtime-contract",
+        "docs/spec/runtime.md#0004-checkout-integration"
+      ],
+      "key_topics": [
+        "product catalog stability across operations",
+        "authenticated session lifecycle and recovery",
+        "checkout constraint evidence and dependencies",
+        "migration hooks for catalog updates",
+        "bearer token renewal and stale state handling"
+      ],
+      "notes": [
+        "Checkout depends on both catalog and session contracts being satisfied first; do not apply checkout constraints in isolation.",
+        "Session recovery requires an external rebuild step; constraints derived here are not self-healing.",
+        "Catalog identifiers must remain stable across the full search-to-checkout flow; any migration hook must preserve this invariant."
+      ],
+      "source_section_ids": [
+        "docs/spec/runtime.md#0001-runtime-source-spec",
+        "docs/spec/runtime.md#0002-product-catalog-runtime",
+        "docs/spec/runtime.md#0003-session-runtime-contract",
+        "docs/spec/runtime.md#0004-checkout-integration"
+      ],
+      "summary": "This chapter defines the runtime behavior contracts that govern how the product catalog, authenticated sessions, and checkout integration operate at runtime. It establishes which identifiers must remain stable, how authentication state is managed and recovered, and how checkout derives its constraints from validated catalog entries and resolved review items."
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00Z",
+  "generation": {
+    "failed_chapter_ids": [],
+    "failure_reasons_by_chapter": {},
+    "metadata_version": 1,
+    "model": "claude-sonnet-4-6",
+    "prompt_version": "chapter-anchors-v1",
+    "provider": "claude",
+    "stage": "chapter_anchors"
+  },
+  "schema_version": 1,
+  "status": "success"
+}

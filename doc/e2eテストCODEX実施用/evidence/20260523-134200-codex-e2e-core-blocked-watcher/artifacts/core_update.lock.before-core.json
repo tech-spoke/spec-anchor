@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "lock_kind": "core_update",
+  "owner": "watcher",
+  "reason": "watcher_running",
+  "run_id": "codex-e2e-active-watcher",
+  "acquired_at": "2026-05-23T04:42:00Z",
+  "acquired_at_epoch_ms": 1779509472762,
+  "updated_at": "2026-05-23T04:42:01Z",
+  "updated_at_epoch_ms": 1779509473762
+}

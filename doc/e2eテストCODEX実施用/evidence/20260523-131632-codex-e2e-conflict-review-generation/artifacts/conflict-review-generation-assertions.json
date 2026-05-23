@@ -1,0 +1,97 @@
+{
+  "run_id": "20260523-131632-codex-e2e-conflict-review-generation",
+  "exitcodes": {
+    "pending_core_rebuild": 0,
+    "warning_core_rebuild": 0,
+    "highrisk_core_rebuild": 0
+  },
+  "checks": {
+    "pending_exit_zero": true,
+    "warning_exit_zero": true,
+    "highrisk_exit_zero": true,
+    "possible_conflict_referred_to_conflict_review": true,
+    "pending_conflict_created_and_blocks": true,
+    "no_auto_resolved_item": true,
+    "warning_potential_conflict_when_judge_resolves": true,
+    "stage_order_related_before_conflict": true,
+    "highrisk_unselected_candidate_sent_to_conflict_review": true
+  },
+  "pending_pair": {
+    "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+    "target_section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+    "relation_hint": "conflicts_with",
+    "possible_conflict": true,
+    "conflict_route": "possible_conflict_flag",
+    "channels": [
+      "shared_identifier",
+      "search_key_match",
+      "qdrant_section_hybrid"
+    ],
+    "evidence_terms": [
+      "feature_gate",
+      "conflict specification",
+      "section_similarity:0.0323",
+      "FEATURE_GATE",
+      "must",
+      "must not"
+    ]
+  },
+  "highrisk_pair": {
+    "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+    "target_section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+    "relation_hint": "conflicts_with",
+    "possible_conflict": null,
+    "conflict_route": "pattern_signal_legacy",
+    "channels": [
+      "shared_identifier",
+      "search_key_match",
+      "qdrant_section_hybrid"
+    ],
+    "evidence_terms": [
+      "feature_gate",
+      "conflict specification",
+      "section_similarity:0.0323",
+      "requirement",
+      "must",
+      "must not"
+    ]
+  },
+  "pending_item_fields": [
+    "base_source_hashes",
+    "claims",
+    "conflict_id",
+    "created_at",
+    "decision_options",
+    "recommended_next_action",
+    "reflected_refs",
+    "reflection_status",
+    "related_sections",
+    "severity",
+    "source_refs",
+    "stale_resolution",
+    "status",
+    "updated_at",
+    "valid_scope",
+    "why_conflicting",
+    "why_llm_cannot_decide"
+  ],
+  "warning_potential_conflicts": [
+    {
+      "kind": "potential_conflict",
+      "level": "warning",
+      "outcome": "not_conflict",
+      "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+      "target_section_id": "docs/spec/conflict.md#0003-beta-prohibition",
+      "warning": "Conflict candidate was reviewed and retained only as a warning."
+    },
+    {
+      "kind": "potential_conflict",
+      "level": "warning",
+      "outcome": "not_conflict",
+      "source_section_id": "docs/spec/conflict.md#0002-alpha-requirement",
+      "target_section_id": "docs/spec/conflict.md#0004-gamma-optional",
+      "warning": "Conflict candidate was reviewed and retained only as a warning."
+    }
+  ],
+  "passed_all": true
+}

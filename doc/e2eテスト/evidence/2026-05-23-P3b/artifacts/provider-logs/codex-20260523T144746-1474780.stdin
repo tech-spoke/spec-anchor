@@ -1,0 +1,37 @@
+You are the SPEC-anchor /spec-core generation provider. Return only one JSON object. No markdown, no prose. The JSON object must include array field "sections". Each item must include string field "section_id", string field "summary", and array field "search_keys". Return exactly one item in "sections" for every section in the input "sections" array. Use the exact "section_id" value from the input. Do not omit, add, rename, or merge sections. If a section is unclear, return an empty "summary" and empty "search_keys" for that item but keep the item in the output.
+
+Request JSON:
+{
+  "context_hashes": {
+    "artifact_role": "9f273810421587f730f5d5ccb215d2027458101f2a788e5aca87a58d99339103",
+    "identifier_extractor_version": "dda190c8ce6460af3574fe73dcc343c9b81b44e2a857a24bd51137dfaf3b2ab6"
+  },
+  "effort": "low",
+  "input_hashes": {
+    "docs/spec/operations.md#0001-operations-source-spec": "9dd41a2eae330bd607e17b1aeaa44adb12676c14c4381c52b9591e77ba491204",
+    "docs/spec/operations.md#0002-maintenance-workflow": "753858ca9572d81df30274d2eeaaf1a2784013d103cca321048a354fd744d39f",
+    "docs/spec/operations.md#0003-agent-output-boundary": "7c14056bfb62269ead19c024f229df08677eac5c8911f2e7a53a6354e000f936",
+    "docs/spec/runtime.md#0001-runtime-source-spec": "4971ef309aa4f195b6e6b2ee208ee4b6ff2da85fbd6488280a5465fa157df216",
+    "docs/spec/runtime.md#0002-product-catalog-runtime": "b10c810b26a7d6c2b97339d91fef23f04ffc416bc2803e997e5623dc7a353534",
+    "docs/spec/runtime.md#0003-session-runtime-contract": "29e9311ef1e77e9b13af5602db3c40b040d14aec8f673d1eeb25440fd5cbfe60",
+    "docs/spec/runtime.md#0004-checkout-integration": "1ddee7664cea659a28f25dde796f1e982e1ae9c35396bc8c55f6ba972e2fec7d"
+  },
+  "metadata_version": 1,
+  "model": "gpt-5.4-mini",
+  "prompt": "{\"artifact_role\":\"retrieval_aid_not_evidence\",\"batch_completeness_rule\":\"Return exactly one item in output sections[] for every item in input sections[]. Use the exact section_id string from the input. Do not omit, add, rename, or merge sections. If a section is unclear, return empty summary and empty search_keys for that item but keep it in the output.\",\"instructions\":\"search_keys must be NATURAL LANGUAGE keywords for retrieval recall. Output domain concept phrases, chapter themes, synonyms, and the natural-language side of feature/state/warning names. Do NOT output code symbols, API names, function names, class names, CLI commands, CLI options (e.g. --rebuild), file paths, ALL_CAPS constants, PascalCase type names, or dotted technical names. Code symbols are tracked separately under `identifiers` and must not appear in `search_keys` (the two lists are disjoint by contract). If a phrase contains an identifier-shaped token, prefer the natural-language paraphrase (e.g. use 'config replace' instead of 'productStoreGroup.replace').\",\"limits\":{\"search_keys_enabled\":true,\"search_keys_max\":32,\"section_summary_max_chars\":480,\"summary_enabled\":true},\"return_shape\":{\"sections\":[{\"search_keys\":[\"string\"],\"section_id\":\"string\",\"summary\":\"string\"}]},\"sections\":[{\"heading_path\":[\"Operations Source Spec\"],\"identifiers\":[],\"section_id\":\"docs/spec/operations.md#0001-operations-source-spec\",\"stable_section_uid\":\"30ea4b72e895e8a7\",\"text\":\"\\n\"},{\"heading_path\":[\"Operations Source Spec\",\"Maintenance Workflow\"],\"identifiers\":[\"spec-anchor core\",\"spec-anchor core --all\",\"spec-anchor core --rebuild\",\"--all\",\"--rebuild\"],\"section_id\":\"docs/spec/operations.md#0002-maintenance-workflow\",\"stable_section_uid\":\"4c0c31794e20b959\",\"text\":\"\\nOperators run `spec-anchor core` incrementally after Source Specs change. Full\\nrefreshes use `spec-anchor core --all`; collection rebuilds use\\n`spec-anchor core --rebuild`.\\n\\n\"},{\"heading_path\":[\"Operations Source Spec\",\"Agent Output Boundary\"],\"identifiers\":[\"JSON\"],\"section_id\":\"docs/spec/operations.md#0003-agent-output-boundary\",\"stable_section_uid\":\"c9a5b55e02e43c93\",\"text\":\"\\nAgent-facing output summarizes constraints, targets, related sections,\\ndiscarded paths, and uncertainty. Raw internal JSON is saved as evidence, not\\npasted to users unless explicitly requested.\\n\"},{\"heading_path\":[\"Runtime Source Spec\"],\"identifiers\":[],\"section_id\":\"docs/spec/runtime.md#0001-runtime-source-spec\",\"stable_section_uid\":\"205eca4028d52159\",\"text\":\"\\n\"},{\"heading_path\":[\"Runtime Source Spec\",\"Product Catalog Runtime\"],\"identifiers\":[\"ProductStore\",\"productStoreGroup.replace\"],\"section_id\":\"docs/spec/runtime.md#0002-product-catalog-runtime\",\"stable_section_uid\":\"ce55f2dbd0158e55\",\"text\":\"\\nThe product catalog keeps product identifiers stable across search and checkout.\\nCatalog updates preserve the `ProductStore` identifier and the\\n`productStoreGroup.replace` migration hook.\\n\\n\"},{\"heading_path\":[\"Runtime Source Spec\",\"Session Runtime Contract\"],\"identifiers\":[\"AUTH_TOKEN\",\"spec-anchor core --rebuild\",\"--rebuild\",\"stale\"],\"section_id\":\"docs/spec/runtime.md#0003-session-runtime-contract\",\"stable_section_uid\":\"0349f5d324fa897d\",\"text\":\"\\nAuthenticated sessions use bearer token renewal. The session guard reports\\nmissing or stale `AUTH_TOKEN` values, and the operator recovers by running\\n`spec-anchor core --rebuild` after fixing the source state.\\n\\n\"},{\"heading_path\":[\"Runtime Source Spec\",\"Checkout Integration\"],\"identifiers\":[\"resolved\"],\"section_id\":\"docs/spec/runtime.md#0004-checkout-integration\",\"stable_section_uid\":\"35605918e406e8c8\",\"text\":\"\\nCheckout consumes validated catalog entries. Retrieval aids support navigation;\\nSource Specs, Purpose, Core Concept, and resolved Conflict Review Items remain\\nthe constraint evidence.\\n\"}],\"summary_search_keys_are_evidence\":false,\"task\":\"section_metadata\"}",
+  "prompt_version": "section-metadata-v3",
+  "section_hashes": {
+    "docs/spec/operations.md#0001-operations-source-spec": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/spec/operations.md#0002-maintenance-workflow": "9a0e3224974cb9ea212a40aef741815eb335f208a032d1757c23cfbee03fe9a5",
+    "docs/spec/operations.md#0003-agent-output-boundary": "41abf0707db89a69e9af18e1555bbf8ddd5c0f280d46e3450b070c094b6d5b99",
+    "docs/spec/runtime.md#0001-runtime-source-spec": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/spec/runtime.md#0002-product-catalog-runtime": "d13e5a75f2e2a08947c8193f152838d3b38cd0add7686795a1decb4eb300b8d8",
+    "docs/spec/runtime.md#0003-session-runtime-contract": "b57717076c243f3350f839fe0bdb0a1348724c1e70dc76633e931636219de8d8",
+    "docs/spec/runtime.md#0004-checkout-integration": "b8d7d2dcd569a0948057bc7eb5274b7531ce92ff5df9c195b44c2bc3700edc8d"
+  },
+  "section_id": null,
+  "semantic_hash": "bf5232e9cfad8e84ad64dd7b363fb7e45a2db49a20b2001ca7d80c909fa06e11",
+  "source_hash": "f8d731fcaf88b58138536510d6fee8bd1c5395131a770e62ea91159078d14bf7",
+  "stage": "section_metadata",
+  "task": "section_metadata"
+}

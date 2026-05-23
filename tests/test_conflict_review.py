@@ -918,6 +918,40 @@ def test_t_u20_conflict_pair_limit_counts_only_high_risk_candidate_additions() -
     assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"}) in pair_ids
     assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#gamma"}) in pair_ids
     assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#delta"}) not in pair_ids
+    diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
+    assert diagnostics
+    assert diagnostics[0]["reason_code"] == "conflict_pair_max_per_section_skipped"
+
+
+def test_t_u20_conflict_pair_limit_reads_mapping_config() -> None:
+    module = _module()
+    select_pairs = _required_function(
+        module,
+        (
+            "select_conflict_judging_pairs",
+            "build_conflict_judging_pairs",
+            "candidate_conflict_pairs",
+        ),
+    )
+    candidates = [
+        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#gamma"),
+        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#delta"),
+        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#epsilon"),
+    ]
+
+    result = _call(
+        select_pairs,
+        sections=_sections(),
+        related_sections={},
+        candidates=candidates,
+        config={"limits": {"conflict_pair_max_per_section": 1}},
+    )
+    pairs = result.get("pairs", result.get("conflict_pairs", result)) if isinstance(result, dict) else result
+    assert len(pairs) == 1
+    assert pairs[0]["target_section_id"] == "docs/spec/conflict.md#gamma"
+    diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
+    assert diagnostics[0]["conflict_pair_max_per_section"] == 1
+    assert diagnostics[0]["skipped_pair_count"] == 2
 
 
 def test_phase_e_possible_conflict_flag_routes_to_conflict_review() -> None:

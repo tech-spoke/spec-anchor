@@ -2081,6 +2081,58 @@ max_retries = 0
     assert kwargs["provider_id"] == "claude"
 
 
+def test_g11_chapter_key_anchor_uses_stage_routed_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+    config_path = project_root / ".spec-anchor/config.toml"
+    config_path.write_text(
+        config_path.read_text().replace(
+            '[llm.providers.fake]\ncommand = "fake-noop"\nmodel = "fake-spec-core"\ntimeout_sec = 5\nmax_retries = 0\n',
+            """\
+[llm.providers.codex]
+command = "codex"
+model = "codex-test"
+effort = "low"
+timeout_sec = 5
+max_retries = 0
+
+[llm.providers.claude]
+command = "claude"
+model = "claude-test"
+effort = "low"
+timeout_sec = 5
+max_retries = 0
+
+[llm.stage_routing]
+section_metadata = "codex"
+related_sections = "codex"
+conflict_review = "codex"
+chapter_key_anchor = "claude"
+""",
+        )
+    )
+    provider = FakeSpecCoreProvider()
+    core_module = _core_module()
+
+    monkeypatch.setattr(
+        core_module.llm_provider_api,
+        "build_spec_core_llm_provider",
+        lambda *_args, **_kwargs: provider,
+    )
+
+    result = _result_dict(core_module.run_spec_core(project_root, all_mode=True))
+
+    assert result["status"] == "updated"
+    chapter_requests = [
+        call for call in provider.calls if str(getattr(call, "stage", "")) == "chapter_key_anchor"
+    ]
+    assert chapter_requests, "chapter_key_anchor stage should call the configured provider"
+    assert {getattr(call, "model", None) for call in chapter_requests} == {"claude-test"}
+
+
 def test_g11_configured_real_cli_provider_runs_without_env_gate_and_no_fake_fallback(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

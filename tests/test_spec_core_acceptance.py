@@ -1549,3 +1549,7 @@ def test_conflict_pair_cap_recorded_in_diagnostics() -> None:
     assert max(counts.values()) <= _Limits.conflict_pair_max_per_section, (
         f"per-section cap violated: counts={counts}"
     )
+    diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
+    assert diagnostics, "pair cap skips must be visible in diagnostics"
+    assert diagnostics[0]["reason_code"] == "conflict_pair_max_per_section_skipped"
+    assert diagnostics[0]["skipped_pair_count"] == 4

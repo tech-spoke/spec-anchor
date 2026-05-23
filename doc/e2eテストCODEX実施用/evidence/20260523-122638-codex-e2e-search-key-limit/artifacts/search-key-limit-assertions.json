@@ -1,0 +1,67 @@
+{
+  "run_id": "20260523-122638-codex-e2e-search-key-limit",
+  "exitcodes": {
+    "core_rebuild": 0
+  },
+  "core": {
+    "status_updated": true,
+    "retrieval_index_success": true,
+    "related_sections_success": true
+  },
+  "payload": {
+    "payload_found": true,
+    "search_key_count_gt_8": true,
+    "identifier_count_gt_8": true,
+    "text_matches_formula": true,
+    "late_generated_search_keys_absent_from_text": true,
+    "late_identifiers_absent_from_text": true,
+    "search_keys": [
+      "limit search key 01",
+      "limit search key 02",
+      "limit search key 03",
+      "limit search key 04",
+      "limit search key 05",
+      "limit search key 06",
+      "limit search key 07",
+      "limit search key 08",
+      "limit search key 09",
+      "limit search key 10",
+      "limit search key 11",
+      "limit search key 12",
+      "Search Limit Specification",
+      "Login Limit"
+    ],
+    "identifiers": [
+      "AUTH_LIMIT_SYMBOL_01",
+      "AUTH_LIMIT_SYMBOL_02",
+      "AUTH_LIMIT_SYMBOL_03",
+      "AUTH_LIMIT_SYMBOL_04",
+      "AUTH_LIMIT_SYMBOL_05",
+      "AUTH_LIMIT_SYMBOL_06",
+      "AUTH_LIMIT_SYMBOL_07",
+      "AUTH_LIMIT_SYMBOL_08",
+      "AUTH_LIMIT_SYMBOL_09",
+      "AUTH_LIMIT_SYMBOL_10",
+      "AUTH_LIMIT_SYMBOL_11",
+      "AUTH_LIMIT_SYMBOL_12"
+    ],
+    "late_generated_search_keys": [
+      "limit search key 09",
+      "limit search key 10",
+      "limit search key 11",
+      "limit search key 12"
+    ],
+    "late_identifiers": [
+      "AUTH_LIMIT_SYMBOL_09",
+      "AUTH_LIMIT_SYMBOL_10",
+      "AUTH_LIMIT_SYMBOL_11",
+      "AUTH_LIMIT_SYMBOL_12"
+    ],
+    "actual_text": "Search Limit Specification / Login Limit | login limit summary with many search keys | limit search key 01 limit search key 02 limit search key 03 limit search key 04 limit search key 05 limit search key 06 limit search key 07 limit search key 08 | AUTH_LIMIT_SYMBOL_01 AUTH_LIMIT_SYMBOL_02 AUTH_LIMIT_SYMBOL_03 AUTH_LIMIT_SYMBOL_04 AUTH_LIMIT_SYMBOL_05 AUTH_LIMIT_SYMBOL_06 AUTH_LIMIT_SYMBOL_07 AUTH_LIMIT_SYMBOL_08",
+    "expected_text": "Search Limit Specification / Login Limit | login limit summary with many search keys | limit search key 01 limit search key 02 limit search key 03 limit search key 04 limit search key 05 limit search key 06 limit search key 07 limit search key 08 | AUTH_LIMIT_SYMBOL_01 AUTH_LIMIT_SYMBOL_02 AUTH_LIMIT_SYMBOL_03 AUTH_LIMIT_SYMBOL_04 AUTH_LIMIT_SYMBOL_05 AUTH_LIMIT_SYMBOL_06 AUTH_LIMIT_SYMBOL_07 AUTH_LIMIT_SYMBOL_08"
+  },
+  "passed_core": true,
+  "passed_search_key_limit": true,
+  "passed_identifier_limit": true,
+  "passed_all": true
+}

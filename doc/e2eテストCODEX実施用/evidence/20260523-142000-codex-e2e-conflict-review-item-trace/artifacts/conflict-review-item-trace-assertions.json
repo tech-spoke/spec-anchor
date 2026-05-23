@@ -1,0 +1,29 @@
+{
+  "run_id": "20260523-142000-codex-e2e-conflict-review-item-trace",
+  "checks": {
+    "preflight_exit_zero": true,
+    "preflight_returns_eligible_only": true,
+    "preflight_item_is_resolved_non_stale": true,
+    "preflight_item_has_valid_scope_and_referenced_refs": true,
+    "codex_exit_zero": true,
+    "codex_called_inject_conflicts": true,
+    "trace_returned_eligible_conflict": true,
+    "trace_did_not_return_stale_conflict": true,
+    "final_uses_conflict_review_item_evidence": true,
+    "final_does_not_cite_stale_conflict_as_evidence": true
+  },
+  "commands_seen": [
+    "/bin/bash -lc \"sed -n '1,240p' .codex/skills/spec-anchor/SKILL.md\"",
+    "/bin/bash -lc \"sed -n '1,240p' .codex/skills/spec-anchor/SKILL.md\"",
+    "/bin/bash -lc 'spec-anchor inject-conflicts'",
+    "/bin/bash -lc 'spec-anchor inject-conflicts'"
+  ],
+  "preflight_resolved_ids": [
+    "conflict-payment-timeout-human-resolution"
+  ],
+  "trace_resolved_ids": [
+    "conflict-payment-timeout-human-resolution"
+  ],
+  "final_excerpt": "**今回守る制約**\n- statement: `PAYMENT_TIMEOUT_SECONDS` は 45 秒として扱い、Agent は独自の timeout 値を推測しない。\n  evidence_origin: Conflict Review Item\n  evidence_ref: conflict-payment-timeout-human-resolution\n  support_refs: `docs/spec/payment.md#0002-default-timeout`, `docs/spec/payment.md#0003-retry-policy`\n  applicability: `PAYMENT_TIMEOUT_SECONDS` または決済 timeout 値の扱いに関わる今回の作業全体。valid_scope は `global`。\n  uncertainty: `reflection_status` は `unreflected` のため、Source Specs 本体へ反映済みとは扱わない。今回の制約根拠は non-stale の解決済み Conflict Review Item として扱う。\n\n**今回見るべき対象**\n- `PAYMENT_TIMEOUT_SECONDS`\n- 決済 timeout の既定値\n- Agent が timeout 値を推測しないこと\n\n**関連先として確認したもの**\n- `spec-anchor inject-conflicts` の返却結果\n- 解決済みかつ non-stale の Conflict Review Item: `conflict-payment-timeout-human-resolution`\n- support refs: `docs/spec/payment.md#0002-default-timeout`, `docs/spec/payment.md#0003-retry-policy`\n\n**採用しなかったもの**\n- stale と判定された Conflict Review Item は、今回の制約根拠として採用しない。\n- Source Specs 本文は読まず、今回の根拠にはしない。\n\n**不確実性 / 人間確認**\n- 該当なし。`conflict-payment-timeout-human-resolution` は resolved かつ `stale_resolution: false` として返却されている。",
+  "passed_all": true
+}

@@ -1,0 +1,22 @@
+usage: spec-anchor core [-h] [--all] [--rebuild] [--verify-index]
+                        [--llm-provider LLM_PROVIDER_ID]
+                        [--decision-json DECISION_JSON]
+                        [--decision-file DECISION_FILE]
+
+options:
+  -h, --help            show this help message and exit
+  --all, -a             clear LLM-derived caches (section metadata + pair
+                        typing + chapter anchors) and re-evaluate
+  --rebuild             drop and recreate the Qdrant spec_anchor_section
+                        collection (implies --all). Use when embeddings are
+                        suspected corrupt or the collection has stale residue.
+  --verify-index        verify that the Qdrant Source Retrieval Index payloads
+                        match the current section hashes
+  --llm-provider LLM_PROVIDER_ID
+                        configured [llm.providers.<id>] to use for this /spec-
+                        core run
+  --decision-json DECISION_JSON
+                        JSON conflict decision payload to pass to /spec-core
+  --decision-file DECISION_FILE
+                        path to a JSON conflict decision payload to pass to
+                        /spec-core

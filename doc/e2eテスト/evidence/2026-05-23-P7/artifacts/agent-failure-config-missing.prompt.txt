@@ -1,0 +1,3 @@
+Use the spec-anchor skill in this current project. Run `/spec-inject` style workflow by executing `spec-anchor inject-purpose`.
+Do not run setup. When the CLI stops, present the stop to the user using the §11.2 stop structure, including the recommended next action from the CLI.
+Do not output raw JSON.

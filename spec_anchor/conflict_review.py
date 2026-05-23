@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -61,12 +61,17 @@ class ConflictReviewResult:
     diagnostics: list[dict[str, Any]]
     freshness_report: dict[str, Any]
     pending_conflict_count: int = 0
+    selection_diagnostics: list[dict[str, Any]] = field(default_factory=list)
+    # Token usage collected from each _call_judge invocation.
+    # Each entry is the __spec_anchor_usage dict returned by the LLM provider.
+    usage_list: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "conflict_review_items": self.conflict_review_items,
             "diagnostics": self.diagnostics,
             "potential_conflicts": self.diagnostics,
+            "selection_diagnostics": self.selection_diagnostics,
             "freshness_report": self.freshness_report,
             "pending_conflict_count": self.pending_conflict_count,
         }
@@ -207,8 +212,21 @@ def _pair_key(source_id: str, target_id: str) -> tuple[str, str]:
 
 
 def _get_limit(config: Any = None, limits: Any = None, default: int = 8) -> int:
-    limit_source = limits or getattr(config, "limits", None)
-    value = getattr(limit_source, "conflict_pair_max_per_section", default)
+    if limits is not None:
+        limit_source = limits
+    elif isinstance(config, Mapping):
+        limit_source = config.get("limits")
+    else:
+        limit_source = getattr(config, "limits", None)
+
+    if isinstance(limit_source, Mapping):
+        value = limit_source.get("conflict_pair_max_per_section", default)
+    elif limit_source is not None:
+        value = getattr(limit_source, "conflict_pair_max_per_section", default)
+    elif isinstance(config, Mapping):
+        value = config.get("conflict_pair_max_per_section", default)
+    else:
+        value = getattr(config, "conflict_pair_max_per_section", default)
     try:
         return max(0, int(value))
     except (TypeError, ValueError):
@@ -236,6 +254,10 @@ def _looks_high_risk(candidate: dict[str, Any]) -> bool:
     )
 
 
+class _ConflictPairSelection(list[dict[str, Any]]):
+    selection_diagnostics: list[dict[str, Any]]
+
+
 def select_conflict_judging_pairs(
     sections: list[dict[str, Any]] | None = None,
     related_sections: dict[str, list[dict[str, Any]]] | list[dict[str, Any]] | None = None,
@@ -249,7 +271,8 @@ def select_conflict_judging_pairs(
 
     del sections  # Selection is id-based; section details are used by the judge stage.
     max_per_section = _get_limit(config=config, limits=limits)
-    selected: list[dict[str, Any]] = []
+    selected: _ConflictPairSelection = _ConflictPairSelection()
+    skipped_pairs: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
     counts: dict[str, int] = {}
 
@@ -262,9 +285,25 @@ def select_conflict_judging_pairs(
         if key in seen:
             return
         if not explicit and max_per_section <= 0:
+            skipped_pairs.append(
+                {
+                    "source_section_id": source_id,
+                    "target_section_id": target_id,
+                    "reason_code": "conflict_pair_max_per_section",
+                    "reason": "conflict_pair_max_per_section is 0; high-risk candidate was not sent to conflict review",
+                }
+            )
             return
         if not explicit:
             if counts.get(source_id, 0) >= max_per_section or counts.get(target_id, 0) >= max_per_section:
+                skipped_pairs.append(
+                    {
+                        "source_section_id": source_id,
+                        "target_section_id": target_id,
+                        "reason_code": "conflict_pair_max_per_section",
+                        "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+                    }
+                )
                 return
 
         normalized = deepcopy(pair)
@@ -306,6 +345,21 @@ def select_conflict_judging_pairs(
     for candidate in candidate_items:
         if isinstance(candidate, dict) and _looks_high_risk(candidate):
             add_pair(candidate, explicit=False)
+
+    if skipped_pairs:
+        selected_diagnostics = [
+            {
+                "kind": "conflict_pair_selection",
+                "level": "info",
+                "stage": "conflict_review",
+                "reason_code": "conflict_pair_max_per_section_skipped",
+                "conflict_pair_max_per_section": max_per_section,
+                "skipped_pair_count": len(skipped_pairs),
+                "skipped_pairs_sample": skipped_pairs[:20],
+                "message": "Some high-risk conflict candidate pairs were not sent to Conflict Review because conflict_pair_max_per_section was reached.",
+            }
+        ]
+        setattr(selected, "selection_diagnostics", selected_diagnostics)
 
     return selected
 
@@ -407,9 +461,11 @@ def evaluate_conflicts(
         config=config,
         limits=limits,
     )
+    selection_diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
 
     items: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
+    call_usages: list[dict[str, Any]] = []
     for pair in pairs:
         request = {
             "pair": deepcopy(pair),
@@ -417,6 +473,10 @@ def evaluate_conflicts(
             "section_b": deepcopy(sections_by_id.get(str(pair.get("target_section_id")), {})),
         }
         payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
+        # Collect per-call token usage injected by SubprocessLlmProvider.
+        call_usage = dict(payload.pop("__spec_anchor_usage", None) or {})
+        if call_usage:
+            call_usages.append(call_usage)
         outcome = str(payload.get("outcome", "")).lower()
         if outcome in {"needs_human_review", "unresolved", "pending"}:
             items.append(_build_conflict_item(pair, sections_by_id, payload, generated_at=generated_at))
@@ -438,6 +498,8 @@ def evaluate_conflicts(
         diagnostics=diagnostics,
         freshness_report=summary["freshness_report"],
         pending_conflict_count=summary["pending_conflict_count"],
+        selection_diagnostics=selection_diagnostics,
+        usage_list=call_usages,
     )
 
 

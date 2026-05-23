@@ -1,0 +1,24 @@
+今回守る制約
+
+- Product catalog の変更では、検索と checkout の両方で product identifier を安定させる。
+- Catalog update では ProductStore identifier と productStoreGroup.replace migration hook を維持する。
+- Checkout は validated catalog entries のみを消費する。
+- Retrieval aids は探索補助として扱い、制約根拠は Source Specs、Purpose、Core Concept、resolved Conflict Review Items に限定する。
+- 認証が必要な checkout flow では bearer token renewal と stale / missing AUTH_TOKEN の扱いを維持する。
+
+今回扱う修正候補または検討対象
+
+- Product catalog と checkout integration の範囲に限定する。
+- 対象は product ID stability、ProductStore 維持、productStoreGroup.replace 維持、checkout 前 validation、認証 checkout flow の session prerequisite。
+
+競合 / 不確実性 / 人間レビューが必要な点
+
+- resolved Conflict Review Items は 0 件。
+- 具体的な implementation diff や bug report は提示されていないため、file-level の修正対象は未確定。
+- Checkout path が意図的に anonymous である場合、AUTH_TOKEN 制約の適用可否は人間レビューが必要。
+
+課題プロンプトへの回答または修正案
+
+- Product catalog 側では既存 product ID を検索と checkout の両方で安定させ、ProductStore と productStoreGroup.replace を維持する。
+- Checkout 側では catalog entry を validation 後にだけ消費し、retrieval metadata は探索補助として扱う。
+- 実装変更が必要な場合は、ID 安定性、migration hook 維持、invalid catalog entry の checkout 拒否を確認対象にする。

@@ -1,0 +1,67 @@
+{
+  "run_id": "20260523-130037-codex-e2e-inject-all-gates",
+  "initial_core": {
+    "exit_code": 0,
+    "status": "updated",
+    "freshness_status": "fresh",
+    "passed": true
+  },
+  "cases": {
+    "inject-search": {
+      "exit_code": 0,
+      "status": "blocked",
+      "should_stop": true,
+      "blocking_reasons": [
+        "dirty_or_stale_source"
+      ],
+      "recommended_next_action": "run /spec-core before /spec-inject",
+      "has_success_specific_fields": false,
+      "passed": true
+    },
+    "inject-section": {
+      "exit_code": 0,
+      "status": "blocked",
+      "should_stop": true,
+      "blocking_reasons": [
+        "dirty_or_stale_source"
+      ],
+      "recommended_next_action": "run /spec-core before /spec-inject",
+      "has_success_specific_fields": false,
+      "passed": true
+    },
+    "inject-chapters": {
+      "exit_code": 0,
+      "status": "blocked",
+      "should_stop": true,
+      "blocking_reasons": [
+        "dirty_or_stale_source"
+      ],
+      "recommended_next_action": "run /spec-core before /spec-inject",
+      "has_success_specific_fields": false,
+      "passed": true
+    },
+    "inject-purpose": {
+      "exit_code": 0,
+      "status": "blocked",
+      "should_stop": true,
+      "blocking_reasons": [
+        "dirty_or_stale_source"
+      ],
+      "recommended_next_action": "run /spec-core before /spec-inject",
+      "has_success_specific_fields": false,
+      "passed": true
+    },
+    "inject-conflicts": {
+      "exit_code": 0,
+      "status": "blocked",
+      "should_stop": true,
+      "blocking_reasons": [
+        "dirty_or_stale_source"
+      ],
+      "recommended_next_action": "run /spec-core before /spec-inject",
+      "has_success_specific_fields": false,
+      "passed": true
+    }
+  },
+  "passed_all": true
+}

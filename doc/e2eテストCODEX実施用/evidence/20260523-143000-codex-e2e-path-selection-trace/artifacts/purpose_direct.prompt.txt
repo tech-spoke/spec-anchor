@@ -1,0 +1,11 @@
+Use the spec-anchor skill in the current project.
+
+Run one /spec-inject style workflow for the following task type:
+Purpose / Core Concept 直接質問
+
+Task:
+このプロジェクトの Purpose と Core Concept から、ログイン監査で守るべき判断軸だけを制約として準備して。
+
+Follow the path selection guidance in the skill for this task type. Do not run /spec-core. Do not run setup.
+Do not answer the implementation task. Output only the five §8.5 sections, and keep each section present even when empty.
+Do not output raw JSON.

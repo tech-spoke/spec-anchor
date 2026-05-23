@@ -1,0 +1,30 @@
+## 今回守る制約
+- Product catalog は search から checkout まで product identifiers を安定させる。根拠: `docs/spec/runtime.md#0002-product-catalog-runtime`
+- Catalog update では `ProductStore` identifier と `productStoreGroup.replace` migration hook を保持する。根拠: `docs/spec/runtime.md#0002-product-catalog-runtime`
+- Checkout は validated catalog entries を消費する。根拠: `docs/spec/runtime.md#0004-checkout-integration`
+- 制約根拠は Source Specs / Purpose / Core Concept / resolved Conflict Review Items に限る。retrieval aids はナビゲーション補助として扱う。根拠: `docs/spec/runtime.md#0004-checkout-integration`, `docs/core/concept.md`
+- raw internal JSON は出さず、constraints / targets / related sections / discarded paths / uncertainty として要約する。根拠: `docs/spec/operations.md#0003-agent-output-boundary`
+
+## 今回見るべき対象
+- `docs/spec/runtime.md#0002-product-catalog-runtime`
+- `docs/spec/runtime.md#0004-checkout-integration`
+- `docs/spec/runtime.md#0003-session-runtime-contract` は checkout が authenticated session に触れる場合の関連対象
+- `docs/core/concept.md`
+- Purpose: Source Specs に grounded で auditable な context path を保つ方針
+
+## 関連先として確認したもの
+- `chapter_anchors.json`: runtime chapter が product catalog / session / checkout を重要 section として示していることを確認
+- `docs/spec/runtime.md#0004-checkout-integration`: checkout が product catalog runtime に依存する関連先として確認
+- `docs/spec/runtime.md#0003-session-runtime-contract`: checkout の session 前提として確認
+- `docs/spec/operations.md#0003-agent-output-boundary`: §8.5 出力境界として確認
+- `spec-anchor inject-conflicts`: resolved Conflict Review Items は 0 件
+
+## 採用しなかったもの
+- Section Summary / Search Keys / Related Sections / Chapter Key Anchors は sole evidence として採用しない
+- resolved Conflict Review Items は 0 件のため制約根拠に採用しない
+- 実装コード、修正案、ファイル変更方針は今回の inject workflow の出力対象外として採用しない
+
+## 不確実性 / 人間確認
+- checkout 作業が auth/session recovery まで含むかはタスク範囲の確認が必要
+- CLI は今回の inject 系 command で blocker / warning を返していない
+- 人間判断が必要な pending conflict は今回確認されていない

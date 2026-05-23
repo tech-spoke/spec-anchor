@@ -1,0 +1,108 @@
+{
+  "concept_hash": "6a620533d67144ee21caf899833433069fd4d7c7ff2728319d537258103dc502",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "generation": {
+    "cache_key_inputs": [
+      "stable_section_uid",
+      "source_hash",
+      "prompt_version",
+      "model",
+      "provider",
+      "metadata_version",
+      "limits",
+      "enabled_fields"
+    ],
+    "enabled_fields": {
+      "related_sections": true,
+      "search_keys": true,
+      "summary": true
+    },
+    "identifier_extractor_version": "identifier-extractor-v1",
+    "limits": {
+      "llm_batch_max_chars": 12000,
+      "llm_batch_max_sections": 8,
+      "search_keys_max": 32,
+      "section_summary_max_chars": 480
+    },
+    "metadata_version": 1,
+    "model": "deterministic-provider",
+    "prompt_version": "section-metadata-v3",
+    "provider": "/tmp/20260523-125141-codex-e2e-dirty-pending-priority.project/tools/deterministic-provider.py",
+    "stage": "section_metadata"
+  },
+  "purpose_hash": "8aad005f30af5277a0e0073701a125353b48a193e071fc73beb42b1fa6e9c618",
+  "schema_version": 1,
+  "sections": [
+    {
+      "chapter_id": "docs/spec/auth.md#authentication-specification",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Authentication Specification"
+      ],
+      "last_prompt_version": "section-metadata-v3",
+      "llm_generation_status": "success",
+      "llm_provider": "/tmp/20260523-125141-codex-e2e-dirty-pending-priority.project/tools/deterministic-provider.py",
+      "payload_fingerprint": "cc4d77ac2dcb0d7c19fb924924e58b23fe43bdc5d8a55b1794a0607f8170d09e",
+      "section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_document_id": "docs/spec/auth.md",
+      "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "source_section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 32,
+        "start_line": 1,
+        "start_offset": 31
+      },
+      "vector_input_fingerprint": "dadadd885128f2333844b3d57e243443bf871110dab4e46fd0a2aec411a52d2a"
+    },
+    {
+      "chapter_id": "docs/spec/auth.md#authentication-specification",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Authentication Specification",
+        "Session Policy"
+      ],
+      "last_prompt_version": "section-metadata-v3",
+      "llm_generation_status": "success",
+      "llm_provider": "/tmp/20260523-125141-codex-e2e-dirty-pending-priority.project/tools/deterministic-provider.py",
+      "payload_fingerprint": "ce6c0a6700f4534cc3a139a2e56ee138c7f74f5a545c2e6de2d72ec053fb9e61",
+      "section_id": "docs/spec/auth.md#0002-session-policy",
+      "semantic_hash": "2674fbe3b0b204068f3e5e90852715814efe74f64f87444a06dbbd4e139eac3f",
+      "source_document_id": "docs/spec/auth.md",
+      "source_hash": "4dfbfa2eb576e7e0122b11448627e277951a8ee7268377e8dd228671b4218dca",
+      "source_section_id": "docs/spec/auth.md#0002-session-policy",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 135,
+        "start_line": 3,
+        "start_offset": 50
+      },
+      "vector_input_fingerprint": "d3ce4ea450ff9523702fb94a26dd115e9e64d1766c90b844922e01d08970e1f1"
+    },
+    {
+      "chapter_id": "docs/spec/auth.md#authentication-specification",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Authentication Specification",
+        "Logout Policy"
+      ],
+      "last_prompt_version": "section-metadata-v3",
+      "llm_generation_status": "success",
+      "llm_provider": "/tmp/20260523-125141-codex-e2e-dirty-pending-priority.project/tools/deterministic-provider.py",
+      "payload_fingerprint": "c403f6e60b8823379619a1cf709dd189f2685ae0ce7fd2baada698e1eac3f6cc",
+      "section_id": "docs/spec/auth.md#0003-logout-policy",
+      "semantic_hash": "5c9f7883230797c3519a62dcf7ac576e6ecaaf322e404cc06297362810089b2c",
+      "source_document_id": "docs/spec/auth.md",
+      "source_hash": "26a1194e2fb86734e1e2ec2d1e7c4a3e1c238b10e03bfdb88bb901cbdd226818",
+      "source_section_id": "docs/spec/auth.md#0003-logout-policy",
+      "source_span": {
+        "end_line": 13,
+        "end_offset": 243,
+        "start_line": 9,
+        "start_offset": 152
+      },
+      "vector_input_fingerprint": "dd6c0671931728a7af80b7ebcbde6bd4934e2851c7fa4b13bd897c25614c123a"
+    }
+  ]
+}

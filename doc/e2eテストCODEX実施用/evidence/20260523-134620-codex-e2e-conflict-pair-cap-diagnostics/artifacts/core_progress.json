@@ -1,0 +1,227 @@
+{
+  "run_id": "d7701eb9-38a6-43a5-a15d-c90be5bc92ce",
+  "mode": "full",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "started_at": "2026-05-23T04:11:18Z",
+  "started_at_epoch": 1779509478.454755,
+  "updated_at": "2026-05-23T04:11:39Z",
+  "current_stage": null,
+  "finalized_at": "2026-05-23T04:11:39Z",
+  "final_status": "completed",
+  "stage_order": [
+    "start",
+    "inputs_loaded",
+    "sections_loaded",
+    "section_metadata",
+    "section_collection_upsert",
+    "verify_index",
+    "related_sections",
+    "conflict_evaluation",
+    "chapter_anchors",
+    "artifact_write"
+  ],
+  "stages": {
+    "start": {
+      "stage": "start",
+      "raw": "core_start",
+      "started_at": "2026-05-23T04:11:18Z",
+      "started_at_epoch": 1779509478.454962,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-23T04:11:19Z",
+      "elapsed_sec": 0.766
+    },
+    "inputs_loaded": {
+      "stage": "inputs_loaded",
+      "raw": "core_inputs_loaded",
+      "started_at": "2026-05-23T04:11:18Z",
+      "started_at_epoch": 1779509478.4552631,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_inputs_loaded",
+          "at": "2026-05-23T04:11:18Z"
+        }
+      ]
+    },
+    "sections_loaded": {
+      "stage": "sections_loaded",
+      "raw": "core_sections_loaded",
+      "started_at": "2026-05-23T04:11:19Z",
+      "started_at_epoch": 1779509479.2209067,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_sections_loaded",
+          "at": "2026-05-23T04:11:19Z"
+        }
+      ]
+    },
+    "section_metadata": {
+      "stage": "section_metadata",
+      "raw": "core_section_metadata_start",
+      "started_at": "2026-05-23T04:11:19Z",
+      "started_at_epoch": 1779509479.221235,
+      "llm_calls": 1,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [],
+        "models_seen": [
+          "conflict-cap-provider"
+        ]
+      },
+      "finished_at": "2026-05-23T04:11:19Z",
+      "elapsed_sec": 0.037
+    },
+    "section_collection_upsert": {
+      "stage": "section_collection_upsert",
+      "raw": "core_section_collection_upsert_start",
+      "started_at": "2026-05-23T04:11:19Z",
+      "started_at_epoch": 1779509479.2585173,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "upserted_full",
+      "reason": "full_rebuild",
+      "recreate": true,
+      "diagnostics": {
+        "real_section_index": true,
+        "qdrant_url": "http://localhost:6333",
+        "collection": "spec_anchor_sections_20260523_134620_conflict_cap",
+        "qdrant_server_version": "1.17.1",
+        "total_section_input_count": 6,
+        "embedding_provider": "flagembedding",
+        "embedding_model": "BAAI/bge-m3",
+        "embedding_device": "unknown",
+        "recreate": true,
+        "stale_points_deleted": 0,
+        "sections_upserted_count": 6,
+        "sections_deleted_count": 0,
+        "embed_documents_input_size": 6,
+        "partial_requested": false
+      },
+      "finished_at": "2026-05-23T04:11:32Z",
+      "elapsed_sec": 13.018
+    },
+    "verify_index": {
+      "stage": "verify_index",
+      "raw": "core_verify_index",
+      "started_at": "2026-05-23T04:11:32Z",
+      "started_at_epoch": 1779509492.2772052,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "disabled",
+      "reason": "not_requested",
+      "diagnostics": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "related_sections": {
+      "stage": "related_sections",
+      "raw": "core_related_sections_start",
+      "started_at": "2026-05-23T04:11:32Z",
+      "started_at_epoch": 1779509492.2774935,
+      "llm_calls": 1,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "generated",
+      "reason": "full_rebuild",
+      "candidate_generation_elapsed_sec": 9.533213238013559,
+      "selection_elapsed_sec": 0.028799200008506887,
+      "candidate_generation_source_count": 6,
+      "candidate_generation_partial_mode": "full",
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [],
+        "models_seen": [
+          "conflict-cap-provider"
+        ]
+      },
+      "finished_at": "2026-05-23T04:11:39Z",
+      "elapsed_sec": 6.995
+    },
+    "conflict_evaluation": {
+      "stage": "conflict_evaluation",
+      "raw": "core_conflict_evaluation_start",
+      "started_at": "2026-05-23T04:11:39Z",
+      "started_at_epoch": 1779509499.2733996,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-23T04:11:39Z",
+      "elapsed_sec": 0.024
+    },
+    "chapter_anchors": {
+      "stage": "chapter_anchors",
+      "raw": "core_chapter_anchors_start",
+      "started_at": "2026-05-23T04:11:39Z",
+      "started_at_epoch": 1779509499.2985172,
+      "llm_calls": 1,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [],
+        "models_seen": [
+          "conflict-cap-provider"
+        ]
+      },
+      "finished_at": "2026-05-23T04:11:39Z",
+      "elapsed_sec": 0.026
+    },
+    "artifact_write": {
+      "stage": "artifact_write",
+      "raw": "core_artifact_write_start",
+      "started_at": "2026-05-23T04:11:39Z",
+      "started_at_epoch": 1779509499.3248901,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-23T04:11:39Z",
+      "elapsed_sec": 0.008
+    }
+  }
+}

@@ -1,0 +1,6 @@
+run_id=20260523-144000-codex-e2e-remaining-23
+repo=/home/kazuki/public_html/spec-anchor
+base=/tmp/20260523-144000-codex-e2e-remaining-23
+date_command=2026-05-23T14:17:19+09:00
+SPEC_ANCHOR_FAKE_LLM=<unset>
+SPEC_ANCHOR_FAKE_RETRIEVAL=<unset>

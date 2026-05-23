@@ -1,0 +1,186 @@
+{
+  "collection": "spec_anchor_sections_20260523_144000_remaining_standard",
+  "command": "/spec-inject inject-search",
+  "hits": [
+    {
+      "heading_path": [
+        "Runtime Specification",
+        "Session Runtime Contract"
+      ],
+      "identifiers": [
+        "AUTH_TOKEN",
+        "bindContext",
+        "spec-anchor core --rebuild",
+        ".spec-anchor/config.toml",
+        "config.toml",
+        "productStoreGroup.replace",
+        "runtime.md",
+        "spec-anchor",
+        "--rebuild",
+        "ProductStore",
+        "stale"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "EVIDENCE_SOURCE_REQUIRED"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "The runtime section points to the evidence boundary.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/runtime.md#0003-search-evidence-boundary"
+        }
+      ],
+      "score": 0.03278688524590164,
+      "search_keys": [
+        "session runtime retrieval",
+        "operator maintenance",
+        "natural language discovery",
+        "Runtime Specification",
+        "Session Runtime Contract"
+      ],
+      "source_document_id": "docs/spec/runtime.md",
+      "source_section_id": "docs/spec/runtime.md#0002-session-runtime-contract",
+      "source_span": {
+        "end_line": 13,
+        "end_offset": 491,
+        "start_line": 3,
+        "start_offset": 53
+      },
+      "summary": "Session runtime contract with operator retrieval maintenance."
+    },
+    {
+      "heading_path": [
+        "Runtime Specification"
+      ],
+      "identifiers": [],
+      "related_sections": [],
+      "score": 0.03225806451612903,
+      "search_keys": [
+        "runtime",
+        "Runtime Specification"
+      ],
+      "source_document_id": "docs/spec/runtime.md",
+      "source_section_id": "docs/spec/runtime.md#0001-runtime-specification",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 25,
+        "start_line": 1,
+        "start_offset": 24
+      },
+      "summary": "summary for docs/spec/runtime.md#0001-runtime-specification"
+    },
+    {
+      "heading_path": [
+        "Conflict Specification"
+      ],
+      "identifiers": [],
+      "related_sections": [],
+      "score": 0.031746031746031744,
+      "search_keys": [
+        "runtime",
+        "Conflict Specification"
+      ],
+      "source_document_id": "docs/spec/conflict.md",
+      "source_section_id": "docs/spec/conflict.md#0001-conflict-specification",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 26,
+        "start_line": 1,
+        "start_offset": 25
+      },
+      "summary": "summary for docs/spec/conflict.md#0001-conflict-specification"
+    },
+    {
+      "heading_path": [
+        "Runtime Specification",
+        "Search Evidence Boundary"
+      ],
+      "identifiers": [
+        "EVIDENCE_SOURCE_REQUIRED",
+        "resolved",
+        "stale"
+      ],
+      "related_sections": [],
+      "score": 0.03125,
+      "search_keys": [
+        "search aid boundary",
+        "constraint evidence",
+        "source spec confirmation",
+        "Runtime Specification",
+        "Search Evidence Boundary"
+      ],
+      "source_document_id": "docs/spec/runtime.md",
+      "source_section_id": "docs/spec/runtime.md#0003-search-evidence-boundary",
+      "source_span": {
+        "end_line": 20,
+        "end_offset": 808,
+        "start_line": 14,
+        "start_offset": 519
+      },
+      "summary": "Search aids must be confirmed against authoritative evidence before constraints."
+    },
+    {
+      "heading_path": [
+        "Conflict Specification",
+        "Feature Gate Required"
+      ],
+      "identifiers": [
+        "FEATURE_GATE",
+        "required"
+      ],
+      "related_sections": [],
+      "score": 0.015384615384615385,
+      "search_keys": [
+        "feature gate required",
+        "login processing",
+        "Conflict Specification",
+        "Feature Gate Required"
+      ],
+      "source_document_id": "docs/spec/conflict.md",
+      "source_section_id": "docs/spec/conflict.md#0002-feature-gate-required",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 138,
+        "start_line": 3,
+        "start_offset": 51
+      },
+      "summary": "FEATURE_GATE must be enabled for login processing."
+    },
+    {
+      "heading_path": [
+        "Conflict Specification",
+        "Feature Gate Forbidden"
+      ],
+      "identifiers": [
+        "FEATURE_GATE"
+      ],
+      "related_sections": [],
+      "score": 0.015151515151515152,
+      "search_keys": [
+        "feature gate forbidden",
+        "login processing",
+        "Conflict Specification",
+        "Feature Gate Forbidden"
+      ],
+      "source_document_id": "docs/spec/conflict.md",
+      "source_section_id": "docs/spec/conflict.md#0003-feature-gate-forbidden",
+      "source_span": {
+        "end_line": 13,
+        "end_offset": 255,
+        "start_line": 9,
+        "start_offset": 164
+      },
+      "summary": "FEATURE_GATE must not be enabled for login processing."
+    }
+  ],
+  "project_root": "/tmp/20260523-144000-codex-e2e-remaining-23/standard.project",
+  "query": "session runtime retrieval",
+  "top_k": 8,
+  "warnings": []
+}

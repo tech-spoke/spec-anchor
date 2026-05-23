@@ -1,0 +1,108 @@
+{
+  "concept_hash": "c1f1cc4e80b9637acab00f7fe65e4005465bdf01c282fed3c15937a938d5c761",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "generation": {
+    "cache_key_inputs": [
+      "stable_section_uid",
+      "source_hash",
+      "prompt_version",
+      "model",
+      "provider",
+      "metadata_version",
+      "limits",
+      "enabled_fields"
+    ],
+    "enabled_fields": {
+      "related_sections": true,
+      "search_keys": true,
+      "summary": true
+    },
+    "identifier_extractor_version": "identifier-extractor-v1",
+    "limits": {
+      "llm_batch_max_chars": 12000,
+      "llm_batch_max_sections": 8,
+      "search_keys_max": 32,
+      "section_summary_max_chars": 480
+    },
+    "metadata_version": 1,
+    "model": "no-concept-drift-provider",
+    "prompt_version": "section-metadata-v3",
+    "provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+    "stage": "section_metadata"
+  },
+  "purpose_hash": "6567ee4f854db20843c7bd75ecd4ff243885bbfc5c31782e87114bc5ba730512",
+  "schema_version": 1,
+  "sections": [
+    {
+      "chapter_id": "docs/spec/policy.md#policy-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Policy Spec"
+      ],
+      "last_prompt_version": "section-metadata-v3",
+      "llm_generation_status": "success",
+      "llm_provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+      "payload_fingerprint": "af5a4362a4f8442707d805d320bb5ce64f439ee38d7997394bf2a4e729fe13cf",
+      "section_id": "docs/spec/policy.md#0001-policy-spec",
+      "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_document_id": "docs/spec/policy.md",
+      "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "source_section_id": "docs/spec/policy.md#0001-policy-spec",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 15,
+        "start_line": 1,
+        "start_offset": 14
+      },
+      "vector_input_fingerprint": "d5cda81e66b9dff9e2010165e40e792b3bf0cd438d41b6c511ee73279bbd4f85"
+    },
+    {
+      "chapter_id": "docs/spec/policy.md#policy-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Policy Spec",
+        "Existing Policy"
+      ],
+      "last_prompt_version": "section-metadata-v3",
+      "llm_generation_status": "success",
+      "llm_provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+      "payload_fingerprint": "503bffb00bdb7ba6aaf3bdb3d3ab7b2c5073cf1793fe1033debb3d03b1744435",
+      "section_id": "docs/spec/policy.md#0002-existing-policy",
+      "semantic_hash": "4236bd7c4cc265bd7b6c9c72fa2fbefa361150ffb9697ebf8bfb22e65f181aea",
+      "source_document_id": "docs/spec/policy.md",
+      "source_hash": "9e20c598fc7a27a50f10ed4101adfea9df2a1a6f28bb5d7c7bf36f5b05ec7b9a",
+      "source_section_id": "docs/spec/policy.md#0002-existing-policy",
+      "source_span": {
+        "end_line": 6,
+        "end_offset": 64,
+        "start_line": 3,
+        "start_offset": 34
+      },
+      "vector_input_fingerprint": "38c1f1ca198e703f3261d2bad22d43ace84bbf056ae2eba593459d9d6f9a2908"
+    },
+    {
+      "chapter_id": "docs/spec/policy.md#policy-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Policy Spec",
+        "Source Specs Evolved"
+      ],
+      "last_prompt_version": "section-metadata-v3",
+      "llm_generation_status": "success",
+      "llm_provider": "/tmp/20260523-141500-codex-e2e-no-core-concept-drift-notice.project/tools/no-concept-drift-provider.py",
+      "payload_fingerprint": "69e239b9907983b4a6420fa39862bce60b2802f976d5c8f8da37523b774b5143",
+      "section_id": "docs/spec/policy.md#0003-source-specs-evolved",
+      "semantic_hash": "6917edecbaaeeb6f234b915a9295d948af3ac9213aba5b768a9f2c5b7103cf17",
+      "source_document_id": "docs/spec/policy.md",
+      "source_hash": "7821a84ddaf20d197ddbef89b4bab88843eb7c9b52fcbc36b780515e067f1582",
+      "source_section_id": "docs/spec/policy.md#0003-source-specs-evolved",
+      "source_span": {
+        "end_line": 10,
+        "end_offset": 217,
+        "start_line": 7,
+        "start_offset": 88
+      },
+      "vector_input_fingerprint": "680687ea437d917d2d980f989646d014cc35e9a77fbe9c586232f41ca2664683"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+**`/spec-inject` stopped**
+
+Command run: `spec-anchor inject-purpose`
+
+**Status:** `error`
+**Should stop:** `true`
+**Project root:** `/tmp/spec-anchor-e2e-2026-05-23-P7/config-missing`
+
+**Reason:** `.spec-anchor/config.toml` was not found under the project root, so the SPEC-anchor project is not configured. Agentic Search and constraint generation were not run.
+
+**Recommended next action:** the CLI did not include a `recommended_next_action` field in this stop payload. Per §11.2 for this exact config-missing stop, the recovery action is:
+
+`spec-anchor-setup-project --target /tmp/spec-anchor-e2e-2026-05-23-P7/config-missing`
+
+I did not run setup.

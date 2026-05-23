@@ -1,0 +1,23 @@
+**今回守る制約**
+- 管理者ログイン監査では、`MFA_REQUIRED_ON_ADMIN_LOGIN` を最優先の判断軸にする。根拠: Purpose
+- ログイン監査は audit-first として扱い、監査証跡と人間確認が必要な点を明示する。根拠: Core Concept / Audit First
+- 認証ログの保持期間や保管先が未確定な場合、推測で決めず不確実性として提示する。根拠: Core Concept / Data Boundary
+
+**今回見るべき対象**
+- Purpose
+- `docs/core/concept.md` の `Audit First`
+- `docs/core/concept.md` の `Data Boundary`
+
+**関連先として確認したもの**
+- `docs/spec/login.md#0002-admin-login-mfa`
+- `docs/spec/login.md#0003-audit-event-required`
+- `docs/spec/audit.md#0002-audit-storage-boundary`
+- `.spec-anchor/context/chapter_anchors.json`
+
+**採用しなかったもの**
+- パスワードリセット関連: 管理者ログイン MFA の判断軸ではないため不採用
+- マーケティングトラッキング関連: 認証制約・監査制約ではないため不採用
+
+**不確実性 / 人間確認**
+- `RETENTION_DAYS_FOR_AUTH_LOG` は未確定であり、人間確認が必要
+- 認証ログの保管先が未確定として扱われる場面では、Agent が推測で決めてはならない

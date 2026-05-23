@@ -1,0 +1,275 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "kind": "related_sections_generation_failed",
+          "level": "warning",
+          "message": "[Errno 111] Connection refused"
+        }
+      ],
+      "qdrant_backend_failure": {
+        "exception_type": "ResponseHandlingException",
+        "failure_reason": "[Errno 111] Connection refused",
+        "provider": "qdrant",
+        "url": "http://127.0.0.1:65531"
+      },
+      "status": "failed"
+    },
+    "retrieval_index": {
+      "status": "failed"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "related-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-124022-codex-e2e-related-failure-retention.project/tools/related-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Flow Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-124022-codex-e2e-related-failure-retention.project/tools/related-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "login boundary",
+            "session boundary",
+            "Flow Specification"
+          ],
+          "section_id": "docs/spec/flow.md#0001-flow-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/flow.md#0001-flow-specification",
+          "stable_section_uid": "e6b04bd74571836c",
+          "summary": "summary for docs/spec/flow.md#0001-flow-specification"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Flow Specification",
+            "Login Boundary"
+          ],
+          "identifiers": [
+            "flow.md",
+            "LOGIN_BOUNDARY",
+            "SESSION_BOUNDARY"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-124022-codex-e2e-related-failure-retention.project/tools/related-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "login boundary",
+            "session boundary",
+            "Flow Specification",
+            "Login Boundary"
+          ],
+          "section_id": "docs/spec/flow.md#0002-login-boundary",
+          "semantic_hash": "4493f3890d6fa5f460cd075a2b3c4155e848984d3685b46bdbb5a1154d6451b8",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "b4dd0c863ee74dc0f09f52e5e51445e83be6094891663a6bdb3bfa9f387dbc6c",
+          "source_section_id": "docs/spec/flow.md#0002-login-boundary",
+          "stable_section_uid": "8468d9c9e21afdf9",
+          "summary": "summary for docs/spec/flow.md#0002-login-boundary"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Flow Specification",
+            "Session Boundary"
+          ],
+          "identifiers": [
+            "SESSION_BOUNDARY"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-124022-codex-e2e-related-failure-retention.project/tools/related-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "login boundary",
+            "session boundary",
+            "Flow Specification",
+            "Session Boundary"
+          ],
+          "section_id": "docs/spec/flow.md#0003-session-boundary",
+          "semantic_hash": "7c5fddd8702da891e041a896b4081ee4c4c5d4a4986dac27584d99eb9e676720",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "c63b9f4ef4cf2703a8a8076f808752ad3ce1e31526b9a4484331aca5f8975f1c",
+          "source_section_id": "docs/spec/flow.md#0003-session-boundary",
+          "stable_section_uid": "2c6359d1b32ffa07",
+          "summary": "summary for docs/spec/flow.md#0003-session-boundary"
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        3
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/flow.md#0001-flow-specification",
+        "docs/spec/flow.md#0002-login-boundary",
+        "docs/spec/flow.md#0003-session-boundary"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "retrieval_index",
+        "related_sections"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "kind": "related_sections_generation_failed",
+            "level": "warning",
+            "message": "[Errno 111] Connection refused"
+          }
+        ],
+        "qdrant_backend_failure": {
+          "exception_type": "ResponseHandlingException",
+          "failure_reason": "[Errno 111] Connection refused",
+          "provider": "qdrant",
+          "url": "http://127.0.0.1:65531"
+        },
+        "status": "failed"
+      },
+      "retrieval_index": {
+        "status": "failed"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          3
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/flow.md#0001-flow-specification",
+          "docs/spec/flow.md#0002-login-boundary",
+          "docs/spec/flow.md#0003-session-boundary"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 2,
+    "status": "failed",
+    "warnings": [
+      "Source Retrieval Index update failed",
+      "Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild."
+    ]
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/flow.md#flow-specification"
+  ],
+  "related_sections_status": "failed",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/flow.md#0001-flow-specification",
+      "source_section_id": "docs/spec/flow.md#0001-flow-specification"
+    },
+    {
+      "section_id": "docs/spec/flow.md#0002-login-boundary",
+      "source_section_id": "docs/spec/flow.md#0002-login-boundary"
+    },
+    {
+      "section_id": "docs/spec/flow.md#0003-session-boundary",
+      "source_section_id": "docs/spec/flow.md#0003-session-boundary"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/flow.md"
+  ],
+  "warnings": [
+    "Source Retrieval Index update failed",
+    "Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild."
+  ]
+}

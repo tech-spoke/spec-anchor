@@ -1,0 +1,96 @@
+[sources]
+include = ["docs/spec/**/*.md"]
+exclude = ["**/drafts/**"]
+
+[core]
+purpose_file = "docs/core/purpose.md"
+concept_file = "docs/core/concept.md"
+
+[context]
+storage = ".spec-anchor/context"
+
+[section]
+max_heading_level = 4
+
+[section_metadata]
+summary_enabled = true
+search_keys_enabled = true
+related_sections_enabled = true
+
+[chapter_anchor]
+enabled = true
+
+# LLM provider 定義。/spec-core が保持物の生成に使う。
+# /spec-inject と /spec-realign の会話解釈・制約生成は Agent 環境が担うため対象外。
+
+[llm.providers.search_key_limit]
+command = "/tmp/20260523-122638-codex-e2e-search-key-limit.project/tools/search-key-provider.py"
+model = "search-key-provider"
+effort = "low"
+timeout_sec = 30
+max_retries = 0
+
+[llm.providers.codex]
+command = "codex"
+model = "gpt-5.4-mini"
+effort = "low"
+timeout_sec = 120
+max_retries = 1
+
+[llm.providers.claude_typing]
+command = "claude"
+model = "claude-sonnet-4-6"
+effort = "low"
+timeout_sec = 360
+max_retries = 1
+
+[llm.providers.claude_judge]
+command = "claude"
+model = "claude-sonnet-4-6"
+effort = "low"
+timeout_sec = 360
+max_retries = 1
+
+# 各 stage がどの provider を使うかを指定する。
+[llm.stage_routing]
+section_metadata   = "search_key_limit"
+related_sections   = "search_key_limit"
+conflict_review    = "search_key_limit"
+chapter_key_anchor = "search_key_limit"
+
+[retrieval]
+dense_top_k = 12
+sparse_top_k = 20
+rank_fusion = "rrf"
+section_collection = "spec_anchor_sections_20260523_122638_search_key_limit"
+section_dense_threshold = 0.55
+section_candidate_top_k = 16
+section_final_top_n = 8
+
+[embedding]
+provider = "flagembedding"
+model = "BAAI/bge-m3"
+dense_enabled = true
+sparse_enabled = true
+
+[vector_store]
+provider = "qdrant"
+url = "http://localhost:6333"
+
+[limits]
+section_summary_max_chars = 480
+search_keys_max = 32
+related_candidate_max_per_section = 32
+related_selected_max_per_section = 8
+conflict_pair_max_per_section = 8
+llm_batch_max_sections = 8
+llm_batch_max_chars = 12000
+llm_batch_concurrency = 4   # 1 = 逐次。Pro 5x / Max 5x なら 4-8 推奨
+
+[watcher]
+enabled = true
+interval_ms = 2000
+debounce_ms = 1000
+stale_lock_ms = 300000
+state_file = ".spec-anchor/state/watch_state.json"
+queue_file = ".spec-anchor/state/watch_queue.json"

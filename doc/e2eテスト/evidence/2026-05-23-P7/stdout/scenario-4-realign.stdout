@@ -1,0 +1,152 @@
+{
+  "answer": {
+    "今回守る制約": [
+      "ProductStore identifier remains stable across search and checkout.",
+      "Checkout consumes validated catalog entries."
+    ],
+    "今回扱う修正候補または検討対象": [
+      "Catalog update and checkout integration handling."
+    ],
+    "競合 / 不確実性 / 人間レビューが必要な点": [
+      "No pending conflict in the P3b project."
+    ],
+    "課題プロンプトへの回答または修正案": [
+      "Keep ProductStore stable and route checkout through validated catalog entries."
+    ]
+  },
+  "blocked": false,
+  "blocking_reasons": [],
+  "can_continue": true,
+  "command": "/spec-realign",
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "skipped_unchanged"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 7,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/operations.md#0001-operations-source-spec",
+          "docs/spec/operations.md#0002-maintenance-workflow",
+          "docs/spec/operations.md#0003-agent-output-boundary",
+          "docs/spec/runtime.md#0001-runtime-source-spec",
+          "docs/spec/runtime.md#0002-product-catalog-runtime",
+          "docs/spec/runtime.md#0003-session-runtime-contract",
+          "docs/spec/runtime.md#0004-checkout-integration"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "schema_version": 1,
+    "status": "fresh",
+    "warnings": []
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": false,
+    "blocking_reasons": [],
+    "can_continue": true,
+    "command": "/spec-inject",
+    "freshness_report": {
+      "blocking_reasons": [],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "related_sections": {
+          "diagnostics": [],
+          "qdrant_backend_failure": null,
+          "status": "skipped_unchanged"
+        },
+        "retrieval_index": {
+          "status": "skipped_unchanged"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [],
+          "blocking_reasons": [],
+          "cache_hits": 7,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [],
+          "llm_calls": 0,
+          "reused_section_ids": [
+            "docs/spec/operations.md#0001-operations-source-spec",
+            "docs/spec/operations.md#0002-maintenance-workflow",
+            "docs/spec/operations.md#0003-agent-output-boundary",
+            "docs/spec/runtime.md#0001-runtime-source-spec",
+            "docs/spec/runtime.md#0002-product-catalog-runtime",
+            "docs/spec/runtime.md#0003-session-runtime-contract",
+            "docs/spec/runtime.md#0004-checkout-integration"
+          ],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "schema_version": 1,
+      "status": "fresh",
+      "warnings": []
+    },
+    "generated_at": null,
+    "project_root": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project",
+    "recommended_next_action": "continue /spec-inject",
+    "should_stop": false,
+    "status": "fresh",
+    "stops": false,
+    "warnings": []
+  },
+  "labels": {
+    "answer": "課題プロンプトへの回答または修正案",
+    "constraints": "今回守る制約",
+    "review": "競合 / 不確実性 / 人間レビューが必要な点",
+    "targets": "今回扱う修正候補または検討対象"
+  },
+  "project_root": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project",
+  "realign_answer": {
+    "今回守る制約": [
+      "ProductStore identifier remains stable across search and checkout.",
+      "Checkout consumes validated catalog entries."
+    ],
+    "今回扱う修正候補または検討対象": [
+      "Catalog update and checkout integration handling."
+    ],
+    "競合 / 不確実性 / 人間レビューが必要な点": [
+      "No pending conflict in the P3b project."
+    ],
+    "課題プロンプトへの回答または修正案": [
+      "Keep ProductStore stable and route checkout through validated catalog entries."
+    ]
+  },
+  "recommended_next_action": "continue /spec-inject",
+  "should_stop": false,
+  "status": "fresh",
+  "stops": false,
+  "warnings": []
+}

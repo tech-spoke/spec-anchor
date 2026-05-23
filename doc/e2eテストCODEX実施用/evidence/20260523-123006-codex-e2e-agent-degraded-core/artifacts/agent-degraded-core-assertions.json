@@ -1,0 +1,30 @@
+{
+  "run_id": "20260523-123006-codex-e2e-agent-degraded-core",
+  "exitcodes": {
+    "claude_degraded": 0,
+    "codex_degraded": 0
+  },
+  "claude_degraded": {
+    "ran_spec_core_no_flags": true,
+    "reports_degraded_status": true,
+    "reports_failed_section": true,
+    "reports_warning": true,
+    "reports_required_artifacts_available": true,
+    "reports_inject_realign_continue": true,
+    "reports_retry_action": true,
+    "no_setup_autorun": true
+  },
+  "codex_degraded": {
+    "ran_spec_core_no_flags": true,
+    "reports_degraded_status": true,
+    "reports_failed_section": true,
+    "reports_warning": true,
+    "reports_required_artifacts_available": true,
+    "reports_inject_realign_continue": true,
+    "reports_retry_action": true,
+    "no_setup_autorun": true
+  },
+  "passed_claude_degraded_agent_layer": true,
+  "passed_codex_degraded_agent_layer": true,
+  "passed_all": true
+}

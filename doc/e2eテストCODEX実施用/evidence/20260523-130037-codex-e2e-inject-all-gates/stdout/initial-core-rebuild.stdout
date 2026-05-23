@@ -1,0 +1,277 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 6.4783593350002775,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 3,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 6,
+          "cache_rejected_hits": 0,
+          "cache_size": 6,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "deterministic-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-130037-codex-e2e-inject-all-gates.project/tools/deterministic-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-130037-codex-e2e-inject-all-gates.project/tools/deterministic-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "session policy",
+            "logout policy",
+            "inject gate",
+            "Authentication Specification"
+          ],
+          "section_id": "docs/spec/auth.md#0001-authentication-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/auth.md#0001-authentication-specification",
+          "stable_section_uid": "9e6a7527ae5c348d",
+          "summary": "summary for docs/spec/auth.md#0001-authentication-specification"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "Session Policy"
+          ],
+          "identifiers": [
+            "SESSION_POLICY_ACTIVE"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-130037-codex-e2e-inject-all-gates.project/tools/deterministic-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "session policy",
+            "logout policy",
+            "inject gate",
+            "Authentication Specification",
+            "Session Policy"
+          ],
+          "section_id": "docs/spec/auth.md#0002-session-policy",
+          "semantic_hash": "9008db61caf51053bfcb4f9ae55f49bf6e6a8be0a63df0d09ec42d27a0e43434",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "60f95d199244aa05e2ba4333a53cd256af54462c91281129321a9b965d33749c",
+          "source_section_id": "docs/spec/auth.md#0002-session-policy",
+          "stable_section_uid": "460e35e7c95721e5",
+          "summary": "summary for docs/spec/auth.md#0002-session-policy"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "Logout Policy"
+          ],
+          "identifiers": [
+            "SESSION_POLICY_TERMINATED"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-130037-codex-e2e-inject-all-gates.project/tools/deterministic-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "session policy",
+            "logout policy",
+            "inject gate",
+            "Authentication Specification",
+            "Logout Policy"
+          ],
+          "section_id": "docs/spec/auth.md#0003-logout-policy",
+          "semantic_hash": "9339fe837f97c1acbaba159494d63d7bf941bbdb7954232b77c41cfd7bc5a6d4",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "01e2e755773e26b504274bb7151764f19db7b6bdf4d291ee8c5e34e65563edde",
+          "source_section_id": "docs/spec/auth.md#0003-logout-policy",
+          "stable_section_uid": "ead5b4571ab9f4d3",
+          "summary": "summary for docs/spec/auth.md#0003-logout-policy"
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        3
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/auth.md#0001-authentication-specification",
+        "docs/spec/auth.md#0002-session-policy",
+        "docs/spec/auth.md#0003-logout-policy"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 6.4783593350002775,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 3,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 6,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          3
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-session-policy",
+          "docs/spec/auth.md#0003-logout-policy"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/auth.md#authentication-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "source_section_id": "docs/spec/auth.md#0001-authentication-specification"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0002-session-policy",
+      "source_section_id": "docs/spec/auth.md#0002-session-policy"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0003-logout-policy",
+      "source_section_id": "docs/spec/auth.md#0003-logout-policy"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/auth.md"
+  ],
+  "warnings": []
+}

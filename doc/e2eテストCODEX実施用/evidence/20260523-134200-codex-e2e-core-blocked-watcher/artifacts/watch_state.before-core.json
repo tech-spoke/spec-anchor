@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "running": true,
+  "is_running": true,
+  "owner": "watcher",
+  "run_id": "codex-e2e-active-watcher",
+  "started_at": "2026-05-23T04:42:00Z",
+  "started_at_epoch_ms": 1779509472762,
+  "updated_at": "2026-05-23T04:42:01Z",
+  "updated_at_epoch_ms": 1779509473762,
+  "lock_file": "/tmp/20260523-134200-codex-e2e-core-blocked-watcher.project/.spec-anchor/state/core_update.lock.json",
+  "queue_count_at_start": 1
+}

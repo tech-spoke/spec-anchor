@@ -1,0 +1,29 @@
+**今回守る制約**
+- resolved かつ stale でない `conflict-login-audit-human-resolution` を今回の制約として継続利用する。
+- 管理者ログインでは、MFA 成功まで管理画面セッションを発行してはならない。監査制約との優先順位では、人間判断済みの `adopt_a`、つまり MFA 境界優先を採用する。
+- 管理者ログインの成功時・失敗時には監査イベントを記録し、`actor_id`、`source_ip`、`result`、`mfa_result`、`occurred_at` を含める。
+- `AUDIT_EVENT_REQUIRED` の保存先は `audit_log_stream` とする。
+- `RETENTION_DAYS_FOR_AUTH_LOG` は未確定であり、Agent は日数を決めない。
+
+**今回見るべき対象**
+- `Conflict Review Item`: `conflict-login-audit-human-resolution`
+- `Source Specs`: `docs/spec/login.md#0002-admin-login-mfa`
+- `Source Specs`: `docs/spec/login.md#0003-audit-event-required`
+- `Source Specs`: `docs/spec/audit.md#0002-audit-storage-boundary`
+- `Purpose`: ログイン監査では `MFA_REQUIRED_ON_ADMIN_LOGIN` を最優先の目的制約として扱う。
+- `Core Concept`: `Audit First`、`Data Boundary`
+
+**関連先として確認したもの**
+- `inject-conflicts`: resolved、`stale_resolution=false`、`valid_scope=global` の判断として確認。
+- `inject-search`: login/audit 境界、MFA、監査イベント、保存先に関係する section を確認。
+- `inject-section`: `docs/spec/login.md#0002-admin-login-mfa`、`docs/spec/login.md#0003-audit-event-required`、`docs/spec/audit.md#0002-audit-storage-boundary` を確認。
+- Source Specs 本文: `docs/spec/login.md`、`docs/spec/audit.md` を確認。
+- Purpose/Core Concept: `docs/core/concept.md` の関連部分を確認。
+
+**採用しなかったもの**
+- `docs/spec/login.md#0004-password-reset-out-of-scope`: パスワードリセットは管理者ログイン MFA 制約として採用しない。
+- `docs/spec/audit.md#0003-marketing-tracking-irrelevant`: マーケティング分析用であり、管理者ログインの認証制約や監査制約には採用しない。
+
+**不確実性 / 人間確認**
+- `RETENTION_DAYS_FOR_AUTH_LOG` の具体的な保持日数は未確定であり、人間確認が必要。
+- resolved conflict は `reflection_status=unreflected` だが、`stale_resolution=false` のため今回の制約としては利用可能。

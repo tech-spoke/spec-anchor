@@ -1,0 +1,31 @@
+**今回守る制約**
+- 管理者ログイン監査では `MFA_REQUIRED_ON_ADMIN_LOGIN` を最優先制約として扱う。根拠: Purpose、`docs/spec/login.md#0002-admin-login-mfa`
+- 管理者ログインでは MFA 成功まで管理画面セッションを発行しない。根拠: Source Specs、Conflict Review Item `conflict-login-audit-human-resolution`
+- 管理者ログインの成功時と失敗時には `AUDIT_EVENT_REQUIRED` を記録する。根拠: Source Specs、`docs/spec/login.md#0003-audit-event-required`
+- 監査イベントには `actor_id`、`source_ip`、`result`、`mfa_result`、`occurred_at` を含める。根拠: Source Specs、`docs/spec/login.md#0003-audit-event-required`
+- `AUDIT_EVENT_REQUIRED` の保存先は `audit_log_stream` とする。根拠: Source Specs、`docs/spec/audit.md#0002-audit-storage-boundary`
+- `RETENTION_DAYS_FOR_AUTH_LOG` は法務確認待ちのため、Agent が保持日数を決めてはならない。根拠: Source Specs、Core Concept
+
+**今回見るべき対象**
+- `docs/spec/login.md#0001-login-audit-specification`
+- `docs/spec/login.md#0002-admin-login-mfa`
+- `docs/spec/login.md#0003-audit-event-required`
+- `docs/spec/audit.md#0001-audit-storage-specification`
+- `docs/spec/audit.md#0002-audit-storage-boundary`
+- `docs/core/concept.md#audit-first`
+- `docs/core/concept.md#data-boundary`
+
+**関連先として確認したもの**
+- Chapter Anchor: `docs/spec/login.md#login-audit-specification`
+- Chapter Anchor: `docs/spec/audit.md#audit-storage-specification`
+- Purpose: ログイン監査では `MFA_REQUIRED_ON_ADMIN_LOGIN` を最優先の目的制約として扱う
+- Core Concept: 管理者ログインは audit-first の対象であり、監査証跡と人間確認点を明示する
+- Conflict Review Item: `conflict-login-audit-human-resolution` は stale でない resolved item として確認済み
+
+**採用しなかったもの**
+- `docs/spec/login.md#0004-password-reset-out-of-scope`: パスワードリセットは `EMAIL_TOKEN_RESET_FLOW` の対象であり、管理者ログイン MFA 制約としては採用しない
+- `docs/spec/audit.md#0003-marketing-tracking-irrelevant`: `MARKETING_PIXEL_LOGIN_PAGE` はマーケティング分析用であり、管理者ログインの認証制約や監査制約には採用しない
+
+**不確実性 / 人間確認**
+- `RETENTION_DAYS_FOR_AUTH_LOG` は未確定であり、人間確認が必要
+- 認証ログ保持期間は法務確認待ちのため、日数を推測して方針化してはならない

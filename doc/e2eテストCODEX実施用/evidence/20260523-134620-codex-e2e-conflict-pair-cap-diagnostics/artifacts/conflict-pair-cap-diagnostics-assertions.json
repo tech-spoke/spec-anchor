@@ -1,0 +1,50 @@
+{
+  "run_id": "20260523-134620-codex-e2e-conflict-pair-cap-diagnostics",
+  "checks": {
+    "core_exit_zero": true,
+    "core_completed": true,
+    "limit_was_one": true,
+    "conflict_review_was_bounded": true,
+    "core_result_has_cap_skip_diagnostic": true
+  },
+  "conflict_review_call_count": 1,
+  "observed_pairs": [
+    {
+      "candidate_score": 92.75,
+      "channels": [
+        "shared_identifier",
+        "search_key_match",
+        "qdrant_section_hybrid"
+      ],
+      "conflict_route": "pattern_signal_legacy",
+      "evidence_snippets": [
+        "docs/spec/conflict-cap.md#0003-beta-block Conflict Pair Cap Spec / Beta Block docs/spec/conflict-cap.md#0003-beta-block says FEATURE_CAP_TOKEN must not be enabled."
+      ],
+      "evidence_terms": [
+        "feature_cap_token",
+        "conflict pair cap spec",
+        "section_similarity:0.0323",
+        "required",
+        "must",
+        "must not",
+        "prohibited"
+      ],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "reason": "Related Sections candidate has conflicting requirement, prohibition, or optionality language in the linked Source Specs.",
+      "relation_hint": "conflicts_with",
+      "source": "candidate_generation",
+      "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+      "target_section_id": "docs/spec/conflict-cap.md#0003-beta-block"
+    }
+  ],
+  "diagnostics_keys": [
+    "chapter_anchors",
+    "conflict_review",
+    "related_sections",
+    "retrieval_index",
+    "section_metadata",
+    "section_metadata_generation",
+    "verify_index"
+  ],
+  "passed_all": true
+}

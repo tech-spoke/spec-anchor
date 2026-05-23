@@ -1,0 +1,1146 @@
+{
+  "core_result": {
+    "conflict_review_items": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 6.005784230001154,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 4,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          },
+          {
+            "added_or_changed_source_section_ids": [
+              "docs/spec/watch.md#0002-initial-policy",
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "batch_count": 1,
+            "candidate_count": 4,
+            "candidate_count_for_selection": 4,
+            "candidate_generation_elapsed_sec": 6.005784230001154,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "changed_source_section_ids": [
+              "docs/spec/watch.md#0002-initial-policy",
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "changed_target_relations_inherited": true,
+            "changed_target_section_ids": [
+              "docs/spec/watch.md#0002-initial-policy",
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "fallback_regenerated": false,
+            "inherited_source_count": 1,
+            "inherited_source_section_ids": [
+              "docs/spec/watch.md#0001-watch-internal-spec"
+            ],
+            "llm_calls": 1,
+            "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+            "partial_mode": "source_changed_only",
+            "partial_regeneration": true,
+            "reason_code": "related_sections_partial_regenerated",
+            "removed_source_count": 0,
+            "removed_source_exclusion": true,
+            "removed_source_section_ids": [],
+            "requires_full_regeneration_for_complete_target_recheck": true,
+            "selection_elapsed_sec": 0.026892062000115402,
+            "selection_source_count": 2,
+            "severity": "info",
+            "source_centric_partial": true,
+            "source_centric_partial_regeneration": true,
+            "stage": "related_sections",
+            "unchanged_source_inheritance": true
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata": {
+        "artifact_role": "retrieval_aid_not_evidence",
+        "diagnostics": [],
+        "generated_at": "1970-01-01T00:00:00Z",
+        "generation": {
+          "cache_key_inputs": [
+            "stable_section_uid",
+            "source_hash",
+            "prompt_version",
+            "model",
+            "provider",
+            "metadata_version",
+            "limits",
+            "enabled_fields"
+          ],
+          "enabled_fields": {
+            "related_sections": true,
+            "search_keys": true,
+            "summary": true
+          },
+          "identifier_extractor_version": "identifier-extractor-v1",
+          "limits": {
+            "llm_batch_max_chars": 12000,
+            "llm_batch_max_sections": 8,
+            "search_keys_max": 32,
+            "section_summary_max_chars": 480
+          },
+          "metadata_version": 1,
+          "model": "watch-provider",
+          "prompt_version": "section-metadata-v3",
+          "provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+          "stage": "section_metadata"
+        },
+        "metadata_version": 1,
+        "prompt_version": "section-metadata-v3",
+        "sections": [
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Watch Internal Spec"
+            ],
+            "identifiers": [],
+            "llm_generation_status": "success",
+            "llm_provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v3",
+            "related_sections": [],
+            "search_keys": [
+              "watch internal",
+              "no agent cli",
+              "docs/spec/watch.md#0001-watch-internal-spec",
+              "Watch Internal Spec"
+            ],
+            "section_id": "docs/spec/watch.md#0001-watch-internal-spec",
+            "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "source_document_id": "docs/spec/watch.md",
+            "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+            "source_section_id": "docs/spec/watch.md#0001-watch-internal-spec",
+            "stable_section_uid": "501d1ecd205e5eca",
+            "summary": "summary for docs/spec/watch.md#0001-watch-internal-spec"
+          },
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Watch Internal Spec",
+              "Initial Policy"
+            ],
+            "identifiers": [
+              "WATCH_INTERNAL_INITIAL"
+            ],
+            "llm_generation_status": "success",
+            "llm_provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v3",
+            "related_sections": [],
+            "search_keys": [
+              "watch internal",
+              "no agent cli",
+              "docs/spec/watch.md#0002-initial-policy",
+              "Watch Internal Spec",
+              "Initial Policy"
+            ],
+            "section_id": "docs/spec/watch.md#0002-initial-policy",
+            "semantic_hash": "5548903a239c442309afd8d8ed8ac41a539a5bd93fb53acf683dc8fb0cc128c0",
+            "source_document_id": "docs/spec/watch.md",
+            "source_hash": "30b8977136b4edc585fae844dbd5a4711278c6b9ee8886073168136e233dcf6a",
+            "source_section_id": "docs/spec/watch.md#0002-initial-policy",
+            "stable_section_uid": "d661dadff2bd1e26",
+            "summary": "summary for docs/spec/watch.md#0002-initial-policy"
+          },
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Watch Internal Spec",
+              "Watch Added Policy"
+            ],
+            "identifiers": [
+              "WATCH_INTERNAL_ADDED"
+            ],
+            "llm_generation_status": "success",
+            "llm_provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v3",
+            "related_sections": [],
+            "search_keys": [
+              "watch internal",
+              "no agent cli",
+              "docs/spec/watch.md#0003-watch-added-policy",
+              "Watch Internal Spec",
+              "Watch Added Policy"
+            ],
+            "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+            "semantic_hash": "98ffa0aa4ef8027790a92d6d5f6f147b6bba3e83f91e9aedc57c54149b776804",
+            "source_document_id": "docs/spec/watch.md",
+            "source_hash": "5f5549d3ff37bbed0ac3261fa8c3abd700bc750cda0ebb22a15c217c750b1526",
+            "source_section_id": "docs/spec/watch.md#0003-watch-added-policy",
+            "stable_section_uid": "1f618065dcf5aafd",
+            "summary": "summary for docs/spec/watch.md#0003-watch-added-policy"
+          }
+        ],
+        "summary_search_keys_are_evidence": false
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 2,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/watch.md#0003-watch-added-policy"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [
+          "docs/spec/watch.md#0001-watch-internal-spec",
+          "docs/spec/watch.md#0002-initial-policy"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "failed_sections": [],
+    "failed_sources": [],
+    "freshness_report": {
+      "blocking_reasons": [],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "related_sections": {
+          "diagnostics": [
+            {
+              "candidate_generation_elapsed_sec": 6.005784230001154,
+              "candidate_generation_partial_mode": "source_changed_only",
+              "candidate_generation_source_count": 2,
+              "message": "Related Section candidates were generated for the selected source scope.",
+              "reason_code": "related_section_candidate_generation_scope",
+              "severity": "info",
+              "stage": "candidate_generation"
+            },
+            {
+              "cache_hits": 0,
+              "cache_misses": 4,
+              "cache_rejected_hits": 0,
+              "cache_size": 6,
+              "message": "pair-level relation typing cache statistics",
+              "reason_code": "related_typing_cache_stats",
+              "severity": "warning",
+              "stage": "related_section_selection"
+            },
+            {
+              "added_or_changed_source_section_ids": [
+                "docs/spec/watch.md#0002-initial-policy",
+                "docs/spec/watch.md#0003-watch-added-policy"
+              ],
+              "batch_count": 1,
+              "candidate_count": 4,
+              "candidate_count_for_selection": 4,
+              "candidate_generation_elapsed_sec": 6.005784230001154,
+              "candidate_generation_partial_mode": "source_changed_only",
+              "candidate_generation_source_count": 2,
+              "changed_source_section_ids": [
+                "docs/spec/watch.md#0002-initial-policy",
+                "docs/spec/watch.md#0003-watch-added-policy"
+              ],
+              "changed_target_relations_inherited": true,
+              "changed_target_section_ids": [
+                "docs/spec/watch.md#0002-initial-policy",
+                "docs/spec/watch.md#0003-watch-added-policy"
+              ],
+              "fallback_regenerated": false,
+              "inherited_source_count": 1,
+              "inherited_source_section_ids": [
+                "docs/spec/watch.md#0001-watch-internal-spec"
+              ],
+              "llm_calls": 1,
+              "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+              "partial_mode": "source_changed_only",
+              "partial_regeneration": true,
+              "reason_code": "related_sections_partial_regenerated",
+              "removed_source_count": 0,
+              "removed_source_exclusion": true,
+              "removed_source_section_ids": [],
+              "requires_full_regeneration_for_complete_target_recheck": true,
+              "selection_elapsed_sec": 0.026892062000115402,
+              "selection_source_count": 2,
+              "severity": "info",
+              "source_centric_partial": true,
+              "source_centric_partial_regeneration": true,
+              "stage": "related_sections",
+              "unchanged_source_inheritance": true
+            }
+          ],
+          "qdrant_backend_failure": null,
+          "status": "success"
+        },
+        "retrieval_index": {
+          "status": "success"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [
+            1
+          ],
+          "blocking_reasons": [],
+          "cache_hits": 2,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [
+            "docs/spec/watch.md#0003-watch-added-policy"
+          ],
+          "llm_calls": 1,
+          "reused_section_ids": [
+            "docs/spec/watch.md#0001-watch-internal-spec",
+            "docs/spec/watch.md#0002-initial-policy"
+          ],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "status": "fresh",
+      "warnings": []
+    },
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "potential_conflicts": [],
+    "regenerated_chapter_anchors": [
+      "docs/spec/watch.md#watch-internal-spec"
+    ],
+    "related_sections_status": "success",
+    "retrieval_index_status": "success",
+    "skipped_sections": [
+      {
+        "section_id": "docs/spec/watch.md#0001-watch-internal-spec",
+        "source_section_id": "docs/spec/watch.md#0001-watch-internal-spec"
+      },
+      {
+        "section_id": "docs/spec/watch.md#0002-initial-policy",
+        "source_section_id": "docs/spec/watch.md#0002-initial-policy"
+      }
+    ],
+    "skipped_sources": [],
+    "stale_resolution_count": 0,
+    "status": "updated",
+    "unreflected_conflict_resolutions": [],
+    "updated_sections": [
+      {
+        "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+        "source_section_id": "docs/spec/watch.md#0003-watch-added-policy"
+      }
+    ],
+    "updated_sources": [
+      "docs/spec/watch.md"
+    ],
+    "warnings": []
+  },
+  "cycle_count": 1,
+  "cycles": [
+    {
+      "core_result": {
+        "conflict_review_items": [],
+        "diagnostics": {
+          "chapter_anchors": {
+            "failed_chapter_ids": [],
+            "failure_reasons_by_chapter": {},
+            "status": "success"
+          },
+          "related_sections": {
+            "diagnostics": [
+              {
+                "candidate_generation_elapsed_sec": 6.005784230001154,
+                "candidate_generation_partial_mode": "source_changed_only",
+                "candidate_generation_source_count": 2,
+                "message": "Related Section candidates were generated for the selected source scope.",
+                "reason_code": "related_section_candidate_generation_scope",
+                "severity": "info",
+                "stage": "candidate_generation"
+              },
+              {
+                "cache_hits": 0,
+                "cache_misses": 4,
+                "cache_rejected_hits": 0,
+                "cache_size": 6,
+                "message": "pair-level relation typing cache statistics",
+                "reason_code": "related_typing_cache_stats",
+                "severity": "warning",
+                "stage": "related_section_selection"
+              },
+              {
+                "added_or_changed_source_section_ids": [
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "docs/spec/watch.md#0003-watch-added-policy"
+                ],
+                "batch_count": 1,
+                "candidate_count": 4,
+                "candidate_count_for_selection": 4,
+                "candidate_generation_elapsed_sec": 6.005784230001154,
+                "candidate_generation_partial_mode": "source_changed_only",
+                "candidate_generation_source_count": 2,
+                "changed_source_section_ids": [
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "docs/spec/watch.md#0003-watch-added-policy"
+                ],
+                "changed_target_relations_inherited": true,
+                "changed_target_section_ids": [
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "docs/spec/watch.md#0003-watch-added-policy"
+                ],
+                "fallback_regenerated": false,
+                "inherited_source_count": 1,
+                "inherited_source_section_ids": [
+                  "docs/spec/watch.md#0001-watch-internal-spec"
+                ],
+                "llm_calls": 1,
+                "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+                "partial_mode": "source_changed_only",
+                "partial_regeneration": true,
+                "reason_code": "related_sections_partial_regenerated",
+                "removed_source_count": 0,
+                "removed_source_exclusion": true,
+                "removed_source_section_ids": [],
+                "requires_full_regeneration_for_complete_target_recheck": true,
+                "selection_elapsed_sec": 0.026892062000115402,
+                "selection_source_count": 2,
+                "severity": "info",
+                "source_centric_partial": true,
+                "source_centric_partial_regeneration": true,
+                "stage": "related_sections",
+                "unchanged_source_inheritance": true
+              }
+            ],
+            "qdrant_backend_failure": null,
+            "status": "success"
+          },
+          "retrieval_index": {
+            "status": "success"
+          },
+          "section_metadata": {
+            "artifact_role": "retrieval_aid_not_evidence",
+            "diagnostics": [],
+            "generated_at": "1970-01-01T00:00:00Z",
+            "generation": {
+              "cache_key_inputs": [
+                "stable_section_uid",
+                "source_hash",
+                "prompt_version",
+                "model",
+                "provider",
+                "metadata_version",
+                "limits",
+                "enabled_fields"
+              ],
+              "enabled_fields": {
+                "related_sections": true,
+                "search_keys": true,
+                "summary": true
+              },
+              "identifier_extractor_version": "identifier-extractor-v1",
+              "limits": {
+                "llm_batch_max_chars": 12000,
+                "llm_batch_max_sections": 8,
+                "search_keys_max": 32,
+                "section_summary_max_chars": 480
+              },
+              "metadata_version": 1,
+              "model": "watch-provider",
+              "prompt_version": "section-metadata-v3",
+              "provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+              "stage": "section_metadata"
+            },
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v3",
+            "sections": [
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Watch Internal Spec"
+                ],
+                "identifiers": [],
+                "llm_generation_status": "success",
+                "llm_provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v3",
+                "related_sections": [],
+                "search_keys": [
+                  "watch internal",
+                  "no agent cli",
+                  "docs/spec/watch.md#0001-watch-internal-spec",
+                  "Watch Internal Spec"
+                ],
+                "section_id": "docs/spec/watch.md#0001-watch-internal-spec",
+                "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "source_document_id": "docs/spec/watch.md",
+                "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+                "source_section_id": "docs/spec/watch.md#0001-watch-internal-spec",
+                "stable_section_uid": "501d1ecd205e5eca",
+                "summary": "summary for docs/spec/watch.md#0001-watch-internal-spec"
+              },
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Watch Internal Spec",
+                  "Initial Policy"
+                ],
+                "identifiers": [
+                  "WATCH_INTERNAL_INITIAL"
+                ],
+                "llm_generation_status": "success",
+                "llm_provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v3",
+                "related_sections": [],
+                "search_keys": [
+                  "watch internal",
+                  "no agent cli",
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "Watch Internal Spec",
+                  "Initial Policy"
+                ],
+                "section_id": "docs/spec/watch.md#0002-initial-policy",
+                "semantic_hash": "5548903a239c442309afd8d8ed8ac41a539a5bd93fb53acf683dc8fb0cc128c0",
+                "source_document_id": "docs/spec/watch.md",
+                "source_hash": "30b8977136b4edc585fae844dbd5a4711278c6b9ee8886073168136e233dcf6a",
+                "source_section_id": "docs/spec/watch.md#0002-initial-policy",
+                "stable_section_uid": "d661dadff2bd1e26",
+                "summary": "summary for docs/spec/watch.md#0002-initial-policy"
+              },
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Watch Internal Spec",
+                  "Watch Added Policy"
+                ],
+                "identifiers": [
+                  "WATCH_INTERNAL_ADDED"
+                ],
+                "llm_generation_status": "success",
+                "llm_provider": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/tools/watch-provider.py",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v3",
+                "related_sections": [],
+                "search_keys": [
+                  "watch internal",
+                  "no agent cli",
+                  "docs/spec/watch.md#0003-watch-added-policy",
+                  "Watch Internal Spec",
+                  "Watch Added Policy"
+                ],
+                "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+                "semantic_hash": "98ffa0aa4ef8027790a92d6d5f6f147b6bba3e83f91e9aedc57c54149b776804",
+                "source_document_id": "docs/spec/watch.md",
+                "source_hash": "5f5549d3ff37bbed0ac3261fa8c3abd700bc750cda0ebb22a15c217c750b1526",
+                "source_section_id": "docs/spec/watch.md#0003-watch-added-policy",
+                "stable_section_uid": "1f618065dcf5aafd",
+                "summary": "summary for docs/spec/watch.md#0003-watch-added-policy"
+              }
+            ],
+            "summary_search_keys_are_evidence": false
+          },
+          "section_metadata_generation": {
+            "batch_sizes": [
+              1
+            ],
+            "blocking_reasons": [],
+            "cache_hits": 2,
+            "diagnostics": {},
+            "failed_sections": [],
+            "freshness_status": "fresh",
+            "generated_section_ids": [
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "llm_calls": 1,
+            "reused_section_ids": [
+              "docs/spec/watch.md#0001-watch-internal-spec",
+              "docs/spec/watch.md#0002-initial-policy"
+            ],
+            "warnings": []
+          },
+          "verify_index": {
+            "executed": false,
+            "reason": "not_requested"
+          }
+        },
+        "failed_sections": [],
+        "failed_sources": [],
+        "freshness_report": {
+          "blocking_reasons": [],
+          "diagnostics": {
+            "chapter_anchors": {
+              "failed_chapter_ids": [],
+              "failure_reasons_by_chapter": {},
+              "status": "success"
+            },
+            "related_sections": {
+              "diagnostics": [
+                {
+                  "candidate_generation_elapsed_sec": 6.005784230001154,
+                  "candidate_generation_partial_mode": "source_changed_only",
+                  "candidate_generation_source_count": 2,
+                  "message": "Related Section candidates were generated for the selected source scope.",
+                  "reason_code": "related_section_candidate_generation_scope",
+                  "severity": "info",
+                  "stage": "candidate_generation"
+                },
+                {
+                  "cache_hits": 0,
+                  "cache_misses": 4,
+                  "cache_rejected_hits": 0,
+                  "cache_size": 6,
+                  "message": "pair-level relation typing cache statistics",
+                  "reason_code": "related_typing_cache_stats",
+                  "severity": "warning",
+                  "stage": "related_section_selection"
+                },
+                {
+                  "added_or_changed_source_section_ids": [
+                    "docs/spec/watch.md#0002-initial-policy",
+                    "docs/spec/watch.md#0003-watch-added-policy"
+                  ],
+                  "batch_count": 1,
+                  "candidate_count": 4,
+                  "candidate_count_for_selection": 4,
+                  "candidate_generation_elapsed_sec": 6.005784230001154,
+                  "candidate_generation_partial_mode": "source_changed_only",
+                  "candidate_generation_source_count": 2,
+                  "changed_source_section_ids": [
+                    "docs/spec/watch.md#0002-initial-policy",
+                    "docs/spec/watch.md#0003-watch-added-policy"
+                  ],
+                  "changed_target_relations_inherited": true,
+                  "changed_target_section_ids": [
+                    "docs/spec/watch.md#0002-initial-policy",
+                    "docs/spec/watch.md#0003-watch-added-policy"
+                  ],
+                  "fallback_regenerated": false,
+                  "inherited_source_count": 1,
+                  "inherited_source_section_ids": [
+                    "docs/spec/watch.md#0001-watch-internal-spec"
+                  ],
+                  "llm_calls": 1,
+                  "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+                  "partial_mode": "source_changed_only",
+                  "partial_regeneration": true,
+                  "reason_code": "related_sections_partial_regenerated",
+                  "removed_source_count": 0,
+                  "removed_source_exclusion": true,
+                  "removed_source_section_ids": [],
+                  "requires_full_regeneration_for_complete_target_recheck": true,
+                  "selection_elapsed_sec": 0.026892062000115402,
+                  "selection_source_count": 2,
+                  "severity": "info",
+                  "source_centric_partial": true,
+                  "source_centric_partial_regeneration": true,
+                  "stage": "related_sections",
+                  "unchanged_source_inheritance": true
+                }
+              ],
+              "qdrant_backend_failure": null,
+              "status": "success"
+            },
+            "retrieval_index": {
+              "status": "success"
+            },
+            "section_metadata_generation": {
+              "batch_sizes": [
+                1
+              ],
+              "blocking_reasons": [],
+              "cache_hits": 2,
+              "diagnostics": {},
+              "failed_sections": [],
+              "freshness_status": "fresh",
+              "generated_section_ids": [
+                "docs/spec/watch.md#0003-watch-added-policy"
+              ],
+              "llm_calls": 1,
+              "reused_section_ids": [
+                "docs/spec/watch.md#0001-watch-internal-spec",
+                "docs/spec/watch.md#0002-initial-policy"
+              ],
+              "warnings": []
+            },
+            "verify_index": {
+              "executed": false,
+              "reason": "not_requested"
+            }
+          },
+          "status": "fresh",
+          "warnings": []
+        },
+        "mode": "incremental",
+        "pending_conflict_count": 0,
+        "potential_conflicts": [],
+        "regenerated_chapter_anchors": [
+          "docs/spec/watch.md#watch-internal-spec"
+        ],
+        "related_sections_status": "success",
+        "retrieval_index_status": "success",
+        "skipped_sections": [
+          {
+            "section_id": "docs/spec/watch.md#0001-watch-internal-spec",
+            "source_section_id": "docs/spec/watch.md#0001-watch-internal-spec"
+          },
+          {
+            "section_id": "docs/spec/watch.md#0002-initial-policy",
+            "source_section_id": "docs/spec/watch.md#0002-initial-policy"
+          }
+        ],
+        "skipped_sources": [],
+        "stale_resolution_count": 0,
+        "status": "updated",
+        "unreflected_conflict_resolutions": [],
+        "updated_sections": [
+          {
+            "section_id": "docs/spec/watch.md#0003-watch-added-policy",
+            "source_section_id": "docs/spec/watch.md#0003-watch-added-policy"
+          }
+        ],
+        "updated_sources": [
+          "docs/spec/watch.md"
+        ],
+        "warnings": []
+      },
+      "freshness_report": {
+        "blocking_reasons": [],
+        "diagnostics": {
+          "chapter_anchors": {
+            "failed_chapter_ids": [],
+            "failure_reasons_by_chapter": {},
+            "status": "success"
+          },
+          "related_sections": {
+            "diagnostics": [
+              {
+                "candidate_generation_elapsed_sec": 6.005784230001154,
+                "candidate_generation_partial_mode": "source_changed_only",
+                "candidate_generation_source_count": 2,
+                "message": "Related Section candidates were generated for the selected source scope.",
+                "reason_code": "related_section_candidate_generation_scope",
+                "severity": "info",
+                "stage": "candidate_generation"
+              },
+              {
+                "cache_hits": 0,
+                "cache_misses": 4,
+                "cache_rejected_hits": 0,
+                "cache_size": 6,
+                "message": "pair-level relation typing cache statistics",
+                "reason_code": "related_typing_cache_stats",
+                "severity": "warning",
+                "stage": "related_section_selection"
+              },
+              {
+                "added_or_changed_source_section_ids": [
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "docs/spec/watch.md#0003-watch-added-policy"
+                ],
+                "batch_count": 1,
+                "candidate_count": 4,
+                "candidate_count_for_selection": 4,
+                "candidate_generation_elapsed_sec": 6.005784230001154,
+                "candidate_generation_partial_mode": "source_changed_only",
+                "candidate_generation_source_count": 2,
+                "changed_source_section_ids": [
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "docs/spec/watch.md#0003-watch-added-policy"
+                ],
+                "changed_target_relations_inherited": true,
+                "changed_target_section_ids": [
+                  "docs/spec/watch.md#0002-initial-policy",
+                  "docs/spec/watch.md#0003-watch-added-policy"
+                ],
+                "fallback_regenerated": false,
+                "inherited_source_count": 1,
+                "inherited_source_section_ids": [
+                  "docs/spec/watch.md#0001-watch-internal-spec"
+                ],
+                "llm_calls": 1,
+                "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+                "partial_mode": "source_changed_only",
+                "partial_regeneration": true,
+                "reason_code": "related_sections_partial_regenerated",
+                "removed_source_count": 0,
+                "removed_source_exclusion": true,
+                "removed_source_section_ids": [],
+                "requires_full_regeneration_for_complete_target_recheck": true,
+                "selection_elapsed_sec": 0.026892062000115402,
+                "selection_source_count": 2,
+                "severity": "info",
+                "source_centric_partial": true,
+                "source_centric_partial_regeneration": true,
+                "stage": "related_sections",
+                "unchanged_source_inheritance": true
+              }
+            ],
+            "qdrant_backend_failure": null,
+            "status": "success"
+          },
+          "retrieval_index": {
+            "status": "success"
+          },
+          "section_metadata_generation": {
+            "batch_sizes": [
+              1
+            ],
+            "blocking_reasons": [],
+            "cache_hits": 2,
+            "diagnostics": {},
+            "failed_sections": [],
+            "freshness_status": "fresh",
+            "generated_section_ids": [
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "llm_calls": 1,
+            "reused_section_ids": [
+              "docs/spec/watch.md#0001-watch-internal-spec",
+              "docs/spec/watch.md#0002-initial-policy"
+            ],
+            "warnings": []
+          },
+          "verify_index": {
+            "executed": false,
+            "reason": "not_requested"
+          }
+        },
+        "status": "fresh",
+        "warnings": []
+      },
+      "generated_at": null,
+      "last_heartbeat_at": "2026-05-23T04:16:02.393000Z",
+      "last_heartbeat_at_epoch_ms": 1779509762393,
+      "last_lock": {
+        "acquired_at": "2026-05-23T04:15:47.305000Z",
+        "acquired_at_epoch_ms": 1779509747305,
+        "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+        "owner": "watcher",
+        "reason": "watcher_running",
+        "run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+        "updated_at": "2026-05-23T04:16:02.393000Z",
+        "updated_at_epoch_ms": 1779509762393
+      },
+      "last_lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+      "lock_reused": false,
+      "project_root": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project",
+      "queue_count": 0,
+      "queue_pending": false,
+      "queued_changes": [],
+      "ran_core": true,
+      "run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+      "snapshot": {
+        "file_count": 3,
+        "files": [
+          {
+            "exists": true,
+            "mtime_ns": 1779509732191765812,
+            "path": "docs/core/concept.md",
+            "relative_path": "docs/core/concept.md",
+            "sha256": "3f8dea754bbc904c873c2234b596c0d8d458351df8260a4afb8255b7af928b08",
+            "size": 111
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779509732191765812,
+            "path": "docs/core/purpose.md",
+            "relative_path": "docs/core/purpose.md",
+            "sha256": "cec1dde13869eb168e3c1fd087b979e5f07d323822e847c23772e61cde7362f1",
+            "size": 94
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779509747180484359,
+            "path": "docs/spec/watch.md",
+            "relative_path": "docs/spec/watch.md",
+            "sha256": "a1d80acd2d3f31dccf879b56dfa216cd765403b888efa1be30b3e79440042a5b",
+            "size": 163
+          }
+        ],
+        "fingerprint": "24bac3243801b534098074d0be3e1c75d83bcebf94762c82a1d18268a23fc0b9",
+        "schema_version": 1
+      },
+      "source_snapshot": {
+        "file_count": 3,
+        "files": [
+          {
+            "exists": true,
+            "mtime_ns": 1779509732191765812,
+            "path": "docs/core/concept.md",
+            "relative_path": "docs/core/concept.md",
+            "sha256": "3f8dea754bbc904c873c2234b596c0d8d458351df8260a4afb8255b7af928b08",
+            "size": 111
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779509732191765812,
+            "path": "docs/core/purpose.md",
+            "relative_path": "docs/core/purpose.md",
+            "sha256": "cec1dde13869eb168e3c1fd087b979e5f07d323822e847c23772e61cde7362f1",
+            "size": 94
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779509747180484359,
+            "path": "docs/spec/watch.md",
+            "relative_path": "docs/spec/watch.md",
+            "sha256": "a1d80acd2d3f31dccf879b56dfa216cd765403b888efa1be30b3e79440042a5b",
+            "size": 163
+          }
+        ],
+        "fingerprint": "24bac3243801b534098074d0be3e1c75d83bcebf94762c82a1d18268a23fc0b9",
+        "schema_version": 1
+      },
+      "status": "updated",
+      "updated": true,
+      "watcher": {
+        "is_running": false,
+        "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+        "queue_count": 0,
+        "queue_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/watch_queue.json",
+        "queue_pending": false,
+        "running": false,
+        "state_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/watch_state.json"
+      }
+    }
+  ],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 6.005784230001154,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 4,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          },
+          {
+            "added_or_changed_source_section_ids": [
+              "docs/spec/watch.md#0002-initial-policy",
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "batch_count": 1,
+            "candidate_count": 4,
+            "candidate_count_for_selection": 4,
+            "candidate_generation_elapsed_sec": 6.005784230001154,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "changed_source_section_ids": [
+              "docs/spec/watch.md#0002-initial-policy",
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "changed_target_relations_inherited": true,
+            "changed_target_section_ids": [
+              "docs/spec/watch.md#0002-initial-policy",
+              "docs/spec/watch.md#0003-watch-added-policy"
+            ],
+            "fallback_regenerated": false,
+            "inherited_source_count": 1,
+            "inherited_source_section_ids": [
+              "docs/spec/watch.md#0001-watch-internal-spec"
+            ],
+            "llm_calls": 1,
+            "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+            "partial_mode": "source_changed_only",
+            "partial_regeneration": true,
+            "reason_code": "related_sections_partial_regenerated",
+            "removed_source_count": 0,
+            "removed_source_exclusion": true,
+            "removed_source_section_ids": [],
+            "requires_full_regeneration_for_complete_target_recheck": true,
+            "selection_elapsed_sec": 0.026892062000115402,
+            "selection_source_count": 2,
+            "severity": "info",
+            "source_centric_partial": true,
+            "source_centric_partial_regeneration": true,
+            "stage": "related_sections",
+            "unchanged_source_inheritance": true
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 2,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/watch.md#0003-watch-added-policy"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [
+          "docs/spec/watch.md#0001-watch-internal-spec",
+          "docs/spec/watch.md#0002-initial-policy"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "generated_at": null,
+  "last_heartbeat_at": "2026-05-23T04:16:02.393000Z",
+  "last_heartbeat_at_epoch_ms": 1779509762393,
+  "last_lock": {
+    "acquired_at": "2026-05-23T04:15:47.305000Z",
+    "acquired_at_epoch_ms": 1779509747305,
+    "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+    "owner": "watcher",
+    "reason": "watcher_running",
+    "run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+    "updated_at": "2026-05-23T04:16:02.393000Z",
+    "updated_at_epoch_ms": 1779509762393
+  },
+  "last_lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+  "lock_reused": false,
+  "project_root": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project",
+  "queue_count": 0,
+  "queue_pending": false,
+  "queued_changes": [],
+  "ran_core": true,
+  "run_count": 1,
+  "run_id": "c311379d-c6da-4528-88ea-75afe862d8a0",
+  "runs": 1,
+  "settings": {
+    "config_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/config.toml",
+    "debounce_sec": 1.0,
+    "enabled": true,
+    "interval_sec": 2.0,
+    "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+    "project_root": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project",
+    "queue_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/watch_queue.json",
+    "stale_lock_sec": 300.0,
+    "state_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/watch_state.json"
+  },
+  "snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779509732191765812,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "3f8dea754bbc904c873c2234b596c0d8d458351df8260a4afb8255b7af928b08",
+        "size": 111
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779509732191765812,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "cec1dde13869eb168e3c1fd087b979e5f07d323822e847c23772e61cde7362f1",
+        "size": 94
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779509747180484359,
+        "path": "docs/spec/watch.md",
+        "relative_path": "docs/spec/watch.md",
+        "sha256": "a1d80acd2d3f31dccf879b56dfa216cd765403b888efa1be30b3e79440042a5b",
+        "size": 163
+      }
+    ],
+    "fingerprint": "24bac3243801b534098074d0be3e1c75d83bcebf94762c82a1d18268a23fc0b9",
+    "schema_version": 1
+  },
+  "source_snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779509732191765812,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "3f8dea754bbc904c873c2234b596c0d8d458351df8260a4afb8255b7af928b08",
+        "size": 111
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779509732191765812,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "cec1dde13869eb168e3c1fd087b979e5f07d323822e847c23772e61cde7362f1",
+        "size": 94
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779509747180484359,
+        "path": "docs/spec/watch.md",
+        "relative_path": "docs/spec/watch.md",
+        "sha256": "a1d80acd2d3f31dccf879b56dfa216cd765403b888efa1be30b3e79440042a5b",
+        "size": 163
+      }
+    ],
+    "fingerprint": "24bac3243801b534098074d0be3e1c75d83bcebf94762c82a1d18268a23fc0b9",
+    "schema_version": 1
+  },
+  "status": "updated",
+  "updated": true,
+  "watcher": {
+    "is_running": false,
+    "lock_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/core_update.lock.json",
+    "queue_count": 0,
+    "queue_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/watch_queue.json",
+    "queue_pending": false,
+    "running": false,
+    "state_file": "/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project/.spec-anchor/state/watch_state.json"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "run_id": "20260523-141500-codex-e2e-no-core-concept-drift-notice",
+  "checks": {
+    "initial_exit_zero": true,
+    "after_change_exit_zero": true,
+    "source_change_was_processed": true,
+    "core_status_not_failed": true,
+    "no_core_concept_drift_marker_in_core_stdout": true,
+    "no_core_concept_drift_marker_in_freshness": true,
+    "no_core_concept_drift_marker_in_manifest": true
+  },
+  "initial_status": "updated",
+  "after_change_status": "updated",
+  "updated_sections": [
+    "docs/spec/policy.md#0003-source-specs-evolved"
+  ],
+  "freshness_status": "fresh",
+  "freshness_blocking_reasons": [],
+  "forbidden_marker_hits": {
+    "core_stdout": [],
+    "freshness": [],
+    "section_manifest": []
+  },
+  "passed_all": true
+}

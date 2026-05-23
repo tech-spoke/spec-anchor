@@ -1,0 +1,10 @@
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/.claude/commands/spec-core.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/.claude/commands/spec-inject.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/.claude/commands/spec-realign.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/.codex/skills/spec-anchor/SKILL.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/.spec-anchor/.gitignore
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/.spec-anchor/config.toml
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/docs/core/concept.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/docs/core/purpose.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/docs/spec/flow.md
+/tmp/20260523-123006-codex-e2e-agent-degraded-core.project/tools/partial-section-provider.py

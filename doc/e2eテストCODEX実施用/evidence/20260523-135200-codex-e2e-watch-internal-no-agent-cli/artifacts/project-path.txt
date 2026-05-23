@@ -1,0 +1,1 @@
+/tmp/20260523-135200-codex-e2e-watch-internal-no-agent-cli.project

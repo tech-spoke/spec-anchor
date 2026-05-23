@@ -1,0 +1,11 @@
+Use the spec-anchor skill in the current project.
+
+Run one /spec-inject style workflow for the following task type:
+具体的 API / 識別子
+
+Task:
+MFA_REQUIRED_ON_ADMIN_LOGIN と AUDIT_EVENT_REQUIRED を使う管理者ログイン監査制約を準備して。
+
+Follow the path selection guidance in the skill for this task type. Do not run /spec-core. Do not run setup.
+Do not answer the implementation task. Output only the five §8.5 sections, and keep each section present even when empty.
+Do not output raw JSON.

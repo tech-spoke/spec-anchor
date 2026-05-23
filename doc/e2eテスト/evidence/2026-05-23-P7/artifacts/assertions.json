@@ -1,0 +1,42 @@
+{
+  "run_id": "2026-05-23-P7",
+  "p3b_project": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project",
+  "checks": {
+    "scenario_1_inject_section": {
+      "passed": true,
+      "section_id": "docs/spec/runtime.md#0002-product-catalog-runtime"
+    },
+    "scenario_2_inject_chapters": {
+      "passed": true,
+      "chapter_anchors_path": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project/.spec-anchor/context/chapter_anchors.json"
+    },
+    "scenario_3_inject_purpose": {
+      "passed": true,
+      "core_concept_path": "/tmp/spec-anchor-e2e-2026-05-23-P3b/project/docs/core/concept.md"
+    },
+    "scenario_4_realign": {
+      "passed": true
+    },
+    "scenario_5_chain_consistency": {
+      "passed": true,
+      "artifact_hashes": {
+        ".spec-anchor/context/chapter_anchors.json": "e0a2dfdec2e1014703e66c20d83f59921da8e8c30484e2408552ed11b8970f42",
+        ".spec-anchor/context/conflict_review_items.json": "d8603bf12dfbb52c0a477bdd2b8e9071430f556d80d985d5676fec676aa2570a",
+        ".spec-anchor/state/retrieval_index_state.json": "617fcde1819f6aa836d76df5d67734d497748c58240f563691d35fda03965087",
+        ".spec-anchor/state/related_sections_state.json": "0f07d0a8220f36865f0f4329ee8cfaedb8cf9c2cc72585a2038cbf6b427ce657"
+      }
+    },
+    "scenario_6_failure": {
+      "passed": true,
+      "failure_status": "error"
+    }
+  },
+  "summary": {
+    "run_id": "2026-05-23-P7",
+    "scenario_count": 6,
+    "all_passed": true,
+    "verification_level": "production_e2e_verified",
+    "fake_env_unset": true,
+    "evidence_map": "evidence_map.jsonl"
+  }
+}

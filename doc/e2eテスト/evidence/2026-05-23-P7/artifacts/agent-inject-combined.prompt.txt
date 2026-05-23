@@ -1,0 +1,4 @@
+Use the spec-anchor skill. In the current project, run the /spec-inject style workflow for a task about product catalog and checkout constraints.
+You must execute these commands: `spec-anchor inject-section docs/spec/runtime.md#0002-product-catalog-runtime`, `spec-anchor inject-chapters`, read the returned chapter_anchors.json, `spec-anchor inject-purpose`, and read the returned Core Concept path.
+Do not answer with implementation code. Output only the five §8.5 sections: 今回守る制約, 今回見るべき対象, 関連先として確認したもの, 採用しなかったもの, 不確実性 / 人間確認.
+Do not output raw JSON.

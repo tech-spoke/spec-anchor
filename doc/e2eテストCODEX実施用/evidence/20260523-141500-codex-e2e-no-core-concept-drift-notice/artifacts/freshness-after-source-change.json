@@ -1,0 +1,106 @@
+{
+  "blocking_reasons": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 6.8455583570030285,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 2,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 4,
+          "cache_rejected_hits": 0,
+          "cache_size": 6,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        },
+        {
+          "added_or_changed_source_section_ids": [
+            "docs/spec/policy.md#0002-existing-policy",
+            "docs/spec/policy.md#0003-source-specs-evolved"
+          ],
+          "batch_count": 1,
+          "candidate_count": 4,
+          "candidate_count_for_selection": 4,
+          "candidate_generation_elapsed_sec": 6.8455583570030285,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 2,
+          "changed_source_section_ids": [
+            "docs/spec/policy.md#0002-existing-policy",
+            "docs/spec/policy.md#0003-source-specs-evolved"
+          ],
+          "changed_target_relations_inherited": true,
+          "changed_target_section_ids": [
+            "docs/spec/policy.md#0002-existing-policy",
+            "docs/spec/policy.md#0003-source-specs-evolved"
+          ],
+          "fallback_regenerated": false,
+          "inherited_source_count": 1,
+          "inherited_source_section_ids": [
+            "docs/spec/policy.md#0001-policy-spec"
+          ],
+          "llm_calls": 1,
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "partial_mode": "source_changed_only",
+          "partial_regeneration": true,
+          "reason_code": "related_sections_partial_regenerated",
+          "removed_source_count": 0,
+          "removed_source_exclusion": true,
+          "removed_source_section_ids": [],
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "selection_elapsed_sec": 0.03187017500749789,
+          "selection_source_count": 2,
+          "severity": "info",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "stage": "related_sections",
+          "unchanged_source_inheritance": true
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        1
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 2,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/policy.md#0003-source-specs-evolved"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [
+        "docs/spec/policy.md#0001-policy-spec",
+        "docs/spec/policy.md#0002-existing-policy"
+      ],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "schema_version": 1,
+  "status": "fresh",
+  "warnings": []
+}

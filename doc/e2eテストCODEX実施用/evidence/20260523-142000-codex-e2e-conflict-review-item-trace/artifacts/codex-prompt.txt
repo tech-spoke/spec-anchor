@@ -1,0 +1,19 @@
+Use the spec-anchor skill in the current project.
+
+Run the /spec-inject style workflow for this task:
+
+過去に人間が解決済みにした PAYMENT_TIMEOUT_SECONDS の Conflict Review Item を、今回守る制約として注入して。
+
+Do not run /spec-core. Do not run setup. Do not answer the implementation task.
+Use spec-anchor inject-conflicts and cite only resolved, non-stale Conflict Review Items returned by that command.
+
+Output only the five §8.5 sections:
+今回守る制約
+今回見るべき対象
+関連先として確認したもの
+採用しなかったもの
+不確実性 / 人間確認
+
+For each constraint, include statement, evidence_origin, evidence_ref, support_refs, applicability, and uncertainty.
+The Conflict Review Item constraint must use evidence_origin: Conflict Review Item and evidence_ref: conflict-payment-timeout-human-resolution if it is returned by inject-conflicts.
+Do not output raw JSON.

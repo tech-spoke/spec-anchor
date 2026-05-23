@@ -1,0 +1,459 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "conflict_review": {
+      "diagnostics": [
+        {
+          "conflict_pair_max_per_section": 1,
+          "kind": "conflict_pair_selection",
+          "level": "info",
+          "message": "Some high-risk conflict candidate pairs were not sent to Conflict Review because conflict_pair_max_per_section was reached.",
+          "reason_code": "conflict_pair_max_per_section_skipped",
+          "skipped_pair_count": 3,
+          "skipped_pairs_sample": [
+            {
+              "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+              "reason_code": "conflict_pair_max_per_section",
+              "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+              "target_section_id": "docs/spec/conflict-cap.md#0004-gamma-block"
+            },
+            {
+              "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+              "reason_code": "conflict_pair_max_per_section",
+              "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+              "target_section_id": "docs/spec/conflict-cap.md#0005-delta-block"
+            },
+            {
+              "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+              "reason_code": "conflict_pair_max_per_section",
+              "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+              "target_section_id": "docs/spec/conflict-cap.md#0006-epsilon-block"
+            }
+          ],
+          "stage": "conflict_review"
+        }
+      ],
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 9.533213238013559,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 6,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 30,
+          "cache_rejected_hits": 0,
+          "cache_size": 30,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "conflict-cap-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Pair Cap Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must not enabled",
+            "block",
+            "Conflict Pair Cap Spec"
+          ],
+          "section_id": "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/conflict-cap.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec",
+          "stable_section_uid": "dcd0e4257f3c4895",
+          "summary": "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec says FEATURE_CAP_TOKEN must not be enabled."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Pair Cap Spec",
+            "Alpha Base"
+          ],
+          "identifiers": [
+            "FEATURE_CAP_TOKEN",
+            "ALPHA_CAP_FLAG",
+            "required"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must enabled",
+            "alpha base",
+            "Conflict Pair Cap Spec",
+            "Alpha Base"
+          ],
+          "section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+          "semantic_hash": "514bc241a67df9dd35afa82ba94d2d3522a23dae3a55851183b28fa23db9c449",
+          "source_document_id": "docs/spec/conflict-cap.md",
+          "source_hash": "d7fc274db0a8aaea75e24299dcea7304f88f96292b974f4f570c0ad4ab421142",
+          "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+          "stable_section_uid": "d3e0e6966874bedf",
+          "summary": "FEATURE_CAP_TOKEN must be enabled for all jobs."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Pair Cap Spec",
+            "Beta Block"
+          ],
+          "identifiers": [
+            "FEATURE_CAP_TOKEN",
+            "BETA_CAP_FLAG"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must not enabled",
+            "block",
+            "Conflict Pair Cap Spec",
+            "Beta Block"
+          ],
+          "section_id": "docs/spec/conflict-cap.md#0003-beta-block",
+          "semantic_hash": "a0e2299a1a337f7ad16b329ba0663aa3fae825182c8d6a8ebd5f4e7a6bbd37b1",
+          "source_document_id": "docs/spec/conflict-cap.md",
+          "source_hash": "34417d6921c524f351bbe4b57ca87bdb3ff0063b9e73c4d0ec399c897c0d9ccb",
+          "source_section_id": "docs/spec/conflict-cap.md#0003-beta-block",
+          "stable_section_uid": "65016d2151a47ea1",
+          "summary": "docs/spec/conflict-cap.md#0003-beta-block says FEATURE_CAP_TOKEN must not be enabled."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Pair Cap Spec",
+            "Gamma Block"
+          ],
+          "identifiers": [
+            "FEATURE_CAP_TOKEN",
+            "GAMMA_CAP_FLAG"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must not enabled",
+            "block",
+            "Conflict Pair Cap Spec",
+            "Gamma Block"
+          ],
+          "section_id": "docs/spec/conflict-cap.md#0004-gamma-block",
+          "semantic_hash": "894be53a26a6f2133fc31cb8513cb7f1f7c959c01bb53599821c0c2b0d6fd805",
+          "source_document_id": "docs/spec/conflict-cap.md",
+          "source_hash": "ef54f06677af47e72311b742a8dc4bb9c32e73c2094c5b58a3752ecf149efb7f",
+          "source_section_id": "docs/spec/conflict-cap.md#0004-gamma-block",
+          "stable_section_uid": "03faee491d18c19a",
+          "summary": "docs/spec/conflict-cap.md#0004-gamma-block says FEATURE_CAP_TOKEN must not be enabled."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Pair Cap Spec",
+            "Delta Block"
+          ],
+          "identifiers": [
+            "FEATURE_CAP_TOKEN",
+            "DELTA_CAP_FLAG"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must not enabled",
+            "block",
+            "Conflict Pair Cap Spec",
+            "Delta Block"
+          ],
+          "section_id": "docs/spec/conflict-cap.md#0005-delta-block",
+          "semantic_hash": "9fce09ca8a72f29f9556fd41cfabac40741e6d7700bf21fd6455c749d2fca55b",
+          "source_document_id": "docs/spec/conflict-cap.md",
+          "source_hash": "932ea2f6f17740be24481c7f40d82b82834d88d9e9c5c9d01bbb432b2cbf65f6",
+          "source_section_id": "docs/spec/conflict-cap.md#0005-delta-block",
+          "stable_section_uid": "1d0ee42a02e4c8bf",
+          "summary": "docs/spec/conflict-cap.md#0005-delta-block says FEATURE_CAP_TOKEN must not be enabled."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Conflict Pair Cap Spec",
+            "Epsilon Block"
+          ],
+          "identifiers": [
+            "FEATURE_CAP_TOKEN",
+            "EPSILON_CAP_FLAG"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-134620-codex-e2e-conflict-pair-cap-diagnostics.project/tools/conflict-cap-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "must not enabled",
+            "block",
+            "Conflict Pair Cap Spec",
+            "Epsilon Block"
+          ],
+          "section_id": "docs/spec/conflict-cap.md#0006-epsilon-block",
+          "semantic_hash": "f0afe6e0084fbbd330cf39c52ecc3855c8c6b08488f3502732beb46761528f41",
+          "source_document_id": "docs/spec/conflict-cap.md",
+          "source_hash": "b6e838c839c12fa516a86e734b84187e87b211cc3614df12ebdfa4269f1db847",
+          "source_section_id": "docs/spec/conflict-cap.md#0006-epsilon-block",
+          "stable_section_uid": "aae01ccd96fee55c",
+          "summary": "docs/spec/conflict-cap.md#0006-epsilon-block says FEATURE_CAP_TOKEN must not be enabled."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        6
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec",
+        "docs/spec/conflict-cap.md#0002-alpha-base",
+        "docs/spec/conflict-cap.md#0003-beta-block",
+        "docs/spec/conflict-cap.md#0004-gamma-block",
+        "docs/spec/conflict-cap.md#0005-delta-block",
+        "docs/spec/conflict-cap.md#0006-epsilon-block"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "conflict_review": {
+        "diagnostics": [
+          {
+            "conflict_pair_max_per_section": 1,
+            "kind": "conflict_pair_selection",
+            "level": "info",
+            "message": "Some high-risk conflict candidate pairs were not sent to Conflict Review because conflict_pair_max_per_section was reached.",
+            "reason_code": "conflict_pair_max_per_section_skipped",
+            "skipped_pair_count": 3,
+            "skipped_pairs_sample": [
+              {
+                "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+                "reason_code": "conflict_pair_max_per_section",
+                "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+                "target_section_id": "docs/spec/conflict-cap.md#0004-gamma-block"
+              },
+              {
+                "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+                "reason_code": "conflict_pair_max_per_section",
+                "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+                "target_section_id": "docs/spec/conflict-cap.md#0005-delta-block"
+              },
+              {
+                "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
+                "reason_code": "conflict_pair_max_per_section",
+                "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+                "target_section_id": "docs/spec/conflict-cap.md#0006-epsilon-block"
+              }
+            ],
+            "stage": "conflict_review"
+          }
+        ],
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 9.533213238013559,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 6,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 30,
+            "cache_rejected_hits": 0,
+            "cache_size": 30,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          6
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec",
+          "docs/spec/conflict-cap.md#0002-alpha-base",
+          "docs/spec/conflict-cap.md#0003-beta-block",
+          "docs/spec/conflict-cap.md#0004-gamma-block",
+          "docs/spec/conflict-cap.md#0005-delta-block",
+          "docs/spec/conflict-cap.md#0006-epsilon-block"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [
+    {
+      "kind": "potential_conflict",
+      "level": "warning",
+      "outcome": "not_conflict",
+      "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+      "target_section_id": "docs/spec/conflict-cap.md#0003-beta-block",
+      "warning": "Pair was judged and retained only as a warning."
+    }
+  ],
+  "regenerated_chapter_anchors": [
+    "docs/spec/conflict-cap.md#conflict-pair-cap-spec"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec",
+      "source_section_id": "docs/spec/conflict-cap.md#0001-conflict-pair-cap-spec"
+    },
+    {
+      "section_id": "docs/spec/conflict-cap.md#0002-alpha-base",
+      "source_section_id": "docs/spec/conflict-cap.md#0002-alpha-base"
+    },
+    {
+      "section_id": "docs/spec/conflict-cap.md#0003-beta-block",
+      "source_section_id": "docs/spec/conflict-cap.md#0003-beta-block"
+    },
+    {
+      "section_id": "docs/spec/conflict-cap.md#0004-gamma-block",
+      "source_section_id": "docs/spec/conflict-cap.md#0004-gamma-block"
+    },
+    {
+      "section_id": "docs/spec/conflict-cap.md#0005-delta-block",
+      "source_section_id": "docs/spec/conflict-cap.md#0005-delta-block"
+    },
+    {
+      "section_id": "docs/spec/conflict-cap.md#0006-epsilon-block",
+      "source_section_id": "docs/spec/conflict-cap.md#0006-epsilon-block"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/conflict-cap.md"
+  ],
+  "warnings": []
+}

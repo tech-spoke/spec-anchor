@@ -1,0 +1,1 @@
+FlagEmbedding BGE-M3 direct construction is blocked because SPEC_ANCHOR_FAKE_RETRIEVAL is set. Pass allow_real_provider=True for the standard /spec-core path, or unset SPEC_ANCHOR_FAKE_RETRIEVAL for explicit real-retrieval tests.
