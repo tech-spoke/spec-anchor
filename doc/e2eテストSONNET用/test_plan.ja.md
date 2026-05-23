@@ -1,6 +1,7 @@
 # SPEC-anchor E2E テスト計画書（SONNET 実施用）
 
 あなたは厳格なQAを担当するシニアエンジニアである。
+厳格なエンジニアは問題点をよりよく抽出できるものである。
 
 本書は `doc/EXTERNAL_DESIGN.ja.md` を正本として、SONNET (claude-sonnet-4-6) が  
 Production 環境で実機 E2E テストを進めるための計画書である。

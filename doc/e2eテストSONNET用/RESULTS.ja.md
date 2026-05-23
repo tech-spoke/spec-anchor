@@ -47,8 +47,8 @@
 | G5 | §5 責務境界（全15件） | **PASS** | evidence/P3_G5_responsibility/ | 0 |
 | G6 | §6 コマンド体系（残22件） | 未実施 | — | 22 |
 | G7 | §7 /spec-core（残118件） | **PASS/SKIP** | evidence/P3_G7_spec_core/ | 85件PASS、8件SKIP（Qdrant停止/LLM失敗/旧artifact が必要） |
-| G8 | §8 /spec-inject（残50件） | 未実施 | — | 50 |
-| G9 | §9 /spec-realign（残8件） | 未実施 | — | 8 |
+| G8 | §8 /spec-inject（残50件） | **PASS** | evidence/P3_G8_spec_inject/ | 50件PASS、0件SKIP |
+| G9 | §9 /spec-realign（残8件） | **PASS** | evidence/P3_G9_spec_realign/ | 8件PASS、0件SKIP |
 | G10 | §10 設定ファイル（残66件） | 未実施 | — | 66 |
 | G11 | §11 エラー契約（残31件） | 未実施 | — | 31 |
 
