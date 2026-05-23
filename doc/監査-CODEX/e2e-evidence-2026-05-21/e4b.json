@@ -1,0 +1,176 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "failed_required_artifact"
+  ],
+  "can_continue": false,
+  "command": "/spec-realign",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "chapter_anchors"
+      ],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 5.976322612999866,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 3,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 6,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          3
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/test.md#0001-test-source",
+          "docs/spec/test.md#0002-section-a",
+          "docs/spec/test.md#0003-section-b"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "schema_version": 1,
+    "status": "failed",
+    "warnings": []
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": true,
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "can_continue": false,
+    "command": "/spec-inject",
+    "constraints": [],
+    "freshness_report": {
+      "blocking_reasons": [
+        "failed_required_artifact"
+      ],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "failed_required_artifacts": [
+          "chapter_anchors"
+        ],
+        "related_sections": {
+          "diagnostics": [
+            {
+              "candidate_generation_elapsed_sec": 5.976322612999866,
+              "candidate_generation_partial_mode": "full",
+              "candidate_generation_source_count": 3,
+              "message": "Related Section candidates were generated for the selected source scope.",
+              "reason_code": "related_section_candidate_generation_scope",
+              "severity": "info",
+              "stage": "candidate_generation"
+            },
+            {
+              "cache_hits": 0,
+              "cache_misses": 6,
+              "cache_rejected_hits": 0,
+              "cache_size": 6,
+              "message": "pair-level relation typing cache statistics",
+              "reason_code": "related_typing_cache_stats",
+              "severity": "warning",
+              "stage": "related_section_selection"
+            }
+          ],
+          "qdrant_backend_failure": null,
+          "status": "success"
+        },
+        "retrieval_index": {
+          "status": "success"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [
+            3
+          ],
+          "blocking_reasons": [],
+          "cache_hits": 0,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [
+            "docs/spec/test.md#0001-test-source",
+            "docs/spec/test.md#0002-section-a",
+            "docs/spec/test.md#0003-section-b"
+          ],
+          "llm_calls": 1,
+          "reused_section_ids": [],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "schema_version": 1,
+      "status": "failed",
+      "warnings": []
+    },
+    "generated_at": null,
+    "project_root": "/tmp/spec-anchor-e2e",
+    "reasons": [
+      "failed_required_artifact"
+    ],
+    "recommended_next_action": "run /spec-core or /spec-core --all before /spec-inject",
+    "should_stop": true,
+    "status": "failed",
+    "stop_reason": "failed_required_artifact",
+    "stops": true,
+    "warnings": []
+  },
+  "project_root": "/tmp/spec-anchor-e2e",
+  "reasons": [
+    "failed_required_artifact"
+  ],
+  "recommended_next_action": "run /spec-core or /spec-core --all before /spec-inject",
+  "should_stop": true,
+  "status": "failed",
+  "stop_reason": "failed_required_artifact",
+  "stops": true,
+  "warnings": []
+}

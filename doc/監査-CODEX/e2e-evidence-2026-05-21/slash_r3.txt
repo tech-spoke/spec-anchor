@@ -1,0 +1,30 @@
+`spec-anchor core` が config_error で失敗しました。
+
+## CoreResult サマリ
+
+- **status**: `failed`
+- **mode**: `incremental`
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `blocked`
+- **updated_sources / failed_sources / failed_sections**: いずれも空（実行に到達せず）
+- **pending_conflict_count**: 0
+- **unreflected_conflict_resolutions / stale_resolution_count**: 0
+
+## Freshness Report
+
+- **status**: `failed`
+- **blocking_reasons**: `failed_required_artifact`
+- **failed_required_artifacts**: `source_specs`
+- **warnings**: `core.concept_file not found: /tmp/spec-anchor-e2e/docs/core/concept.md`
+
+## 根本原因（人間判断要）
+
+`.spec-anchor/config.toml` の `core.concept_file` が指す `/tmp/spec-anchor-e2e/docs/core/concept.md` が存在しません。Purpose / Core Concept は人間が維持する read-only input のため、Agent からは作成しません。
+
+### 対応オプション（人間が選択）
+
+1. `docs/core/concept.md` を人間が作成して再実行する
+2. `.spec-anchor/config.toml` の `core.concept_file` パスを正しい既存ファイルに修正して再実行する
+3. concept ファイルが本当に不要なら config 設計を見直す
+
+Conflict Review Items は生成されていません（実行が config 段階で停止したため）。

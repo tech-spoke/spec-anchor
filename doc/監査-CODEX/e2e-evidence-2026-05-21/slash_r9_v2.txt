@@ -1,0 +1,19 @@
+CLI が `should_stop=true` / `status="error"` を返しました。`.spec-anchor/config.toml` が `/tmp/spec-anchor-e2e` に存在しないため Agentic Search は実行できません。
+
+## 停止理由
+
+```
+ConfigError: .spec-anchor/config.toml not found under /tmp/spec-anchor-e2e
+```
+
+## 復旧手順
+
+次の command で project skeleton を初期化してください。
+
+```bash
+spec-anchor-setup-project --target /tmp/spec-anchor-e2e
+```
+
+初期化後に Purpose / Core Concept / Source Specs を整え、`/spec-core` で artifact を構築してから `/spec-inject` を再実行してください。
+
+constraints は生成していません（Agentic Search 未実行）。`/spec-core` は自動実行しません。

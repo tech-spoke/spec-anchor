@@ -1,0 +1,208 @@
+/home/kazuki/public_html/spec-anchor/.venv/lib/python3.12/site-packages/qdrant_client/qdrant_remote.py:288: UserWarning: Failed to obtain server version. Unable to check client-server compatibility. Set check_compatibility=False to skip version check.
+  show_warning(
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 30 files:   0%|          | 0/30 [00:00<?, ?it/s]Fetching 30 files: 100%|██████████| 30/30 [00:00<00:00, 12396.96it/s]
+Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 11726.32it/s]
+/home/kazuki/public_html/spec-anchor/.venv/lib/python3.12/site-packages/qdrant_client/qdrant_remote.py:288: UserWarning: Failed to obtain server version. Unable to check client-server compatibility. Set check_compatibility=False to skip version check.
+  show_warning(
+Fetching 30 files:   0%|          | 0/30 [00:00<?, ?it/s]Fetching 30 files: 100%|██████████| 30/30 [00:00<00:00, 14107.99it/s]
+Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 10614.09it/s]
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "kind": "related_sections_generation_failed",
+          "level": "warning",
+          "message": "[Errno 111] Connection refused"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "failed"
+    },
+    "retrieval_index": {
+      "status": "failed"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [
+            "test section",
+            "placeholder content",
+            "empty section",
+            "validation stub",
+            "sample specification",
+            "minimal test document",
+            "Test"
+          ],
+          "section_id": "docs/spec/test.md#0001-test",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_section_id": "docs/spec/test.md#0001-test",
+          "stable_section_uid": "4d4f40e5ae8d707c",
+          "summary": "Test section placeholder with no substantive content."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        1
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/test.md#0001-test"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "retrieval_index",
+        "related_sections"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "kind": "related_sections_generation_failed",
+            "level": "warning",
+            "message": "[Errno 111] Connection refused"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "failed"
+      },
+      "retrieval_index": {
+        "status": "failed"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/test.md#0001-test"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 2,
+    "status": "failed",
+    "warnings": [
+      "Source Retrieval Index update failed",
+      "Related Sections generation failed"
+    ]
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/test.md#test"
+  ],
+  "related_sections_status": "failed",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/test.md#0001-test",
+      "source_section_id": "docs/spec/test.md#0001-test"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/test.md"
+  ],
+  "warnings": [
+    "Source Retrieval Index update failed",
+    "Related Sections generation failed"
+  ]
+}

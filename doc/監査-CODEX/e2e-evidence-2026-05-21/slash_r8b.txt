@@ -1,0 +1,16 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+`spec-anchor core` を incremental モードで実行完了。
+
+## 結果サマリ
+
+- **status**: `updated` / **mode**: `incremental` / **freshness**: `fresh`
+- **updated_sources**: なし（`docs/spec/test.md` は skipped — 既存 cache を再利用）
+- **failed_sources / failed_sections**: なし
+- **retrieval_index_status**: `skipped_unchanged`
+- **related_sections**: `skipped_unchanged`
+- **regenerated_chapter_anchors**: `docs/spec/test.md#test-source`
+- **section_metadata**: cache_hits=2 / llm_calls=0（2 section とも cache 再利用）
+- **pending_conflict_count**: 0 / **conflict_review_items**: なし
+- **unreflected_conflict_resolutions / stale_resolution_count**: 0
+
+人間判断が必要な pending Conflict Review Item はありません。chapter anchor のみ再生成され、その他の artifact は変更なしでスキップされています。

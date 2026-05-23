@@ -1,0 +1,72 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "failed_required_artifact"
+  ],
+  "can_continue": false,
+  "command": "/spec-realign",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "diagnostics": {
+      "missing_required_artifacts": [
+        "freshness"
+      ]
+    },
+    "status": "failed",
+    "warnings": [
+      "freshness artifact missing or unreadable: /tmp/spec-anchor-e2e/.spec-anchor/state/freshness.json"
+    ]
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": true,
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "can_continue": false,
+    "command": "/spec-inject",
+    "constraints": [],
+    "freshness_report": {
+      "blocking_reasons": [
+        "failed_required_artifact"
+      ],
+      "diagnostics": {
+        "missing_required_artifacts": [
+          "freshness"
+        ]
+      },
+      "status": "failed",
+      "warnings": [
+        "freshness artifact missing or unreadable: /tmp/spec-anchor-e2e/.spec-anchor/state/freshness.json"
+      ]
+    },
+    "generated_at": null,
+    "project_root": "/tmp/spec-anchor-e2e",
+    "reasons": [
+      "failed_required_artifact"
+    ],
+    "recommended_next_action": "run /spec-core or /spec-core --all before /spec-inject",
+    "should_stop": true,
+    "status": "failed",
+    "stop_reason": "failed_required_artifact",
+    "stops": true,
+    "warnings": [
+      "freshness artifact missing or unreadable: /tmp/spec-anchor-e2e/.spec-anchor/state/freshness.json"
+    ]
+  },
+  "project_root": "/tmp/spec-anchor-e2e",
+  "reasons": [
+    "failed_required_artifact"
+  ],
+  "recommended_next_action": "run /spec-core or /spec-core --all before /spec-inject",
+  "should_stop": true,
+  "status": "failed",
+  "stop_reason": "failed_required_artifact",
+  "stops": true,
+  "warnings": [
+    "freshness artifact missing or unreadable: /tmp/spec-anchor-e2e/.spec-anchor/state/freshness.json"
+  ]
+}

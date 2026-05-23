@@ -1,0 +1,24 @@
+`/spec-realign` の手順 3 (Agentic Search) の時点で CLI から **停止指示** が返りました。これ以上 constraints 生成・answer 整形には進めません。
+
+## 停止状況
+
+- `spec-anchor inject-search "answer 5"` が `status: failed`, `should_stop: true` を返した。
+- `stop_reason`: `failed_required_artifact`
+- `failed_required_artifacts`: `chapter_anchors`
+- warning: `Chapter Anchors LLM generation failed for 1 chapter(s)`
+- CLI 自身の `recommended_next_action`: **`run /spec-core or /spec-core --all before /spec-inject`**
+
+`section_metadata_generation` と `retrieval_index` は `fresh` / `success` ですが、`chapter_anchors` の LLM 生成が落ちており required artifact 不足で freshness gate が閉じている状態です。
+
+## 次にユーザーがやること
+
+`/spec-realign` の規約で `/spec-core` は自動実行しません。以下のどちらかをユーザーが明示的に実行してください。
+
+1. **`/spec-core --all`** を実行して chapter_anchors を含む全 artifact を再生成する（LLM 側の一時的失敗ならこれで復旧）。
+2. `spec-anchor watch` で watcher を回している場合は完了を待つ。watcher 実行中なら別の stop_reason として表面化します。
+
+再生成後にもう一度 `/spec-realign "answer is 5"` を投げ直してください。そこで初めて 4 path search → constraints → answer 整形に進めます。
+
+## 補足: 課題 "answer is 5" について
+
+現在の `docs/spec/test.md` は `## Section A` に `section a body.` というプレースホルダー本文しかなく、Purpose / Core Concept も両方プレースホルダー、`.answer.json` (前回 run) でも resolved Conflict Review Item は 0 件でした。仮に freshness が通っても、"answer is 5" を裏付ける evidence は Source Specs / Purpose / Core Concept / resolved Conflict のいずれにも存在しないため、constraint として確定できず `競合 / 不確実性 / 人間レビューが必要な点` に倒れる見込みです。"5" が何の値（retry count? section number? その他の数量?）を指すのか、ユーザーから補足、または対応する記述を `docs/spec/test.md` / `docs/core/*.md` に追記してから realign するのが本筋になります。

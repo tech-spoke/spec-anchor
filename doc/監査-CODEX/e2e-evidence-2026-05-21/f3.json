@@ -1,0 +1,46 @@
+{
+  "agent": "both",
+  "applied": true,
+  "codex_skill_path": ".codex/skills/spec-anchor/SKILL.md",
+  "conflicts": [],
+  "created": [],
+  "diagnostics": [
+    {
+      "code": "human_owned_core_file_protected",
+      "force": true,
+      "message": "Human-owned Purpose / Core Concept file was left unchanged.",
+      "path": "docs/core/purpose.md",
+      "severity": "info"
+    },
+    {
+      "code": "human_owned_core_file_protected",
+      "force": true,
+      "message": "Human-owned Purpose / Core Concept file was left unchanged.",
+      "path": "docs/core/concept.md",
+      "severity": "info"
+    }
+  ],
+  "dry_run": false,
+  "exit_code": 0,
+  "force": true,
+  "missing_core_files": [],
+  "no_init_core_files": false,
+  "protected": [
+    "docs/core/purpose.md",
+    "docs/core/concept.md"
+  ],
+  "skipped": [
+    ".spec-anchor/.gitignore",
+    ".claude/commands/spec-core.md",
+    ".claude/commands/spec-inject.md",
+    ".claude/commands/spec-realign.md",
+    ".codex/skills/spec-anchor/SKILL.md",
+    "docs/core/purpose.md",
+    "docs/core/concept.md"
+  ],
+  "status": "ok",
+  "target": "/tmp/spec-anchor-f2",
+  "updated": [
+    ".spec-anchor/config.toml"
+  ]
+}

@@ -1,0 +1,18 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+`/spec-realign` を停止します。CLI が freshness gate でブロックされ、answer の整形は実行できませんでした。
+
+## 停止状況
+
+- **stop_reason**: `dirty_or_stale_source`
+- **blocking_reasons**: `["dirty_or_stale_source"]`
+- **dirty_or_stale_sources**: `docs/spec/test.md`
+- **top-level recommended_next_action**: `run /spec-core before /spec-realign`
+
+## 復旧手順 (人間判断)
+
+1. `/spec-core` を実行して `docs/spec/test.md` の section metadata / retrieval index / chapter anchors / conflict review items を再生成する。watcher を併走させたい場合は `spec-anchor watch` でも可。
+2. freshness gate が pass する状態になったあと、`/spec-realign retry policy is 3` を再実行する。
+
+注記: `/spec-core` の自動実行は `/spec-realign` の規約上禁止のため、こちらでは起動しません。`docs/spec/test.md` の本文は現状プレースホルダー（`# Test source` + `## Section A` の最小記述）で、retry policy に関する記述は Source Specs / Purpose / Core Concept のいずれにも存在しません。`/spec-core` で freshness を解消したあと、retry policy を裏付ける記述を `docs/spec/test.md` に人間が追記してから realign する経路が、constraints を成立させる前提となります（前回 `.answer.json` でも同様の判断が示されています）。
+
+なお、ユーザー引数の `retry policy is 3` は `/spec-realign` の仕様上 retry 動作を制御するフラグではなく、**課題プロンプト**として受理されます（CLI に retry 回数オプションは存在しません）。

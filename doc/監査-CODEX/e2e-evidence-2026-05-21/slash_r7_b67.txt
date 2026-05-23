@@ -1,0 +1,32 @@
+## /spec-core 実行結果
+
+**status: failed**（mode: incremental）
+
+### 更新成功
+- **updated_sources**: `docs/spec/test.md`
+- **updated_sections** (2):
+  - `docs/spec/test.md#0001-test-source`
+  - `docs/spec/test.md#0002-section-a`
+- **regenerated_chapter_anchors**: `docs/spec/test.md#test-source`
+- **section_metadata**: success（LLM 1 call、cache hits 0、batch 2）
+
+### 失敗 artifact（required_artifact_problem_count: 2）
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `failed`
+  - 原因: Qdrant backend へ接続不可（`http://localhost:6333` → `[Errno 111] Connection refused`）
+
+### Conflict / Resolution 状態
+- pending_conflict_count: 0
+- conflict_review_items: 空
+- unreflected_conflict_resolutions: 空
+- stale_resolution_count: 0
+- failed_sections / failed_sources: 空
+
+### 推奨される次アクション
+Qdrant への接続を復旧してから、canonical artifact を整えるため full rebuild を実行する必要があります。
+
+```
+spec-anchor core --rebuild
+```
+
+人間判断が必要な pending Conflict Review Item はありません。ブロッカーは Qdrant 接続のみです。

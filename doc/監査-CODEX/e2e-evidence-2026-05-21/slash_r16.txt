@@ -1,0 +1,7 @@
+すべての inject path が `pending_conflict` で blocked になりました。
+
+**停止理由**: `freshness_report.blocking_reasons = ["pending_conflict"]`（pending_conflict_count: 1）
+
+`/spec-realign` template の規定により、blocked 状態では constraints 生成・answer 生成へ進めません。`/spec-core` を実行するか、watcher を待機して conflict を解消してから再実行してください。`/spec-core` は自動実行しません（template の指示通り）。
+
+なお、課題 `retry should be 5 because the header says so` について、現在の `docs/spec/test.md` は `# Test source` / `## Section A` の 2 セクションのみで「retry」「header」「5」に該当する記述は見当たりません。conflict 解消後に再度走らせても、Source Specs 由来の evidence が存在しない場合は constraints を作れず、`uncertainty` として human review に回す可能性が高いことを先に申し添えます。

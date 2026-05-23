@@ -1,0 +1,31 @@
+`spec-anchor core` を実行しました。**status: failed** で、required artifact が 2 件失敗しています。
+
+## CoreResult 報告
+
+- **status**: `failed`（mode: incremental）
+- **updated_sources**: `docs/spec/test.md`
+- **updated_sections**: `docs/spec/test.md#0002-section-a`
+- **skipped_sections**: `docs/spec/test.md#0001-test-source`（cache hit による再利用）
+- **failed_sources**: なし
+- **failed_sections**: なし
+- **regenerated_chapter_anchors**: `docs/spec/test.md#test-source`
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `failed`
+- **pending_conflict_count**: 0
+- **conflict_review_items**: なし
+- **unreflected_conflict_resolutions**: なし
+- **stale_resolution_count**: 0
+
+## 失敗詳細（要対応）
+
+両 failure は Qdrant backend のベクトル次元不一致が根因と推定されます:
+
+- **related_sections**: `Unexpected Response: 400 (Bad Request) — Wrong input: Vector dimension error: expected dim: 8, got 1024`
+  - Qdrant collection の expected dim が **8** に設定されているが、embedding model は **1024 次元**を送出している。
+- **retrieval_index**: `failed`（同根の collection スキーマ不整合と推定）
+
+`freshness_report.blocking_reasons`: `failed_required_artifact`、`required_artifact_problem_count`: 2（`retrieval_index`, `related_sections`）。
+
+## 推奨次アクション（人間判断）
+
+Qdrant collection の vector size を 1024 へ作り直すか、`.spec-anchor/config.toml` の embedding model を 8 次元のものへ揃える必要があります。pending Conflict Review Items は無いため `/spec-realign` をブロックする conflict はありませんが、retrieval index と related sections が無い状態での downstream 利用は推奨しません。

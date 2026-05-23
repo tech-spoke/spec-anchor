@@ -1,0 +1,22 @@
+`spec-anchor core` は失敗しました。
+
+## 結果
+
+- **status**: `failed`
+- **理由**: `.spec-anchor/config.toml not found under /tmp/spec-anchor-e2e`
+- **freshness_report.status**: `failed` (blocking_reasons: `failed_required_artifact`)
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `blocked`
+- **failed_required_artifacts**: `source_specs`
+
+## 確認
+
+project root `/tmp/spec-anchor-e2e` に `.spec-anchor/config.toml` が存在しません。SPEC-anchor は未初期化の状態です。
+
+`pending_conflict_count` は 0 で、conflict review items もありません（そもそも処理が config 読み込み段階で停止しているため）。
+
+次の判断は人間側で必要です:
+- このディレクトリで SPEC-anchor を初期化するか（`spec-anchor init` 等で `.spec-anchor/config.toml` を作成）
+- 別の project root で実行すべきだったか
+
+どうしますか？

@@ -1,0 +1,16 @@
+CLI が `should_stop=true` を返しました。`blocking_reasons` は `failed_required_artifact` で、`chapter_anchors` artifact 生成に失敗しています。
+
+## /spec-inject 停止
+
+`spec-anchor inject-search "test query"` が **停止指示** を返したため、constraints 生成は行いません。
+
+### 停止理由
+- `stop_reason`: `failed_required_artifact`
+- `blocking_reasons`: `failed_required_artifact`
+- `failed_required_artifacts`: `chapter_anchors`
+- 警告: `Chapter Anchors LLM generation failed for 1 chapter(s)`
+
+### 推奨される次のアクション
+CLI が指示するとおり、`/spec-inject` の前に **`/spec-core` または `/spec-core --all`** を実行してください。Chapter Anchors の artifact 生成が失敗しているため、これを修復しないと Agentic Search の path ② が成立せず、`/spec-inject` を継続できません。
+
+なお、`/spec-core` は `/spec-inject` から自動実行しない契約のため、ユーザー側で明示的に実行してください。

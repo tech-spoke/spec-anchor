@@ -1,0 +1,42 @@
+## Agentic Search サマリ
+
+- path ① Qdrant section retrieval: `Section A retry behavior` でヒットしたのは `docs/spec/test.md#0002-section-a` と親の `#0001-test-source` のみ。両 Section の本文・summary・search_keys に retry に関する記述は無く、内容は placeholder (`section a body.` と再インデックス確認用の追加テキスト) だけ。
+- path ③ Purpose / Core Concept: 両ファイル共に human-maintained 未記入の placeholder (`Write the human-maintained ... here.`)。retry behavior に関する記述なし。
+- path ④ Conflict Review Items: `resolved_conflict_review_items: []`。final evidence にできる resolved item は存在しない。
+- path ② chapter_anchors: Source Specs が test.md 1 本のみで章レベルの追加情報なし、と path ① の結果から判断し打ち切り。
+- blocking_reasons / should_stop: いずれの CLI 戻り値にも記載なし、watcher / dirty / stale / pending conflict の停止指示は出ていない。
+
+## 今回守る制約
+
+（該当する constraint なし — 根拠ルールを満たす evidence が repository 内に存在しない）
+
+`evidence_origin` として有効な Purpose / Core Concept / Source Specs / Conflict Review Item のいずれにも「Section A の retry behavior」に関する記述が無いため、捏造を避けて constraints JSON は空配列とする。
+
+```json
+[]
+```
+
+## 今回見るべき対象
+
+- `docs/spec/test.md#0002-section-a`
+  理由: 課題名で名指しされている唯一の Section。ただし本文は placeholder のみで retry に関する評価可能な記述なし。
+- `docs/spec/test.md#0001-test-source`
+  理由: Section A の親 (`depends_on`)。文脈として確認したが retry 記述なし。
+
+## 関連先として確認したもの
+
+- `docs/spec/test.md#0001-test-source` (relation_hint: `depends_on` — Section A の構造的前提)
+- `/tmp/spec-anchor-e2e/docs/core/concept.md` (Core Concept — placeholder)
+- Purpose 全文 (placeholder)
+
+## 不確実性 / 人間確認
+
+- **retry behavior の根拠が repository に存在しない**。Source Specs (test.md) は再インデックス確認用の placeholder のみで、retry の試行回数 / backoff / 失敗時挙動 / 副作用ロールバックなどの記述が一切ない。
+- Purpose と Core Concept も未記入の placeholder のため、抽象方針からの抽出も不可能。
+- resolved Conflict Review Item も 0 件のため、過去判断の継続も適用できない。
+- 次の手段の選択を人間に確認したい:
+  1. `docs/spec/` に Section A の retry behavior を記述した Source Specs を追加し `spec-anchor` 再インデックス → 再度 `/spec-inject` を実行する、または
+  2. Purpose / Core Concept に retry に関する不変条件を人間が書き込む、または
+  3. 関連する Conflict Review Item を起票して resolve する。
+
+evidence が補充されるまで、`/spec-inject` で final evidence を満たす constraint は生成できない。

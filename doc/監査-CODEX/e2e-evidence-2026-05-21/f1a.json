@@ -1,0 +1,24 @@
+{
+  "agent": "both",
+  "applied": false,
+  "codex_skill_path": null,
+  "conflicts": [],
+  "created": [],
+  "diagnostics": [
+    {
+      "code": "target_not_found",
+      "message": "target does not exist; create it explicitly before running setup",
+      "severity": "error"
+    }
+  ],
+  "dry_run": false,
+  "exit_code": 1,
+  "force": false,
+  "missing_core_files": [],
+  "no_init_core_files": false,
+  "protected": [],
+  "skipped": [],
+  "status": "error",
+  "target": "/tmp/nonexistent-spec-anchor-target",
+  "updated": []
+}

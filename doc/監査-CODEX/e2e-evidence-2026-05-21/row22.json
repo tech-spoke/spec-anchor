@@ -1,0 +1,375 @@
+{
+  "status": "degraded",
+  "mode": "editable",
+  "check_only": true,
+  "prepared": [],
+  "actions": [
+    {
+      "name": "console_scripts",
+      "status": "checked",
+      "available_count": 0,
+      "missing": [
+        "spec-anchor",
+        "spec-anchor-slash",
+        "spec-anchor-watch",
+        "spec-anchor-setup-project",
+        "spec-anchor-setup-system"
+      ]
+    },
+    {
+      "name": "packaged_templates",
+      "status": "checked",
+      "available_count": 6,
+      "missing": []
+    },
+    {
+      "name": "optional_providers",
+      "status": "checked",
+      "available": [
+        "FlagEmbedding",
+        "qdrant_client",
+        "qdrant"
+      ],
+      "unavailable": [
+        "codex",
+        "claude"
+      ]
+    },
+    {
+      "name": "mode_preparation",
+      "mode": "editable",
+      "status": "skipped",
+      "reason": "check_only"
+    },
+    {
+      "name": "smoke_checks",
+      "status": "skipped",
+      "reason": "run_smoke_not_requested"
+    }
+  ],
+  "created": [],
+  "updated": [],
+  "skipped": [
+    {
+      "name": "mode_preparation",
+      "mode": "editable",
+      "status": "skipped",
+      "reason": "check_only"
+    },
+    {
+      "name": "smoke_checks",
+      "status": "skipped",
+      "reason": "run_smoke_not_requested"
+    }
+  ],
+  "conflicts": [],
+  "diagnostics": [
+    {
+      "reason_code": "console_script_missing",
+      "severity": "warning",
+      "message": "console script is not on PATH: spec-anchor",
+      "name": "spec-anchor"
+    },
+    {
+      "reason_code": "console_script_missing",
+      "severity": "warning",
+      "message": "console script is not on PATH: spec-anchor-slash",
+      "name": "spec-anchor-slash"
+    },
+    {
+      "reason_code": "console_script_missing",
+      "severity": "warning",
+      "message": "console script is not on PATH: spec-anchor-watch",
+      "name": "spec-anchor-watch"
+    },
+    {
+      "reason_code": "console_script_missing",
+      "severity": "warning",
+      "message": "console script is not on PATH: spec-anchor-setup-project",
+      "name": "spec-anchor-setup-project"
+    },
+    {
+      "reason_code": "console_script_missing",
+      "severity": "warning",
+      "message": "console script is not on PATH: spec-anchor-setup-system",
+      "name": "spec-anchor-setup-system"
+    },
+    {
+      "reason_code": "provider_unavailable",
+      "severity": "warning",
+      "message": "agent_cli is unavailable: codex",
+      "name": "codex",
+      "kind": "agent_cli"
+    },
+    {
+      "reason_code": "provider_unavailable",
+      "severity": "warning",
+      "message": "agent_cli is unavailable: claude",
+      "name": "claude",
+      "kind": "agent_cli"
+    },
+    {
+      "reason_code": "codex_skill_entrypoint",
+      "severity": "info",
+      "message": "Codex uses skill entrypoints under <project>/.codex/skills/spec-anchor; SPEC-anchor does not install .codex/commands for Codex.",
+      "project_skill_path": "<project>/.codex/skills/spec-anchor/SKILL.md"
+    },
+    {
+      "reason_code": "claude_command_entrypoint",
+      "severity": "info",
+      "message": "Claude Code uses project command entrypoints under .claude/commands.",
+      "project_command_path": "<project>/.claude/commands/spec-{core,inject,realign}.md"
+    }
+  ],
+  "console_scripts": [
+    {
+      "name": "spec-anchor",
+      "available": false,
+      "path": null
+    },
+    {
+      "name": "spec-anchor-slash",
+      "available": false,
+      "path": null
+    },
+    {
+      "name": "spec-anchor-watch",
+      "available": false,
+      "path": null
+    },
+    {
+      "name": "spec-anchor-setup-project",
+      "available": false,
+      "path": null
+    },
+    {
+      "name": "spec-anchor-setup-system",
+      "available": false,
+      "path": null
+    }
+  ],
+  "templates": [
+    {
+      "path": "templates/.codex/skills/spec-anchor/SKILL.md",
+      "available": true
+    },
+    {
+      "path": "templates/.claude/commands/spec-core.md",
+      "available": true
+    },
+    {
+      "path": "templates/.claude/commands/spec-inject.md",
+      "available": true
+    },
+    {
+      "path": "templates/.claude/commands/spec-realign.md",
+      "available": true
+    },
+    {
+      "path": "templates/.spec-anchor/config.toml",
+      "available": true
+    },
+    {
+      "path": "templates/.spec-anchor/.gitignore",
+      "available": true
+    }
+  ],
+  "providers": [
+    {
+      "name": "FlagEmbedding",
+      "kind": "embedding_provider",
+      "available": true,
+      "version": "1.4.0",
+      "required": false
+    },
+    {
+      "name": "qdrant_client",
+      "kind": "vector_store_client",
+      "available": true,
+      "version": "1.17.1",
+      "required": false
+    },
+    {
+      "name": "codex",
+      "kind": "agent_cli",
+      "available": false,
+      "path": null,
+      "version": null,
+      "required": false
+    },
+    {
+      "name": "claude",
+      "kind": "agent_cli",
+      "available": false,
+      "path": null,
+      "version": null,
+      "required": false
+    },
+    {
+      "name": "qdrant",
+      "kind": "vector_store_service",
+      "available": true,
+      "url": "http://localhost:6333",
+      "version": "1.17.1",
+      "required": false,
+      "error": null
+    }
+  ],
+  "agent_cli_entries": {
+    "codex": {
+      "cli": {
+        "name": "codex",
+        "kind": "agent_cli",
+        "available": false,
+        "path": null,
+        "version": null,
+        "required": false
+      },
+      "project_skill_path": "<project>/.codex/skills/spec-anchor/SKILL.md"
+    },
+    "claude": {
+      "cli": {
+        "name": "claude",
+        "kind": "agent_cli",
+        "available": false,
+        "path": null,
+        "version": null,
+        "required": false
+      },
+      "project_command_path": "<project>/.claude/commands/spec-{core,inject,realign}.md"
+    }
+  },
+  "smoke": {
+    "executed": false,
+    "skipped": true
+  },
+  "production_readiness": {
+    "status": "blocked",
+    "checks": [
+      {
+        "name": "qdrant_service",
+        "status": "passed",
+        "reason_code": null,
+        "details": {
+          "name": "qdrant",
+          "kind": "vector_store_service",
+          "available": true,
+          "url": "http://localhost:6333",
+          "version": "1.17.1",
+          "required": false,
+          "error": null
+        }
+      },
+      {
+        "name": "flagembedding_package",
+        "status": "passed",
+        "reason_code": null,
+        "details": {
+          "name": "FlagEmbedding",
+          "kind": "embedding_provider",
+          "available": true,
+          "version": "1.4.0",
+          "required": false
+        }
+      },
+      {
+        "name": "qdrant_client_package",
+        "status": "passed",
+        "reason_code": null,
+        "details": {
+          "name": "qdrant_client",
+          "kind": "vector_store_client",
+          "available": true,
+          "version": "1.17.1",
+          "required": false
+        }
+      },
+      {
+        "name": "agent_cli",
+        "status": "failed",
+        "reason_code": "agent_cli_unavailable",
+        "details": {
+          "codex": {
+            "name": "codex",
+            "kind": "agent_cli",
+            "available": false,
+            "path": null,
+            "version": null,
+            "required": false
+          },
+          "claude": {
+            "name": "claude",
+            "kind": "agent_cli",
+            "available": false,
+            "path": null,
+            "version": null,
+            "required": false
+          }
+        }
+      },
+      {
+        "name": "console_script:spec-anchor",
+        "status": "failed",
+        "reason_code": "console_script_missing",
+        "details": {
+          "name": "spec-anchor",
+          "available": false,
+          "path": null
+        }
+      },
+      {
+        "name": "console_script:spec-anchor-slash",
+        "status": "failed",
+        "reason_code": "console_script_missing",
+        "details": {
+          "name": "spec-anchor-slash",
+          "available": false,
+          "path": null
+        }
+      },
+      {
+        "name": "console_script:spec-anchor-watch",
+        "status": "failed",
+        "reason_code": "console_script_missing",
+        "details": {
+          "name": "spec-anchor-watch",
+          "available": false,
+          "path": null
+        }
+      },
+      {
+        "name": "console_script:spec-anchor-setup-project",
+        "status": "failed",
+        "reason_code": "console_script_missing",
+        "details": {
+          "name": "spec-anchor-setup-project",
+          "available": false,
+          "path": null
+        }
+      },
+      {
+        "name": "console_script:spec-anchor-setup-system",
+        "status": "failed",
+        "reason_code": "console_script_missing",
+        "details": {
+          "name": "spec-anchor-setup-system",
+          "available": false,
+          "path": null
+        }
+      }
+    ],
+    "blocking_reasons": [
+      "agent_cli_unavailable",
+      "console_script_missing",
+      "console_script_missing",
+      "console_script_missing",
+      "console_script_missing",
+      "console_script_missing"
+    ],
+    "qdrant_url": "http://localhost:6333",
+    "qdrant_server_version": "1.17.1",
+    "flagembedding_version": "1.4.0",
+    "model_cache_dir": "/home/kazuki/.cache/huggingface"
+  },
+  "exit_code": 0
+}

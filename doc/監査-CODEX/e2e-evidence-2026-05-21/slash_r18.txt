@@ -1,0 +1,9 @@
+`/spec-realign` を起動しましたが、argument も先行する会話区間もないため、対象 task を特定できません。
+
+以下のいずれかを教えてください:
+
+1. **解決したい課題プロンプト** — constraints を作って answer candidate を出す対象（例: 「extendContract API の外部失敗時挙動を決めたい」など）
+2. **対象 task の範囲** — `/tmp/spec-anchor-e2e/docs/spec/` 配下のどの文書 / セクションを軸にするか
+3. **search keys のヒント** — 既に注目している論点があればそのキーワード
+
+task が定まり次第、`/spec-inject` と同じ 4-path Agentic Search → constraints JSON 生成 → `spec-anchor realign` 実行、の順で進めます。

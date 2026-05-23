@@ -1,0 +1,35 @@
+`spec-anchor core` を incremental mode で実行しました。結果は以下のとおりです。
+
+## CoreResult サマリ
+
+- **status**: `updated` (mode: incremental)
+- **updated_sources**: `docs/spec/test.md`
+- **updated_sections**: `docs/spec/test.md#0002-section-a`
+- **failed_sources**: `docs/spec/test.md`
+- **failed_sections**: `docs/spec/test.md#0001-test-source`
+- **retrieval_index_status**: `success`
+- **related_sections_status**: `success`
+- **freshness_report.status**: `degraded`
+  - blocking_reasons: `degraded_optional_artifact`
+  - degraded artifact: `section_metadata`
+- **pending_conflict_count**: 0
+- **unreflected_conflict_resolutions**: 0
+- **stale_resolution_count**: 0
+- **conflict_review_items**: なし
+
+## 失敗詳細 (section_metadata stage)
+
+`docs/spec/test.md#0001-test-source` で LLM 生成が失敗:
+
+1. **attempt 1**: `provider_error` — "Simulated codex failure for first call" (provider: codex, model: gpt-5.4-mini, timeout 120s)
+2. **再試行後**: `validation_error` — "section_metadata LLM output did not contain sections, summary, or search_keys"
+
+該当 section は `summary` と `search_keys` が空のまま artifact に残存しています (llm_generation_status: `failed`)。section_metadata は `retrieval_aid_not_evidence` の optional artifact のため、freshness は `degraded` 扱いで blocking ではあるものの、Conflict Review Items は発生していません。
+
+## 人間判断が必要な pending Conflict Review Items
+
+なし。
+
+## 次アクションの示唆
+
+- `section_metadata` の `degraded_optional_artifact` を解消するには、`docs/spec/test.md#0001-test-source` に対して再実行 (provider 設定や section 本文の見直し) が必要です。test fixture 由来の `Simulated codex failure` という diagnostic message から、これは E2E test harness 上の意図的失敗ケースの可能性があります。実環境では `.spec-anchor/config.toml` の `[llm.stage_routing.section_metadata]` を確認し、必要なら再実行してください。

@@ -1,0 +1,20 @@
+`/spec-realign` を実行できません。CLI が path ① (`inject-search`) の段階で `should_stop: true` を返しました。
+
+## 停止理由
+
+```
+ConfigError: .spec-anchor/config.toml not found under /tmp/spec-anchor-e2e
+```
+
+`/tmp/spec-anchor-e2e` には `.answer.json`（前回の "3 attempts + exponential backoff" 課題の成果物）が残っているだけで、`.spec-anchor/`、`docs/spec/`、`docs/core/` が存在しません。SPEC-anchor project として未初期化のため、4 path の inject-* search を 1 本も実行できず、final evidence として使える Source Specs / Purpose / Core Concept / resolved Conflict にアクセスできません。
+
+## ユーザー側で必要な対応
+
+template の指示に従い `/spec-core` は自動実行しません。次のいずれかをお願いします:
+
+1. このディレクトリで本当に SPEC-anchor を回したい場合 — `.spec-anchor/config.toml` を作り、`docs/spec/`・`docs/core/purpose.md`・`docs/core/concept.md` を用意したうえで `spec-anchor core`（または `/spec-core`）でインデックスを構築してから `/spec-realign` を再実行する。
+2. 既存の e2e fixture（前回 "3 attempts + exponential backoff" 用）を復元したい場合 — そのスナップショットの場所を教えてください。展開後に再実行します。
+
+## 参考: 課題定義の解釈
+
+`answer should be 5 retries` は、残存 `.answer.json` 中の「Section A の retry 動作」課題を **5 retries** に変更する続編、と読みました。ただし上記の通り evidence ソースが現在ゼロのため、`3 attempts` の前提自体が現環境では裏付け不能です（前回 `.answer.json` の `競合 / 不確実性 / 人間レビューが必要な点` でも、retry の対象・パラメータ・上位方針すべて Source Specs に未記入と判定されています）。環境を復元した後、5 retries 案も同じく "evidence 不在のため Agent 単独では確定不可、Source Specs への人間追記が必要" という結論に行き着く可能性が高い点を先にお伝えしておきます。

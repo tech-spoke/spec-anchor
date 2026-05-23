@@ -1,0 +1,374 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [
+        "docs/spec/test.md#test-source"
+      ],
+      "failure_reasons_by_chapter": {
+        "docs/spec/test.md#test-source": "llm_output_unparseable_or_missing_summary"
+      },
+      "status": "failed"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 4.991607697986183,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 2,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [
+        {
+          "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+          "model": "gpt-5.4-mini",
+          "prompt_version": "section-metadata-v2",
+          "provider": "",
+          "reason_code": "validation_error",
+          "section_ids": [
+            "docs/spec/test.md#0001-test-source"
+          ],
+          "severity": "error",
+          "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+          "stage": "section_metadata"
+        },
+        {
+          "attempt": 1,
+          "message": "Simulated codex failure for first call",
+          "model": "gpt-5.4-mini",
+          "prompt_version": "section-metadata-v2",
+          "provider": "codex",
+          "reason_code": "provider_error",
+          "severity": "error",
+          "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+          "stage": "section_metadata",
+          "timeout_sec": 120
+        }
+      ],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 1,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source"
+          ],
+          "identifiers": [],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "Simulated codex failure for first call",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "codex",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source"
+              ],
+              "severity": "error",
+              "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/test.md#0001-test-source",
+          "semantic_hash": "80b815af6bf9c1bc8d690eb25b64941a773fc01dbfb028263e7900fb89c95f06",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "0846a9b140c7ab45d30c2cddda8d3e3b4efe91543e8a5d05ee52d833150a89a6",
+          "source_section_id": "docs/spec/test.md#0001-test-source",
+          "stable_section_uid": "4d4f40e5ae8d707c",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source",
+            "Section A"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [
+            "section content",
+            "main body text",
+            "additional note",
+            "re-indexing",
+            "document section",
+            "text update",
+            "Test source",
+            "Section A"
+          ],
+          "section_id": "docs/spec/test.md#0002-section-a",
+          "semantic_hash": "70ad9503db17336a030b3878b3439fe8825a270908c786c14157a4d57a30f35c",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "6ecb3da51312903df3ad833b30f4b1d0b07975a843a9ffc3e03dbd4c5a625fa7",
+          "source_section_id": "docs/spec/test.md#0002-section-a",
+          "stable_section_uid": "9a291e266655e572",
+          "summary": "Section A contains the main body text and an added note about re-indexing."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        1,
+        1
+      ],
+      "blocking_reasons": [
+        "degraded_optional_artifact"
+      ],
+      "cache_hits": 0,
+      "diagnostics": {
+        "docs/spec/test.md#0001-test-source": [
+          {
+            "attempt": 1,
+            "message": "Simulated codex failure for first call",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "codex",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source"
+            ],
+            "severity": "error",
+            "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+            "stage": "section_metadata"
+          }
+        ]
+      },
+      "failed_sections": [
+        "docs/spec/test.md#0001-test-source"
+      ],
+      "freshness_status": "degraded",
+      "generated_section_ids": [
+        "docs/spec/test.md#0001-test-source",
+        "docs/spec/test.md#0002-section-a"
+      ],
+      "llm_calls": 2,
+      "reused_section_ids": [],
+      "warnings": [
+        "LLM generation failed for docs/spec/test.md#0001-test-source"
+      ]
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [
+    {
+      "section_id": "docs/spec/test.md#0001-test-source",
+      "source_section_id": "docs/spec/test.md#0001-test-source"
+    }
+  ],
+  "failed_sources": [
+    "docs/spec/test.md"
+  ],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact",
+      "degraded_optional_artifact"
+    ],
+    "counts": {
+      "degraded_optional_artifact_count": 1,
+      "required_artifact_problem_count": 1
+    },
+    "degraded_optional_artifact_count": 1,
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [
+          "docs/spec/test.md#test-source"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/test.md#test-source": "llm_output_unparseable_or_missing_summary"
+        },
+        "status": "failed"
+      },
+      "degraded_optional_artifacts": [
+        "section_metadata"
+      ],
+      "failed_required_artifacts": [
+        "chapter_anchors"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 4.991607697986183,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 2,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1,
+          1
+        ],
+        "blocking_reasons": [
+          "degraded_optional_artifact"
+        ],
+        "cache_hits": 0,
+        "diagnostics": {
+          "docs/spec/test.md#0001-test-source": [
+            {
+              "attempt": 1,
+              "message": "Simulated codex failure for first call",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "codex",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source"
+              ],
+              "severity": "error",
+              "source_hash": "3fdee85cbecd647e3fe3d9039d876f774dbe3ab88224a67e2cbc22d038dbac53",
+              "stage": "section_metadata"
+            }
+          ]
+        },
+        "failed_sections": [
+          "docs/spec/test.md#0001-test-source"
+        ],
+        "freshness_status": "degraded",
+        "generated_section_ids": [
+          "docs/spec/test.md#0001-test-source",
+          "docs/spec/test.md#0002-section-a"
+        ],
+        "llm_calls": 2,
+        "reused_section_ids": [],
+        "warnings": [
+          "LLM generation failed for docs/spec/test.md#0001-test-source"
+        ]
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "LLM generation failed for docs/spec/test.md#0001-test-source",
+      "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+    ]
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/test.md#test-source"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/test.md#0002-section-a",
+      "source_section_id": "docs/spec/test.md#0002-section-a"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/test.md"
+  ],
+  "warnings": [
+    "LLM generation failed for docs/spec/test.md#0001-test-source",
+    "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}

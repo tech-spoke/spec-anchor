@@ -1,0 +1,19 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+## SPEC-anchor 停止指示
+
+4 path の Agentic Search すべてが **freshness blocked** で停止しました。
+
+- **stop_reason**: `dirty_or_stale_source`
+- **dirty_or_stale_sources**: `docs/spec/test.md`
+- **recommended_next_action**: `run /spec-core before /spec-inject`
+
+`docs/spec/test.md` が更新されたが retrieval index / section metadata が再生成されていない状態です。template 規約により `/spec-core` は自動実行しません。
+
+### 次のアクション (ユーザー側)
+
+以下のいずれかを実施してから `/spec-realign retry should be 3` を再実行してください。
+
+1. `/spec-core` を実行して index と section metadata を再生成する。
+2. もしくは `spec-anchor watch` を起動していれば、watcher が完了するのを待つ。
+
+再実行後、retry の提案に対する constraints と answer candidate (4 区分) を生成します。

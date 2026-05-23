@@ -1,0 +1,22 @@
+Agentic Search が実行できなかったため constraints を作れません。
+
+## Agentic Search サマリ
+
+- path ① `spec-anchor inject-search "test query about something"` → `should_stop=true`
+- blocking_reasons: `.spec-anchor/config.toml not found under /tmp/spec-anchor-e2e` (ConfigError)
+- path ②③④ は前段 path ① の blocker により未試行
+
+## blocker
+
+このディレクトリ `/tmp/spec-anchor-e2e` は SPEC-anchor プロジェクトとして初期化されていません (`.spec-anchor/config.toml` 不在)。`inject-*` 系コマンドはいずれも同じ ConfigError で停止します。
+
+## 今回守る制約
+
+- 出力できる constraint なし (final evidence にできる Purpose / Core Concept / Source Specs / resolved Conflict Review Item を一切取得できていないため)
+
+## 次の人間操作
+
+- SPEC-anchor プロジェクトを初期化するか、既に存在する別 directory で再実行してください
+- 初期化済みであれば `.spec-anchor/config.toml` が読める場所で `/spec-inject` を呼び直してください
+
+`/spec-core` は自動実行しません。

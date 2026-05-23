@@ -1,0 +1,966 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [
+        "docs/spec/test.md#test-source"
+      ],
+      "failure_reasons_by_chapter": {
+        "docs/spec/test.md#test-source": "llm_generation_failed: fake failure"
+      },
+      "status": "failed"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 4.871393027000522,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 3,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [
+        {
+          "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+          "model": "gpt-5.4-mini",
+          "prompt_version": "section-metadata-v2",
+          "provider": "",
+          "reason_code": "validation_error",
+          "section_ids": [
+            "docs/spec/test.md#0001-test-source",
+            "docs/spec/test.md#0002-section-a",
+            "docs/spec/test.md#0003-section-b"
+          ],
+          "severity": "error",
+          "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+          "stage": "section_metadata"
+        },
+        {
+          "attempt": 1,
+          "message": "fake failure",
+          "model": "gpt-5.4-mini",
+          "prompt_version": "section-metadata-v2",
+          "provider": "/tmp/codex-flaky.sh",
+          "reason_code": "provider_error",
+          "severity": "error",
+          "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+          "stage": "section_metadata",
+          "timeout_sec": 120
+        },
+        {
+          "attempt": 2,
+          "message": "fake failure",
+          "model": "gpt-5.4-mini",
+          "prompt_version": "section-metadata-v2",
+          "provider": "/tmp/codex-flaky.sh",
+          "reason_code": "provider_error",
+          "severity": "error",
+          "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+          "stage": "section_metadata",
+          "timeout_sec": 120
+        }
+      ],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "/tmp/codex-flaky.sh",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source"
+          ],
+          "identifiers": [],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "attempt": 2,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/tmp/codex-flaky.sh",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/test.md#0001-test-source",
+          "semantic_hash": "9b0cd539e26f964ff7919b0f71772e2a8588be564ae65f9ef8f1a5502c614719",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "fbaa0c93f244d78e0715a9fd5eb000af640d677f0ce4fc93c42d3989dba60b2a",
+          "source_section_id": "docs/spec/test.md#0001-test-source",
+          "stable_section_uid": "4d4f40e5ae8d707c",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source",
+            "Section A"
+          ],
+          "identifiers": [],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "attempt": 2,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/tmp/codex-flaky.sh",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/test.md#0002-section-a",
+          "semantic_hash": "6a8cf4567de30c461b1dede69f478119d92c3d3a33cfc44b17e4ba071ff52d19",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "dc10a613432d09195e68d2260e13b57a4d3aa3cc671bacec2050a2925670df20",
+          "source_section_id": "docs/spec/test.md#0002-section-a",
+          "stable_section_uid": "9a291e266655e572",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source",
+            "Section B"
+          ],
+          "identifiers": [],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "attempt": 2,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/tmp/codex-flaky.sh",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/test.md#0003-section-b",
+          "semantic_hash": "2a4c6b6e25d2250cc7e237fe32fac2a4b16448bec93dedb4bcf648d47d2d543f",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "f76bdddb571a969247da4876c5c783d3f1288db9b7b6b9670bc0b881ecbfa11d",
+          "source_section_id": "docs/spec/test.md#0003-section-b",
+          "stable_section_uid": "94497cc3bb8c2c95",
+          "summary": ""
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        3
+      ],
+      "blocking_reasons": [
+        "failed_required_artifact"
+      ],
+      "cache_hits": 0,
+      "diagnostics": {
+        "docs/spec/test.md#0001-test-source": [
+          {
+            "attempt": 1,
+            "message": "fake failure",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/tmp/codex-flaky.sh",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "attempt": 2,
+            "message": "fake failure",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/tmp/codex-flaky.sh",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          }
+        ],
+        "docs/spec/test.md#0002-section-a": [
+          {
+            "attempt": 1,
+            "message": "fake failure",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/tmp/codex-flaky.sh",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "attempt": 2,
+            "message": "fake failure",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/tmp/codex-flaky.sh",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          }
+        ],
+        "docs/spec/test.md#0003-section-b": [
+          {
+            "attempt": 1,
+            "message": "fake failure",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/tmp/codex-flaky.sh",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "attempt": 2,
+            "message": "fake failure",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/tmp/codex-flaky.sh",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata",
+            "timeout_sec": 120
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "gpt-5.4-mini",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/test.md#0001-test-source",
+              "docs/spec/test.md#0002-section-a",
+              "docs/spec/test.md#0003-section-b"
+            ],
+            "severity": "error",
+            "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+            "stage": "section_metadata"
+          }
+        ]
+      },
+      "failed_sections": [
+        "docs/spec/test.md#0001-test-source",
+        "docs/spec/test.md#0002-section-a",
+        "docs/spec/test.md#0003-section-b"
+      ],
+      "freshness_status": "failed",
+      "generated_section_ids": [
+        "docs/spec/test.md#0001-test-source",
+        "docs/spec/test.md#0002-section-a",
+        "docs/spec/test.md#0003-section-b"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": [
+        "LLM generation failed for docs/spec/test.md#0001-test-source",
+        "LLM generation failed for docs/spec/test.md#0002-section-a",
+        "LLM generation failed for docs/spec/test.md#0003-section-b"
+      ]
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [
+    {
+      "section_id": "docs/spec/test.md#0001-test-source",
+      "source_section_id": "docs/spec/test.md#0001-test-source"
+    },
+    {
+      "section_id": "docs/spec/test.md#0002-section-a",
+      "source_section_id": "docs/spec/test.md#0002-section-a"
+    },
+    {
+      "section_id": "docs/spec/test.md#0003-section-b",
+      "source_section_id": "docs/spec/test.md#0003-section-b"
+    }
+  ],
+  "failed_sources": [
+    "docs/spec/test.md"
+  ],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [
+          "docs/spec/test.md#test-source"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/test.md#test-source": "llm_generation_failed: fake failure"
+        },
+        "status": "failed"
+      },
+      "failed_required_artifacts": [
+        "section_metadata",
+        "chapter_anchors"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 4.871393027000522,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 3,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          3
+        ],
+        "blocking_reasons": [
+          "failed_required_artifact"
+        ],
+        "cache_hits": 0,
+        "diagnostics": {
+          "docs/spec/test.md#0001-test-source": [
+            {
+              "attempt": 1,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "attempt": 2,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            }
+          ],
+          "docs/spec/test.md#0002-section-a": [
+            {
+              "attempt": 1,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "attempt": 2,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            }
+          ],
+          "docs/spec/test.md#0003-section-b": [
+            {
+              "attempt": 1,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "attempt": 2,
+              "message": "fake failure",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/tmp/codex-flaky.sh",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata",
+              "timeout_sec": 120
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/test.md#0001-test-source",
+                "docs/spec/test.md#0002-section-a",
+                "docs/spec/test.md#0003-section-b"
+              ],
+              "severity": "error",
+              "source_hash": "4076268874b9d4bd1b73df9c09bbe67f4d2523ab49c6d4e5a7069feeb55a6b9c",
+              "stage": "section_metadata"
+            }
+          ]
+        },
+        "failed_sections": [
+          "docs/spec/test.md#0001-test-source",
+          "docs/spec/test.md#0002-section-a",
+          "docs/spec/test.md#0003-section-b"
+        ],
+        "freshness_status": "failed",
+        "generated_section_ids": [
+          "docs/spec/test.md#0001-test-source",
+          "docs/spec/test.md#0002-section-a",
+          "docs/spec/test.md#0003-section-b"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": [
+          "LLM generation failed for docs/spec/test.md#0001-test-source",
+          "LLM generation failed for docs/spec/test.md#0002-section-a",
+          "LLM generation failed for docs/spec/test.md#0003-section-b"
+        ]
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 2,
+    "status": "failed",
+    "warnings": [
+      "LLM generation failed for docs/spec/test.md#0001-test-source",
+      "LLM generation failed for docs/spec/test.md#0002-section-a",
+      "LLM generation failed for docs/spec/test.md#0003-section-b",
+      "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+    ]
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/test.md#test-source"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": [
+    "LLM generation failed for docs/spec/test.md#0001-test-source",
+    "LLM generation failed for docs/spec/test.md#0002-section-a",
+    "LLM generation failed for docs/spec/test.md#0003-section-b",
+    "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}

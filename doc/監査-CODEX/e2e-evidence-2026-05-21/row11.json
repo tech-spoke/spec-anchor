@@ -1,0 +1,294 @@
+{
+  "conflict_review_items": [
+    {
+      "base_source_hashes": [
+        {
+          "hash": "f58f71984b0e69a94033578ee3fb521ba1dd7d9375d7d4a42458dcb24fba764e",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "827347460754d943815b50baf3c3b5e1b004c09552b0b3ccd697668383f8deed",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        "Section A says retry=3",
+        "Section A header text implies retry=5"
+      ],
+      "conflict_id": "cnf_001",
+      "decision_options": [
+        "option_a (retry=3)",
+        "option_b (retry=5)",
+        "defer"
+      ],
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "severity": "high",
+      "source_refs": [
+        "docs/spec/test.md#0002-section-a"
+      ],
+      "stale_resolution": false,
+      "status": "pending",
+      "why_conflicting": "Section A の本文と heading で retry 値が矛盾",
+      "why_llm_cannot_decide": "両方が現行 Source Specs に存在し優劣を判断できない"
+    }
+  ],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "kind": "related_sections_generation_failed",
+          "level": "warning",
+          "message": "Unexpected Response: 400 (Bad Request)\nRaw response content:\nb'{\"status\":{\"error\":\"Wrong input: Vector dimension error: expected dim: 8, got 1024\"},\"time\":0.004232119}'"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "failed"
+    },
+    "retrieval_index": {
+      "status": "failed"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [
+            "test source",
+            "placeholder content",
+            "empty body",
+            "source section",
+            "documentation stub",
+            "Test source"
+          ],
+          "section_id": "docs/spec/test.md#0001-test-source",
+          "semantic_hash": "80b815af6bf9c1bc8d690eb25b64941a773fc01dbfb028263e7900fb89c95f06",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "0846a9b140c7ab45d30c2cddda8d3e3b4efe91543e8a5d05ee52d833150a89a6",
+          "source_section_id": "docs/spec/test.md#0001-test-source",
+          "stable_section_uid": "4d4f40e5ae8d707c",
+          "summary": "Test source section with placeholder body content and no substantive material."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Test source",
+            "Section A"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [
+            "section a",
+            "subsection content",
+            "body text",
+            "test section",
+            "placeholder subsection",
+            "Test source",
+            "Section A"
+          ],
+          "section_id": "docs/spec/test.md#0002-section-a",
+          "semantic_hash": "abe63e99fd6b951541ac7ce46a15e0a4e12bc5fb142f709f111c6a11cfdae00e",
+          "source_document_id": "docs/spec/test.md",
+          "source_hash": "646d9e6c516ee4529a367cdcd1dddd79374238adf66d947b60f76c4dd88c014a",
+          "source_section_id": "docs/spec/test.md#0002-section-a",
+          "stable_section_uid": "9a291e266655e572",
+          "summary": "Section A contains brief placeholder body text beneath the test source section."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [],
+      "blocking_reasons": [],
+      "cache_hits": 2,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [],
+      "llm_calls": 0,
+      "reused_section_ids": [
+        "docs/spec/test.md#0001-test-source",
+        "docs/spec/test.md#0002-section-a"
+      ],
+      "warnings": []
+    },
+    "verify_index": {
+      "checked_count": 0,
+      "executed": true,
+      "hash_mismatch_count": 0,
+      "issues": [
+        {
+          "fields": [],
+          "reason_code": "missing_point",
+          "section_id": "docs/spec/test.md#0001-test-source"
+        },
+        {
+          "fields": [],
+          "reason_code": "missing_point",
+          "section_id": "docs/spec/test.md#0002-section-a"
+        }
+      ],
+      "missing_point_count": 2,
+      "stale_point_count": 0
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact",
+      "pending_conflict"
+    ],
+    "counts": {
+      "pending_conflict_count": 1,
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "retrieval_index",
+        "related_sections"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "kind": "related_sections_generation_failed",
+            "level": "warning",
+            "message": "Unexpected Response: 400 (Bad Request)\nRaw response content:\nb'{\"status\":{\"error\":\"Wrong input: Vector dimension error: expected dim: 8, got 1024\"},\"time\":0.004232119}'"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "failed"
+      },
+      "retrieval_index": {
+        "status": "failed"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 2,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/test.md#0001-test-source",
+          "docs/spec/test.md#0002-section-a"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "checked_count": 0,
+        "executed": true,
+        "hash_mismatch_count": 0,
+        "issues": [
+          {
+            "fields": [],
+            "reason_code": "missing_point",
+            "section_id": "docs/spec/test.md#0001-test-source"
+          },
+          {
+            "fields": [],
+            "reason_code": "missing_point",
+            "section_id": "docs/spec/test.md#0002-section-a"
+          }
+        ],
+        "missing_point_count": 2,
+        "stale_point_count": 0
+      }
+    },
+    "pending_conflict_count": 1,
+    "required_artifact_problem_count": 2,
+    "status": "failed",
+    "warnings": [
+      "Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild",
+      "Related Sections generation failed"
+    ]
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 1,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/test.md#test-source"
+  ],
+  "related_sections_status": "failed",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [
+    {
+      "section_id": "docs/spec/test.md#0001-test-source",
+      "source_section_id": "docs/spec/test.md#0001-test-source"
+    },
+    {
+      "section_id": "docs/spec/test.md#0002-section-a",
+      "source_section_id": "docs/spec/test.md#0002-section-a"
+    }
+  ],
+  "skipped_sources": [
+    "docs/spec/test.md"
+  ],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": [
+    "Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild",
+    "Related Sections generation failed"
+  ]
+}

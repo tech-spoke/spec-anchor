@@ -1,0 +1,50 @@
+{
+  "agent": "both",
+  "applied": false,
+  "codex_skill_path": ".codex/skills/spec-anchor/SKILL.md",
+  "conflicts": [
+    {
+      "diff": "--- .spec-anchor/config.toml (existing)\n+++ .spec-anchor/config.toml (template)\n@@ -1 +1,89 @@\n-different content\n+[sources]\n+include = [\"docs/spec/**/*.md\"]\n+exclude = [\"**/drafts/**\"]\n+\n+[core]\n+purpose_file = \"docs/core/purpose.md\"\n+concept_file = \"docs/core/concept.md\"\n+\n+[context]\n+storage = \".spec-anchor/context\"\n+\n+[section]\n+max_heading_level = 4\n+\n+[section_metadata]\n+summary_enabled = true\n+search_keys_enabled = true\n+related_sections_enabled = true\n+\n+[chapter_anchor]\n+enabled = true\n+\n+# LLM provider 定義。/spec-core が保持物の生成に使う。\n+# /spec-inject と /spec-realign の会話解釈・制約生成は Agent 環境が担うため対象外。\n+\n+[llm.providers.codex]\n+command = \"codex\"\n+model = \"gpt-5.4-mini\"\n+effort = \"low\"\n+timeout_sec = 120\n+max_retries = 1\n+\n+[llm.providers.claude_typing]\n+command = \"claude\"\n+model = \"claude-sonnet-4-6\"\n+effort = \"low\"\n+timeout_sec = 360\n+max_retries = 1\n+\n+[llm.providers.claude_judge]\n+command = \"claude\"\n+model = \"claude-sonnet-4-6\"\n+effort = \"low\"\n+timeout_sec = 360\n+max_retries = 1\n+\n+# 各 stage がどの provider を使うかを指定する。\n+[llm.stage_routing]\n+section_metadata   = \"codex\"\n+related_sections   = \"claude_typing\"\n+conflict_review    = \"claude_judge\"\n+chapter_key_anchor = \"codex\"\n+\n+[retrieval]\n+dense_top_k = 12\n+sparse_top_k = 20\n+rank_fusion = \"rrf\"\n+section_collection = \"spec_anchor_section\"\n+section_dense_threshold = 0.55\n+section_candidate_top_k = 16\n+section_final_top_n = 8\n+\n+[embedding]\n+provider = \"flagembedding\"\n+model = \"BAAI/bge-m3\"\n+dense_enabled = true\n+sparse_enabled = true\n+\n+[vector_store]\n+provider = \"qdrant\"\n+url = \"http://localhost:6333\"\n+\n+[limits]\n+section_summary_max_chars = 480\n+search_keys_max = 32\n+related_candidate_max_per_section = 32\n+related_selected_max_per_section = 8\n+conflict_pair_max_per_section = 8\n+llm_batch_max_sections = 8\n+llm_batch_max_chars = 12000\n+llm_batch_concurrency = 4   # 1 = 逐次。Pro 5x / Max 5x なら 4-8 推奨\n+\n+[watcher]\n+enabled = true\n+interval_ms = 2000\n+debounce_ms = 1000\n+stale_lock_ms = 300000\n+state_file = \".spec-anchor/state/watch_state.json\"\n+queue_file = \".spec-anchor/state/watch_queue.json\"",
+      "path": ".spec-anchor/config.toml",
+      "reason": "would_overwrite_existing_file"
+    }
+  ],
+  "created": [],
+  "diagnostics": [
+    {
+      "code": "human_owned_core_file_protected",
+      "force": false,
+      "message": "Human-owned Purpose / Core Concept file was left unchanged.",
+      "path": "docs/core/purpose.md",
+      "severity": "info"
+    },
+    {
+      "code": "human_owned_core_file_protected",
+      "force": false,
+      "message": "Human-owned Purpose / Core Concept file was left unchanged.",
+      "path": "docs/core/concept.md",
+      "severity": "info"
+    }
+  ],
+  "dry_run": false,
+  "exit_code": 1,
+  "force": false,
+  "missing_core_files": [],
+  "no_init_core_files": false,
+  "protected": [
+    "docs/core/purpose.md",
+    "docs/core/concept.md"
+  ],
+  "skipped": [
+    ".spec-anchor/.gitignore",
+    ".claude/commands/spec-core.md",
+    ".claude/commands/spec-inject.md",
+    ".claude/commands/spec-realign.md",
+    ".codex/skills/spec-anchor/SKILL.md",
+    "docs/core/purpose.md",
+    "docs/core/concept.md"
+  ],
+  "status": "conflict",
+  "target": "/tmp/spec-anchor-f2",
+  "updated": []
+}

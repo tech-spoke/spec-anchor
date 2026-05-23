@@ -1,0 +1,30 @@
+`spec-anchor core` は **failed** で終了しました。人間入力である `core.purpose_file` が存在しないため、保持 artifact の生成は実施されていません。
+
+## CLI result（要点）
+
+- **status**: `failed` / **mode**: `incremental`
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `blocked`
+- **blocking_reasons**: `failed_required_artifact`
+- **failed_required_artifacts**: `source_specs`
+- **updated_sources / updated_sections / regenerated_chapter_anchors**: いずれも空
+- **pending_conflict_count**: 0 / **stale_resolution_count**: 0 / **unreflected_conflict_resolutions**: なし
+
+## config_error
+
+```
+ConfigError: core.purpose_file not found:
+/tmp/spec-anchor-e2e/docs/core/purpose.md
+```
+
+`.spec-anchor/config.toml` の `core.purpose_file` が指す Purpose ファイルが未配置です。Purpose は人間が維持する read-only input なので、Agent 側では作成しません。
+
+## 人間判断が必要な次アクション
+
+以下のいずれかを人間が決定してください。
+
+1. `/tmp/spec-anchor-e2e/docs/core/purpose.md` を配置する（想定パスのまま運用）
+2. `.spec-anchor/config.toml` の `core.purpose_file` を実在パスへ修正する
+3. プロジェクトが未初期化なら、Purpose / Core Concept / source specs の配置を含む初期セットアップを行う
+
+pending Conflict Review Items はありません。Purpose 配置後に再度 `/spec-core` を実行してください。

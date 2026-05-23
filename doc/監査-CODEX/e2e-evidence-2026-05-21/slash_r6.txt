@@ -1,0 +1,35 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+## `/spec-core` 実行結果（incremental）
+
+**status: failed** — 必須 artifact `chapter_anchors` の生成に失敗。
+
+### 主要 field
+- `updated_sources`: `docs/spec/test.md`
+- `updated_sections`: `docs/spec/test.md#0001-test`
+- `failed_sources`: なし
+- `failed_sections`: なし
+- `retrieval_index_status`: success
+- `related_sections_status`: success
+- `pending_conflict_count`: 0
+- `unreflected_conflict_resolutions`: なし
+- `stale_resolution_count`: 0
+
+### 失敗内容
+- **chapter_anchors**: `docs/spec/test.md#test` で `llm_generation_failed`
+  - 原因: `[Errno 2] No such file or directory: '/tmp/spec-anchor-nonexistent-binary'`
+  - LLM provider 設定（`[llm.stage_routing]` の `chapter_key_anchor` stage）が存在しないバイナリを指している。
+- canonical `chapter_anchors.json` は未更新。
+
+### freshness_report
+- `status`: failed
+- `blocking_reasons`: `failed_required_artifact`
+- `failed_required_artifacts`: `["chapter_anchors"]`
+- warning: `Run /spec-core --all to retry.`
+
+### 次のアクション（人間判断）
+pending Conflict Review Item はなし。判断が必要なのは設定側の修正：
+
+1. `.spec-anchor/config.toml` の `[llm.stage_routing]` で `chapter_key_anchor` stage が指す provider/binary path を確認・修正する（現在 `/tmp/spec-anchor-nonexistent-binary` を参照）。
+2. 修正後に `/spec-core --all` で full rebuild を実行し chapter_anchors を再生成する。
+
+`/spec-inject` `/spec-realign` は自動実行していない。

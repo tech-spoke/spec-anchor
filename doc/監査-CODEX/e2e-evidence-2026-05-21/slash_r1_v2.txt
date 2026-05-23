@@ -1,0 +1,20 @@
+`spec-anchor core` は失敗しました。
+
+## 結果
+
+- **status**: `failed`
+- **reason**: `.spec-anchor/config.toml not found under /tmp/spec-anchor-e2e`
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `blocked`
+- **failed_required_artifacts**: `source_specs`
+- pending conflict / unreflected resolution / stale resolution はいずれも 0 件
+
+## 復旧手順
+
+`/tmp/spec-anchor-e2e` に SPEC-anchor の設定がまだ存在しません。次のコマンドで project を初期化してください:
+
+```
+spec-anchor-setup-project --target /tmp/spec-anchor-e2e
+```
+
+セットアップ後、`docs/core/purpose.md` および `docs/core/concept.md`（または `.spec-anchor/config.toml` の `core.purpose_file` / `core.concept_file` で指定された path）を人間が作成し、`[sources].include` glob に Source Specs が一致するよう配置してから `/spec-core` を再実行してください。

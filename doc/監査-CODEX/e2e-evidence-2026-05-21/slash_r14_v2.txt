@@ -1,0 +1,26 @@
+`/spec-realign` は CLI が `ConfigError` を返したため停止しました。answer の整形は実行しません。
+
+## CLI からの停止理由
+
+- **エラー**: `.spec-anchor/config.toml not found under /tmp/spec-anchor-e2e`
+- **type**: `ConfigError`
+- **status**: `error` / `should_stop=true`
+
+`/tmp/spec-anchor-e2e` はまだ SPEC-anchor project として初期化されていません (`.spec-anchor/` ディレクトリが存在しない)。Purpose / Core Concept / Source Specs などの正本がない状態では、`evidence_origin` を満たす constraints を生成できず、answer candidate `"answer is x"` を 4 区分の RealignResult に整形することもできません。
+
+## 推奨される次のアクション
+
+project skeleton を初期化するため、以下のコマンドの実行を提案します。
+
+```bash
+spec-anchor-setup-project --target /tmp/spec-anchor-e2e
+```
+
+初期化後の流れ:
+
+1. `Purpose` と `Core Concept` を人間が記述する (read-only input)。
+2. `Source Specs` を整備する。
+3. `/spec-core` (または `/spec-core --all`) を実行して保持コンテキスト artifact を更新する。
+4. 改めて `/spec-realign answer is x` を実行する。その時点で `task` (`"answer is x"` が何を指すのか、課題プロンプトの本文) を明確化していただけると、constraints と answer candidate を構成できます。
+
+なお、現在の argument `answer is x` だけでは task の対象 (何に対する answer なのか) が判断できません。project 初期化後に、解こうとしている課題プロンプトを併せて提示してください。

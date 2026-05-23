@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/home/kazuki/public_html/spec-anchor/spec_anchor/watcher.py", line 647, in load_watcher_settings
+    project_config = config_api.load_config(
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kazuki/public_html/spec-anchor/spec_anchor/config.py", line 167, in load_config
+    raise ConfigError(f".spec-anchor/config.toml not found under {root}")
+spec_anchor.config.ConfigError: .spec-anchor/config.toml not found under /tmp/spec-anchor-e2e
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-watch", line 8, in <module>
+    sys.exit(watch_main())
+             ^^^^^^^^^^^^
+  File "/home/kazuki/public_html/spec-anchor/spec_anchor/cli.py", line 258, in watch_main
+    return _run_watch_from_args(args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kazuki/public_html/spec-anchor/spec_anchor/cli.py", line 264, in _run_watch_from_args
+    result = watcher.run_spec_anchor_watch(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kazuki/public_html/spec-anchor/spec_anchor/watcher.py", line 108, in run_spec_anchor_watch
+    settings = load_watcher_settings(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kazuki/public_html/spec-anchor/spec_anchor/watcher.py", line 652, in load_watcher_settings
+    raise WatcherError(str(exc)) from exc
+spec_anchor.watcher.WatcherError: .spec-anchor/config.toml not found under /tmp/spec-anchor-e2e

@@ -1,0 +1,25 @@
+`spec-anchor core` は失敗しました。
+
+## 結果サマリ
+
+- **status**: `failed` (mode: incremental)
+- **retrieval_index_status**: `failed`
+- **related_sections_status**: `blocked`
+- **freshness_report.status**: `failed`
+  - blocking_reasons: `failed_required_artifact`
+  - failed_required_artifacts: `source_specs`
+
+## 原因
+
+`ConfigError`: `sources.include did not match any Source Specs`
+
+`.spec-anchor/config.toml` の `sources.include` パターンに該当する Source Spec が一つも見つからず、必須 artifact である `source_specs` の生成に失敗しています。
+
+## 人間判断が必要な事項
+
+pending Conflict Review Items はありません（`pending_conflict_count: 0`）。ただし以下は人間側の対応が必要です:
+
+- `.spec-anchor/config.toml` の `sources.include` を確認し、実在する Source Spec ファイルにマッチするよう修正する
+- もしくは Source Spec 自体を `sources.include` のパターン配下に配置する
+
+その他カウント: `updated_sources=0`, `failed_sources=0`, `failed_sections=0`, `unreflected_conflict_resolutions=0`, `stale_resolution_count=0`。

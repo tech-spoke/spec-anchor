@@ -1,0 +1,16 @@
+CLI が `should_stop=true` を返しました。`/spec-inject` は中断します。
+
+## ブロック理由
+
+- `dirty_or_stale_source`: `docs/spec/test.md` が dirty または stale
+- 推奨アクション: `/spec-core` を実行して Source Specs の freshness を更新する
+
+## ユーザー向けアクション
+
+`/spec-inject` は自動で `/spec-core` を実行しません。次のいずれかを行ってください。
+
+1. `/spec-core` を実行して `docs/spec/test.md` の section metadata / retrieval index を再生成する
+2. `spec-anchor-watch` を起動中なら完了を待つ
+3. 完了後に `/spec-inject "test query about handling source code"` を再実行する
+
+constraint set は生成していません (CLI が blocked を返したため evidence を確定できない)。

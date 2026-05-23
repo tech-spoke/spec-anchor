@@ -1,0 +1,24 @@
+`/spec-realign` は CLI freshness gate により停止しました。answer 整形は実行していません。
+
+## 状況
+
+- **入力 task**: `answer is 5`
+- **CLI**: `spec-anchor realign`
+- **`should_stop`**: `true`
+- **`stop_reason`**: `failed_required_artifact`
+- **`blocking_reasons`**: `["failed_required_artifact"]`
+- **`warnings`**: `Chapter Anchors LLM generation failed for 1 chapter(s)`
+
+## 復旧手順（CLI top-level `recommended_next_action` をそのまま提示）
+
+> **`run /spec-core or /spec-core --all before /spec-realign`**
+
+必要な artifact (chapter_anchors) の生成に失敗が記録されているため、まず `/spec-core --all` を実行して保持コンテキストを再生成してください。`/spec-realign` 側からは `/spec-core` を自動実行しません（規約に従い人間判断に委ねます）。
+
+## 補足
+
+- 4 path Agentic Search 試行中、path ① の `spec-anchor inject-search "answer is 5"` も同じ `failed_required_artifact` (chapter_anchors) で `should_stop=true` を返しています。状態としては `chapter_anchors.status="success"` でありながら `failed_required_artifacts` に `chapter_anchors` が残留しており、過去に LLM 生成失敗が記録されている可能性が高いです。
+- 入力 task `answer is 5` は文脈情報が極端に少なく、Source Specs (`docs/spec/test.md` の Section A は body `sec a.` のみ) / Purpose / Core Concept のいずれにも紐付け evidence が存在しません。仮に freshness gate が解除されても、現状の保持物では `evidence_origin` が Source Specs / Purpose / Core Concept / resolved Conflict のいずれかとなる constraint を構成できず、`needs_agent_answer` 経路か 0-constraint の human-review 経路になります。
+- 復旧後、何の「answer」が 5 なのか（例: retry 回数？閾値？テスト期待値？）を Source Specs 側に書き込んだうえで `/spec-realign` を再実行いただくのが筋の良い順序です。
+
+次のアクションを指示してください（`/spec-core --all` 実行の許可、または task の補足）。

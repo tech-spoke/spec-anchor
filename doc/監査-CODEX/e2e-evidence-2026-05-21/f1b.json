@@ -1,0 +1,24 @@
+{
+  "agent": "both",
+  "applied": false,
+  "codex_skill_path": null,
+  "conflicts": [],
+  "created": [],
+  "diagnostics": [
+    {
+      "code": "target_not_directory",
+      "message": "target is not a directory",
+      "severity": "error"
+    }
+  ],
+  "dry_run": false,
+  "exit_code": 1,
+  "force": false,
+  "missing_core_files": [],
+  "no_init_core_files": false,
+  "protected": [],
+  "skipped": [],
+  "status": "error",
+  "target": "/tmp/spec-anchor-target-file",
+  "updated": []
+}

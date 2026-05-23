@@ -1,0 +1,33 @@
+=== §11.2 row 19: 正常 + /spec-realign with answer ===
+EXIT=0
+CLI realign が freshness=fresh で通った。RealignResult を 4 区分で整形してユーザーに提示する。
+
+---
+
+## 今回守る制約
+
+- Section A の本文は `docs/spec/test.md#0002-section-a` のプレースホルダー記述に限定され、retry / backoff は Source Specs に未定義。
+- Purpose / Core Concept は両方プレースホルダーで retry 関連方針が未記入。
+- resolved かつ stale でない Conflict Review Item は 0 件で、人間レビュー済み裁定は存在しない。
+
+## 今回扱う修正候補または検討対象
+
+- ユーザー提案: Section A の retry 動作を **3 attempts + exponential backoff** に設定する。
+- 取り込み経路の候補は (a) `docs/spec/test.md` の Section A 本文へ retry 仕様を追記、または (b) 別ファイルへ retry 仕様 section を新設、の 2 通り。
+
+## 競合 / 不確実性 / 人間レビューが必要な点
+
+- Source Specs / Purpose / Core Concept / resolved Conflict のいずれにも retry 動作の記述が無く、「3 attempts + exponential backoff」を裏付ける evidence が存在しない。Agent 単独では制約化できない。
+- exponential backoff の **初期遅延 / 上限 / jitter 有無** が未指定 → ユーザー補足が必要。
+- retry の **対象**（index 失敗か、外部 API 呼び出しか、その他か）が Source Specs から特定できない → 人間による spec 追記が必要。
+
+## 課題プロンプトへの回答または修正案
+
+現状の SPEC-anchor 状態では、提案『Section A retry = 3 attempts + exponential backoff』を制約として確定できません（根拠が Source Specs / Purpose / Core Concept / resolved Conflict のどこにも無いため）。
+
+推奨フロー:
+1. `docs/spec/test.md` の Section A に retry 仕様を **人間が追記**（retry 対象、最大 3 attempts、exponential backoff の初期遅延・上限・jitter）。
+2. `spec-anchor watch` または `spec-anchor core` で再インデックス・freshness 更新。
+3. その後で `/spec-realign` を再実行し、追記済み Source Specs を `evidence_origin = Source Specs` として constraints を生成する。
+
+retry 方針を project 全体の invariants として扱う意図なら、`docs/core/concept.md` に invariant として明記してから realign する経路でも可。

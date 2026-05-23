@@ -1,0 +1,24 @@
+Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+`/spec-inject` は停止しました。唯一の blocker は **pending Conflict Review Item** で、人間の判断が必要です。
+
+## Pending Conflict Review Item
+
+**conflict_id**: `cnf_001` （severity: high, status: pending）
+
+- **source_refs**: `docs/spec/test.md#0002-section-a`
+- **why_conflicting**: Section A の本文と heading で retry 値が矛盾
+- **why_llm_cannot_decide**: 両方が現行 Source Specs に存在し優劣を判断できない
+
+### 矛盾する claims
+- Section A says `retry=3`
+- Section A header text implies `retry=5`
+
+### Decision options（どれかを選んでください）
+1. **option_a** — `retry=3` を採用（本文側）
+2. **option_b** — `retry=5` を採用（heading 側）
+3. **defer** — 判断を先送り
+
+### 次のアクション
+この conflict を解決すると `/spec-inject` が constraints 生成に進めます。どの option で resolve しますか？ あるいは `docs/spec/test.md#0002-section-a` を直接確認してから判断しますか？
+
+（注: `/spec-core` の自動実行はしません。conflict 解決後に必要なら別途指示してください。）
