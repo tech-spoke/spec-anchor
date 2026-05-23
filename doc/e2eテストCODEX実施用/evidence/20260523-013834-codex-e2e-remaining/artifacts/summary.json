@@ -1,0 +1,181 @@
+{
+  "agent-core-missing-concept": "0",
+  "agent-core-missing-config": "0",
+  "agent-core-missing-purpose": "0",
+  "agent-core-no-sources": "0",
+  "agent-error-assertions.json": [
+    {
+      "contains": {
+        ".spec-anchor/config.toml not found": false,
+        "spec-anchor-setup-project": true
+      },
+      "exit_code": "0",
+      "has_result_event": true,
+      "label": "agent-core-missing-config",
+      "needles": [
+        ".spec-anchor/config.toml not found",
+        "spec-anchor-setup-project"
+      ],
+      "passed": false
+    },
+    {
+      "contains": {
+        ".spec-anchor/config.toml not found": true,
+        "spec-anchor-setup-project": true
+      },
+      "exit_code": "0",
+      "has_result_event": true,
+      "label": "agent-inject-missing-config",
+      "needles": [
+        ".spec-anchor/config.toml not found",
+        "spec-anchor-setup-project"
+      ],
+      "passed": true
+    },
+    {
+      "contains": {
+        ".spec-anchor/config.toml not found": false,
+        "spec-anchor-setup-project": true
+      },
+      "exit_code": "0",
+      "has_result_event": true,
+      "label": "agent-realign-missing-config",
+      "needles": [
+        ".spec-anchor/config.toml not found",
+        "spec-anchor-setup-project"
+      ],
+      "passed": false
+    },
+    {
+      "contains": {
+        "core.purpose_file not found": true,
+        "purpose": true
+      },
+      "exit_code": "0",
+      "has_result_event": true,
+      "label": "agent-core-missing-purpose",
+      "needles": [
+        "core.purpose_file not found",
+        "purpose"
+      ],
+      "passed": true
+    },
+    {
+      "contains": {
+        "concept": true,
+        "core.concept_file not found": true
+      },
+      "exit_code": "0",
+      "has_result_event": true,
+      "label": "agent-core-missing-concept",
+      "needles": [
+        "core.concept_file not found",
+        "concept"
+      ],
+      "passed": true
+    },
+    {
+      "contains": {
+        "Source Specs": true,
+        "sources.include did not match any Source Specs": true
+      },
+      "exit_code": "0",
+      "has_result_event": true,
+      "label": "agent-core-no-sources",
+      "needles": [
+        "sources.include did not match any Source Specs",
+        "Source Specs"
+      ],
+      "passed": true
+    }
+  ],
+  "agent-inject-missing-config": "0",
+  "agent-realign-missing-config": "0",
+  "assertions_jsonl": [
+    "{\"checks\": [{\"actual\": \"blocked\", \"expected\": \"blocked\", \"passed\": true, \"path\": \"status\"}, {\"actual\": [\"dirty_or_stale_source\", \"watcher_queue_pending\"], \"expected\": \"contains:watcher_queue_pending\", \"passed\": true, \"path\": \"blocking_reasons\"}, {\"actual\": \"run /spec-core before /spec-inject\", \"expected\": \"wait for watcher completion before /spec-inject\", \"passed\": false, \"path\": \"recommended_next_action\"}], \"file\": \"/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-013834-codex-e2e-remaining/stdout/watch-queue-inject-search.stdout\", \"label\": \"watch-queue-inject-search\", \"passed\": false}",
+    "{\"checks\": [{\"actual\": \"blocked\", \"expected\": \"blocked\", \"passed\": true, \"path\": \"status\"}, {\"actual\": [\"dirty_or_stale_source\", \"watcher_queue_pending\"], \"expected\": \"contains:watcher_queue_pending\", \"passed\": true, \"path\": \"blocking_reasons\"}, {\"actual\": \"run /spec-core before /spec-realign\", \"expected\": \"wait for watcher completion before /spec-realign\", \"passed\": false, \"path\": \"recommended_next_action\"}], \"file\": \"/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-013834-codex-e2e-remaining/stdout/watch-queue-realign.stdout\", \"label\": \"watch-queue-realign\", \"passed\": false}",
+    "{\"checks\": [{\"actual\": true, \"expected\": \"true\", \"passed\": true, \"path\": \"stale_lock_discarded\"}], \"file\": \"/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-013834-codex-e2e-remaining/stdout/stale-lock-recovery.stdout\", \"label\": \"stale-lock-recovery\", \"passed\": true}"
+  ],
+  "config-setup-project": "0",
+  "config-template-assertions.json": {
+    "all_required_template_keys_present": true,
+    "claude_core_omits_llm_provider_flag": true,
+    "codex_skill_omits_llm_provider_flag": true,
+    "missing": [],
+    "provider_ids": [
+      "claude_judge",
+      "claude_typing",
+      "codex"
+    ],
+    "stage_routing_keys": [
+      "chapter_key_anchor",
+      "conflict_review",
+      "related_sections",
+      "section_metadata"
+    ],
+    "watcher_paths": {
+      "queue_file": ".spec-anchor/state/watch_queue.json",
+      "state_file": ".spec-anchor/state/watch_state.json"
+    }
+  },
+  "stale-lock-freshness-after.json": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "skipped_unchanged"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-session-management",
+          "docs/spec/auth.md#0003-csrf-protection",
+          "docs/spec/auth.md#0004-authorization"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "schema_version": 1,
+    "status": "fresh",
+    "warnings": []
+  },
+  "stale-lock-idle-baseline": "0",
+  "stale-lock-recovery": "0",
+  "watch-queue-core-rebuild": "0",
+  "watch-queue-freshness.json": {
+    "blocking_reasons": [
+      "watcher_queue_pending"
+    ],
+    "counts": {
+      "watcher_queue_count": 1
+    },
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": [],
+    "watcher_queue_count": 1
+  },
+  "watch-queue-inject-search": "0",
+  "watch-queue-once": "0",
+  "watch-queue-realign": "0"
+}

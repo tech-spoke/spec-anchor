@@ -1,0 +1,7 @@
+{
+  "command": "/spec-inject inject-purpose",
+  "core_concept_path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/docs/core/concept.md",
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project",
+  "purpose": "# Purpose\n\nE2E verification project for SPEC-anchor using real Codex, Claude, Qdrant, and FlagEmbedding.\n\nThe project checks authentication and session handling requirements through generated SPEC-anchor artifacts.\n",
+  "warnings": []
+}

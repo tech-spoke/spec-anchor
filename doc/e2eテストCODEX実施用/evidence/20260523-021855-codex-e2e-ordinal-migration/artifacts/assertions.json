@@ -1,0 +1,65 @@
+{
+  "passed": 3,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "numeric-point-id-precondition",
+      "passed": true,
+      "pre_point_ids": [
+        1
+      ]
+    },
+    {
+      "label": "ordinal-point-id-triggers-full-recreate",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "retrieval_index_status": "success",
+      "stage": {
+        "stage": "section_collection_upsert",
+        "raw": "core_section_collection_upsert_start",
+        "started_at": "2026-05-22T17:18:57Z",
+        "started_at_epoch": 1779470337.5293622,
+        "llm_calls": 0,
+        "token_count": 0,
+        "retry_count": 0,
+        "failed_batch_ids": [],
+        "action": "upserted_full",
+        "reason": "migration_required_from_ordinal_point_id",
+        "recreate": true,
+        "diagnostics": {
+          "real_section_index": true,
+          "qdrant_url": "http://localhost:6333",
+          "collection": "spec_anchor_section_codex_e2e_ordinal_1779470335",
+          "qdrant_server_version": "1.17.1",
+          "total_section_input_count": 3,
+          "embedding_provider": "flagembedding",
+          "embedding_model": "BAAI/bge-m3",
+          "embedding_device": "unknown",
+          "recreate": true,
+          "stale_points_deleted": 0,
+          "sections_upserted_count": 3,
+          "sections_deleted_count": 0,
+          "embed_documents_input_size": 3,
+          "partial_requested": true,
+          "reason": "migration_required_from_ordinal_point_id",
+          "warnings": [
+            "migration_required_from_ordinal_point_id"
+          ],
+          "migration_required_from_ordinal_point_id": true
+        },
+        "finished_at": "2026-05-22T17:19:06Z",
+        "elapsed_sec": 8.678
+      }
+    },
+    {
+      "label": "post-migration-point-ids-are-uuid",
+      "passed": true,
+      "post_point_ids": [
+        "001b6ca3-a33d-519d-8ffb-2b0720ec1d69",
+        "87357a2f-9974-5a15-9f0f-10a8ca396f96",
+        "afda63eb-1bd2-5c40-920c-4085e1d8e958"
+      ]
+    }
+  ]
+}

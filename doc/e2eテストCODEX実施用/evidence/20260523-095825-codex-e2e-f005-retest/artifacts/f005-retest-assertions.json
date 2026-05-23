@@ -1,0 +1,45 @@
+{
+  "exit_code": 0,
+  "preflight_exit_code": 0,
+  "commands_seen": [
+    "spec-anchor realign --answer-json '{\"今回守る制約\":[],\"今回扱う修正候補または検討対象\":\"認証後はセッション cookie を発行し、ログアウト時に無効化する。\",\"競合 / 不確実性 / 人間レビューが必要な点\":[],\"課題プロンプトへの回答または修正案\":\"認証後はセッション cookie を発行し、ログアウト時に無効化する。\"}' 2>&1"
+  ],
+  "has_realign_answer_json_command": true,
+  "has_pending_conflict": true,
+  "has_conflict_id": true,
+  "has_item_recommended_next_action_literal": true,
+  "has_ask_human_literal": true,
+  "has_top_level_resolve": true,
+  "has_answer_formatting_executed": false,
+  "bad_cd_repo_root": false,
+  "bad_precheck_config": false,
+  "bad_invalid_keys_option": false,
+  "bad_generic_inject_command": false,
+  "bad_non_contract_status_command": false,
+  "final_excerpt": "\nconflict_id: conflict-auth-session-e2e\nseverity: high\n\nclaims:\n  side a: Authentication creates an active session.\n  side b: Session termination invalidates the active session immediately.\n\nwhy_conflicting: The test fixture asks the CLI to surface a human-review conflict without resolving it.\n\nwhy_llm_cannot_decide: The fixture marks both claims as requiring human decision.\n\ndecision_options:\n  - prefer_a\n  - prefer_b\n  - defer\n\nsource_refs:\n  - docs/spec/sample.md#0002-authentication\n  - docs/spec/sample.md#0004-session-termination\n\nrecommended_next_action: Ask a human to decide this conflict.\n```\n\n---\n\n`conflict-auth-session-e2e` の `decision_options` のいずれか（`prefer_a` / `prefer_b` / `defer`）を選択してこの conflict を解決してください。解決後に `/spec-realign` を再実行すると回答の整形が行えます。\nCLI が `should_stop=true` / `blocking_reasons=[\"pending_conflict\"]` を返しました。回答の整形は実行できません。\n\n---\n\n**停止理由: pending conflict が未解決**\n\ntop-level `recommended_next_action`: **resolve pending Conflict Review Items**\n\n---\n\n以下の conflict item について、**人間による判断が必要**です。\n\n---\n\n```\nconflict_id: conflict-auth-session-e2e\nseverity: high\n\nclaims:\n  side a: Authentication creates an active session.\n  side b: Session termination invalidates the active session immediately.\n\nwhy_conflicting: The test fixture asks the CLI to surface a human-review conflict without resolving it.\n\nwhy_llm_cannot_decide: The fixture marks both claims as requiring human decision.\n\ndecision_options:\n  - prefer_a\n  - prefer_b\n  - defer\n\nsource_refs:\n  - docs/spec/sample.md#0002-authentication\n  - docs/spec/sample.md#0004-session-termination\n\nrecommended_next_action: Ask a human to decide this conflict.\n```\n\n---\n\n`conflict-auth-session-e2e` の `decision_options` のいずれか（`prefer_a` / `prefer_b` / `defer`）を選択してこの conflict を解決してください。解決後に `/spec-realign` を再実行すると回答の整形が行えます。",
+  "passed_f005": true,
+  "codex_skill": {
+    "exit_code": 0,
+    "commands_seen": [
+      "/bin/bash -lc \"sed -n '1,240p' .codex/skills/spec-anchor/SKILL.md\"",
+      "/bin/bash -lc 'spec-anchor realign --help'",
+      "/bin/bash -lc 'spec-anchor --help'",
+      "/bin/bash -lc 'tmp_in=$(mktemp /tmp/spec-anchor-realign-input.XXXXXX.json)\ntmp_out=$(mktemp /tmp/spec-anchor-realign-output.XXXXXX.json)\nprintf '\"'%s' '{\\\"今回守る制約\\\":[],\\\"今回扱う修正候補または検討対象\\\":[\\\"認証後はセッション cookie を発行し、ログアウト時に無効化する。\\\"],\\\"競合 / 不確実性 / 人間レビューが必要な点\\\":[],\\\"課題プロンプトへの回答または修正案\\\":\\\"認証後はセッション cookie を発行し、ログアウト時に無効化する。\\\"}' > \\\"\"'$tmp_in\"\nspec-anchor realign --answer-file \"$tmp_in\" > \"$tmp_out\"\nprintf '\"'input=%s\\\\noutput=%s\\\\n' \\\"\"'$tmp_in\" \"$tmp_out\"\nsed -n '\"'1,240p' \\\"\"'$tmp_out\"'"
+    ],
+    "has_realign_answer_json_command": false,
+    "has_realign_answer_file_command": true,
+    "has_realign_command": true,
+    "has_pending_conflict": true,
+    "has_conflict_id": true,
+    "has_item_recommended_next_action_literal": true,
+    "has_ask_human_literal": true,
+    "output_is_raw_json": false,
+    "bad_invalid_keys_option": false,
+    "bad_generic_inject_command": false,
+    "bad_non_contract_status_command": false,
+    "assertion_scope": "Codex command_execution.command strings plus final user-facing message; skill file read output is excluded from forbidden-command checks.",
+    "last_message_excerpt": "`spec-anchor realign --answer-file` を外部入力ファイルで実行し、stdoutも外部出力ファイルに保存して確認しました。CLIは `pending_conflict` を返したため、ここで停止します。projectファイルは編集していません。\n\n**pending_conflict_items**\n\nconflict_id: `conflict-auth-session-e2e`  \nseverity: `high`\n\nclaims:\n- side `a`: Authentication creates an active session.\n- side `b`: Session termination invalidates the active session immediately.\n\nwhy_conflicting: The test fixture asks the CLI to surface a human-review conflict without resolving it.\n\nwhy_llm_cannot_decide: The fixture marks both claims as requiring human decision.\n\ndecision_options: `prefer_a`, `prefer_b`, `defer`\n\nsource_refs:\n- `docs/spec/sample.md#0002-authentication`\n- `docs/spec/sample.md#0004-session-termination`\n\nrecommended_next_action: Ask a human to decide this conflict.",
+    "passed_codex_skill_f005": true
+  },
+  "passed_f005_all_agent_entries": true
+}

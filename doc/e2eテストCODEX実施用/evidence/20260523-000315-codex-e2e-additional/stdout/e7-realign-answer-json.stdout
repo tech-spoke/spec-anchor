@@ -1,0 +1,184 @@
+{
+  "answer": {
+    "今回守る制約": [
+      "Administrator accounts require multi-factor authentication.",
+      "Sessions expire after 24 hours of inactivity.",
+      "Logout invalidates the active session immediately."
+    ],
+    "今回扱う修正候補または検討対象": [
+      "Authentication and session lifecycle answer for the sample Source Specs."
+    ],
+    "競合 / 不確実性 / 人間レビューが必要な点": [],
+    "課題プロンプトへの回答または修正案": "Authentication requires email and password. Administrator accounts require multi-factor authentication. Sessions expire after 24 hours of inactivity, and logout invalidates the active session immediately."
+  },
+  "blocked": false,
+  "blocking_reasons": [],
+  "can_continue": true,
+  "command": "/spec-realign",
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 7.134811969001021,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 4,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 12,
+            "cache_rejected_hits": 0,
+            "cache_size": 12,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          4
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/sample.md#0001-sample-service-spec",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "schema_version": 1,
+    "status": "fresh",
+    "warnings": []
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": false,
+    "blocking_reasons": [],
+    "can_continue": true,
+    "command": "/spec-inject",
+    "freshness_report": {
+      "blocking_reasons": [],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "related_sections": {
+          "diagnostics": [
+            {
+              "candidate_generation_elapsed_sec": 7.134811969001021,
+              "candidate_generation_partial_mode": "full",
+              "candidate_generation_source_count": 4,
+              "message": "Related Section candidates were generated for the selected source scope.",
+              "reason_code": "related_section_candidate_generation_scope",
+              "severity": "info",
+              "stage": "candidate_generation"
+            },
+            {
+              "cache_hits": 0,
+              "cache_misses": 12,
+              "cache_rejected_hits": 0,
+              "cache_size": 12,
+              "message": "pair-level relation typing cache statistics",
+              "reason_code": "related_typing_cache_stats",
+              "severity": "warning",
+              "stage": "related_section_selection"
+            }
+          ],
+          "qdrant_backend_failure": null,
+          "status": "success"
+        },
+        "retrieval_index": {
+          "status": "success"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [
+            4
+          ],
+          "blocking_reasons": [],
+          "cache_hits": 0,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [
+            "docs/spec/sample.md#0001-sample-service-spec",
+            "docs/spec/sample.md#0002-authentication",
+            "docs/spec/sample.md#0003-authorization",
+            "docs/spec/sample.md#0004-session-termination"
+          ],
+          "llm_calls": 1,
+          "reused_section_ids": [],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "schema_version": 1,
+      "status": "fresh",
+      "warnings": []
+    },
+    "generated_at": null,
+    "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project",
+    "recommended_next_action": "continue /spec-inject",
+    "should_stop": false,
+    "status": "fresh",
+    "stops": false,
+    "warnings": []
+  },
+  "labels": {
+    "answer": "課題プロンプトへの回答または修正案",
+    "constraints": "今回守る制約",
+    "review": "競合 / 不確実性 / 人間レビューが必要な点",
+    "targets": "今回扱う修正候補または検討対象"
+  },
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project",
+  "realign_answer": {
+    "今回守る制約": [
+      "Administrator accounts require multi-factor authentication.",
+      "Sessions expire after 24 hours of inactivity.",
+      "Logout invalidates the active session immediately."
+    ],
+    "今回扱う修正候補または検討対象": [
+      "Authentication and session lifecycle answer for the sample Source Specs."
+    ],
+    "競合 / 不確実性 / 人間レビューが必要な点": [],
+    "課題プロンプトへの回答または修正案": "Authentication requires email and password. Administrator accounts require multi-factor authentication. Sessions expire after 24 hours of inactivity, and logout invalidates the active session immediately."
+  },
+  "recommended_next_action": "continue /spec-inject",
+  "should_stop": false,
+  "status": "fresh",
+  "stops": false,
+  "warnings": []
+}

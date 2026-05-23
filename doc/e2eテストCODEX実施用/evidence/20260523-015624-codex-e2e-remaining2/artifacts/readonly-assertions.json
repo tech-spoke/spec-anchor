@@ -1,0 +1,20 @@
+[
+  {
+    "path": "docs/core/purpose.md",
+    "before": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+    "after": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+    "unchanged": true
+  },
+  {
+    "path": "docs/core/concept.md",
+    "before": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+    "after": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+    "unchanged": true
+  },
+  {
+    "path": "docs/spec/auth.md",
+    "before": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+    "after": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+    "unchanged": true
+  }
+]

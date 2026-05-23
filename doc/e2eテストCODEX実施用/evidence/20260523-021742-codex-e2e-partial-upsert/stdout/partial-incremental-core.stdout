@@ -1,0 +1,345 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [
+        "docs/spec/partial.md#partial-upsert-spec"
+      ],
+      "failure_reasons_by_chapter": {
+        "docs/spec/partial.md#partial-upsert-spec": "llm_generation_failed: LLM command failed"
+      },
+      "status": "failed"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 4.402111572999274,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 2,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "added_or_changed_source_section_ids": [
+            "docs/spec/partial.md#0002-alpha",
+            "docs/spec/partial.md#0003-beta"
+          ],
+          "batch_count": 0,
+          "candidate_count": 0,
+          "candidate_count_for_selection": 0,
+          "candidate_generation_elapsed_sec": 4.402111572999274,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 2,
+          "changed_source_section_ids": [
+            "docs/spec/partial.md#0002-alpha",
+            "docs/spec/partial.md#0003-beta"
+          ],
+          "changed_target_relations_inherited": true,
+          "changed_target_section_ids": [
+            "docs/spec/partial.md#0002-alpha",
+            "docs/spec/partial.md#0003-beta"
+          ],
+          "fallback_regenerated": false,
+          "inherited_source_count": 1,
+          "inherited_source_section_ids": [
+            "docs/spec/partial.md#0001-partial-upsert-spec"
+          ],
+          "llm_calls": 0,
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "partial_mode": "source_changed_only",
+          "partial_regeneration": true,
+          "reason_code": "related_sections_partial_regenerated",
+          "removed_source_count": 1,
+          "removed_source_exclusion": true,
+          "removed_source_section_ids": [
+            "docs/spec/partial.md#0004-gamma"
+          ],
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "selection_elapsed_sec": 0.0009124470016104169,
+          "selection_source_count": 2,
+          "severity": "info",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "stage": "related_sections",
+          "unchanged_source_inheritance": true
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": false,
+          "search_keys": false,
+          "summary": false
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "fail",
+        "prompt_version": "section-metadata-v2",
+        "provider": "/bin/false",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Partial Upsert Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/partial.md#0001-partial-upsert-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/partial.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/partial.md#0001-partial-upsert-spec",
+          "stable_section_uid": "5aa5fb8f71027251",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Partial Upsert Spec",
+            "Alpha"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/partial.md#0002-alpha",
+          "semantic_hash": "24b974dc26f518139a9c5763f9546491e3ba459f98553f6823cf820684e58542",
+          "source_document_id": "docs/spec/partial.md",
+          "source_hash": "7189afc0ed76954cfeff63f98d214a80f60a20a4792486c123199a998d84a188",
+          "source_section_id": "docs/spec/partial.md#0002-alpha",
+          "stable_section_uid": "fae0b98a7fb50f23",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Partial Upsert Spec",
+            "Beta"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/partial.md#0003-beta",
+          "semantic_hash": "c42d3a8c2a3c30d80e2fa7ce521939856fb56b596825228ea7212c0b3ecebdef",
+          "source_document_id": "docs/spec/partial.md",
+          "source_hash": "614370dcfafb85143a947126a053e178aaa7d9c734e372a682997f7a8ca14b0b",
+          "source_section_id": "docs/spec/partial.md#0003-beta",
+          "stable_section_uid": "63782ff17d9fb132",
+          "summary": ""
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [],
+      "blocking_reasons": [],
+      "cache_hits": 2,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/partial.md#0002-alpha"
+      ],
+      "llm_calls": 0,
+      "reused_section_ids": [
+        "docs/spec/partial.md#0001-partial-upsert-spec",
+        "docs/spec/partial.md#0003-beta"
+      ],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [
+          "docs/spec/partial.md#partial-upsert-spec"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/partial.md#partial-upsert-spec": "llm_generation_failed: LLM command failed"
+        },
+        "status": "failed"
+      },
+      "failed_required_artifacts": [
+        "chapter_anchors"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 4.402111572999274,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "added_or_changed_source_section_ids": [
+              "docs/spec/partial.md#0002-alpha",
+              "docs/spec/partial.md#0003-beta"
+            ],
+            "batch_count": 0,
+            "candidate_count": 0,
+            "candidate_count_for_selection": 0,
+            "candidate_generation_elapsed_sec": 4.402111572999274,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 2,
+            "changed_source_section_ids": [
+              "docs/spec/partial.md#0002-alpha",
+              "docs/spec/partial.md#0003-beta"
+            ],
+            "changed_target_relations_inherited": true,
+            "changed_target_section_ids": [
+              "docs/spec/partial.md#0002-alpha",
+              "docs/spec/partial.md#0003-beta"
+            ],
+            "fallback_regenerated": false,
+            "inherited_source_count": 1,
+            "inherited_source_section_ids": [
+              "docs/spec/partial.md#0001-partial-upsert-spec"
+            ],
+            "llm_calls": 0,
+            "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+            "partial_mode": "source_changed_only",
+            "partial_regeneration": true,
+            "reason_code": "related_sections_partial_regenerated",
+            "removed_source_count": 1,
+            "removed_source_exclusion": true,
+            "removed_source_section_ids": [
+              "docs/spec/partial.md#0004-gamma"
+            ],
+            "requires_full_regeneration_for_complete_target_recheck": true,
+            "selection_elapsed_sec": 0.0009124470016104169,
+            "selection_source_count": 2,
+            "severity": "info",
+            "source_centric_partial": true,
+            "source_centric_partial_regeneration": true,
+            "stage": "related_sections",
+            "unchanged_source_inheritance": true
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 2,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/partial.md#0002-alpha"
+        ],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/partial.md#0001-partial-upsert-spec",
+          "docs/spec/partial.md#0003-beta"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+    ]
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/partial.md#partial-upsert-spec"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [
+    {
+      "section_id": "docs/spec/partial.md#0001-partial-upsert-spec",
+      "source_section_id": "docs/spec/partial.md#0001-partial-upsert-spec"
+    },
+    {
+      "section_id": "docs/spec/partial.md#0003-beta",
+      "source_section_id": "docs/spec/partial.md#0003-beta"
+    }
+  ],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/partial.md#0002-alpha",
+      "source_section_id": "docs/spec/partial.md#0002-alpha"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/partial.md"
+  ],
+  "warnings": [
+    "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}

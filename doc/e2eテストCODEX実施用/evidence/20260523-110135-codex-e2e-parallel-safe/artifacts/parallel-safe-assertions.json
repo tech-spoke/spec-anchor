@@ -1,0 +1,49 @@
+{
+  "run_id": "20260523-110135-codex-e2e-parallel-safe",
+  "exitcodes": {
+    "nodebug": 0,
+    "debug_default": 0,
+    "debug_override": 0,
+    "stage_fallback": 0
+  },
+  "debug_related_prompt": {
+    "nodebug_no_default_log": true,
+    "default_log_written": true,
+    "override_log_written": true,
+    "override_path_used": true,
+    "record_shape_ok": true,
+    "result_shape_unchanged": true
+  },
+  "stage_routing_fallback": {
+    "stage_routing_removed": true,
+    "provider_invocations_written": true,
+    "all_invocations_use_first_provider_command": true,
+    "all_invocations_use_first_provider_model": true,
+    "core_succeeded": true
+  },
+  "embedding_payload": {
+    "payload_found": true,
+    "text_matches_formula": true,
+    "raw_body_sentinel_absent": true,
+    "has_more_than_8_identifiers": true,
+    "late_identifiers_absent_from_text": true,
+    "search_key_count": 8,
+    "identifier_count": 15,
+    "actual_text": "Authentication Specification / Login Boundary | Defines the login boundary: only users who satisfy the required authentication condition are treated as authenticated, and the embedded validation marker is not a retrieval hint. | login boundary successful sign in condition authenticated users only validation marker boundary for login handling credential acceptance rule Authentication Specification Login Boundary | session.md AUTH_ALPHA_REQUIRED RAW_BODY_SENTINEL_DO_NOT_EMBED_LOGIN_BOUNDARY AUTH_SYMBOL_01 AUTH_SYMBOL_02 AUTH_SYMBOL_03 AUTH_SYMBOL_04 AUTH_SYMBOL_05",
+    "expected_text": "Authentication Specification / Login Boundary | Defines the login boundary: only users who satisfy the required authentication condition are treated as authenticated, and the embedded validation marker is not a retrieval hint. | login boundary successful sign in condition authenticated users only validation marker boundary for login handling credential acceptance rule Authentication Specification Login Boundary | session.md AUTH_ALPHA_REQUIRED RAW_BODY_SENTINEL_DO_NOT_EMBED_LOGIN_BOUNDARY AUTH_SYMBOL_01 AUTH_SYMBOL_02 AUTH_SYMBOL_03 AUTH_SYMBOL_04 AUTH_SYMBOL_05",
+    "late_identifiers": [
+      "AUTH_SYMBOL_06",
+      "AUTH_SYMBOL_07",
+      "AUTH_SYMBOL_08",
+      "AUTH_SYMBOL_09",
+      "AUTH_SYMBOL_10",
+      "AUTH_SYMBOL_11",
+      "AUTH_SYMBOL_12"
+    ]
+  },
+  "passed_debug_related_prompt": true,
+  "passed_stage_routing_fallback": true,
+  "passed_embedding_payload_formula": true,
+  "passed_identifier_limit": true,
+  "passed_all": true
+}

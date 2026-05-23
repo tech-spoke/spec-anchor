@@ -1,0 +1,5 @@
+run_id=20260523-014753-codex-e2e-watchqueue-only
+project=/tmp/spec-anchor-codex-e2e-watchqueue-only.C4VkeS
+base=/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy
+2026-05-23T01:47:53+09:00
+spec-anchor 0.1.0

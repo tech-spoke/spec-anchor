@@ -1,0 +1,5 @@
+run_id=20260523-090550-codex-e2e-f004-retest
+evidence_dir=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-090550-codex-e2e-f004-retest
+tmp_project=/tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k
+copied_commands=.claude/commands/spec-core.md .claude/commands/spec-inject.md .claude/commands/spec-realign.md
+config_exists_before=no

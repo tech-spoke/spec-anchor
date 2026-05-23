@@ -1,0 +1,310 @@
+{
+  "collection": "spec_anchor_section_20260523010512codexe2ef002retest",
+  "command": "/spec-inject inject-search",
+  "hits": [
+    {
+      "heading_path": [
+        "Authentication Specification"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "session",
+            "login"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication specification is the parent section; session management is a direct child that defines how authenticated sessions are maintained after login.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/auth.md#0002-session-management"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "CSRF",
+            "POST"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication specification is the parent section; CSRF protection is a direct child that enforces token validation on state-changing requests post-authentication.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/auth.md#0003-csrf-protection"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "admin role",
+            "403"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication specification is the parent section; authorization is a direct child that governs what authenticated users are permitted to do based on role.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/auth.md#0004-authorization"
+        }
+      ],
+      "score": 0.03252247488101534,
+      "search_keys": [
+        "authentication requirements",
+        "login and sign in",
+        "user identity verification",
+        "access to protected areas",
+        "credential validation",
+        "Authentication Specification"
+      ],
+      "source_document_id": "docs/spec/auth.md",
+      "source_section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 32,
+        "start_line": 1,
+        "start_offset": 31
+      },
+      "summary": "Top-level authentication requirements for the system, covering how users prove identity before gaining access."
+    },
+    {
+      "heading_path": [
+        "Authentication Specification",
+        "Session Management"
+      ],
+      "identifiers": [
+        "HttpOnly"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "HttpOnly",
+            "CSRF"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Both sections form the server-side request security policy: session cookies carry identity while CSRF tokens protect those cookie-authenticated requests from forgery.",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/auth.md#0003-csrf-protection"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "authentication specification",
+            "session",
+            "admin role"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Session validity (expiry, logout invalidation) directly affects whether an authorization check can proceed; an expired session must not grant admin access.",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/auth.md#0004-authorization"
+        }
+      ],
+      "score": 0.03252247488101534,
+      "search_keys": [
+        "session management",
+        "secure login cookie",
+        "cookie marked http only",
+        "cookie marked secure",
+        "session expiration",
+        "logout invalidates session",
+        "login session timeout",
+        "Authentication Specification",
+        "Session Management"
+      ],
+      "source_document_id": "docs/spec/auth.md",
+      "source_section_id": "docs/spec/auth.md#0002-session-management",
+      "source_span": {
+        "end_line": 6,
+        "end_offset": 156,
+        "start_line": 3,
+        "start_offset": 54
+      },
+      "summary": "Describes session cookie handling after login, including secure cookie flags, default timeout, and immediate invalidation on logout."
+    },
+    {
+      "heading_path": [
+        "Authentication Specification",
+        "Authorization"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "admin role",
+            "認証済み"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authorization rules apply only to already-authenticated users; the parent authentication specification is a prerequisite for the role check described here.",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/auth.md#0001-authentication-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "authentication specification",
+            "session",
+            "admin role"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authorization checks rely on a valid session to identify the user's role; session expiry or logout must propagate to revoke admin access.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/auth.md#0002-session-management"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "authentication specification",
+            "CSRF",
+            "403"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Admin operations that mutate state are subject to both CSRF validation and role authorization; both must pass for the request to succeed.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/auth.md#0003-csrf-protection"
+        }
+      ],
+      "score": 0.031746031746031744,
+      "search_keys": [
+        "authorization rules",
+        "admin only access",
+        "role based permissions",
+        "administrative actions",
+        "forbidden for non admins",
+        "privileged operations",
+        "access control by role",
+        "Authentication Specification",
+        "Authorization"
+      ],
+      "source_document_id": "docs/spec/auth.md",
+      "source_section_id": "docs/spec/auth.md#0004-authorization",
+      "source_span": {
+        "end_line": 13,
+        "end_offset": 375,
+        "start_line": 11,
+        "start_offset": 305
+      },
+      "summary": "Defines role-based access for administrative operations, allowing only users with the admin role and returning forbidden for others."
+    },
+    {
+      "heading_path": [
+        "Authentication Specification",
+        "CSRF Protection"
+      ],
+      "identifiers": [
+        "CSRF",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "CSRF",
+            "403"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "CSRF protection is scoped to authenticated state-changing requests; the parent authentication specification establishes the authentication context this section depends on.",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/auth.md#0001-authentication-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "authentication specification",
+            "HttpOnly",
+            "CSRF token"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "CSRF token requirement pairs with the HttpOnly session cookie mechanism; both are complementary server-side defenses applied to the same authenticated requests.",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/auth.md#0002-session-management"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "authentication specification",
+            "403",
+            "admin role"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Both sections result in 403 responses for disallowed requests (CSRF failure vs. insufficient role); implementors should coordinate the 403 response path.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/auth.md#0004-authorization"
+        }
+      ],
+      "score": 0.03125,
+      "search_keys": [
+        "csrf protection",
+        "cross site request forgery",
+        "state changing requests",
+        "forbidden without token",
+        "request token validation",
+        "write action protection",
+        "unsafe method defense",
+        "Authentication Specification",
+        "CSRF Protection"
+      ],
+      "source_document_id": "docs/spec/auth.md",
+      "source_section_id": "docs/spec/auth.md#0003-csrf-protection",
+      "source_span": {
+        "end_line": 10,
+        "end_offset": 288,
+        "start_line": 7,
+        "start_offset": 175
+      },
+      "summary": "Requires protection against cross-site request forgery for state-changing requests and rejects requests missing a valid token with a forbidden response."
+    }
+  ],
+  "project_root": "/tmp/spec-anchor-codex-e2e-watchqueue-only.C4VkeS",
+  "query": "authentication session",
+  "top_k": 8,
+  "warnings": []
+}

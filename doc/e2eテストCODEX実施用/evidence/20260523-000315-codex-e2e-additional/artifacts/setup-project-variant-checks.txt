@@ -1,0 +1,8 @@
+codex_skill=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/setup-codex-only/.codex/skills/spec-anchor/SKILL.md
+codex_skill_exists=0
+codex_forbidden_claude_absent=0
+claude_command_exists=0
+claude_forbidden_codex_absent=0
+no_init_config_exists=0
+no_init_purpose_absent=0
+no_init_concept_absent=0

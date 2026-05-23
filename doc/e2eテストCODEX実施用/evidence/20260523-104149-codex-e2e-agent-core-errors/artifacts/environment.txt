@@ -1,0 +1,8 @@
+run_id=20260523-104149-codex-e2e-agent-core-errors
+repo=/home/kazuki/public_html/spec-anchor
+base_project=/tmp/20260523-103156-codex-e2e-realign-output.project
+chapter_project=/tmp/20260523-104149-codex-e2e-agent-core-errors.chapter.project
+qdrant_project=/tmp/20260523-104149-codex-e2e-agent-core-errors.qdrant.project
+date=2026-05-23T10:43:33+09:00
+SPEC_ANCHOR_FAKE_LLM=<unset>
+SPEC_ANCHOR_FAKE_RETRIEVAL=<unset>

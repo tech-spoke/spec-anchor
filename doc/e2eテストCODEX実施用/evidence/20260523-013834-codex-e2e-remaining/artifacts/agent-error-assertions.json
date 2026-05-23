@@ -1,0 +1,86 @@
+[
+  {
+    "contains": {
+      ".spec-anchor/config.toml not found": false,
+      "spec-anchor-setup-project": true
+    },
+    "exit_code": "0",
+    "has_result_event": true,
+    "label": "agent-core-missing-config",
+    "needles": [
+      ".spec-anchor/config.toml not found",
+      "spec-anchor-setup-project"
+    ],
+    "passed": false
+  },
+  {
+    "contains": {
+      ".spec-anchor/config.toml not found": true,
+      "spec-anchor-setup-project": true
+    },
+    "exit_code": "0",
+    "has_result_event": true,
+    "label": "agent-inject-missing-config",
+    "needles": [
+      ".spec-anchor/config.toml not found",
+      "spec-anchor-setup-project"
+    ],
+    "passed": true
+  },
+  {
+    "contains": {
+      ".spec-anchor/config.toml not found": false,
+      "spec-anchor-setup-project": true
+    },
+    "exit_code": "0",
+    "has_result_event": true,
+    "label": "agent-realign-missing-config",
+    "needles": [
+      ".spec-anchor/config.toml not found",
+      "spec-anchor-setup-project"
+    ],
+    "passed": false
+  },
+  {
+    "contains": {
+      "core.purpose_file not found": true,
+      "purpose": true
+    },
+    "exit_code": "0",
+    "has_result_event": true,
+    "label": "agent-core-missing-purpose",
+    "needles": [
+      "core.purpose_file not found",
+      "purpose"
+    ],
+    "passed": true
+  },
+  {
+    "contains": {
+      "concept": true,
+      "core.concept_file not found": true
+    },
+    "exit_code": "0",
+    "has_result_event": true,
+    "label": "agent-core-missing-concept",
+    "needles": [
+      "core.concept_file not found",
+      "concept"
+    ],
+    "passed": true
+  },
+  {
+    "contains": {
+      "Source Specs": true,
+      "sources.include did not match any Source Specs": true
+    },
+    "exit_code": "0",
+    "has_result_event": true,
+    "label": "agent-core-no-sources",
+    "needles": [
+      "sources.include did not match any Source Specs",
+      "Source Specs"
+    ],
+    "passed": true
+  }
+]

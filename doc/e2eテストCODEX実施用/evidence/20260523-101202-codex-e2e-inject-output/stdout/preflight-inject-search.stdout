@@ -1,0 +1,512 @@
+{
+  "collection": "spec_anchor_sections_20260523_101202_inject_output",
+  "command": "/spec-inject inject-search",
+  "hits": [
+    {
+      "heading_path": [
+        "Login Audit Specification",
+        "Audit Event Required"
+      ],
+      "identifiers": [
+        "audit.md",
+        "AUDIT_EVENT_REQUIRED",
+        "RETENTION_DAYS_FOR_AUTH_LOG",
+        "required"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "audit.md",
+            "required",
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "mfa_result を監査記録項目として含むため、MFA_REQUIRED_ON_ADMIN_LOGIN の定義に依存する。audit.md への参照も共有。",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/login.md#0002-admin-login-mfa"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "audit_event_required",
+            "retention_days_for_auth_log"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "AUDIT_EVENT_REQUIRED の保存先（audit_log_stream）と RETENTION_DAYS_FOR_AUTH_LOG の未確定状態は audit-storage-boundary に定義されており、直接依存する。",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/audit.md#0002-audit-storage-boundary"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "親セクションであり、同一ポリシー文書の一部。",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/login.md#0001-login-audit-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "兄弟セクション。パスワードリセットが監査イベント要件の対象外であることを補足する。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/login.md#0004-password-reset-out-of-scope"
+        }
+      ],
+      "score": 0.03252247488101534,
+      "search_keys": [
+        "successful and failed login audit",
+        "required audit event fields",
+        "actor identity and source IP",
+        "mfa result in audit log",
+        "authentication log retention unresolved",
+        "Login Audit Specification",
+        "Audit Event Required"
+      ],
+      "source_document_id": "docs/spec/login.md",
+      "source_section_id": "docs/spec/login.md#0003-audit-event-required",
+      "source_span": {
+        "end_line": 21,
+        "end_offset": 510,
+        "start_line": 12,
+        "start_offset": 256
+      },
+      "summary": "Requires audit events for both successful and failed administrator logins, with specified fields and an unresolved retention period."
+    },
+    {
+      "heading_path": [
+        "Login Audit Specification",
+        "Admin Login MFA"
+      ],
+      "identifiers": [
+        "audit.md",
+        "MFA",
+        "MFA_REQUIRED_ON_ADMIN_LOGIN",
+        "required"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "audit.md",
+            "required",
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "MFA_REQUIRED_ON_ADMIN_LOGIN と audit.md の参照を共有し、MFAチャレンジ結果（mfa_result）が監査イベントの記録項目に直接含まれるため依存関係がある。",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/login.md#0003-audit-event-required"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "親セクションであり、同一ポリシー文書の一部。",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/login.md#0001-login-audit-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "パスワードリセットフローはMFA制約の適用外であることを補足する兄弟セクション。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/login.md#0004-password-reset-out-of-scope"
+        }
+      ],
+      "score": 0.032266458495966696,
+      "search_keys": [
+        "administrator login multi factor",
+        "MFA required for admin sign in",
+        "challenge after password",
+        "no session before MFA success",
+        "admin authentication control",
+        "Login Audit Specification",
+        "Admin Login MFA"
+      ],
+      "source_document_id": "docs/spec/login.md",
+      "source_section_id": "docs/spec/login.md#0002-admin-login-mfa",
+      "source_span": {
+        "end_line": 11,
+        "end_offset": 232,
+        "start_line": 3,
+        "start_offset": 48
+      },
+      "summary": "Requires multi-factor authentication for administrator login and says the management session must not be issued until MFA succeeds."
+    },
+    {
+      "heading_path": [
+        "Audit Storage Specification",
+        "Audit Storage Boundary"
+      ],
+      "identifiers": [
+        "AUDIT_EVENT_REQUIRED",
+        "RETENTION_DAYS_FOR_AUTH_LOG"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "audit_event_required",
+            "retention_days_for_auth_log"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "AUDIT_EVENT_REQUIRED と RETENTION_DAYS_FOR_AUTH_LOG を共有しており、保存先 audit_log_stream の定義がログインイベント記録要件に直接影響する。",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/login.md#0003-audit-event-required"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "audit storage specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "親セクションであり、同一ポリシー文書の一部。",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/audit.md#0001-audit-storage-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "audit storage specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "同一ドキュメント内の兄弟セクションだが、直接の依存関係は薄い。適用除外の文脈を補足する程度。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/audit.md#0003-marketing-tracking-irrelevant"
+        }
+      ],
+      "score": 0.0315136476426799,
+      "search_keys": [
+        "audit log stream",
+        "required audit event storage",
+        "authentication log retention pending",
+        "legal review for retention",
+        "do not decide retention days",
+        "Audit Storage Specification",
+        "Audit Storage Boundary"
+      ],
+      "source_document_id": "docs/spec/audit.md",
+      "source_section_id": "docs/spec/audit.md#0002-audit-storage-boundary",
+      "source_span": {
+        "end_line": 9,
+        "end_offset": 206,
+        "start_line": 3,
+        "start_offset": 57
+      },
+      "summary": "States that required audit events are stored in the audit log stream and that the retention period for authentication logs is still pending legal review."
+    },
+    {
+      "heading_path": [
+        "Login Audit Specification",
+        "Password Reset Out Of Scope"
+      ],
+      "identifiers": [
+        "EMAIL_TOKEN_RESET_FLOW",
+        "MFA"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "ログイン監査仕様の子セクションとして、パスワードリセットがスコープ外であることを親ポリシーに対して補足する。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/login.md#0001-login-audit-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "EMAIL_TOKEN_RESET_FLOW と MFA の共有識別子を持ち、パスワードリセットがMFA管理者ログイン制約に含まれないことを明示するため参照関係がある。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/login.md#0002-admin-login-mfa"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "パスワードリセットフローが監査イベント要件の対象外であることを補足する兄弟セクション。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/login.md#0003-audit-event-required"
+        }
+      ],
+      "score": 0.03149801587301587,
+      "search_keys": [
+        "password reset flow",
+        "email token reset",
+        "out of scope for login audit",
+        "not an admin mfa constraint",
+        "password recovery exclusion",
+        "Login Audit Specification",
+        "Password Reset Out Of Scope"
+      ],
+      "source_document_id": "docs/spec/login.md",
+      "source_section_id": "docs/spec/login.md#0004-password-reset-out-of-scope",
+      "source_span": {
+        "end_line": 27,
+        "end_offset": 687,
+        "start_line": 22,
+        "start_offset": 541
+      },
+      "summary": "Notes that password reset uses the email token reset flow and should not be treated as a constraint for administrator login MFA."
+    },
+    {
+      "heading_path": [
+        "Login Audit Specification"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "ログイン監査仕様の直接の子セクションであり、管理者ログインMFA要件を定義する同一ポリシーの一部。",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/login.md#0002-admin-login-mfa"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "ログイン監査仕様の直接の子セクションであり、イベント記録要件を定義する同一ポリシーの一部。",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/login.md#0003-audit-event-required"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "login audit specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "同一ドキュメントの子セクションだが、パスワードリセットはログイン監査タスクのスコープ外であることを明示する除外節。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/login.md#0004-password-reset-out-of-scope"
+        }
+      ],
+      "score": 0.015625,
+      "search_keys": [
+        "login audit specification",
+        "administrator login auditing",
+        "auth event requirements",
+        "login security logging",
+        "audit rules for sign in",
+        "Login Audit Specification"
+      ],
+      "source_document_id": "docs/spec/login.md",
+      "source_section_id": "docs/spec/login.md#0001-login-audit-specification",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 29,
+        "start_line": 1,
+        "start_offset": 28
+      },
+      "summary": "Defines the overall specification for login-related audit behavior."
+    },
+    {
+      "heading_path": [
+        "Audit Storage Specification",
+        "Marketing Tracking Irrelevant"
+      ],
+      "identifiers": [
+        "MARKETING_PIXEL_LOGIN_PAGE"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "audit storage specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "マーケティングトラッキングを監査制約から除外する節は、監査ストレージ仕様の適用範囲を限定する補足であり、親ポリシーを参照する。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/audit.md#0001-audit-storage-specification"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "audit storage specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "同一ドキュメント内の兄弟セクション。MARKETING_PIXEL_LOGIN_PAGE が監査ストレージ境界に影響しないことを補足する。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/audit.md#0002-audit-storage-boundary"
+        }
+      ],
+      "score": 0.015151515151515152,
+      "search_keys": [
+        "marketing tracking",
+        "login page analytics",
+        "marketing pixel",
+        "not for authentication constraints",
+        "not for audit rules",
+        "Audit Storage Specification",
+        "Marketing Tracking Irrelevant"
+      ],
+      "source_document_id": "docs/spec/audit.md",
+      "source_section_id": "docs/spec/audit.md#0003-marketing-tracking-irrelevant",
+      "source_span": {
+        "end_line": 14,
+        "end_offset": 350,
+        "start_line": 10,
+        "start_offset": 239
+      },
+      "summary": "Clarifies that the login-page marketing pixel is for analytics only and must not be used for administrator login authentication or audit constraints."
+    },
+    {
+      "heading_path": [
+        "Audit Storage Specification"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "audit storage specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "audit-storage-boundary は audit-storage-specification の直接の子セクションであり、具体的な保存先・識別子を定義する同一ポリシー文書の一部。",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/audit.md#0002-audit-storage-boundary"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "audit storage specification"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "同一ドキュメント内のセクションだが、マーケティングトラッキングを監査制約から除外することを明示する除外節であり、監査仕様の適用範囲を補足する。",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/audit.md#0003-marketing-tracking-irrelevant"
+        }
+      ],
+      "score": 0.014925373134328358,
+      "search_keys": [
+        "audit log storage",
+        "audit record storage",
+        "authentication audit storage",
+        "audit retention and boundaries",
+        "security logging storage",
+        "Audit Storage Specification"
+      ],
+      "source_document_id": "docs/spec/audit.md",
+      "source_section_id": "docs/spec/audit.md#0001-audit-storage-specification",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 31,
+        "start_line": 1,
+        "start_offset": 30
+      },
+      "summary": "Defines the overall specification for audit log storage."
+    }
+  ],
+  "project_root": "/tmp/20260523-101202-codex-e2e-inject-output.project",
+  "query": "管理者ログイン 監査 MFA AUDIT_EVENT_REQUIRED",
+  "top_k": 8,
+  "warnings": []
+}

@@ -1,0 +1,125 @@
+{
+  "concept_hash": "b2a4d0a8a34980e7b06c1a41d1f0b10a678100615d1d34fda19cafa47b1eae25",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "generation": {
+    "cache_key_inputs": [
+      "stable_section_uid",
+      "source_hash",
+      "prompt_version",
+      "model",
+      "provider",
+      "metadata_version",
+      "limits",
+      "enabled_fields"
+    ],
+    "enabled_fields": {
+      "related_sections": false,
+      "search_keys": false,
+      "summary": false
+    },
+    "identifier_extractor_version": "identifier-extractor-v1",
+    "limits": {
+      "llm_batch_max_chars": 12000,
+      "llm_batch_max_sections": 8,
+      "search_keys_max": 32,
+      "section_summary_max_chars": 480
+    },
+    "metadata_version": 1,
+    "model": "fail",
+    "prompt_version": "section-metadata-v2",
+    "provider": "/bin/false",
+    "stage": "section_metadata"
+  },
+  "purpose_hash": "e30605e21d327fdffd047d1e671b43fcc78f00e602f1182b26406416d3427b37",
+  "schema_version": 1,
+  "sections": [
+    {
+      "chapter_id": "docs/spec/deep.md#root-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Root Spec"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "section_id": "docs/spec/deep.md#0001-root-spec",
+      "semantic_hash": "fc727c9eabf0b6226a5e2aead9318dc97412dd4ad3fdf60563ac0afa5c6c9365",
+      "source_document_id": "docs/spec/deep.md",
+      "source_hash": "75a44efc777ed6510de34cb0ee56b2f064ab35656eb041665721b70fc98754f3",
+      "source_section_id": "docs/spec/deep.md#0001-root-spec",
+      "source_span": {
+        "end_line": 3,
+        "end_offset": 25,
+        "start_line": 1,
+        "start_offset": 12
+      }
+    },
+    {
+      "chapter_id": "docs/spec/deep.md#root-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Root Spec",
+        "Feature A"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "section_id": "docs/spec/deep.md#0002-feature-a",
+      "semantic_hash": "e5a937f0a577336946f8b23e8068ae8f495046fdaaed959125d23261406cfd62",
+      "source_document_id": "docs/spec/deep.md",
+      "source_hash": "b4162ed13129b86ecb20d06a3d94912952736182bb2ef66ef67b8a3b5b41563d",
+      "source_section_id": "docs/spec/deep.md#0002-feature-a",
+      "source_span": {
+        "end_line": 6,
+        "end_offset": 47,
+        "start_line": 4,
+        "start_offset": 38
+      }
+    },
+    {
+      "chapter_id": "docs/spec/deep.md#root-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Root Spec",
+        "Feature A",
+        "Scenario A1"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "section_id": "docs/spec/deep.md#0003-scenario-a1",
+      "semantic_hash": "ad16da59e5c548210e81680970cd4051cacd3b6d56339b7e5b7ede15138a723e",
+      "source_document_id": "docs/spec/deep.md",
+      "source_hash": "a59bdf71343139d1b23ecf0c7f59e2e73c88709108bd3724a119efab8c7f90f3",
+      "source_section_id": "docs/spec/deep.md#0003-scenario-a1",
+      "source_span": {
+        "end_line": 15,
+        "end_offset": 205,
+        "start_line": 7,
+        "start_offset": 63
+      }
+    },
+    {
+      "chapter_id": "docs/spec/deep.md#root-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Root Spec",
+        "Feature B"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "section_id": "docs/spec/deep.md#0004-feature-b",
+      "semantic_hash": "7c8ea63009a7a3c5221f47e311b52caee419111a6e910dbb1c65e44ef05d64e0",
+      "source_document_id": "docs/spec/deep.md",
+      "source_hash": "1cdbc642f952e53c94a1b83e4af45ec30e95fd23b967de1efa1f14e3bb20aac9",
+      "source_section_id": "docs/spec/deep.md#0004-feature-b",
+      "source_span": {
+        "end_line": 17,
+        "end_offset": 226,
+        "start_line": 16,
+        "start_offset": 218
+      }
+    }
+  ]
+}

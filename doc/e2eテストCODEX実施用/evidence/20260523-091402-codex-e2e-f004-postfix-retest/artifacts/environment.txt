@@ -1,0 +1,5 @@
+run_id=20260523-091402-codex-e2e-f004-postfix-retest
+evidence_dir=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-091402-codex-e2e-f004-postfix-retest
+tmp_project=/tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj
+copied_from=.claude/commands after Codex sync/fix
+config_exists_before=no

@@ -1,0 +1,1 @@
+Use the spec-anchor skill. Treat this as the user triggering /spec-core --all. In the current project root only, run spec-anchor core --all, read the CLI stdout JSON, and report status, warnings, diagnostics.chapter_anchors, and freshness_report to the user. Do not edit files, do not run setup automatically, and do not search another project.

@@ -1,0 +1,1068 @@
+2026-05-22T15:31:55.928Z [DEBUG] MDM settings load completed in 43ms
+2026-05-22T15:31:55.953Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/settings.json
+2026-05-22T15:31:55.953Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/settings.local.json
+2026-05-22T15:31:55.953Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /etc/claude-code/managed-settings.json
+2026-05-22T15:31:55.954Z [DEBUG] CA certs: Config fallback - globalEnv keys: , settingsEnv keys: ENABLE_TOOL_SEARCH,BASH_MAX_TIMEOUT_MS
+2026-05-22T15:31:55.955Z [DEBUG] [init] configureGlobalMTLS starting
+2026-05-22T15:31:55.955Z [DEBUG] [init] configureGlobalMTLS complete
+2026-05-22T15:31:55.955Z [DEBUG] [init] configureGlobalAgents starting
+2026-05-22T15:31:55.955Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=undefined
+2026-05-22T15:31:55.956Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-22T15:31:55.963Z [DEBUG] CA certs: Loaded 294 system CA certificates
+2026-05-22T15:31:55.963Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-22T15:31:55.963Z [DEBUG] [init] configureGlobalAgents complete
+2026-05-22T15:31:55.965Z [DEBUG] Error log sink initialized
+2026-05-22T15:31:56.032Z [DEBUG] Applying permission update: Adding 37 allow rule(s) to destination 'userSettings': ["mcp__code-intel__get_session_status","Skill(code)","Skill(code:*)","mcp__code-intel__search_text","Bash(ls:*)","mcp__code-intel__cleanup_stale_overlays","mcp__playwright__browser_navigate","Bash(find:*)","mcp__code-intel__review_changes","mcp__code-intel__start_session","Bash(git rev-parse:*)","mcp__code-intel__begin_phase_gate","mcp__code-intel__set_query_frame","mcp__code-intel__cleanup_stale_branches","Skill(test-parallel)","Skill(test-parallel:*)","mcp__code-intel__find_definitions","Bash(git checkout:*)","Bash(git merge:*)","Bash(git branch:*)","mcp__code-intel__check_phase_necessity","mcp__code-intel__semantic_search","mcp__code-intel__search_files","Bash(git add:*)","Bash(git commit:*)","mcp__code-intel__submit_phase","Bash(git push)","mcp__code-intel__find_references","mcp__code-intel__analyze_structure","mcp__code-intel__check_write_target","WebFetch(domain:github.com)","Bash(python3 -m pytest:*)","mcp__code-intel__search_memories","WebFetch(domain:arxiv.org)","Bash(npm root:*)","Read(//home/kazuki/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/claude-code/**)","Bash(codex history *)"]
+2026-05-22T15:31:56.186Z [DEBUG] Applying permission update: Adding 1 directory with destination 'localSettings': ["/home/kazuki/public_html/llm-helper/docs/detailed-design"]
+2026-05-22T15:31:56.186Z [DEBUG] Applying permission update: Adding 1 directory with destination 'localSettings': ["/home/kazuki/public_html/ec-spoke.local/docs/React+NestJS+Astro/drafts"]
+2026-05-22T15:31:56.187Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-05-22T15:31:56.190Z [DEBUG] [STARTUP] Running setup()...
+2026-05-22T15:31:56.194Z [DEBUG] Loading skills from: managed=/etc/claude-code/.claude/skills, user=/home/kazuki/.claude/skills, project=[]
+2026-05-22T15:31:56.194Z [DEBUG] Error log sink initialized
+2026-05-22T15:31:56.196Z [DEBUG] [claudeai-mcp] Fetching from https://api.anthropic.com/v1/mcp_servers?limit=1000
+2026-05-22T15:31:56.202Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/commands: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/commands'
+2026-05-22T15:31:56.202Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/agents: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/agents'
+2026-05-22T15:31:56.202Z [DEBUG] Failed to stat directory /home/kazuki/.claude/agents: ENOENT: no such file or directory, statx '/home/kazuki/.claude/agents'
+2026-05-22T15:31:56.205Z [DEBUG] [STARTUP] setup() completed in 14ms
+2026-05-22T15:31:56.205Z [DEBUG] Cleared CA certificates cache
+2026-05-22T15:31:56.205Z [DEBUG] Cleared mTLS configuration cache
+2026-05-22T15:31:56.205Z [DEBUG] Cleared proxy agent cache
+2026-05-22T15:31:56.205Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=undefined
+2026-05-22T15:31:56.205Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-22T15:31:56.205Z [DEBUG] CA certs: Loaded 294 system CA certificates
+2026-05-22T15:31:56.205Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-22T15:31:56.214Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-05-22T15:31:56.214Z [DEBUG] [ToolSearch:optimistic] mode=tst, ENABLE_TOOL_SEARCH=1, result=true
+2026-05-22T15:31:56.241Z [DEBUG] Loaded 4 installed plugins from /home/kazuki/.claude/plugins/installed_plugins.json
+2026-05-22T15:31:56.249Z [DEBUG] Read hooks.json for plugin codex (enabled=true): /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3/hooks/hooks.json
+2026-05-22T15:31:56.250Z [DEBUG] Found 4 plugins (3 enabled, 1 disabled)
+2026-05-22T15:31:56.250Z [DEBUG] getPluginSkills: Processing 3 enabled plugins
+2026-05-22T15:31:56.251Z [DEBUG] Checking plugin filament-specialist: skillsPath=exists, skillsPaths=0 paths
+2026-05-22T15:31:56.251Z [DEBUG] Attempting to load skills from plugin filament-specialist default skillsPath: /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/skills
+2026-05-22T15:31:56.251Z [DEBUG] Checking plugin codex: skillsPath=exists, skillsPaths=0 paths
+2026-05-22T15:31:56.251Z [DEBUG] Attempting to load skills from plugin codex default skillsPath: /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3/skills
+2026-05-22T15:31:56.251Z [DEBUG] Checking plugin claude-md-management: skillsPath=exists, skillsPaths=0 paths
+2026-05-22T15:31:56.251Z [DEBUG] Attempting to load skills from plugin claude-md-management default skillsPath: /home/kazuki/.claude/plugins/cache/claude-plugins-official/claude-md-management/1.0.0/skills
+2026-05-22T15:31:56.251Z [DEBUG] Loading hooks from plugin: codex
+2026-05-22T15:31:56.251Z [DEBUG] Registered 3 hooks from 3 plugins
+2026-05-22T15:31:56.254Z [DEBUG] Loaded 7 commands from plugin codex default directory
+2026-05-22T15:31:56.254Z [DEBUG] Loaded 1 commands from plugin claude-md-management default directory
+2026-05-22T15:31:56.255Z [DEBUG] Loaded 9 commands from plugin filament-specialist default directory
+2026-05-22T15:31:56.255Z [DEBUG] Plugin filament-specialist has commandsPaths: /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/action.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/diagnose.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/docs.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/form.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/infolist.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/resource.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/table.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/test.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/widget.md
+2026-05-22T15:31:56.255Z [DEBUG] Loaded 1 agents from plugin codex default directory
+2026-05-22T15:31:56.255Z [DEBUG] Loaded 1 agents from plugin filament-specialist default directory
+2026-05-22T15:31:56.257Z [DEBUG] Loaded 8 skills from plugin filament-specialist default directory
+2026-05-22T15:31:56.257Z [DEBUG] Loaded 1 skills from plugin claude-md-management default directory
+2026-05-22T15:31:56.257Z [DEBUG] Loaded 3 skills from plugin codex default directory
+2026-05-22T15:31:56.257Z [DEBUG] Total plugin skills loaded: 12
+2026-05-22T15:31:56.257Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/diagnose.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.257Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/action.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.257Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/table.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.257Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/widget.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.257Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/docs.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.257Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/test.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.258Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/infolist.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.258Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/resource.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.258Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/form.md - isDirectory: false, isFile: true
+2026-05-22T15:31:56.258Z [DEBUG] Total plugin commands loaded: 17
+2026-05-22T15:31:56.258Z [DEBUG] Total plugin agents loaded: 2
+2026-05-22T15:31:56.259Z [DEBUG] Git remote URL: null
+2026-05-22T15:31:56.259Z [DEBUG] No git remote URL found
+2026-05-22T15:31:56.272Z [DEBUG] Loaded 18 unique skills (18 unconditional, 0 conditional, managed: 0, user: 1, project: 0, additional: 0, legacy commands: 17)
+2026-05-22T15:31:56.273Z [DEBUG] getSkills returning: 18 skill dir commands, 12 plugin skills, 13 bundled skills, 0 builtin plugin skills
+2026-05-22T15:31:56.276Z [DEBUG] [STARTUP] Commands and agents loaded in 62ms
+2026-05-22T15:31:56.276Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-05-22T15:31:56.276Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-05-22T15:31:56.276Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-05-22T15:31:56.276Z [DEBUG] Starting background startup prefetches
+2026-05-22T15:31:56.277Z [DEBUG] [Bootstrap] Fetching
+2026-05-22T15:31:56.279Z [DEBUG] Passes: Using fresh cached eligibility data
+2026-05-22T15:31:56.280Z [DEBUG] [STARTUP] MCP configs resolved in 65ms (awaited at +93ms)
+2026-05-22T15:31:56.281Z [DEBUG] All plugins already exist, skipping migration
+2026-05-22T15:31:56.281Z [DEBUG] Cleared CA certificates cache
+2026-05-22T15:31:56.281Z [DEBUG] Cleared mTLS configuration cache
+2026-05-22T15:31:56.281Z [DEBUG] Cleared proxy agent cache
+2026-05-22T15:31:56.281Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=undefined
+2026-05-22T15:31:56.282Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-22T15:31:56.282Z [DEBUG] CA certs: Loaded 294 system CA certificates
+2026-05-22T15:31:56.282Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-22T15:31:56.282Z [DEBUG] Initialized versioned plugins system with 4 plugins
+2026-05-22T15:31:56.285Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:31:56.285Z [DEBUG] [MCP] --mcp-config servers running fully async (nonblocking)
+2026-05-22T15:31:56.285Z [DEBUG] [MCP] claude.ai connectors running fully async (nonblocking)
+2026-05-22T15:31:56.286Z [DEBUG] [Perfetto] initializePerfettoTracing called, env value: undefined
+2026-05-22T15:31:56.286Z [DEBUG] [3P telemetry] isTelemetryEnabled=false (CLAUDE_CODE_ENABLE_TELEMETRY=undefined)
+2026-05-22T15:31:56.289Z [WARN] [3P telemetry] Event dropped (no event logger initialized): hook_execution_start
+2026-05-22T15:31:56.299Z [DEBUG] Grove: Using fresh cached config
+2026-05-22T15:31:56.305Z [DEBUG] Total LSP servers loaded: 0
+2026-05-22T15:31:56.305Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2026-05-22T15:31:56.305Z [DEBUG] LSP manager initialized with 0 servers
+2026-05-22T15:31:56.305Z [DEBUG] LSP server manager initialized successfully
+2026-05-22T15:31:56.306Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-05-22T15:31:56.335Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/skills: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/skills'
+2026-05-22T15:31:56.336Z [DEBUG] Watching for changes in skill/command directories: /home/kazuki/.claude/skills, /home/kazuki/.claude/commands, /tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/commands...
+2026-05-22T15:31:56.343Z [DEBUG] Watching for changes in setting files /home/kazuki/.claude/settings.json, /tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/settings.json, /tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/settings.local.json...
+2026-05-22T15:31:56.385Z [DEBUG] Ripgrep first use test: PASSED (mode=embedded, path=/home/kazuki/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe)
+2026-05-22T15:31:56.420Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T15:31:56.427Z [DEBUG] [auto-mode] verifyAutoModeGateAccess: enabledState=enabled disabledBySettings=false model=claude-sonnet-4-6 modelSupported=true disableFastModeBreakerFires=false carouselAvailable=true canEnterAuto=true
+2026-05-22T15:31:56.506Z [DEBUG] [claudeai-mcp] Fetched 3 servers
+2026-05-22T15:31:56.584Z [DEBUG] [Bootstrap] Fetch ok
+2026-05-22T15:31:56.584Z [DEBUG] [Bootstrap] Cache unchanged, skipping write
+2026-05-22T15:31:56.637Z [DEBUG] Org fast mode: disabled (extra_usage_disabled)
+2026-05-22T15:31:56.710Z [DEBUG] [ScheduledTasks] scheduler start() — enabled=false, hasTasks=false
+2026-05-22T15:31:56.715Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/output-styles: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/output-styles'
+2026-05-22T15:31:56.715Z [DEBUG] Failed to stat directory /home/kazuki/.claude/output-styles: ENOENT: no such file or directory, statx '/home/kazuki/.claude/output-styles'
+2026-05-22T15:31:56.716Z [DEBUG] Total plugin output styles loaded: 0
+2026-05-22T15:31:56.717Z [DEBUG] installPluginsForHeadless: starting
+2026-05-22T15:31:56.723Z [DEBUG] Preserving file permissions: 100600
+2026-05-22T15:31:56.723Z [DEBUG] Writing to temp file: /home/kazuki/.claude.json.tmp.388594.5460e6ae587f
+2026-05-22T15:31:56.723Z [DEBUG] Applied original permissions to temp file
+2026-05-22T15:31:56.725Z [DEBUG] Temp file written successfully, size: 46736 bytes
+2026-05-22T15:31:56.725Z [DEBUG] Renaming /home/kazuki/.claude.json.tmp.388594.5460e6ae587f to /home/kazuki/.claude.json
+2026-05-22T15:31:56.725Z [DEBUG] File /home/kazuki/.claude.json written atomically
+2026-05-22T15:31:56.729Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:31:56.729Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:31:56.729Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:31:56.729Z [DEBUG] Sending 54 skills via attachment (initial)
+2026-05-22T15:31:56.729Z [DEBUG] Skill prompt: showing "filament-specialist:filament-resource" (userFacingName="filament-resource")
+2026-05-22T15:31:56.729Z [DEBUG] Skill prompt: showing "filament-specialist:filament-testing" (userFacingName="filament-testing")
+2026-05-22T15:31:56.729Z [DEBUG] Skill prompt: showing "filament-specialist:filament-widgets" (userFacingName="filament-widgets")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "filament-specialist:filament-actions" (userFacingName="filament-actions")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "filament-specialist:filament-docs" (userFacingName="filament-docs")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "filament-specialist:filament-forms" (userFacingName="filament-forms")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "filament-specialist:filament-infolists" (userFacingName="filament-infolists")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "filament-specialist:filament-tables" (userFacingName="filament-tables")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "codex:codex-cli-runtime" (userFacingName="codex-cli-runtime")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "codex:codex-result-handling" (userFacingName="codex-result-handling")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "codex:gpt-5-4-prompting" (userFacingName="gpt-5-4-prompting")
+2026-05-22T15:31:56.730Z [DEBUG] Skill prompt: showing "claude-md-management:claude-md-improver" (userFacingName="claude-md-improver")
+2026-05-22T15:31:56.730Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:31:56.763Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T15:31:56.809Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T15:31:56.810Z [DEBUG] "Hook UserPromptSubmit (UserPromptSubmit) success:\n自動想起 (10件):\n  #179 ⚡ 💎 ★★★★★ [枝葉, ワークフロー, 人間確認, コマンド] (1.50)\n       「LLMと仕様書作成の構造的問題を議論。LLMは本質の軸と枝葉を同列に扱い、枝葉が文脈に乗ると軸が侵食される。対策として/distillコマンド（蒸留：軸だけ抽出...」\n       🔥「LLMと仕様書作成の構造的問題を議論。」\n  #182 🔥 💎 ★★★★★ [外部世界, 未決事項, 契約拡張, api] (1.50)\n       「doc27未決事項の残り: 契約拡張のAPI(extendContract)のみ。外部世界の失敗への耐性・サーバー強制反映・writeTargetStores省...」\n       🔥「外部世界の失敗への耐性・サーバー強制反映・writeTargetStores省略時の意味は全て決定済み。」\n  #181 ⚡ 😰 ★★★ [返却, pipeline, 失敗, ctx] (1.21)\n       「Pipeline runner処理順: 1.スナップショット取得 2.steps実行 3.失敗→rollback 4.成功→遅延バッファ一括反映 5.外部書き込...」\n  #180 🔥 😰 ★★★ [反映, out, 限定的, 通知・監査ログ等] (1.21)\n       「Action設計: ctx.store()(internalStores用,即時反映,rollback対象) と ctx.out()(writeTargetSt...」\n  #185 🔥 🤝 ★★★ [return, action, actionregistry, createresourcestore] (1.20)\n       「Store-Action所有関係の確定: StoreはcreateResourceStoreで作る純粋なデータの箱。ActionはactionRegistry....」\n  #178 ⚡ ★★ [ユーザー, 仕様, 自分, 説明] (1.01)\n       「仕様書作成のフィードバック: Claudeは分析枠組み(2軸、4層等の分類体系)を生成しがちだが、これを仕様に定着させない。結論と具体的手段だけを書く。ユーザー...」\n  #184 🔥 ★★ [payload, 原則, ではなく, string] (1.00)\n       「emit/onの設計決定: ctx.emit(signalId, payload)でシグナル発行、on: string[]をRegisteredActionの宣...」\n  #90 🔥 ★★ [stop, 記憶システム, 実装, ghost] (0.95)\n       「Ghost記憶システムの自動保存を実装した。check_surface.py を作成し、UserPromptSubmit フックに追加。10分以上アイドル後にL...」\n  #175 💎 ★★★ [詳細設計書, 修正, フェーズ削除, 単層構成] (0.90)\n       「llm-helper詳細設計書からSemantic Memory（汎化ルール層）を完全削除した。11b_semantic.md削除、SEMANTIC_PROMO...」\n  #163  ★★ [発火, 別管理テスト完了, 別セッション, 本番設定] (0.89)\n       「check_surface.pyのセッションID別管理テスト完了。別セッションでも正常に発火。本番設定（10分）に戻した。」\n"
+2026-05-22T15:31:56.814Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:31:56.816Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:31:56.819Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:31:56.819Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:31:56.820Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:31:56.820Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:31:56.821Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:31:56.821Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:31:56.822Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:31:56.823Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:31:56.823Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:31:56.825Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=e4baa1fd-0510-4b61-9140-1d34306a19af source=sdk
+2026-05-22T15:31:57.036Z [DEBUG] [mcp-registry] Loaded 197 official MCP URLs (legacy)
+2026-05-22T15:31:58.554Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:31:58.554Z [DEBUG] [API:timing] first byte after 1731ms
+2026-05-22T15:32:11.523Z [INFO] [Stall] tool_dispatch_start tool=Agent toolUseId=toolu_013KzhocLFFWUDK6WChAx6ni permissionDecisionMs=1
+2026-05-22T15:32:11.531Z [DEBUG] Sending 54 skills via attachment (initial)
+2026-05-22T15:32:11.531Z [DEBUG] Skill prompt: showing "filament-specialist:filament-resource" (userFacingName="filament-resource")
+2026-05-22T15:32:11.531Z [DEBUG] Skill prompt: showing "filament-specialist:filament-testing" (userFacingName="filament-testing")
+2026-05-22T15:32:11.531Z [DEBUG] Skill prompt: showing "filament-specialist:filament-widgets" (userFacingName="filament-widgets")
+2026-05-22T15:32:11.531Z [DEBUG] Skill prompt: showing "filament-specialist:filament-actions" (userFacingName="filament-actions")
+2026-05-22T15:32:11.531Z [DEBUG] Skill prompt: showing "filament-specialist:filament-docs" (userFacingName="filament-docs")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "filament-specialist:filament-forms" (userFacingName="filament-forms")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "filament-specialist:filament-infolists" (userFacingName="filament-infolists")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "filament-specialist:filament-tables" (userFacingName="filament-tables")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "codex:codex-cli-runtime" (userFacingName="codex-cli-runtime")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "codex:codex-result-handling" (userFacingName="codex-result-handling")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "codex:gpt-5-4-prompting" (userFacingName="gpt-5-4-prompting")
+2026-05-22T15:32:11.532Z [DEBUG] Skill prompt: showing "claude-md-management:claude-md-improver" (userFacingName="claude-md-improver")
+2026-05-22T15:32:11.532Z [WARN] Skill listing over budget: 54 skills, 8322 chars > 8000 budget — descriptions will be truncated. Run /doctor for details.
+2026-05-22T15:32:11.533Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:11.534Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:11.541Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:11.541Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:11.541Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:11.541Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:11.541Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:11.542Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:11.543Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:11.543Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:11.544Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=93340f96-3326-4f5c-998d-5dd28d829d1f source=agent:builtin:Explore
+2026-05-22T15:32:13.105Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:13.105Z [DEBUG] [API:timing] first byte after 1562ms
+2026-05-22T15:32:13.815Z [INFO] [Stall] tool_dispatch_start tool=Glob toolUseId=toolu_01MD8a7Rr4Y4Xwaw3WaKUzKM permissionDecisionMs=1
+2026-05-22T15:32:13.818Z [INFO] [Stall] tool_dispatch_end tool=Glob toolUseId=toolu_01MD8a7Rr4Y4Xwaw3WaKUzKM outcome=ok durationMs=3
+2026-05-22T15:32:13.844Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:13.844Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:13.844Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:13.853Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:13.853Z [DEBUG] "Hook PostToolUse:Glob (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:13.853Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:14.013Z [INFO] [Stall] tool_dispatch_start tool=Glob toolUseId=toolu_01HXJwWxBgZAoG4jwxHPEXTt permissionDecisionMs=1
+2026-05-22T15:32:14.017Z [INFO] [Stall] tool_dispatch_end tool=Glob toolUseId=toolu_01HXJwWxBgZAoG4jwxHPEXTt outcome=ok durationMs=4
+2026-05-22T15:32:14.042Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:14.043Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:14.043Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:14.047Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:14.047Z [DEBUG] "Hook PostToolUse:Glob (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:14.047Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:14.485Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01VUvnuA44Bfi5arjNUVS2DY permissionDecisionMs=5
+2026-05-22T15:32:14.537Z [DEBUG] Creating shell snapshot for bash (/bin/bash)
+2026-05-22T15:32:14.537Z [DEBUG] Looking for shell config file: /home/kazuki/.bashrc
+2026-05-22T15:32:14.540Z [DEBUG] Snapshots directory: /home/kazuki/.claude/shell-snapshots
+2026-05-22T15:32:14.541Z [DEBUG] Creating snapshot at: /home/kazuki/.claude/shell-snapshots/snapshot-bash-1779463934540-w567co.sh
+2026-05-22T15:32:14.541Z [DEBUG] Execution timeout: 10000ms
+2026-05-22T15:32:14.542Z [DEBUG] Spawn-env probe captured 67 keys
+2026-05-22T15:32:14.720Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01Rzdvm11zn3mXx3uf5838Cs permissionDecisionMs=5
+2026-05-22T15:32:15.274Z [DEBUG] Shell snapshot created successfully (234063 bytes)
+2026-05-22T15:32:15.276Z [DEBUG] Session environment loaded from 1 hook file(s)
+2026-05-22T15:32:15.276Z [DEBUG] Session environment script ready (153 chars total)
+2026-05-22T15:32:15.276Z [DEBUG] Session environment loaded from 1 hook file(s)
+2026-05-22T15:32:15.276Z [DEBUG] Session environment script ready (153 chars total)
+2026-05-22T15:32:15.276Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:15.277Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:15.620Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01VUvnuA44Bfi5arjNUVS2DY outcome=ok durationMs=1135
+2026-05-22T15:32:15.622Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01Rzdvm11zn3mXx3uf5838Cs outcome=ok durationMs=902
+2026-05-22T15:32:15.649Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:15.649Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:15.649Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:15.650Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:15.650Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:15.650Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:15.651Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:15.651Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:15.651Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:15.656Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:15.657Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:15.657Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:15.659Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:15.660Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:15.660Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:15.660Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:15.661Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:15.661Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:15.661Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:15.661Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:15.661Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:15.662Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:15.662Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=0a89956b-2efc-41b4-8ec5-005544068537 source=agent:builtin:Explore
+2026-05-22T15:32:16.436Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:16.436Z [DEBUG] [API:timing] first byte after 774ms
+2026-05-22T15:32:17.117Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01RyN5fkmUjL7R3haeBhVBFB permissionDecisionMs=2
+2026-05-22T15:32:17.119Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:17.148Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01KuUCNwS8Jm2S2QXxDhme3J permissionDecisionMs=2
+2026-05-22T15:32:17.150Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:17.484Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01RyN5fkmUjL7R3haeBhVBFB outcome=ok durationMs=367
+2026-05-22T15:32:17.515Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:17.515Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:17.515Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:17.519Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:17.520Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:17.520Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:17.524Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01KuUCNwS8Jm2S2QXxDhme3J outcome=ok durationMs=376
+2026-05-22T15:32:17.553Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:17.553Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:17.553Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:17.557Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:17.558Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:17.558Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:17.561Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:17.562Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:17.562Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:17.563Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:17.563Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:17.563Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:17.563Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:17.564Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:17.564Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:17.564Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:17.566Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=a47b7088-b5c0-4c66-9f70-48dc169211c5 source=agent:builtin:Explore
+2026-05-22T15:32:18.451Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:18.452Z [DEBUG] [API:timing] first byte after 887ms
+2026-05-22T15:32:20.378Z [INFO] [Stall] tool_dispatch_start tool=Grep toolUseId=toolu_01KCmw5a3iJMqzpGaD7UqUFf permissionDecisionMs=1
+2026-05-22T15:32:20.392Z [INFO] [Stall] tool_dispatch_end tool=Grep toolUseId=toolu_01KCmw5a3iJMqzpGaD7UqUFf outcome=ok durationMs=14
+2026-05-22T15:32:20.428Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:20.428Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:20.428Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:20.435Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:20.435Z [DEBUG] "Hook PostToolUse:Grep (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:20.435Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:21.030Z [INFO] [Stall] tool_dispatch_start tool=Grep toolUseId=toolu_01EbLpjh4nCiBMPnESxZLQRv permissionDecisionMs=0
+2026-05-22T15:32:21.047Z [INFO] [Stall] tool_dispatch_end tool=Grep toolUseId=toolu_01EbLpjh4nCiBMPnESxZLQRv outcome=ok durationMs=17
+2026-05-22T15:32:21.080Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:21.080Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:21.080Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:21.091Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:21.092Z [DEBUG] "Hook PostToolUse:Grep (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:21.092Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:21.147Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_014cmiFFdecuqiHqfg6Ac6Y5 permissionDecisionMs=2
+2026-05-22T15:32:21.149Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:21.625Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_014cmiFFdecuqiHqfg6Ac6Y5 outcome=ok durationMs=478
+2026-05-22T15:32:21.657Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:21.657Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:21.657Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:21.664Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:21.664Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:21.664Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:21.669Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:21.670Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:21.671Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:21.671Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:21.671Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:21.671Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:21.671Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:21.672Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:21.672Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:21.673Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:21.674Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=ada4046d-cfb8-42ed-97b9-2a88d1297cc8 source=agent:builtin:Explore
+2026-05-22T15:32:22.737Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:22.737Z [DEBUG] [API:timing] first byte after 1065ms
+2026-05-22T15:32:23.650Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01Xq9EoJnAU5mbQMqDUAJGA5 permissionDecisionMs=4
+2026-05-22T15:32:23.653Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:23.759Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_0129SxtpMFA4XKdrUF3UEUv1 permissionDecisionMs=5
+2026-05-22T15:32:23.761Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:34.228Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_0129SxtpMFA4XKdrUF3UEUv1 outcome=ok durationMs=10469
+2026-05-22T15:32:34.233Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01Xq9EoJnAU5mbQMqDUAJGA5 outcome=ok durationMs=10583
+2026-05-22T15:32:34.260Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:34.260Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:34.260Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:34.261Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:34.261Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:34.261Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:34.266Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:34.266Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:34.266Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:34.271Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:34.271Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:34.271Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:34.273Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:34.274Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:34.275Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:34.275Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:34.275Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:34.276Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:34.276Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:34.277Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:34.277Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:34.277Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:34.279Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=bd3dfae5-b2fb-435f-af89-a4a2c59ac325 source=agent:builtin:Explore
+2026-05-22T15:32:35.340Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:35.340Z [DEBUG] [API:timing] first byte after 1063ms
+2026-05-22T15:32:37.135Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01TYSxpohW8Hwo5CQU6cZ9Kw permissionDecisionMs=2
+2026-05-22T15:32:37.139Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01TYSxpohW8Hwo5CQU6cZ9Kw outcome=ok durationMs=4
+2026-05-22T15:32:37.169Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:37.169Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:37.169Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:37.174Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:37.175Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:37.175Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:37.595Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01WALVANvNxzBRDFJ6SxMkUd permissionDecisionMs=1
+2026-05-22T15:32:37.597Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01WALVANvNxzBRDFJ6SxMkUd outcome=ok durationMs=2
+2026-05-22T15:32:37.625Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:37.625Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:37.625Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:37.631Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:37.631Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:37.631Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:38.393Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01JYuxq61rrL3njGmcyU12cS permissionDecisionMs=1
+2026-05-22T15:32:38.394Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01JYuxq61rrL3njGmcyU12cS outcome=ok durationMs=1
+2026-05-22T15:32:38.421Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:38.421Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:38.421Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:38.425Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:38.425Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:38.425Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:38.436Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:38.436Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:38.437Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:38.437Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:38.437Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:38.437Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:38.437Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:38.438Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:38.438Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:38.438Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:38.439Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=4d555de7-9f04-48b9-8e2e-10c9f9bebbe4 source=agent:builtin:Explore
+2026-05-22T15:32:38.532Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:38.532Z [DEBUG] [API:timing] first byte after 1383ms
+2026-05-22T15:32:40.377Z [INFO] [Stall] tool_dispatch_start tool=Grep toolUseId=toolu_017h5Bo247Yh9RHERNYA2e5J permissionDecisionMs=1
+2026-05-22T15:32:40.388Z [INFO] [Stall] tool_dispatch_end tool=Grep toolUseId=toolu_017h5Bo247Yh9RHERNYA2e5J outcome=ok durationMs=11
+2026-05-22T15:32:40.416Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:40.416Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:40.416Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:40.420Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:40.420Z [DEBUG] "Hook PostToolUse:Grep (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:40.420Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:40.423Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:40.423Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:40.424Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:40.424Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:40.424Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:40.424Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:40.425Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:40.425Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:40.425Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:40.425Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:40.426Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=ad702ef5-722f-4c42-be0e-36f17b0317be source=agent:builtin:Explore
+2026-05-22T15:32:41.272Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:41.272Z [DEBUG] [API:timing] first byte after 848ms
+2026-05-22T15:32:43.461Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01DZmgkVJWNnjKWa2ZYgcqn6 permissionDecisionMs=8
+2026-05-22T15:32:43.462Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:43.860Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01DZmgkVJWNnjKWa2ZYgcqn6 outcome=ok durationMs=399
+2026-05-22T15:32:43.899Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:43.899Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:43.899Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:43.904Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:43.904Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:43.904Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:43.908Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:43.909Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:43.911Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:43.911Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:43.911Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:43.911Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:43.911Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:43.912Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:43.912Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:43.912Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:43.915Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=f0a2b772-d844-4001-8387-90e5d007762a source=agent:builtin:Explore
+2026-05-22T15:32:46.444Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:46.444Z [DEBUG] [API:timing] first byte after 2532ms
+2026-05-22T15:32:47.893Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01FSTTjPuzSKYdGoXFbSu3J3 permissionDecisionMs=3
+2026-05-22T15:32:47.895Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01FSTTjPuzSKYdGoXFbSu3J3 outcome=ok durationMs=2
+2026-05-22T15:32:47.921Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:47.921Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:47.921Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:47.925Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:47.926Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:47.926Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:47.993Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01PrWGw9MvsnkEcRNobqfUz2 permissionDecisionMs=5
+2026-05-22T15:32:47.994Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:48.364Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01PrWGw9MvsnkEcRNobqfUz2 outcome=ok durationMs=371
+2026-05-22T15:32:48.392Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:48.392Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:48.392Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:48.396Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:48.396Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:48.396Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:48.400Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:48.401Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:48.402Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:48.402Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:48.402Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:48.403Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:48.403Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:48.403Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:48.408Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:48.409Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:48.410Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=699d72db-692c-41bb-997f-c55614fb2254 source=agent:builtin:Explore
+2026-05-22T15:32:49.474Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:49.474Z [DEBUG] [API:timing] first byte after 1066ms
+2026-05-22T15:32:50.638Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_018rT1V1XKnj6Luie3NYxTad permissionDecisionMs=31
+2026-05-22T15:32:50.639Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:51.158Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_018rT1V1XKnj6Luie3NYxTad outcome=ok durationMs=520
+2026-05-22T15:32:51.190Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:51.190Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:51.190Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:51.195Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:51.196Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:51.196Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:51.204Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01JnnyCeXhoEmkoQpaxSCunu permissionDecisionMs=7
+2026-05-22T15:32:51.205Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:51.630Z [WARN] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01JnnyCeXhoEmkoQpaxSCunu outcome=error durationMs=426
+2026-05-22T15:32:51.630Z [DEBUG] Bash tool error (426ms): Shell command failed
+2026-05-22T15:32:51.633Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:51.634Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:51.635Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:51.635Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:51.635Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:51.635Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:51.635Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:51.636Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:51.636Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:51.636Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:51.637Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=6a0d87a6-159d-4901-b057-92e6dfc735ed source=agent:builtin:Explore
+2026-05-22T15:32:52.548Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:52.548Z [DEBUG] [API:timing] first byte after 913ms
+2026-05-22T15:32:53.038Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01BhZdKroMAo9WgFK9Q527Xm permissionDecisionMs=3
+2026-05-22T15:32:53.039Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:53.414Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01BhZdKroMAo9WgFK9Q527Xm outcome=ok durationMs=376
+2026-05-22T15:32:53.439Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:53.439Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:53.439Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:53.443Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:53.443Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:53.443Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:53.447Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01H8bXanTbFxeuiiqc5MriYe permissionDecisionMs=3
+2026-05-22T15:32:53.450Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:32:53.831Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01H8bXanTbFxeuiiqc5MriYe outcome=ok durationMs=384
+2026-05-22T15:32:53.857Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:32:53.857Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:32:53.857Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:32:53.862Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:32:53.862Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:32:53.862Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:32:53.864Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:32:53.865Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:32:53.865Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:32:53.865Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:53.866Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:53.866Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:32:53.866Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:32:53.866Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:32:53.866Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:32:53.866Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:32:53.867Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=38a9ab87-49f7-4135-b162-ae559ce277b6 source=agent:builtin:Explore
+2026-05-22T15:32:55.344Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:32:55.344Z [DEBUG] [API:timing] first byte after 1478ms
+2026-05-22T15:32:55.911Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01Db4oHAuXpkAjT6erRN5yZo permissionDecisionMs=5
+2026-05-22T15:32:55.912Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:06.965Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01Db4oHAuXpkAjT6erRN5yZo outcome=ok durationMs=11054
+2026-05-22T15:33:06.994Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:06.995Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:06.995Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:06.999Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:07.000Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:07.000Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:07.003Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:07.003Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:07.004Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:07.004Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:07.004Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:07.005Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:07.005Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:07.005Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:07.005Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:07.005Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:07.007Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=0c19afcc-d924-4034-b7c6-4334cf477ca9 source=agent:builtin:Explore
+2026-05-22T15:33:08.756Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:08.756Z [DEBUG] [API:timing] first byte after 1751ms
+2026-05-22T15:33:09.685Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01HjHDkC8o2EVS2GpmeLEUs1 permissionDecisionMs=5
+2026-05-22T15:33:09.686Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:10.136Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01HjHDkC8o2EVS2GpmeLEUs1 outcome=ok durationMs=451
+2026-05-22T15:33:10.165Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:10.165Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:10.165Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:10.169Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:10.169Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:10.170Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:10.175Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01DwAEGzAytrFJ4gs5aou8tT permissionDecisionMs=5
+2026-05-22T15:33:10.179Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:09.351Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01DwAEGzAytrFJ4gs5aou8tT outcome=ok durationMs=-824
+2026-05-22T15:33:09.377Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:09.377Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:09.377Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:09.382Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:09.382Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:09.382Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:09.390Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01BExAcYbxrRN1qfcjVKg1rb permissionDecisionMs=7
+2026-05-22T15:33:09.392Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:09.866Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01BExAcYbxrRN1qfcjVKg1rb outcome=ok durationMs=476
+2026-05-22T15:33:09.905Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:09.905Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:09.905Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:09.912Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:09.912Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:09.912Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:09.915Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:09.916Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:09.917Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:09.918Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:09.918Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:09.918Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:09.918Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:09.919Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:09.919Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:09.919Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:09.920Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=e4250809-2ed8-4c52-9e00-6bf58a8d11b0 source=agent:builtin:Explore
+2026-05-22T15:33:10.776Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:10.776Z [DEBUG] [API:timing] first byte after 857ms
+2026-05-22T15:33:12.158Z [INFO] [Stall] tool_dispatch_start tool=Grep toolUseId=toolu_01YRvLY5WNZRYZ8HosnWodQs permissionDecisionMs=2
+2026-05-22T15:33:12.169Z [INFO] [Stall] tool_dispatch_end tool=Grep toolUseId=toolu_01YRvLY5WNZRYZ8HosnWodQs outcome=ok durationMs=11
+2026-05-22T15:33:12.214Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:12.214Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:12.214Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:12.222Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:12.222Z [DEBUG] "Hook PostToolUse:Grep (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:12.222Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:12.228Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:12.229Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:12.232Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:12.233Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:12.233Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:12.234Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:12.234Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:12.235Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:12.235Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:12.236Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:12.239Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=cc44b27a-f49c-4886-b0b5-3f774dfb074f source=agent:builtin:Explore
+2026-05-22T15:33:13.271Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:13.272Z [DEBUG] [API:timing] first byte after 1036ms
+2026-05-22T15:33:14.885Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01F1AsPsZoawxXVgBQjLBMcX permissionDecisionMs=1
+2026-05-22T15:33:14.888Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01F1AsPsZoawxXVgBQjLBMcX outcome=ok durationMs=3
+2026-05-22T15:33:14.923Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:14.924Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:14.924Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:14.929Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:14.930Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:14.930Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:15.246Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01LDvbindGXexQYFqjgUNQpF permissionDecisionMs=2
+2026-05-22T15:33:15.248Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:15.758Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01LDvbindGXexQYFqjgUNQpF outcome=ok durationMs=512
+2026-05-22T15:33:15.785Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:15.785Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:15.785Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:15.790Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:15.790Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:15.790Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:15.797Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:15.798Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:15.799Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:15.799Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:15.799Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:15.800Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:15.800Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:15.800Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:15.800Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:15.800Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:15.802Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=6046164f-9f64-4a8f-828d-91928dde036a source=agent:builtin:Explore
+2026-05-22T15:33:16.667Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:16.667Z [DEBUG] [API:timing] first byte after 867ms
+2026-05-22T15:33:17.594Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01YUNmgaUjAkHCKP2ZQNDxtE permissionDecisionMs=1
+2026-05-22T15:33:17.597Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01YUNmgaUjAkHCKP2ZQNDxtE outcome=ok durationMs=3
+2026-05-22T15:33:17.639Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:17.639Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:17.639Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:17.647Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:17.648Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:17.648Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:17.704Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01N6LPybJzRxCfv4N6oQ1GD2 permissionDecisionMs=1
+2026-05-22T15:33:17.706Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01N6LPybJzRxCfv4N6oQ1GD2 outcome=ok durationMs=2
+2026-05-22T15:33:17.758Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:17.758Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:17.758Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:17.759Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:17.759Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:17.759Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:17.770Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:17.770Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:17.771Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:17.771Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:17.772Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:17.772Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:17.772Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:17.772Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:17.773Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:17.773Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:17.776Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=aea7667a-c293-4b33-a6c3-cd46cf89f379 source=agent:builtin:Explore
+2026-05-22T15:33:19.038Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:19.039Z [DEBUG] [API:timing] first byte after 1266ms
+2026-05-22T15:33:20.174Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01YJjxtnquGCDisQWmm5E7kB permissionDecisionMs=8
+2026-05-22T15:33:20.176Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:20.643Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01YJjxtnquGCDisQWmm5E7kB outcome=ok durationMs=469
+2026-05-22T15:33:20.696Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:20.696Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:20.696Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:20.705Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:20.705Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:20.706Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:20.722Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_012CoFZmjUjEcLPgDgFxwTcw permissionDecisionMs=9
+2026-05-22T15:33:20.727Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:21.143Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_012CoFZmjUjEcLPgDgFxwTcw outcome=ok durationMs=421
+2026-05-22T15:33:21.172Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:21.173Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:21.173Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:21.179Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:21.179Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:21.179Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:21.182Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:21.182Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:21.183Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:21.183Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:21.183Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:21.183Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:21.183Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:21.184Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:21.184Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:21.184Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:21.186Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=b2161a2d-922d-48e1-bfe2-8074d419d2f0 source=agent:builtin:Explore
+2026-05-22T15:33:22.111Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:22.111Z [DEBUG] [API:timing] first byte after 927ms
+2026-05-22T15:33:57.432Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01Tq2gVPFhu12QzwdeNZKqe2 permissionDecisionMs=7
+2026-05-22T15:33:57.438Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:33:57.809Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01Tq2gVPFhu12QzwdeNZKqe2 outcome=ok durationMs=377
+2026-05-22T15:33:57.844Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:33:57.844Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:33:57.844Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:33:57.851Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:33:57.852Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:33:57.852Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:33:57.856Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=180000
+2026-05-22T15:33:57.857Z [DEBUG] Tool search disabled for model 'claude-haiku-4-5-20251001': model does not support tool_reference blocks. This feature is only available on Claude Sonnet 4+, Opus 4+, and newer models.
+2026-05-22T15:33:57.858Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.918; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:33:57.858Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:57.858Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:57.859Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:33:57.859Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:33:57.859Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:33:57.860Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:33:57.860Z [DEBUG] [API:timing] dispatching to firstParty model=claude-haiku-4-5-20251001
+2026-05-22T15:33:57.862Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=983a36f4-8ed7-4cd7-9f5d-bfc7f58e9a54 source=agent:builtin:Explore
+2026-05-22T15:33:59.381Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:33:59.382Z [DEBUG] [API:timing] first byte after 1522ms
+2026-05-22T15:34:05.992Z [INFO] [Stall] tool_dispatch_end tool=Agent toolUseId=toolu_013KzhocLFFWUDK6WChAx6ni outcome=ok durationMs=114469
+2026-05-22T15:34:06.018Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:06.018Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:06.018Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:06.022Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:06.022Z [DEBUG] "Hook PostToolUse:Agent (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:06.022Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:06.026Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:06.026Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:06.026Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:06.027Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:06.027Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:06.028Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:06.029Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:06.029Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:06.029Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:06.029Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:06.029Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:06.030Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:06.030Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:06.030Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:06.031Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=80359eca-dff8-42cc-806a-fa3843533ef3 source=sdk
+2026-05-22T15:34:07.505Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:07.505Z [DEBUG] [API:timing] first byte after 1476ms
+2026-05-22T15:34:18.798Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01Wdbu1LCQXdU4ohydcb6wpH permissionDecisionMs=10
+2026-05-22T15:34:18.799Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:34:19.405Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01Wdbu1LCQXdU4ohydcb6wpH outcome=ok durationMs=606
+2026-05-22T15:34:19.430Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:19.430Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:19.430Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:19.434Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:19.434Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:19.435Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:19.573Z [INFO] [Stall] tool_dispatch_start tool=Glob toolUseId=toolu_01BscFrMosgNdgTpicT6DNGL permissionDecisionMs=0
+2026-05-22T15:34:19.576Z [INFO] [Stall] tool_dispatch_end tool=Glob toolUseId=toolu_01BscFrMosgNdgTpicT6DNGL outcome=ok durationMs=3
+2026-05-22T15:34:19.602Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:19.602Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:19.602Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:19.606Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:19.606Z [DEBUG] "Hook PostToolUse:Glob (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:19.606Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:19.772Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:19.772Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:19.772Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:19.772Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:19.773Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:19.774Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:19.775Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:19.775Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:19.775Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:19.776Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:19.776Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:19.776Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:19.777Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:19.777Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:19.778Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=b064ab7f-ceba-4c01-b87a-824d23d110d7 source=sdk
+2026-05-22T15:34:21.067Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:21.067Z [DEBUG] [API:timing] first byte after 1291ms
+2026-05-22T15:34:23.518Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01DbPtAQWcd2dcyMGnRBBcPb permissionDecisionMs=5
+2026-05-22T15:34:23.519Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:34:23.897Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01DbPtAQWcd2dcyMGnRBBcPb outcome=ok durationMs=379
+2026-05-22T15:34:23.922Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:23.922Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:23.922Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:23.926Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:23.926Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:23.926Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:24.081Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_014KgXQSqUSFhtTBR1EvDkTw permissionDecisionMs=0
+2026-05-22T15:34:24.083Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_014KgXQSqUSFhtTBR1EvDkTw outcome=ok durationMs=2
+2026-05-22T15:34:24.109Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:24.109Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:24.109Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:24.113Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:24.113Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:24.113Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:24.147Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:24.147Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:24.147Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:24.147Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:24.152Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:24.152Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:24.153Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:24.153Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:24.153Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:24.153Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:24.154Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:24.154Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:24.154Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:24.154Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:24.155Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=f5f9e4f9-89c9-4536-a03a-3bb2585f728f source=sdk
+2026-05-22T15:34:25.499Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:25.499Z [DEBUG] [API:timing] first byte after 1345ms
+2026-05-22T15:34:28.273Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01QUWYpy5xmCTpTa4iDbCBpK permissionDecisionMs=1
+2026-05-22T15:34:28.274Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01QUWYpy5xmCTpTa4iDbCBpK outcome=ok durationMs=1
+2026-05-22T15:34:28.306Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:28.306Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:28.306Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:28.310Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:28.311Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:28.311Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:28.937Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01XUY7m1N6rjPRa1oezUYnjQ permissionDecisionMs=1
+2026-05-22T15:34:28.938Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01XUY7m1N6rjPRa1oezUYnjQ outcome=ok durationMs=1
+2026-05-22T15:34:28.976Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:28.976Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:28.977Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:28.984Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:28.984Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:28.984Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:29.001Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:29.001Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:29.001Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:29.002Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:29.011Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:29.012Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:29.012Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:29.013Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:29.013Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:29.014Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:29.014Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:29.015Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:29.016Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:29.016Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:29.018Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=5b5effda-1cb0-43e3-8516-f3f12440adb7 source=sdk
+2026-05-22T15:34:31.527Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:31.527Z [DEBUG] [API:timing] first byte after 2511ms
+2026-05-22T15:34:36.002Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01UWdYavdXojDCf3n3N1qdyM permissionDecisionMs=1
+2026-05-22T15:34:36.004Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01UWdYavdXojDCf3n3N1qdyM outcome=ok durationMs=3
+2026-05-22T15:34:36.032Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:36.033Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:36.033Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:36.040Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:36.040Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:36.040Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:36.995Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01KL5uzNwCtAfLQQgqLrwN3B permissionDecisionMs=9
+2026-05-22T15:34:36.996Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:34:37.635Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01KL5uzNwCtAfLQQgqLrwN3B outcome=ok durationMs=640
+2026-05-22T15:34:37.662Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:37.662Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:37.662Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:37.667Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:37.667Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:37.667Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:37.670Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:37.670Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:37.670Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:37.670Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:37.675Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:37.675Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:37.676Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:37.676Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:37.676Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:37.677Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:37.677Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:37.677Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:37.677Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:37.677Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:37.678Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=96cb93a2-f476-4653-b659-287bed01d450 source=sdk
+2026-05-22T15:34:39.158Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:39.158Z [DEBUG] [API:timing] first byte after 1481ms
+2026-05-22T15:34:43.679Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01Q3pyHyXjvasfomYNYYAnCf permissionDecisionMs=1
+2026-05-22T15:34:43.680Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01Q3pyHyXjvasfomYNYYAnCf outcome=ok durationMs=1
+2026-05-22T15:34:43.713Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:43.713Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:43.713Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:43.719Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:43.719Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:43.719Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:44.812Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01FGmp6dwy7jhyotnWK5kRY1 permissionDecisionMs=3
+2026-05-22T15:34:44.813Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:34:45.528Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01FGmp6dwy7jhyotnWK5kRY1 outcome=ok durationMs=716
+2026-05-22T15:34:45.565Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:45.566Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:45.566Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:45.570Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:45.570Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:45.570Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:45.573Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:45.573Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:45.573Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:45.573Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:45.575Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:45.575Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:45.576Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:45.576Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:45.576Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:45.577Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:45.577Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:45.577Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:45.577Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:45.577Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:45.578Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=6a82db67-58c4-405c-9bc8-2951d0891d7d source=sdk
+2026-05-22T15:34:47.263Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:47.264Z [DEBUG] [API:timing] first byte after 1687ms
+2026-05-22T15:34:56.767Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_018im1ZzBtE41uPF55aayPof permissionDecisionMs=10
+2026-05-22T15:34:56.768Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:34:57.183Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_018im1ZzBtE41uPF55aayPof outcome=ok durationMs=416
+2026-05-22T15:34:57.214Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:34:57.214Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:34:57.214Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:34:57.216Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:34:57.216Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:34:57.216Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:34:57.220Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:34:57.220Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:34:57.220Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:34:57.220Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:34:57.221Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:34:57.222Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:34:57.223Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:34:57.223Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:57.223Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:57.224Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:34:57.224Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:34:57.224Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:34:57.225Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:34:57.225Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:34:57.226Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=0c1b0194-0e12-4753-a08d-3eb7e7cd5a9f source=sdk
+2026-05-22T15:34:59.405Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:34:59.405Z [DEBUG] [API:timing] first byte after 2180ms
+2026-05-22T15:34:59.896Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01NaLDU9Wvw2M3SD8ZAcAtJA permissionDecisionMs=4
+2026-05-22T15:34:59.898Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:35:00.397Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01NaLDU9Wvw2M3SD8ZAcAtJA outcome=ok durationMs=501
+2026-05-22T15:35:00.434Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:35:00.434Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:35:00.434Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:35:00.437Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:35:00.437Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:35:00.438Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:35:00.442Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:35:00.442Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:35:00.442Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:35:00.443Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:35:00.443Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:35:00.444Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:35:00.444Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:35:00.445Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:00.445Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:00.445Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:35:00.445Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:35:00.445Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:35:00.446Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:00.446Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:35:00.447Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=c9bb32f2-c8b7-4328-8d2b-d8732b29ddb1 source=sdk
+2026-05-22T15:35:03.516Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:35:03.516Z [DEBUG] [API:timing] first byte after 3071ms
+2026-05-22T15:35:03.990Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01EK6FoM5GGCGzV6JeLckPH8 permissionDecisionMs=3
+2026-05-22T15:35:03.991Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:35:04.433Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01EK6FoM5GGCGzV6JeLckPH8 outcome=ok durationMs=443
+2026-05-22T15:35:04.465Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:35:04.465Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:35:04.465Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:35:04.472Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:35:04.472Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:35:04.472Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:35:04.475Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:35:04.475Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:35:04.475Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:35:04.475Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:35:04.476Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:35:04.477Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:35:04.478Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:35:04.478Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:04.478Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:04.479Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:35:04.479Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:35:04.479Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:35:04.480Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:04.480Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:35:04.481Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=3c7ed14e-817f-415a-83db-2b4ec42f6ea2 source=sdk
+2026-05-22T15:35:06.435Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:35:06.435Z [DEBUG] [API:timing] first byte after 1955ms
+2026-05-22T15:35:07.373Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01FwqPPPmpRNFoncEmY4gsUP permissionDecisionMs=1
+2026-05-22T15:35:07.374Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:35:07.849Z [DEBUG] Invalidating session environment cache
+2026-05-22T15:35:07.850Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01FwqPPPmpRNFoncEmY4gsUP outcome=ok durationMs=477
+2026-05-22T15:35:07.878Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:35:07.878Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:35:07.879Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:35:07.883Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:35:07.883Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:35:07.884Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:35:07.886Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:35:07.886Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:35:07.886Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:35:07.887Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:35:07.887Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:35:07.888Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:35:07.888Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:35:07.888Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:07.889Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:07.889Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:35:07.889Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:35:07.889Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:35:07.889Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:07.889Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:35:07.891Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=f96ea40e-5e47-40b9-8525-95db9ee2ae46 source=sdk
+2026-05-22T15:35:09.281Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:35:09.281Z [DEBUG] [API:timing] first byte after 1392ms
+2026-05-22T15:35:13.193Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01MA3sSoTvw3eLZeu9bEAmZw permissionDecisionMs=7
+2026-05-22T15:35:13.195Z [DEBUG] Session environment loaded from 1 hook file(s)
+2026-05-22T15:35:13.195Z [DEBUG] Session environment script ready (153 chars total)
+2026-05-22T15:35:13.195Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:35:13.660Z [DEBUG] Invalidating session environment cache
+2026-05-22T15:35:13.662Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01MA3sSoTvw3eLZeu9bEAmZw outcome=ok durationMs=469
+2026-05-22T15:35:13.691Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:35:13.691Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:35:13.691Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:35:13.699Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:35:13.699Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:35:13.699Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:35:13.703Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:35:13.703Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:35:13.703Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:35:13.704Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:35:13.704Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:35:13.705Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:35:13.706Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:35:13.707Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:13.707Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:13.708Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:35:13.708Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:35:13.709Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:35:13.713Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:13.713Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:35:13.715Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=dc51d54e-1d31-45b2-a796-e0cd2332e580 source=sdk
+2026-05-22T15:35:14.404Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:35:14.404Z [DEBUG] [API:timing] first byte after 2058ms
+2026-05-22T15:35:25.217Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01P42DqtFCDmxAVqrWY41XDX permissionDecisionMs=6
+2026-05-22T15:35:25.222Z [DEBUG] Session environment loaded from 1 hook file(s)
+2026-05-22T15:35:25.222Z [DEBUG] Session environment script ready (153 chars total)
+2026-05-22T15:35:25.222Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T15:35:26.184Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01P42DqtFCDmxAVqrWY41XDX outcome=ok durationMs=967
+2026-05-22T15:35:26.213Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T15:35:26.213Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T15:35:26.213Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T15:35:26.218Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T15:35:26.219Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T15:35:26.219Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T15:35:26.223Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T15:35:26.223Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T15:35:26.224Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T15:35:26.224Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T15:35:26.225Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T15:35:26.226Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T15:35:26.227Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T15:35:26.227Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:26.228Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:26.228Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T15:35:26.228Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T15:35:26.229Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T15:35:26.229Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:26.229Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T15:35:26.231Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=9de827e1-3468-4bb9-adc5-292725666bf9 source=sdk
+2026-05-22T15:35:27.865Z [DEBUG] Stream started - received first chunk
+2026-05-22T15:35:27.866Z [DEBUG] [API:timing] first byte after 1636ms
+2026-05-22T15:35:45.911Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T15:35:45.968Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T15:35:45.968Z [DEBUG] "Hook Stop (Stop) success:\nリプレイ対象のターンはありません\n(うとうと...)\n✓ リプレイ完了: 0リンク（刈込0本, 減衰0本, 強化0本）, 0件自動忘却\n統合候補はありません\n統合候補はありません\n(nap完了: 2026-05-22T15:35:45Z)\n"
+2026-05-22T15:35:45.969Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T15:35:45.974Z [DEBUG] LSP server manager shut down successfully
+2026-05-22T15:35:45.976Z [DEBUG] Cleaned up session snapshot: /home/kazuki/.claude/shell-snapshots/snapshot-bash-1779463934540-w567co.sh
+2026-05-22T15:35:46.114Z [DEBUG] SessionEnd:other [node "${CLAUDE_PLUGIN_ROOT}/scripts/session-lifecycle-hook.mjs" SessionEnd] completed with status 0
+2026-05-22T15:35:46.114Z [DEBUG] Hook output does not start with {, treating as plain text

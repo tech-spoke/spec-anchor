@@ -1,0 +1,22 @@
+`spec-anchor realign --answer-file` を外部入力ファイルで実行し、stdoutも外部出力ファイルに保存して確認しました。CLIは `pending_conflict` を返したため、ここで停止します。projectファイルは編集していません。
+
+**pending_conflict_items**
+
+conflict_id: `conflict-auth-session-e2e`  
+severity: `high`
+
+claims:
+- side `a`: Authentication creates an active session.
+- side `b`: Session termination invalidates the active session immediately.
+
+why_conflicting: The test fixture asks the CLI to surface a human-review conflict without resolving it.
+
+why_llm_cannot_decide: The fixture marks both claims as requiring human decision.
+
+decision_options: `prefer_a`, `prefer_b`, `defer`
+
+source_refs:
+- `docs/spec/sample.md#0002-authentication`
+- `docs/spec/sample.md#0004-session-termination`
+
+recommended_next_action: Ask a human to decide this conflict.

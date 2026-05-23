@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "queue": [
+    {
+      "relative_path": "docs/spec/auth.md",
+      "path": "docs/spec/auth.md",
+      "change_type": "modified",
+      "exists": true,
+      "sha256": "codex-e2e-manual-queue-only",
+      "mtime_ns": 0,
+      "size": 0,
+      "queued_at": "2026-05-23T00:00:00Z"
+    }
+  ],
+  "queue_count": 1,
+  "updated_at": "2026-05-23T00:00:00Z"
+}

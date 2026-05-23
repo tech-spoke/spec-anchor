@@ -1,0 +1,138 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "pending_conflict"
+  ],
+  "can_continue": false,
+  "command": "/spec-realign",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "pending_conflict"
+    ],
+    "pending_conflict_count": 1,
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": []
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": true,
+    "blocking_reasons": [
+      "pending_conflict"
+    ],
+    "can_continue": false,
+    "command": "/spec-inject",
+    "constraints": [],
+    "freshness_report": {
+      "blocking_reasons": [
+        "pending_conflict"
+      ],
+      "pending_conflict_count": 1,
+      "schema_version": 1,
+      "status": "blocked",
+      "warnings": []
+    },
+    "generated_at": null,
+    "pending_conflict_count": 1,
+    "pending_conflict_items": [
+      {
+        "claims": [
+          {
+            "side": "a",
+            "summary": "Authentication creates an active session."
+          },
+          {
+            "side": "b",
+            "summary": "Session termination invalidates the active session immediately."
+          }
+        ],
+        "conflict_id": "conflict-auth-session-e2e",
+        "decision_options": [
+          {
+            "id": "prefer_a"
+          },
+          {
+            "id": "prefer_b"
+          },
+          {
+            "id": "defer"
+          }
+        ],
+        "recommended_next_action": "Ask a human to decide this conflict.",
+        "severity": "high",
+        "source_refs": [
+          {
+            "source_section_id": "docs/spec/sample.md#0002-authentication"
+          },
+          {
+            "source_section_id": "docs/spec/sample.md#0004-session-termination"
+          }
+        ],
+        "status": "pending",
+        "why_conflicting": "The test fixture asks the CLI to surface a human-review conflict without resolving it.",
+        "why_llm_cannot_decide": "The fixture marks both claims as requiring human decision."
+      }
+    ],
+    "project_root": "/tmp/20260523-095825-codex-e2e-f005-retest.pending-conflict",
+    "reasons": [
+      "pending_conflict"
+    ],
+    "recommended_next_action": "resolve pending Conflict Review Items",
+    "should_stop": true,
+    "status": "blocked",
+    "stop_reason": "pending_conflict",
+    "stops": true,
+    "warnings": []
+  },
+  "pending_conflict_count": 1,
+  "pending_conflict_items": [
+    {
+      "claims": [
+        {
+          "side": "a",
+          "summary": "Authentication creates an active session."
+        },
+        {
+          "side": "b",
+          "summary": "Session termination invalidates the active session immediately."
+        }
+      ],
+      "conflict_id": "conflict-auth-session-e2e",
+      "decision_options": [
+        {
+          "id": "prefer_a"
+        },
+        {
+          "id": "prefer_b"
+        },
+        {
+          "id": "defer"
+        }
+      ],
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_section_id": "docs/spec/sample.md#0002-authentication"
+        },
+        {
+          "source_section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "status": "pending",
+      "why_conflicting": "The test fixture asks the CLI to surface a human-review conflict without resolving it.",
+      "why_llm_cannot_decide": "The fixture marks both claims as requiring human decision."
+    }
+  ],
+  "project_root": "/tmp/20260523-095825-codex-e2e-f005-retest.pending-conflict",
+  "reasons": [
+    "pending_conflict"
+  ],
+  "recommended_next_action": "resolve pending Conflict Review Items",
+  "should_stop": true,
+  "status": "blocked",
+  "stop_reason": "pending_conflict",
+  "stops": true,
+  "warnings": []
+}

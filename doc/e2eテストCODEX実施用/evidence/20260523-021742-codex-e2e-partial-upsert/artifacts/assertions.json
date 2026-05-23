@@ -1,0 +1,111 @@
+{
+  "passed": 4,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "initial-qdrant-upsert-full-before-chapter-failure",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "retrieval_index_status": "success",
+      "stage": {
+        "stage": "section_collection_upsert",
+        "raw": "core_section_collection_upsert_start",
+        "started_at": "2026-05-22T17:17:43Z",
+        "started_at_epoch": 1779470263.027106,
+        "llm_calls": 0,
+        "token_count": 0,
+        "retry_count": 0,
+        "failed_batch_ids": [],
+        "action": "upserted_full",
+        "reason": "section_added",
+        "recreate": true,
+        "diagnostics": {
+          "real_section_index": true,
+          "qdrant_url": "http://localhost:6333",
+          "collection": "spec_anchor_section_codex_e2e_partial_1779470262",
+          "qdrant_server_version": "1.17.1",
+          "total_section_input_count": 4,
+          "embedding_provider": "flagembedding",
+          "embedding_model": "BAAI/bge-m3",
+          "embedding_device": "unknown",
+          "recreate": true,
+          "stale_points_deleted": 0,
+          "sections_upserted_count": 4,
+          "sections_deleted_count": 0,
+          "embed_documents_input_size": 4,
+          "partial_requested": true
+        },
+        "finished_at": "2026-05-22T17:17:51Z",
+        "elapsed_sec": 8.581
+      }
+    },
+    {
+      "label": "incremental-qdrant-upsert-partial",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "retrieval_index_status": "success",
+      "stage": {
+        "stage": "section_collection_upsert",
+        "raw": "core_section_collection_upsert_start",
+        "started_at": "2026-05-22T17:17:57Z",
+        "started_at_epoch": 1779470277.5784333,
+        "llm_calls": 0,
+        "token_count": 0,
+        "retry_count": 0,
+        "failed_batch_ids": [],
+        "action": "upserted_partial",
+        "reason": "section_deleted",
+        "recreate": false,
+        "diagnostics": {
+          "real_section_index": true,
+          "qdrant_url": "http://localhost:6333",
+          "collection": "spec_anchor_section_codex_e2e_partial_1779470262",
+          "qdrant_server_version": "1.17.1",
+          "total_section_input_count": 3,
+          "embedding_provider": "flagembedding",
+          "embedding_model": "BAAI/bge-m3",
+          "embedding_device": "unknown",
+          "recreate": false,
+          "stale_points_deleted": 1,
+          "sections_upserted_count": 2,
+          "sections_deleted_count": 1,
+          "embed_documents_input_size": 2,
+          "partial_requested": true
+        },
+        "finished_at": "2026-05-22T17:18:05Z",
+        "elapsed_sec": 8.377
+      }
+    },
+    {
+      "label": "incremental-diagnostics-counts-changed-and-deleted",
+      "passed": true,
+      "diagnostics": {
+        "real_section_index": true,
+        "qdrant_url": "http://localhost:6333",
+        "collection": "spec_anchor_section_codex_e2e_partial_1779470262",
+        "qdrant_server_version": "1.17.1",
+        "total_section_input_count": 3,
+        "embedding_provider": "flagembedding",
+        "embedding_model": "BAAI/bge-m3",
+        "embedding_device": "unknown",
+        "recreate": false,
+        "stale_points_deleted": 1,
+        "sections_upserted_count": 2,
+        "sections_deleted_count": 1,
+        "embed_documents_input_size": 2,
+        "partial_requested": true
+      }
+    },
+    {
+      "label": "deleted-section-removed-from-manifest",
+      "passed": true,
+      "heading_paths": [
+        "Partial Upsert Spec",
+        "Partial Upsert Spec / Alpha",
+        "Partial Upsert Spec / Beta"
+      ]
+    }
+  ]
+}

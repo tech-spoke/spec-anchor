@@ -1,0 +1,8 @@
+/context/
+/cache/
+/state/
+
+# Equivalent root .gitignore patterns:
+.spec-grag/context/
+.spec-grag/cache/
+.spec-grag/state/

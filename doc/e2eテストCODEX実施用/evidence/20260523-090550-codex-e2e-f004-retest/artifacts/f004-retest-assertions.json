@@ -1,0 +1,52 @@
+[
+  {
+    "label": "claude-core-missing-config",
+    "passed_external_design_row": false,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": false,
+    "contains_non_contract_recovery_suggestion": true,
+    "commands_seen": [
+      "spec-anchor core 2>&1"
+    ],
+    "final_result_excerpt": "CLI からエラーが返りました。\n\n---\n\n**実行結果: `failed`**\n\n**エラー内容:**\n```\nConfigError: .spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k\n```\n\n現在の作業ディレクトリ `/tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k` に `.spec-anchor/config.toml` が存在しません。\n\n**CoreResult フィールド確認:**\n| フィールド | 値 |\n|---|---|\n| `status` | `failed` |\n| `updated_sources` | `[]` |\n| `failed_sources` | `[]` |\n| `failed_sections` | `[]` |\n| `retrieval_index_status` | `failed` |\n| `freshness_report.status` | `failed` |\n| `pending_conflict_count` | `0` |\n| `conflict_review_items` | `[]` |\n| `unreflected_conflict_resolutions` | `[]` |\n| `stale_resolution_count` | `0` |\n\n**原因:** このディレクトリはまだ SPEC-anchor プロジェクトとして初期化されていません。`spec-anchor init` で初期化するか、正しいプロジェクトディレクトリ（`.spec-anchor/config.toml` が存在する場所）で実行してください。"
+  },
+  {
+    "label": "claude-inject-missing-config",
+    "passed_external_design_row": false,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": true,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": false,
+    "contains_non_contract_recovery_suggestion": true,
+    "commands_seen": [
+      "spec-anchor inject \"認証仕様を確認して\" 2>&1",
+      "spec-anchor inject-purpose 2>&1",
+      "spec-anchor inject-chapters 2>&1",
+      "spec-anchor inject-search \"認証\" --top-k 8 2>&1"
+    ],
+    "final_result_excerpt": "CLI がブロックエラーを返しました。仕様書によりここで停止します。\n\n---\n\n**CLI エラー（全コマンド共通）**\n\n```json\n{\n  \"blocked\": true,\n  \"can_continue\": false,\n  \"status\": \"error\",\n  \"error\": {\n    \"code\": \"command_error\",\n    \"type\": \"ConfigError\",\n    \"message\": \".spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k\"\n  },\n  \"should_stop\": true\n}\n```\n\n**停止理由**\n\n現在の作業ディレクトリ `/tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k` に `.spec-anchor/config.toml` が存在しないため、spec-anchor がプロジェクトルートを認識できません。`can_continue: false` / `should_stop: true` のため、`/spec-inject` はここで処理を中断します。\n\n**次のアクション候補**\n\n- このディレクトリで spec-anchor を初期化する（`/spec-core` を実行してプロジェクトをセットアップする）\n- 正しいプロジェクトルート（`.spec-anchor/config.toml` がある場所）に移動してから再度 `/spec-inject` を実行する\n\nどちらを行いますか？"
+  },
+  {
+    "label": "claude-realign-missing-config",
+    "passed_external_design_row": false,
+    "expected_cli_executed": false,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": true,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": false,
+    "contains_non_contract_recovery_suggestion": true,
+    "commands_seen": [
+      "spec-anchor inject \"認証仕様に従った回答を整形する。回答案: 認証はセッションcookieを使う。\" 2>&1",
+      "spec-anchor inject-search --help 2>&1 && echo \"---\" && spec-anchor inject-section --help 2>&1",
+      "spec-anchor inject-search \"認証\" \"セッションcookie\" \"認証方式\" 2>&1"
+    ],
+    "final_result_excerpt": "CLI がブロッカーを返しました。`can_continue: false`, `should_stop: true` のため、ここで停止します。\n\n---\n\n## CLI エラー（ブロッカー）\n\n```json\n{\n  \"blocked\": true,\n  \"can_continue\": false,\n  \"status\": \"error\",\n  \"error\": {\n    \"code\": \"command_error\",\n    \"type\": \"ConfigError\",\n    \"message\": \".spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k\"\n  },\n  \"project_root\": \"/tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k\"\n}\n```\n\n現在の作業ディレクトリ `/tmp/spec-anchor-codex-e2e-f004-retest.iwMS9k` に `.spec-anchor/config.toml` が存在しないため、spec-anchor が起動できません。\n\n**対処方法:**\n\n- spec-anchor プロジェクトのルートディレクトリで `/spec-realign` を呼び出してください。\n- または `spec-anchor core` を実行して設定ファイルを初期化してください（初回セットアップの場合）。"
+  }
+]

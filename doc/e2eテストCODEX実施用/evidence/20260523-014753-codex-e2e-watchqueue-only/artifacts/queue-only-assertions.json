@@ -1,0 +1,24 @@
+[
+  {
+    "label": "queue-only-inject-search",
+    "status": "blocked",
+    "blocking_reasons": [
+      "watcher_queue_pending"
+    ],
+    "recommended_next_action": "wait for watcher completion before /spec-inject",
+    "should_stop": true,
+    "exit_code": "0",
+    "passed": true
+  },
+  {
+    "label": "queue-only-realign",
+    "status": "blocked",
+    "blocking_reasons": [
+      "watcher_queue_pending"
+    ],
+    "recommended_next_action": "wait for watcher completion before /spec-realign",
+    "should_stop": true,
+    "exit_code": "0",
+    "passed": true
+  }
+]

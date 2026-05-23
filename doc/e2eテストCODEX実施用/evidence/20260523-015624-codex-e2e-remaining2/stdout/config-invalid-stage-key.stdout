@@ -1,0 +1,54 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "config_error": {
+      "exception_type": "ConfigError",
+      "message": "llm.stage_routing.conflict_reveiw is not an allowed stage. Allowed: chapter_key_anchor, conflict_review, related_sections, section_metadata",
+      "reason_code": "config_error"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 1
+    },
+    "diagnostics": {
+      "config_error": {
+        "exception_type": "ConfigError",
+        "message": "llm.stage_routing.conflict_reveiw is not an allowed stage. Allowed: chapter_key_anchor, conflict_review, related_sections, section_metadata",
+        "reason_code": "config_error"
+      },
+      "failed_required_artifacts": [
+        "source_specs"
+      ],
+      "missing_required_artifacts": []
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "llm.stage_routing.conflict_reveiw is not an allowed stage. Allowed: chapter_key_anchor, conflict_review, related_sections, section_metadata"
+    ]
+  },
+  "generated_at": "1970-01-01T00:00:00Z",
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "project_root": "/tmp/spec-anchor-codex-e2e-config-invalid-stage-key.sXJihf",
+  "regenerated_chapter_anchors": [],
+  "related_sections_status": "blocked",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": [
+    "llm.stage_routing.conflict_reveiw is not an allowed stage. Allowed: chapter_key_anchor, conflict_review, related_sections, section_metadata"
+  ]
+}

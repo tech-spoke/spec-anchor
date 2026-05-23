@@ -1,0 +1,7 @@
+{
+  "chapter_anchors_path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/context/chapter_anchors.json",
+  "command": "/spec-inject inject-chapters",
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project",
+  "status": "success",
+  "warnings": []
+}

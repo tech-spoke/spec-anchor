@@ -1,0 +1,601 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 11.909682589001022,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 6,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 12,
+          "cache_rejected_hits": 0,
+          "cache_size": 12,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "authentication specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "ログイン境界はAuthentication Specificationの直接の子セクションであり、認証仕様を実装するための前提条件を定義している。",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/auth.md#0002-login-boundary"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "authentication specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "管理者認可はAuthentication Specificationの同一ドキュメント内のサブセクションであり、同一の認証ポリシー下に属する。",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/auth.md#0003-admin-authorization"
+            }
+          ],
+          "search_keys": [
+            "authentication overview",
+            "login and access control",
+            "sign-in rules",
+            "user verification policy",
+            "auth chapter introduction",
+            "Authentication Specification"
+          ],
+          "section_id": "docs/spec/auth.md#0001-authentication-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/auth.md#0001-authentication-specification",
+          "stable_section_uid": "9e6a7527ae5c348d",
+          "summary": "Top-level authentication specification section that frames the login and access-control rules covered by the auth document."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "Login Boundary"
+          ],
+          "identifiers": [
+            "session.md",
+            "AUTH_ALPHA_REQUIRED",
+            "RAW_BODY_SENTINEL_DO_NOT_EMBED_LOGIN_BOUNDARY",
+            "AUTH_SYMBOL_01",
+            "AUTH_SYMBOL_02",
+            "AUTH_SYMBOL_03",
+            "AUTH_SYMBOL_04",
+            "AUTH_SYMBOL_05",
+            "AUTH_SYMBOL_06",
+            "AUTH_SYMBOL_07",
+            "AUTH_SYMBOL_08",
+            "AUTH_SYMBOL_09",
+            "AUTH_SYMBOL_10",
+            "AUTH_SYMBOL_11",
+            "AUTH_SYMBOL_12"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "authentication specification",
+                "AUTH_ALPHA_REQUIRED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "ログイン境界はAuthentication Specificationの上位定義に依存し、AUTH_ALPHA_REQUIREDはその仕様の一部として定義される。",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/auth.md#0001-authentication-specification"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "authentication specification",
+                "ADMIN_ROLE_REQUIRED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "ログイン境界と管理者認可はいずれも認証フローの一部であり、認証後の権限付与ステップとして関連する。",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/auth.md#0003-admin-authorization"
+            }
+          ],
+          "search_keys": [
+            "login boundary",
+            "authenticated users only",
+            "login validation requirement",
+            "sign-in eligibility",
+            "verification gate for login",
+            "search helper string warning",
+            "Authentication Specification",
+            "Login Boundary"
+          ],
+          "section_id": "docs/spec/auth.md#0002-login-boundary",
+          "semantic_hash": "63909481699e653cbad6d05105f3e8ff55a0d1ce6feda6e5f1aba5b0406707fe",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "5cf4f9dcced00f489efd32c4ef8b1d56a437636ec1177fac76481e9eb03e07d5",
+          "source_section_id": "docs/spec/auth.md#0002-login-boundary",
+          "stable_section_uid": "460e35e7c95721e5",
+          "summary": "Defines the login boundary: only users who satisfy the required login condition can be marked as authenticated. It also notes that the embedded validation string is for search support only and not part of the retrieval terms."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "Admin Authorization"
+          ],
+          "identifiers": [
+            "POST_ADMIN_CHANGE",
+            "ADMIN_ROLE_REQUIRED"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "authentication specification",
+                "ADMIN_ROLE_REQUIRED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "管理者認可はAuthentication Specificationの上位ポリシーに依存し、ADMIN_ROLE_REQUIREDはその枠組みの中で機能する。",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/auth.md#0001-authentication-specification"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "authentication specification",
+                "AUTH_ALPHA_REQUIRED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "管理者認可はログイン境界での認証完了を前提とする。AUTH_ALPHA_REQUIREDを満たした後にADMIN_ROLE_REQUIREDが評価される。",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/auth.md#0002-login-boundary"
+            }
+          ],
+          "search_keys": [
+            "admin authorization",
+            "administration access control",
+            "privileged user role",
+            "restricted admin area",
+            "change tracking audit trail",
+            "state change logging",
+            "Authentication Specification",
+            "Admin Authorization"
+          ],
+          "section_id": "docs/spec/auth.md#0003-admin-authorization",
+          "semantic_hash": "3fe4140f83a19e65b2c928aab2576d00268aa26d58873ac421dbba3e14f1e2d3",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "3f1486e34d27d309ff2631eb814f56cef97323fdafcd21bf1f36436727ee2b18",
+          "source_section_id": "docs/spec/auth.md#0003-admin-authorization",
+          "stable_section_uid": "ead5b4571ab9f4d3",
+          "summary": "States that the administration area is limited to users with the required admin role, and that state-changing actions must be written to the audit trail."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Session Specification"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session specification",
+                "SESSION_COOKIE_HTTP_ONLY"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session CookieはSession Specificationの直接の子セクションであり、セッション管理の中核的な要件を定義している。",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/session.md#0002-session-cookie"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session specification",
+                "ACTIVE_SESSION_REVOKED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "ログアウト境界はSession Specificationの同一ドキュメント内のサブセクションであり、同一のセッションライフサイクルポリシー下に属する。",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/session.md#0003-logout-boundary"
+            }
+          ],
+          "search_keys": [
+            "session specification overview",
+            "session lifecycle",
+            "cookie behavior rules",
+            "session chapter introduction",
+            "login state management",
+            "Session Specification"
+          ],
+          "section_id": "docs/spec/session.md#0001-session-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/session.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/session.md#0001-session-specification",
+          "stable_section_uid": "57a8b98b37af461c",
+          "summary": "Top-level session specification section that groups the session lifecycle and cookie behavior rules in the session document."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Session Specification",
+            "Session Cookie"
+          ],
+          "identifiers": [
+            "auth.md",
+            "SESSION_COOKIE_HTTP_ONLY",
+            "SESSION_ROTATION_AFTER_MFA",
+            "MFA"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session specification",
+                "SESSION_COOKIE_HTTP_ONLY",
+                "MFA"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session CookieはSession Specificationの上位定義に依存し、SESSION_COOKIE_HTTP_ONLYやSESSION_ROTATION_AFTER_MFAはその仕様の実装要件である。",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/session.md#0001-session-specification"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session specification",
+                "SESSION_ROTATION_AFTER_MFA",
+                "ACTIVE_SESSION_REVOKED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session Cookieの発行・再発行ポリシー（SESSION_ROTATION_AFTER_MFA）はログアウト時のACTIVE_SESSION_REVOKEDの対象となるcookieに直接影響する。",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/session.md#0003-logout-boundary"
+            }
+          ],
+          "search_keys": [
+            "session cookie security",
+            "secure cookie requirements",
+            "http only cookie",
+            "cookie renewal after extra verification",
+            "multi factor authentication session",
+            "post login cookie handling",
+            "Session Specification",
+            "Session Cookie"
+          ],
+          "section_id": "docs/spec/session.md#0002-session-cookie",
+          "semantic_hash": "c50a74a46cd75a625114c925a5d4a865cb3ebc17e8cf94b1d96e089be2e88a81",
+          "source_document_id": "docs/spec/session.md",
+          "source_hash": "ecd49a442e9b1ba4815db02d2fe840503b8f5f460445e1782bdb8b6449ccff94",
+          "source_section_id": "docs/spec/session.md#0002-session-cookie",
+          "stable_section_uid": "044c0325d59acf00",
+          "summary": "Describes the session cookie requirements after successful login, including secure handling and cookie renewal after multi-factor authentication succeeds."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Session Specification",
+            "Logout Boundary"
+          ],
+          "identifiers": [
+            "ACTIVE_SESSION_REVOKED"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session specification",
+                "ACTIVE_SESSION_REVOKED"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "ログアウト境界はSession Specificationの上位ポリシーに依存し、ACTIVE_SESSION_REVOKEDはセッション仕様の終端処理として定義される。",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/session.md#0001-session-specification"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session specification",
+                "ACTIVE_SESSION_REVOKED",
+                "SESSION_COOKIE_HTTP_ONLY"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "ログアウト時のACTIVE_SESSION_REVOKEDはSession Cookieの有効性に直接影響し、SESSION_COOKIE_HTTP_ONLYで保護されたcookieの無効化を含む。",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/session.md#0002-session-cookie"
+            }
+          ],
+          "search_keys": [
+            "logout behavior",
+            "session revocation",
+            "protected resource denial",
+            "sign out invalidation",
+            "active session revoked",
+            "post logout access blocked",
+            "Session Specification",
+            "Logout Boundary"
+          ],
+          "section_id": "docs/spec/session.md#0003-logout-boundary",
+          "semantic_hash": "1546bb46373bf97ffd8ed391fd6d3b4e99c10658ae80e9302cde6164839c5fd1",
+          "source_document_id": "docs/spec/session.md",
+          "source_hash": "1afa422d2dcfcc631a6d9cbeda0f3ae8cabcd05e1bb12c7bd78f9d80bf46961c",
+          "source_section_id": "docs/spec/session.md#0003-logout-boundary",
+          "stable_section_uid": "655c676fbd2788bd",
+          "summary": "Defines logout behavior: the active session must be marked revoked, and subsequent access to protected resources must be denied."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        6
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/auth.md#0001-authentication-specification",
+        "docs/spec/auth.md#0002-login-boundary",
+        "docs/spec/auth.md#0003-admin-authorization",
+        "docs/spec/session.md#0001-session-specification",
+        "docs/spec/session.md#0002-session-cookie",
+        "docs/spec/session.md#0003-logout-boundary"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 11.909682589001022,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 6,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 12,
+            "cache_rejected_hits": 0,
+            "cache_size": 12,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          6
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-login-boundary",
+          "docs/spec/auth.md#0003-admin-authorization",
+          "docs/spec/session.md#0001-session-specification",
+          "docs/spec/session.md#0002-session-cookie",
+          "docs/spec/session.md#0003-logout-boundary"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/auth.md#authentication-specification",
+    "docs/spec/session.md#session-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "updated",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "source_section_id": "docs/spec/auth.md#0001-authentication-specification"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0002-login-boundary",
+      "source_section_id": "docs/spec/auth.md#0002-login-boundary"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0003-admin-authorization",
+      "source_section_id": "docs/spec/auth.md#0003-admin-authorization"
+    },
+    {
+      "section_id": "docs/spec/session.md#0001-session-specification",
+      "source_section_id": "docs/spec/session.md#0001-session-specification"
+    },
+    {
+      "section_id": "docs/spec/session.md#0002-session-cookie",
+      "source_section_id": "docs/spec/session.md#0002-session-cookie"
+    },
+    {
+      "section_id": "docs/spec/session.md#0003-logout-boundary",
+      "source_section_id": "docs/spec/session.md#0003-logout-boundary"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/auth.md",
+    "docs/spec/session.md"
+  ],
+  "warnings": []
+}

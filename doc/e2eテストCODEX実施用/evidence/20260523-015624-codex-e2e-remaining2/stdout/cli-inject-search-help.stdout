@@ -1,0 +1,7 @@
+usage: spec-anchor inject-search [-h] query [query ...]
+
+positional arguments:
+  query       natural-language search query
+
+options:
+  -h, --help  show this help message and exit

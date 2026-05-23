@@ -1,0 +1,16 @@
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/.gitignore
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/cache/chapter_anchors/77fb6cadcbb42bff0fdeed84d5dd5d5870045a59e7d678d9e09e0df593fbd187.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/cache/related_typing_cache.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/cache/section_metadata/24e62e0ff9467b5dd3760e3f11dbdd1d315b1c30793eaa49c26b0993d4955023.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/cache/section_metadata/8c4c350b5d2f32499362624716f0d2da406389311379256617be742737d4df4c.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/cache/section_metadata/c0676cb37fcd24286a680c663357ebecbe0d07f067176fe692c72087b9d2244d.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/cache/section_metadata/e5283d5fd8a6e909bec348df9b87e9814ec07ad05721e59b9b20c211f213f6f9.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/config.toml
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/context/chapter_anchors.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/context/conflict_review_items.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/.core_update.lock.json.evict.lock
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/core_progress.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/freshness.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/related_sections_state.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/retrieval_index_state.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/section_manifest.json

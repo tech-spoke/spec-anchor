@@ -1,0 +1,54 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "config_error": {
+      "exception_type": "ConfigError",
+      "message": "core.purpose_file not found: /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/purpose-missing/docs/core/purpose.md",
+      "reason_code": "config_error"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 1
+    },
+    "diagnostics": {
+      "config_error": {
+        "exception_type": "ConfigError",
+        "message": "core.purpose_file not found: /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/purpose-missing/docs/core/purpose.md",
+        "reason_code": "config_error"
+      },
+      "failed_required_artifacts": [
+        "source_specs"
+      ],
+      "missing_required_artifacts": []
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "core.purpose_file not found: /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/purpose-missing/docs/core/purpose.md"
+    ]
+  },
+  "generated_at": "1970-01-01T00:00:00Z",
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/purpose-missing",
+  "regenerated_chapter_anchors": [],
+  "related_sections_status": "blocked",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": [
+    "core.purpose_file not found: /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/purpose-missing/docs/core/purpose.md"
+  ]
+}

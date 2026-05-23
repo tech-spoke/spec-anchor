@@ -1,0 +1,24 @@
+{
+  "agent": "both",
+  "applied": false,
+  "codex_skill_path": null,
+  "conflicts": [],
+  "created": [],
+  "diagnostics": [
+    {
+      "message": "target is not a directory",
+      "reason_code": "target_not_directory",
+      "severity": "error"
+    }
+  ],
+  "dry_run": false,
+  "exit_code": 1,
+  "force": false,
+  "missing_core_files": [],
+  "no_init_core_files": false,
+  "protected": [],
+  "skipped": [],
+  "status": "error",
+  "target": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/not-a-directory-target",
+  "updated": []
+}

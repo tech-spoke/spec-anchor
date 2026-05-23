@@ -1,0 +1,45 @@
+{
+  "chapters": [
+    {
+      "chapter_id": "docs/spec/auth.md#authentication-specification",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "important_sections": [
+        "docs/spec/auth.md#0001-authentication-specification",
+        "docs/spec/auth.md#0002-session-management",
+        "docs/spec/auth.md#0003-csrf-protection",
+        "docs/spec/auth.md#0004-authorization"
+      ],
+      "key_topics": [
+        "login and identity verification",
+        "session cookie handling",
+        "csrf protection for state changes",
+        "role-based access control",
+        "protected area access"
+      ],
+      "notes": [
+        "Do not treat search hints as the final source of truth; confirm constraints against the Source Specs.",
+        "CSRF requirements apply to state-changing requests, not just explicit form submissions.",
+        "Authorization rules depend on authenticated session state and should be checked separately from login handling."
+      ],
+      "source_section_ids": [
+        "docs/spec/auth.md#0001-authentication-specification",
+        "docs/spec/auth.md#0002-session-management",
+        "docs/spec/auth.md#0003-csrf-protection",
+        "docs/spec/auth.md#0004-authorization"
+      ],
+      "summary": "This chapter defines the system's authentication boundary: users must prove identity before accessing protected areas, and the implementation must treat the session cookie as the primary mechanism after login. It also ties authentication to CSRF protection and role-based authorization, so agents should enter this chapter when a task affects login flow, session handling, unsafe requests, or admin-only access."
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00Z",
+  "generation": {
+    "failed_chapter_ids": [],
+    "failure_reasons_by_chapter": {},
+    "metadata_version": 1,
+    "model": "gpt-5.4-mini",
+    "prompt_version": "chapter-anchors-v1",
+    "provider": "codex",
+    "stage": "chapter_anchors"
+  },
+  "schema_version": 1,
+  "status": "success"
+}

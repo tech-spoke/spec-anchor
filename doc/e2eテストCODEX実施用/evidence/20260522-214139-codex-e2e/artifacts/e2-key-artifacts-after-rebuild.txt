@@ -1,0 +1,246 @@
+--- /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/freshness.json
+{
+    "blocking_reasons": [],
+    "diagnostics": {
+        "chapter_anchors": {
+            "failed_chapter_ids": [],
+            "failure_reasons_by_chapter": {},
+            "status": "success"
+        },
+        "related_sections": {
+            "diagnostics": [
+                {
+                    "candidate_generation_elapsed_sec": 7.429672072001267,
+                    "candidate_generation_partial_mode": "full",
+                    "candidate_generation_source_count": 4,
+                    "message": "Related Section candidates were generated for the selected source scope.",
+                    "reason_code": "related_section_candidate_generation_scope",
+                    "severity": "info",
+                    "stage": "candidate_generation"
+                },
+                {
+                    "cache_hits": 0,
+                    "cache_misses": 12,
+                    "cache_rejected_hits": 0,
+                    "cache_size": 12,
+                    "message": "pair-level relation typing cache statistics",
+                    "reason_code": "related_typing_cache_stats",
+                    "severity": "warning",
+                    "stage": "related_section_selection"
+                }
+            ],
+            "qdrant_backend_failure": null,
+            "status": "success"
+        },
+        "retrieval_index": {
+            "status": "success"
+        },
+        "section_metadata_generation": {
+            "batch_sizes": [
+                4
+            ],
+            "blocking_reasons": [],
+            "cache_hits": 0,
+            "diagnostics": {},
+            "failed_sections": [],
+            "freshness_status": "fresh",
+            "generated_section_ids": [
+                "docs/spec/sample.md#0001-sample-service-spec",
+                "docs/spec/sample.md#0002-authentication",
+                "docs/spec/sample.md#0003-authorization",
+                "docs/spec/sample.md#0004-session-termination"
+            ],
+            "llm_calls": 1,
+            "reused_section_ids": [],
+            "warnings": []
+        },
+        "verify_index": {
+            "executed": false,
+            "reason": "not_requested"
+        }
+    },
+    "schema_version": 1,
+    "status": "fresh",
+    "warnings": []
+}
+--- /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/retrieval_index_state.json
+{
+    "artifact_schema_version": 1,
+    "collection_name": "spec_anchor_section_20260522_214139_codex_e2e",
+    "dense_enabled": true,
+    "embedding_model": "BAAI/bge-m3",
+    "embedding_provider": "flagembedding",
+    "generated_at": "1970-01-01T00:00:00Z",
+    "retrieval_schema_pin_fingerprint": "6dc8d63bf216c0906e65f82945c5438c8b780047e364045941ca4afb35f790a3",
+    "schema_version": 1,
+    "section_count": 4,
+    "section_hash_fingerprint": "7773011f22349abd41d64da48a16ac02e711ab3fd6079dd6ddd0401ad495c1b7",
+    "sparse_enabled": true
+}
+--- /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/related_sections_state.json
+{
+    "artifact_schema_version": 1,
+    "candidate_generation_config_fingerprint": "b971fe5d9ce040217cc83e1955956775dd5732efb93d178e066966f11a581913",
+    "generated_at": "1970-01-01T00:00:00Z",
+    "schema_version": 1,
+    "section_hash_fingerprint": "7773011f22349abd41d64da48a16ac02e711ab3fd6079dd6ddd0401ad495c1b7",
+    "section_list_fingerprint": "74b8a15a54e50ade4d07f25ef1bb21c4b655b91e128292bab3adb3bf4a1250b5",
+    "selection_effort": "low",
+    "selection_model": "claude-sonnet-4-6",
+    "selection_prompt_version": "related-sections-v1",
+    "selection_provider": "claude"
+}
+--- /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/state/section_manifest.json
+{
+    "concept_hash": "3c428bb756d03024de21331ad43cb53bfe1969bf90372fb7a0cefcedd5fc2520",
+    "generated_at": "1970-01-01T00:00:00Z",
+    "generation": {
+        "cache_key_inputs": [
+            "stable_section_uid",
+            "source_hash",
+            "prompt_version",
+            "model",
+            "provider",
+            "metadata_version",
+            "limits",
+            "enabled_fields"
+        ],
+        "enabled_fields": {
+            "related_sections": true,
+            "search_keys": true,
+            "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+            "llm_batch_max_chars": 12000,
+            "llm_batch_max_sections": 8,
+            "search_keys_max": 32,
+            "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "codex",
+        "stage": "section_metadata"
+    },
+    "purpose_hash": "eb467551954447f4e78f4845d455de1709a0493eb61e8aede9da8083ba36d7d7",
+    "schema_version": 1,
+    "sections": [
+        {
+            "chapter_id": "docs/spec/sample.md#sample-service-spec",
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+                "Sample Service Spec"
+            ],
+            "last_prompt_version": "section-metadata-v2",
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "payload_fingerprint": "1ebb5f79fb314f3d649a57be6dd70fe9279a734bb3d2e6079e22a6533732a5da",
+            "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+            "semantic_hash": "1478b3dd0eea8a111781a527f66b1fae27b9fc7676fc85a1cf932cbc2baf310b",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "bb9271382befa6e59b65c16c95820f9fb092308423e8ee770d94d5a6fe6fad5f",
+            "source_section_id": "docs/spec/sample.md#0001-sample-service-spec",
+            "source_span": {
+                "end_line": 4,
+                "end_offset": 100,
+                "start_line": 1,
+                "start_offset": 22
+            },
+            "vector_input_fingerprint": "8c9d367824603b32fb01e2c5003cd9a045caf975fdafabb134f95429194a005f"
+        },
+        {
+            "chapter_id": "docs/spec/sample.md#sample-service-spec",
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+                "Sample Service Spec",
+                "Authentication"
+            ],
+            "last_prompt_version": "section-metadata-v2",
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "payload_fingerprint": "165d42c389cdd331633791ac55ee20019a2a32acfcc1214b3b7082e602d497d2",
+            "section_id": "docs/spec/sample.md#0002-authentication",
+            "semantic_hash": "91c58d0df11f3e05fbf26febdde64ec40bcfa70c1a46aabeb464081658986161",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "ce40aa3d7e507e244933d8bda7825863d00cb7c7e60c190e7803eb44aa57efd0",
+            "source_section_id": "docs/spec/sample.md#0002-authentication",
+            "source_span": {
+                "end_line": 8,
+                "end_offset": 310,
+                "start_line": 5,
+                "start_offset": 118
+            },
+            "vector_input_fingerprint": "3b4a000ef13cc66e7b9768ec1959d33581201e141298fb91a648bf867787c5b0"
+        },
+        {
+            "chapter_id": "docs/spec/sample.md#sample-service-spec",
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+                "Sample Service Spec",
+                "Authorization"
+            ],
+            "last_prompt_version": "section-metadata-v2",
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "payload_fingerprint": "1b13e5f19258f6937fee9898e07bed30f7ad6c423face47bf115c279e9a39aa4",
+            "section_id": "docs/spec/sample.md#0003-authorization",
+            "semantic_hash": "1163a49ff395ae6b85aea053b9c9449208d025331c274de9bd724bf0abad490c",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "2f8f36175a38a90b4cea0f1f23bea8952a3ad01f9d14103ee7779abcabfbc88f",
+            "source_section_id": "docs/spec/sample.md#0003-authorization",
+            "source_span": {
+                "end_line": 12,
+--- /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/context/chapter_anchors.json
+{
+    "chapters": [
+        {
+            "chapter_id": "docs/spec/sample.md#sample-service-spec",
+            "generated_at": "1970-01-01T00:00:00Z",
+            "important_sections": [
+                "docs/spec/sample.md#0001-sample-service-spec",
+                "docs/spec/sample.md#0002-authentication",
+                "docs/spec/sample.md#0003-authorization",
+                "docs/spec/sample.md#0004-session-termination"
+            ],
+            "key_topics": [
+                "authentication flow",
+                "access control rules",
+                "session lifecycle",
+                "administrative access",
+                "service account access",
+                "cleanup and expiration"
+            ],
+            "notes": [
+                "Treat the authentication section as the prerequisite entry point before applying authorization or session-termination constraints.",
+                "Ownership-based access rules and key-based service-account access are separate concerns and should not be conflated.",
+                "Session invalidation on logout and periodic cleanup of expired sessions are distinct behaviors."
+            ],
+            "source_section_ids": [
+                "docs/spec/sample.md#0001-sample-service-spec",
+                "docs/spec/sample.md#0002-authentication",
+                "docs/spec/sample.md#0003-authorization",
+                "docs/spec/sample.md#0004-session-termination"
+            ],
+            "summary": "This chapter defines a compact authentication and access-control service used as a validation target for end-to-end workflows. It centers on how users sign in, how permissions differ across administrators, regular users, and service accounts, and how sessions are terminated or cleaned up over time. The section set is intentionally term-overlapping so related-section search can surface realistic cross-links."
+        }
+    ],
+    "generated_at": "1970-01-01T00:00:00Z",
+    "generation": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "chapter-anchors-v1",
+        "provider": "codex",
+        "stage": "chapter_anchors"
+    },
+    "schema_version": 1,
+    "status": "success"
+}
+--- /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project/.spec-anchor/context/conflict_review_items.json
+{
+    "conflict_review_items": [],
+    "generated_at": "1970-01-01T00:00:00Z",
+    "schema_version": 1
+}

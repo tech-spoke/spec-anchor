@@ -1,0 +1,254 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [
+        "docs/spec/migration.md#migration-spec"
+      ],
+      "failure_reasons_by_chapter": {
+        "docs/spec/migration.md#migration-spec": "llm_generation_failed: LLM command failed"
+      },
+      "status": "failed"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 4.9564906240048,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 3,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": false,
+          "search_keys": false,
+          "summary": false
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "fail",
+        "prompt_version": "section-metadata-v2",
+        "provider": "/bin/false",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Migration Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/migration.md#0001-migration-spec",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/migration.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/migration.md#0001-migration-spec",
+          "stable_section_uid": "3fb97388910b7053",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Migration Spec",
+            "Alpha"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/migration.md#0002-alpha",
+          "semantic_hash": "eedd9fd705802d06b442e689b834893a9baa66097dec8cc4bb4042fcba1be40f",
+          "source_document_id": "docs/spec/migration.md",
+          "source_hash": "74bec51e037bf0873d89f4510f5af370d7bb302aa6d3977f4a4bd78e0d7b5c13",
+          "source_section_id": "docs/spec/migration.md#0002-alpha",
+          "stable_section_uid": "38c4f93a9fbb2889",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Migration Spec",
+            "Beta"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/migration.md#0003-beta",
+          "semantic_hash": "46467f1493e5c7bca55ca0c3e8a38927d7cc30348dfb0a78df2ba87f5c81699e",
+          "source_document_id": "docs/spec/migration.md",
+          "source_hash": "a626cbe97cfbea3ffd90f0337db9bc94d9edabaf17c093c89712a8dee16fee11",
+          "source_section_id": "docs/spec/migration.md#0003-beta",
+          "stable_section_uid": "f0838ca84b7efcdf",
+          "summary": ""
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/migration.md#0001-migration-spec",
+        "docs/spec/migration.md#0002-alpha",
+        "docs/spec/migration.md#0003-beta"
+      ],
+      "llm_calls": 0,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [
+          "docs/spec/migration.md#migration-spec"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/migration.md#migration-spec": "llm_generation_failed: LLM command failed"
+        },
+        "status": "failed"
+      },
+      "failed_required_artifacts": [
+        "chapter_anchors"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 4.9564906240048,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 3,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/migration.md#0001-migration-spec",
+          "docs/spec/migration.md#0002-alpha",
+          "docs/spec/migration.md#0003-beta"
+        ],
+        "llm_calls": 0,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+    ]
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/migration.md#migration-spec"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/migration.md#0001-migration-spec",
+      "source_section_id": "docs/spec/migration.md#0001-migration-spec"
+    },
+    {
+      "section_id": "docs/spec/migration.md#0002-alpha",
+      "source_section_id": "docs/spec/migration.md#0002-alpha"
+    },
+    {
+      "section_id": "docs/spec/migration.md#0003-beta",
+      "source_section_id": "docs/spec/migration.md#0003-beta"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/migration.md"
+  ],
+  "warnings": [
+    "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}

@@ -1,0 +1,10 @@
+date=2026-05-23T09:39:53+09:00
+root=/home/kazuki/public_html/spec-anchor
+dirty=/tmp/20260523-093953-codex-e2e-agent-blockers-isolated.dirty
+watch_queue=/tmp/spec-anchor-codex-e2e-watchqueue-only.C4VkeS
+pending=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/pending_conflict
+failed=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/failed_required_artifact
+needs=/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy
+claude=/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude
+2.1.147 (Claude Code)
+spec-anchor=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor

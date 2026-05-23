@@ -1,0 +1,2 @@
+{"type":"system","subtype":"hook_started","hook_id":"7417b20b-e984-42e5-9d97-db43821cc9f8","hook_name":"SessionStart:startup","hook_event":"SessionStart","uuid":"9007d455-d9d2-45bd-b105-25284590136b","session_id":"d4989a4c-e491-401c-9cce-28944e3d7cb3"}
+{"type":"system","subtype":"hook_response","hook_id":"7417b20b-e984-42e5-9d97-db43821cc9f8","hook_name":"SessionStart:startup","hook_event":"SessionStart","output":"","stdout":"","stderr":"","exit_code":0,"outcome":"success","uuid":"c04ea433-77b6-4dc1-bd0d-80a829902988","session_id":"d4989a4c-e491-401c-9cce-28944e3d7cb3"}

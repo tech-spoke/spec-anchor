@@ -1,0 +1,159 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "pending_conflict"
+  ],
+  "can_continue": false,
+  "command": "/spec-inject inject-search",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "pending_conflict"
+    ],
+    "counts": {
+      "pending_conflict_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "skipped_unchanged"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-session-management",
+          "docs/spec/auth.md#0003-csrf-protection",
+          "docs/spec/auth.md#0004-authorization"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "pending_conflict_count": 1,
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": []
+  },
+  "generated_at": null,
+  "pending_conflict_count": 1,
+  "pending_conflict_items": [
+    {
+      "base_source_hashes": [
+        {
+          "hash": "433a68ab1268046b860e4ebc95610c013644f085a6de9c330a8ad037c115736b",
+          "source_ref": "docs/spec/auth.md#0002-session-management"
+        },
+        {
+          "hash": "02a54aadfea72152048dd1c09d1bf1e94ca9317da00e63d704f71a8252137356",
+          "source_ref": "docs/spec/auth.md#0003-csrf-protection"
+        },
+        {
+          "hash": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        "Session policy requires A.",
+        "Session policy requires B."
+      ],
+      "conflict_id": "codex-e2e4-defer",
+      "created_at": "2026-05-23T00:00:00Z",
+      "decision_options": [
+        {
+          "id": "prefer_a",
+          "label": "Prefer source A"
+        },
+        {
+          "id": "prefer_b",
+          "label": "Prefer source B"
+        },
+        {
+          "id": "conditional",
+          "label": "Use conditional handling"
+        },
+        {
+          "id": "dismiss",
+          "label": "Dismiss as not a conflict"
+        },
+        {
+          "id": "needs_source_update",
+          "label": "Update Source Specs"
+        },
+        {
+          "id": "defer",
+          "label": "Defer"
+        },
+        {
+          "id": "task_scope_resolution",
+          "label": "Resolve for this task only"
+        }
+      ],
+      "last_decision": {
+        "decision": "defer",
+        "reason": "Codex E2E human-authorized decision case: defer",
+        "selected_option": "defer"
+      },
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "reflected_refs": [],
+      "reflection_status": "unreflected",
+      "related_sections": [
+        {
+          "relation_hint": "conflicts_with",
+          "source_section_id": "docs/spec/auth.md#0002-session-management",
+          "target_section_id": "docs/spec/auth.md#0003-csrf-protection"
+        }
+      ],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_hash": "433a68ab1268046b860e4ebc95610c013644f085a6de9c330a8ad037c115736b",
+          "source_section_id": "docs/spec/auth.md#0002-session-management"
+        },
+        {
+          "source_hash": "02a54aadfea72152048dd1c09d1bf1e94ca9317da00e63d704f71a8252137356",
+          "source_section_id": "docs/spec/auth.md#0003-csrf-protection"
+        }
+      ],
+      "stale_resolution": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Two current Source Specs statements require different session policy values.",
+      "why_llm_cannot_decide": "Both source refs are treated as equally authoritative until a human chooses."
+    }
+  ],
+  "project_root": "/tmp/spec-anchor-codex-e2e-decision4-defer.1tdcn5mo",
+  "reasons": [
+    "pending_conflict"
+  ],
+  "recommended_next_action": "resolve pending Conflict Review Items",
+  "should_stop": true,
+  "status": "blocked",
+  "stop_reason": "pending_conflict",
+  "stops": true,
+  "warnings": []
+}

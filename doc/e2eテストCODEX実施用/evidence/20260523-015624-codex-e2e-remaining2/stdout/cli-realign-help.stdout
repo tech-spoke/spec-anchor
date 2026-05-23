@@ -1,0 +1,12 @@
+usage: spec-anchor realign [-h] [--answer ANSWER_TEXT]
+                           [--answer-json ANSWER_JSON]
+                           [--answer-file ANSWER_FILE]
+
+options:
+  -h, --help            show this help message and exit
+  --answer ANSWER_TEXT, --answer-text ANSWER_TEXT, --agent-answer ANSWER_TEXT
+                        Agent-supplied answer candidate as plain text
+  --answer-json ANSWER_JSON, --agent-answer-json ANSWER_JSON
+                        Agent-supplied answer candidate JSON
+  --answer-file ANSWER_FILE, --agent-answer-file ANSWER_FILE
+                        path to Agent-supplied answer JSON or text

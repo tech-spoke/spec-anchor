@@ -1,0 +1,6 @@
+date=2026-05-23T09:58:25+09:00
+root=/home/kazuki/public_html/spec-anchor
+project=/tmp/20260523-095825-codex-e2e-f005-retest.pending-conflict
+claude=/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude
+2.1.147 (Claude Code)
+spec-anchor=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor

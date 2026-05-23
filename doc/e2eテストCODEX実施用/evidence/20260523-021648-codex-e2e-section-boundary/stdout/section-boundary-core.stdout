@@ -1,0 +1,282 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [
+        "docs/spec/deep.md#root-spec"
+      ],
+      "failure_reasons_by_chapter": {
+        "docs/spec/deep.md#root-spec": "llm_generation_failed: LLM command failed"
+      },
+      "status": "failed"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 0.005131756995979231,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 4,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "skipped"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": false,
+          "search_keys": false,
+          "summary": false
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "fail",
+        "prompt_version": "section-metadata-v2",
+        "provider": "/bin/false",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Root Spec"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/deep.md#0001-root-spec",
+          "semantic_hash": "fc727c9eabf0b6226a5e2aead9318dc97412dd4ad3fdf60563ac0afa5c6c9365",
+          "source_document_id": "docs/spec/deep.md",
+          "source_hash": "75a44efc777ed6510de34cb0ee56b2f064ab35656eb041665721b70fc98754f3",
+          "source_section_id": "docs/spec/deep.md#0001-root-spec",
+          "stable_section_uid": "eeae27d077235e77",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Root Spec",
+            "Feature A"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/deep.md#0002-feature-a",
+          "semantic_hash": "e5a937f0a577336946f8b23e8068ae8f495046fdaaed959125d23261406cfd62",
+          "source_document_id": "docs/spec/deep.md",
+          "source_hash": "b4162ed13129b86ecb20d06a3d94912952736182bb2ef66ef67b8a3b5b41563d",
+          "source_section_id": "docs/spec/deep.md#0002-feature-a",
+          "stable_section_uid": "46843d597ec73eed",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Root Spec",
+            "Feature A",
+            "Scenario A1"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/deep.md#0003-scenario-a1",
+          "semantic_hash": "ad16da59e5c548210e81680970cd4051cacd3b6d56339b7e5b7ede15138a723e",
+          "source_document_id": "docs/spec/deep.md",
+          "source_hash": "a59bdf71343139d1b23ecf0c7f59e2e73c88709108bd3724a119efab8c7f90f3",
+          "source_section_id": "docs/spec/deep.md#0003-scenario-a1",
+          "stable_section_uid": "8248e5e4636069e5",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Root Spec",
+            "Feature B"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/deep.md#0004-feature-b",
+          "semantic_hash": "7c8ea63009a7a3c5221f47e311b52caee419111a6e910dbb1c65e44ef05d64e0",
+          "source_document_id": "docs/spec/deep.md",
+          "source_hash": "1cdbc642f952e53c94a1b83e4af45ec30e95fd23b967de1efa1f14e3bb20aac9",
+          "source_section_id": "docs/spec/deep.md#0004-feature-b",
+          "stable_section_uid": "25ed7dd415ae7b71",
+          "summary": ""
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [],
+      "blocking_reasons": [],
+      "cache_hits": 0,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/deep.md#0001-root-spec",
+        "docs/spec/deep.md#0002-feature-a",
+        "docs/spec/deep.md#0003-scenario-a1",
+        "docs/spec/deep.md#0004-feature-b"
+      ],
+      "llm_calls": 0,
+      "reused_section_ids": [],
+      "warnings": []
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [
+          "docs/spec/deep.md#root-spec"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/deep.md#root-spec": "llm_generation_failed: LLM command failed"
+        },
+        "status": "failed"
+      },
+      "failed_required_artifacts": [
+        "chapter_anchors"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 0.005131756995979231,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 4,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "skipped"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/deep.md#0001-root-spec",
+          "docs/spec/deep.md#0002-feature-a",
+          "docs/spec/deep.md#0003-scenario-a1",
+          "docs/spec/deep.md#0004-feature-b"
+        ],
+        "llm_calls": 0,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+    ]
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/deep.md#root-spec"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "skipped",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/deep.md#0001-root-spec",
+      "source_section_id": "docs/spec/deep.md#0001-root-spec"
+    },
+    {
+      "section_id": "docs/spec/deep.md#0002-feature-a",
+      "source_section_id": "docs/spec/deep.md#0002-feature-a"
+    },
+    {
+      "section_id": "docs/spec/deep.md#0003-scenario-a1",
+      "source_section_id": "docs/spec/deep.md#0003-scenario-a1"
+    },
+    {
+      "section_id": "docs/spec/deep.md#0004-feature-b",
+      "source_section_id": "docs/spec/deep.md#0004-feature-b"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/deep.md"
+  ],
+  "warnings": [
+    "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}

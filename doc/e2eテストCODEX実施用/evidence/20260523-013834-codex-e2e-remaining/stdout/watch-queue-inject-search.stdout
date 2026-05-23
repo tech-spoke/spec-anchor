@@ -1,0 +1,35 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "dirty_or_stale_source",
+    "watcher_queue_pending"
+  ],
+  "can_continue": false,
+  "command": "/spec-inject inject-search",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "dirty_or_stale_source",
+      "watcher_queue_pending"
+    ],
+    "counts": {
+      "watcher_queue_count": 1
+    },
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": [],
+    "watcher_queue_count": 1
+  },
+  "generated_at": null,
+  "project_root": "/tmp/spec-anchor-codex-e2e-watch-queue.kod6S5",
+  "reasons": [
+    "dirty_or_stale_source",
+    "watcher_queue_pending"
+  ],
+  "recommended_next_action": "run /spec-core before /spec-inject",
+  "should_stop": true,
+  "status": "blocked",
+  "stop_reason": "dirty_or_stale_source",
+  "stops": true,
+  "warnings": []
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "label": "claude-core-missing-config",
+    "passed_external_design_row": true,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": true,
+    "contains_non_contract_recovery_suggestion": false,
+    "commands_seen": [
+      "spec-anchor core 2>&1"
+    ],
+    "final_result_excerpt": "CLIがエラーを返しました。\n\n---\n\n## エラー: `.spec-anchor/config.toml` が見つかりません\n\n```\n.spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-template.QCe1wC\n```\n\nこのプロジェクトはまだ SPEC-anchor の初期化が完了していません。\n\n### 復旧手順\n\n以下のコマンドでプロジェクトをセットアップしてください:\n\n```bash\nspec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-f004-template.QCe1wC\n```\n\nセットアップ完了後、再度 `/spec-core` を実行してください。"
+  },
+  {
+    "label": "claude-inject-missing-config",
+    "passed_external_design_row": true,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": true,
+    "contains_non_contract_recovery_suggestion": false,
+    "commands_seen": [
+      "spec-anchor inject-search \"認証 authentication auth login\" 2>&1",
+      "spec-anchor inject-purpose 2>&1"
+    ],
+    "final_result_excerpt": "CLI が `should_stop=true` / `status=\"error\"` を返しました。\n\n---\n\n**エラー: SPEC-anchor プロジェクトが未初期化**\n\n`.spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-template.QCe1wC`\n\n現在の作業ディレクトリ (`/tmp/spec-anchor-codex-e2e-f004-template.QCe1wC`) に SPEC-anchor のプロジェクト skeleton が存在しないため、Agentic Search を実行できません。\n\n---\n\n**復旧手順**\n\n以下のコマンドでプロジェクトを初期化してください：\n\n```bash\nspec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-f004-template.QCe1wC\n```\n\n初期化後、再度 `/spec-inject 認証仕様を確認して` を実行してください。"
+  },
+  {
+    "label": "claude-realign-missing-config",
+    "passed_external_design_row": false,
+    "expected_cli_executed": false,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": true,
+    "contains_non_contract_recovery_suggestion": true,
+    "commands_seen": [
+      "spec-anchor inject-search --keys '[\"認証\",\"セッション\",\"cookie\",\"authentication\",\"session\"]' 2>&1",
+      "spec-anchor inject-chapters 2>&1",
+      "spec-anchor inject-purpose 2>&1",
+      "spec-anchor inject-conflicts 2>&1",
+      "spec-anchor inject-search --help 2>&1; echo \"---\"; spec-anchor inject-section --help 2>&1",
+      "spec-anchor inject-chapters --help 2>&1; echo \"---\"; spec-anchor inject-purpose --help 2>&1; echo \"---\"; spec-anchor inject-conflicts --help 2>&1",
+      "spec-anchor inject-search \"認証 セッション cookie authentication session\" 2>&1"
+    ],
+    "final_result_excerpt": "全4経路がいずれも同じエラーで停止しました。\n\n---\n\n## CLI エラー: プロジェクト未初期化\n\n```\n.spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-template.QCe1wC\n```\n\n現在の project root（`/tmp/spec-anchor-codex-e2e-f004-template.QCe1wC`）に `.spec-anchor/config.toml` が存在しないため、`/spec-realign` はブロックされました。\n\n**回答の整形は実行できません。**\n\n---\n\n### 復旧手順\n\n以下のコマンドで project skeleton を初期化してください:\n\n```bash\nspec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-f004-template.QCe1wC\n```\n\n初期化後に再度 `/spec-realign` を実行してください。"
+  }
+]

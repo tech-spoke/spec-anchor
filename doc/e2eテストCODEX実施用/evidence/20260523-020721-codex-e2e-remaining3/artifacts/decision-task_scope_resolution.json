@@ -1,0 +1,14 @@
+{
+  "conflict_id": "codex-e2e-task_scope_resolution",
+  "decision": "task_scope_resolution",
+  "selected_option": "task_scope_resolution",
+  "reason": "Codex E2E human-authorized decision case: task_scope_resolution",
+  "valid_scope": "global",
+  "referenced_source_refs": [
+    {
+      "source_section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    }
+  ],
+  "human_acknowledgement": true
+}

@@ -1,0 +1,30 @@
+cwd=/home/kazuki/public_html/spec-anchor
+date=2026-05-23T09:28:28+09:00
+claude=/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude
+2.1.147 (Claude Code)
+spec-anchor=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor
+usage: spec-anchor [-h] [--version] command ...
+
+Lightweight SPEC-anchor CLI.
+
+positional arguments:
+  command
+    core            update section metadata, retrieval index, and conflict
+                    review items
+    inject-search   Phase R-6: section-level Qdrant hybrid retrieval (top-K
+                    section payload)
+    inject-section  Phase R-6: id-indexed section payload lookup against
+                    Qdrant
+    inject-chapters
+                    Phase R-6: return chapter_anchors.json for the project
+    inject-purpose  Phase R-6: return Purpose + Core Concept file contents
+    inject-conflicts
+                    Phase R-6: return resolved (non-stale) Conflict Review
+                    Items
+    realign         structure the Agent-supplied answer into the RealignResult
+                    layout
+    watch           watch Source Specs and run incremental updates
+
+options:
+  -h, --help        show this help message and exit
+  --version         show program's version number and exit

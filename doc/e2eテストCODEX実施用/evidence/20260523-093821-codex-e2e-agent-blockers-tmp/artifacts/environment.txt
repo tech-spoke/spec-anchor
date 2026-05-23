@@ -1,0 +1,6 @@
+cwd=/home/kazuki/public_html/spec-anchor
+date=2026-05-23T09:38:21+09:00
+tmpbase=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects
+claude=/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude
+2.1.147 (Claude Code)
+spec-anchor=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor

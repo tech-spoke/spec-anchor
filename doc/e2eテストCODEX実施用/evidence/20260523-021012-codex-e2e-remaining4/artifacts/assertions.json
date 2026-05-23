@@ -1,0 +1,149 @@
+{
+  "passed": 2,
+  "failed": 3,
+  "checks": [
+    {
+      "label": "conflict-decision-cli-options-and-enum-v2",
+      "passed": true,
+      "results": [
+        {
+          "decision": "prefer_a",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-prefer_a.roxvy34i",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "prefer_b",
+          "option": "--decision-file",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-prefer_b.ekd2o09d",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "conditional",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-conditional.ag87sbd9",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "dismiss",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-dismiss.w8_zocb9",
+          "exit_code": 0,
+          "expected_status": "dismissed",
+          "actual_status": "dismissed",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "needs_source_update",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-needs_source_update.vlq8rm37",
+          "exit_code": 0,
+          "expected_status": "pending",
+          "actual_status": "pending",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 1,
+          "blocking_reasons": [
+            "pending_conflict"
+          ],
+          "has_resolution": false,
+          "passed": true
+        },
+        {
+          "decision": "defer",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-defer.1tdcn5mo",
+          "exit_code": 0,
+          "expected_status": "pending",
+          "actual_status": "pending",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 1,
+          "blocking_reasons": [
+            "pending_conflict"
+          ],
+          "has_resolution": false,
+          "passed": true
+        },
+        {
+          "decision": "task_scope_resolution",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision4-task_scope_resolution.jqq9n0ed",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "task_scope",
+          "actual_scope": "task_scope",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "resolved-conflict-becomes-stale-after-referenced-section-change",
+      "passed": true,
+      "exit_code": 0,
+      "stale_resolution_count": 1,
+      "item_stale_resolution": true,
+      "project": "/tmp/spec-anchor-codex-e2e-stale-resolution4.amduw0l7"
+    },
+    {
+      "label": "dotenv-loads-debug-env-for-spec-anchor-core",
+      "passed": false,
+      "nodebug_exit_code": 1,
+      "dotenv_exit_code": 1,
+      "nodebug_status": "failed",
+      "dotenv_status": "failed",
+      "dotenv_debug_lines": 0,
+      "nodebug_debug_lines": 0
+    },
+    {
+      "label": "dotenv-does-not-overwrite-shell-debug-env",
+      "passed": false,
+      "exit_code": 1,
+      "shell_override_debug_lines": 0,
+      "dotenv_override_debug_lines": 0
+    },
+    {
+      "label": "direct-env-debug-path-behaves-like-dotenv-env",
+      "passed": false,
+      "direct_exit_code": 1,
+      "dotenv_exit_code": 1,
+      "direct_status": "failed",
+      "dotenv_status": "failed",
+      "direct_debug_lines": 0,
+      "dotenv_debug_lines": 0
+    }
+  ]
+}

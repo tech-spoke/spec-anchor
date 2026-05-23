@@ -1,0 +1,114 @@
+{
+  "blocked": true,
+  "blocking_reasons": [],
+  "can_continue": false,
+  "command": "/spec-realign",
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "skipped_unchanged"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-session-management",
+          "docs/spec/auth.md#0003-csrf-protection",
+          "docs/spec/auth.md#0004-authorization"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "schema_version": 1,
+    "status": "fresh",
+    "warnings": []
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": false,
+    "blocking_reasons": [],
+    "can_continue": true,
+    "command": "/spec-inject",
+    "freshness_report": {
+      "blocking_reasons": [],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "related_sections": {
+          "diagnostics": [],
+          "qdrant_backend_failure": null,
+          "status": "skipped_unchanged"
+        },
+        "retrieval_index": {
+          "status": "skipped_unchanged"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [],
+          "blocking_reasons": [],
+          "cache_hits": 4,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [],
+          "llm_calls": 0,
+          "reused_section_ids": [
+            "docs/spec/auth.md#0001-authentication-specification",
+            "docs/spec/auth.md#0002-session-management",
+            "docs/spec/auth.md#0003-csrf-protection",
+            "docs/spec/auth.md#0004-authorization"
+          ],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "schema_version": 1,
+      "status": "fresh",
+      "warnings": []
+    },
+    "generated_at": null,
+    "project_root": "/tmp/spec-anchor-codex-e2e-llm-boundary.tj9ybnuz",
+    "recommended_next_action": "continue /spec-inject",
+    "should_stop": false,
+    "status": "fresh",
+    "stops": false,
+    "warnings": []
+  },
+  "project_root": "/tmp/spec-anchor-codex-e2e-llm-boundary.tj9ybnuz",
+  "reasons": [
+    "needs_agent_answer"
+  ],
+  "recommended_next_action": "provide an Agent-generated answer candidate for /spec-realign",
+  "should_stop": true,
+  "status": "fresh",
+  "stop_reason": "needs_agent_answer",
+  "stops": true,
+  "warnings": []
+}

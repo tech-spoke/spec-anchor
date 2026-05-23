@@ -1,0 +1,9 @@
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/commands/spec-core.md
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/commands/spec-inject.md
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.claude/commands/spec-realign.md
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.codex/skills/spec-anchor/SKILL.md
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.spec-anchor/.gitignore
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/.spec-anchor/config.toml
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/docs/core/concept.md
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/docs/core/purpose.md
+/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/docs/spec/auth.md

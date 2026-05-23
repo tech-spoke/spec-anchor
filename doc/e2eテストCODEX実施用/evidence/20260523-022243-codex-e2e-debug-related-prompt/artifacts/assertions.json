@@ -1,0 +1,26 @@
+{
+  "passed": 1,
+  "failed": 2,
+  "checks": [
+    {
+      "label": "related-prompt-debug-does-not-change-result",
+      "passed": true,
+      "nodebug_exit": 0,
+      "debug_exit": 0,
+      "nodebug_status": "updated",
+      "debug_status": "updated"
+    },
+    {
+      "label": "related-prompt-debug-log-written",
+      "passed": false,
+      "line_count": 0,
+      "records": []
+    },
+    {
+      "label": "related-prompt-path-shell-overrides-dotenv",
+      "passed": false,
+      "shell_lines": 0,
+      "dotenv_lines": 0
+    }
+  ]
+}

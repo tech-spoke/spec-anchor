@@ -1,0 +1,21 @@
+{
+  "passed": 2,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "inject-ignores-spec-core-llm-provider-config",
+      "passed": true,
+      "exit_code": 0,
+      "status": null,
+      "command": "/spec-inject inject-search"
+    },
+    {
+      "label": "realign-ignores-spec-core-llm-provider-config-v2",
+      "passed": true,
+      "exit_code": 0,
+      "status": "fresh",
+      "should_stop": false
+    }
+  ],
+  "review_note": "Initial realign answer shape was invalid and produced needs_agent_answer; v2 uses the documented four-section answer JSON."
+}

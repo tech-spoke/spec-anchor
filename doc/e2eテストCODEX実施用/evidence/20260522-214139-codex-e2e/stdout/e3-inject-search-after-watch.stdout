@@ -1,0 +1,415 @@
+{
+  "collection": "spec_anchor_section_20260522_214139_codex_e2e",
+  "command": "/spec-inject inject-search",
+  "hits": [
+    {
+      "heading_path": [
+        "Sample Service Spec",
+        "Password Reset"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "sample service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Parent document overview; provides general context only.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "password",
+            "login",
+            "email"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Password reset is part of the authentication flow; users must have credentials defined in Authentication before a reset is meaningful. Reset directly affects login ability.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/sample.md#0002-authentication"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "sample service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authorization governs resource access; password reset is a credential operation with indirect relationship to access rights.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/sample.md#0003-authorization"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "expire",
+            "invalidates",
+            "once"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Both sections define time-limited, single-use or expiring tokens/sessions (reset links expire in 30 min; sessions expire after 24h inactivity). Parallel expiry policies across the same service.",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "score": 0.03278688524590164,
+      "search_keys": [
+        "password reset",
+        "reset email request",
+        "forgot password",
+        "reset link expiration",
+        "link expires after 30 minutes",
+        "single-use reset link",
+        "one-time reset link",
+        "account recovery",
+        "password recovery",
+        "email-based reset",
+        "time-limited reset link",
+        "reset request flow",
+        "Sample Service Spec",
+        "Password Reset"
+      ],
+      "source_document_id": "docs/spec/sample.md",
+      "source_section_id": "docs/spec/sample.md#0005-password-reset",
+      "source_span": {
+        "end_line": 19,
+        "end_offset": 807,
+        "start_line": 17,
+        "start_offset": 701
+      },
+      "summary": "Password reset flow: users can request a reset email, reset links expire after 30 minutes, and each link is valid for a single use only."
+    },
+    {
+      "heading_path": [
+        "Sample Service Spec",
+        "Authentication"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "sample service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "The top-level spec provides the scope and context within which authentication rules apply.",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "login",
+            "session",
+            "administrator"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication (establishing identity via login/session) is a prerequisite for authorization (resource access control).",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/sample.md#0003-authorization"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "session",
+            "expires",
+            "login"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication creates sessions with a 24-hour inactivity expiry; session termination rules directly govern what happens to those sessions.",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "score": 0.03225806451612903,
+      "search_keys": [
+        "sign in with email and password",
+        "session expires after inactivity",
+        "administrator multi factor login",
+        "user authentication flow",
+        "login and session lifecycle",
+        "Sample Service Spec",
+        "Authentication"
+      ],
+      "source_document_id": "docs/spec/sample.md",
+      "source_section_id": "docs/spec/sample.md#0002-authentication",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 310,
+        "start_line": 5,
+        "start_offset": 118
+      },
+      "summary": "Describes sign-in with email and password, session creation, 24-hour inactivity expiration, and multi-factor authentication for administrators."
+    },
+    {
+      "heading_path": [
+        "Sample Service Spec",
+        "Session Termination"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "sample service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Parent document overview section; provides context but no direct dependency.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "session",
+            "login",
+            "expires"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Session termination presupposes session creation defined in Authentication (24-hour inactivity expiry). Logout invalidation and background sweep directly operate on sessions established at login.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/sample.md#0002-authentication"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "session",
+            "invalidates"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Terminating or expiring a session affects whether a user or service account retains access rights defined in Authorization.",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/sample.md#0003-authorization"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "expire",
+            "session"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Password reset links have their own expiry (30 min, single-use), which is a parallel session-like lifecycle distinct from login sessions but governed by the same service.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/sample.md#0005-password-reset"
+        }
+      ],
+      "score": 0.015873015873015872,
+      "search_keys": [
+        "logout ends session immediately",
+        "expired session cleanup",
+        "background sweep interval",
+        "session termination behavior",
+        "automatic removal of expired sessions",
+        "Sample Service Spec",
+        "Session Termination"
+      ],
+      "source_document_id": "docs/spec/sample.md",
+      "source_section_id": "docs/spec/sample.md#0004-session-termination",
+      "source_span": {
+        "end_line": 16,
+        "end_offset": 683,
+        "start_line": 13,
+        "start_offset": 554
+      },
+      "summary": "Covers immediate invalidation on logout and periodic cleanup of expired sessions by background processing."
+    },
+    {
+      "heading_path": [
+        "Sample Service Spec",
+        "Authorization"
+      ],
+      "identifiers": [
+        "API"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "sample service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "The top-level spec defines the service scope that authorization rules apply within.",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "administrator",
+            "API keys",
+            "login"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authorization rules reference authenticated roles (administrators, regular users, service accounts) established by the authentication section.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/sample.md#0002-authentication"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "session",
+            "administrator"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Session termination affects the validity of sessions used for authorization; expired sessions lose their authorization context.",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "score": 0.015625,
+      "search_keys": [
+        "role based access rules",
+        "administrator full access",
+        "own resources only",
+        "service account access keys",
+        "authorization and ownership",
+        "Sample Service Spec",
+        "Authorization"
+      ],
+      "source_document_id": "docs/spec/sample.md",
+      "source_section_id": "docs/spec/sample.md#0003-authorization",
+      "source_span": {
+        "end_line": 12,
+        "end_offset": 531,
+        "start_line": 9,
+        "start_offset": 327
+      },
+      "summary": "Defines role-based access rules for administrators, regular users, and service accounts, including ownership-based access and key-based authentication."
+    },
+    {
+      "heading_path": [
+        "Sample Service Spec"
+      ],
+      "identifiers": [
+        "E2E"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "sample service spec",
+            "authentication"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "The top-level spec section directly contains the Authentication subsection; the spec's identity depends on its authentication rules.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/sample.md#0002-authentication"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "sample service spec",
+            "authorization"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authorization is a core subsection of the spec; the parent spec depends on authorization rules being defined.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/sample.md#0003-authorization"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "sample service spec",
+            "session"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Session termination is a subsection of the spec; the parent spec encompasses session lifecycle rules.",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "score": 0.015384615384615385,
+      "search_keys": [
+        "authentication service overview",
+        "end to end validation",
+        "sample service specification",
+        "service overview",
+        "validation target",
+        "Sample Service Spec"
+      ],
+      "source_document_id": "docs/spec/sample.md",
+      "source_section_id": "docs/spec/sample.md#0001-sample-service-spec",
+      "source_span": {
+        "end_line": 4,
+        "end_offset": 100,
+        "start_line": 1,
+        "start_offset": 22
+      },
+      "summary": "Overview of a small authentication service used for end-to-end validation."
+    }
+  ],
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e3-project",
+  "query": "password reset",
+  "top_k": 8,
+  "warnings": []
+}

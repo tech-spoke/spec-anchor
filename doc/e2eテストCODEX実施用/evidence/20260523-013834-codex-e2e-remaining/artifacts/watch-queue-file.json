@@ -1,0 +1,17 @@
+{
+  "queue": [
+    {
+      "change_type": "modified",
+      "exists": true,
+      "mtime_ns": 1779467975328599495,
+      "path": "docs/spec/auth.md",
+      "queued_at": "2026-05-22T16:40:21.931063Z",
+      "relative_path": "docs/spec/auth.md",
+      "sha256": "766b4d56bbdb315a3fa8e6c75c15d73a084697f606d5a0d05097a0004fdd8e63",
+      "size": 789
+    }
+  ],
+  "queue_count": 1,
+  "schema_version": 1,
+  "updated_at": "2026-05-22T16:40:21.931074Z"
+}

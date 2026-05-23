@@ -1,0 +1,92 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "failed_required_artifact"
+  ],
+  "can_continue": false,
+  "command": "/spec-inject inject-search",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "retrieval_index",
+        "related_sections"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "kind": "related_sections_generation_failed",
+            "level": "warning",
+            "message": "[Errno 111] Connection refused"
+          }
+        ],
+        "qdrant_backend_failure": {
+          "exception_type": "ResponseHandlingException",
+          "failure_reason": "[Errno 111] Connection refused",
+          "provider": "qdrant",
+          "url": "http://localhost:65530"
+        },
+        "status": "failed"
+      },
+      "retrieval_index": {
+        "status": "failed"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          4
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 0,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/sample.md#0001-sample-service-spec",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 2,
+    "schema_version": 1,
+    "status": "failed",
+    "warnings": [
+      "Source Retrieval Index update failed",
+      "Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild."
+    ]
+  },
+  "generated_at": null,
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/failed-required-artifact",
+  "reasons": [
+    "failed_required_artifact"
+  ],
+  "recommended_next_action": "run /spec-core or /spec-core --all before /spec-inject",
+  "should_stop": true,
+  "status": "failed",
+  "stop_reason": "failed_required_artifact",
+  "stops": true,
+  "warnings": [
+    "Source Retrieval Index update failed",
+    "Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild."
+  ]
+}

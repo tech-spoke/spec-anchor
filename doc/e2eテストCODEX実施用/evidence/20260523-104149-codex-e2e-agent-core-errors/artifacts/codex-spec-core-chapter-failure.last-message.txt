@@ -1,0 +1,42 @@
+Ran `spec-anchor core --all` in the current project root only. It exited with code `1`.
+
+**Status**
+`failed`
+
+**Warnings**
+- `Chapter Anchors LLM generation failed for 2 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry.`
+
+**diagnostics.chapter_anchors**
+```json
+{
+  "status": "failed",
+  "failed_chapter_ids": [
+    "docs/spec/audit.md#audit-storage-specification",
+    "docs/spec/login.md#login-audit-specification"
+  ],
+  "failure_reasons_by_chapter": {
+    "docs/spec/audit.md#audit-storage-specification": "llm_generation_failed: LLM command failed",
+    "docs/spec/login.md#login-audit-specification": "llm_generation_failed: LLM command failed"
+  }
+}
+```
+
+**freshness_report**
+```json
+{
+  "status": "failed",
+  "blocking_reasons": [
+    "failed_required_artifact",
+    "pending_conflict"
+  ],
+  "counts": {
+    "pending_conflict_count": 1,
+    "required_artifact_problem_count": 1
+  },
+  "pending_conflict_count": 1,
+  "required_artifact_problem_count": 1,
+  "warnings": [
+    "Chapter Anchors LLM generation failed for 2 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}
+```

@@ -1,0 +1,61 @@
+---
+
+## `/spec-core --all` 実行結果
+
+**overall status: `failed`**
+
+---
+
+### Chapter Anchors（要対応）
+
+2 chapter の LLM 生成に失敗しました。`chapter_anchors.json` は更新されていません。
+
+| chapter | 失敗理由 |
+|---|---|
+| `docs/spec/audit.md#audit-storage-specification` | `llm_generation_failed: LLM command failed` |
+| `docs/spec/login.md#login-audit-specification` | `llm_generation_failed: LLM command failed` |
+
+**推奨対応:** `spec-anchor core --all` を再実行してください。
+
+---
+
+### Freshness Report
+
+| 項目 | 値 |
+|---|---|
+| status | `failed` |
+| blocking_reasons | `failed_required_artifact`, `pending_conflict` |
+| required_artifact_problem_count | 1（`chapter_anchors` が未更新） |
+| pending_conflict_count | **1** |
+
+- Section Metadata 生成: `success`（7 sections 全生成）
+- Related Sections: `success`
+- Retrieval Index: `success`
+- updated_sources: `docs/spec/audit.md`, `docs/spec/login.md`
+- failed_sources: なし / failed_sections: なし
+
+---
+
+### Pending Conflict Review（人間判断が必要）
+
+**conflict_id:** `conflict-docs-spec-audit.md-0002-audit-storage-boundary--docs-spec-login.md-0003-audit-event-required`  
+**severity:** `medium` / **status:** `pending`
+
+**競合セクション:**
+- `docs/spec/audit.md#0002-audit-storage-boundary`
+- `docs/spec/login.md#0003-audit-event-required`
+
+**競合理由:**  
+`AUDIT_EVENT_REQUIRED` と `RETENTION_DAYS_FOR_AUTH_LOG` を共有しており、ログイン監査イベントの保存先と保持期間ルールを両セクションが直接規定している。
+
+**LLM が決定できない理由:**  
+既存のエビデンスだけでは安全な優先順位を確定できない。
+
+**選択肢:** `prefer_a` / `prefer_b` / `conditional` / `dismiss` / `needs_source_update` / `defer` / `task_scope_resolution`
+
+---
+
+### まとめ
+
+1. **Chapter Anchors 生成失敗（LLM エラー）** → `spec-anchor core --all` の再試行が推奨
+2. **Conflict 1 件** → `audit-storage-boundary` と `audit-event-required` の間で保持期間・保存先の競合。人間が決定してください

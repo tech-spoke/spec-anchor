@@ -1,0 +1,545 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 16.276317937001295,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 4,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 12,
+          "cache_misses": 0,
+          "cache_rejected_hits": 0,
+          "cache_size": 12,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "failed"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v2",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Service Spec"
+          ],
+          "identifiers": [
+            "E2E"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample service spec",
+                "authentication"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "The top-level spec section directly contains the Authentication subsection; the spec's identity depends on its authentication rules.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample service spec",
+                "authorization"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Authorization is a core subsection of the spec; the parent spec depends on authorization rules being defined.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample service spec",
+                "session"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session termination is a subsection of the spec; the parent spec encompasses session lifecycle rules.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            }
+          ],
+          "search_keys": [
+            "authentication service overview",
+            "end to end validation",
+            "sample service specification",
+            "service overview",
+            "validation target",
+            "Sample Service Spec"
+          ],
+          "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+          "semantic_hash": "1478b3dd0eea8a111781a527f66b1fae27b9fc7676fc85a1cf932cbc2baf310b",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "bb9271382befa6e59b65c16c95820f9fb092308423e8ee770d94d5a6fe6fad5f",
+          "source_section_id": "docs/spec/sample.md#0001-sample-service-spec",
+          "stable_section_uid": "0550b74a869f95ec",
+          "summary": "Overview of a small authentication service used for end-to-end validation."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Service Spec",
+            "Authentication"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample service spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "The top-level spec provides the scope and context within which authentication rules apply.",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "login",
+                "session",
+                "administrator"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Authentication (establishing identity via login/session) is a prerequisite for authorization (resource access control).",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "expires",
+                "login"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Authentication creates sessions with a 24-hour inactivity expiry; session termination rules directly govern what happens to those sessions.",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            }
+          ],
+          "search_keys": [
+            "sign in with email and password",
+            "session expires after inactivity",
+            "administrator multi factor login",
+            "user authentication flow",
+            "login and session lifecycle",
+            "Sample Service Spec",
+            "Authentication"
+          ],
+          "section_id": "docs/spec/sample.md#0002-authentication",
+          "semantic_hash": "91c58d0df11f3e05fbf26febdde64ec40bcfa70c1a46aabeb464081658986161",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "ce40aa3d7e507e244933d8bda7825863d00cb7c7e60c190e7803eb44aa57efd0",
+          "source_section_id": "docs/spec/sample.md#0002-authentication",
+          "stable_section_uid": "4f781fbcf17adcf4",
+          "summary": "Describes sign-in with email and password, session creation, 24-hour inactivity expiration, and multi-factor authentication for administrators."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Service Spec",
+            "Authorization"
+          ],
+          "identifiers": [
+            "API"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample service spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "The top-level spec defines the service scope that authorization rules apply within.",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "administrator",
+                "API keys",
+                "login"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Authorization rules reference authenticated roles (administrators, regular users, service accounts) established by the authentication section.",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session",
+                "administrator"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session termination affects the validity of sessions used for authorization; expired sessions lose their authorization context.",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            }
+          ],
+          "search_keys": [
+            "role based access rules",
+            "administrator full access",
+            "own resources only",
+            "service account access keys",
+            "authorization and ownership",
+            "Sample Service Spec",
+            "Authorization"
+          ],
+          "section_id": "docs/spec/sample.md#0003-authorization",
+          "semantic_hash": "1163a49ff395ae6b85aea053b9c9449208d025331c274de9bd724bf0abad490c",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "2f8f36175a38a90b4cea0f1f23bea8952a3ad01f9d14103ee7779abcabfbc88f",
+          "source_section_id": "docs/spec/sample.md#0003-authorization",
+          "stable_section_uid": "789420154d18ed9f",
+          "summary": "Defines role-based access rules for administrators, regular users, and service accounts, including ownership-based access and key-based authentication."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Service Spec",
+            "Session Termination"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample service spec"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "The top-level spec provides the service context within which session termination rules operate.",
+              "relation_hint": "prerequisite",
+              "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "login",
+                "expires"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Session termination rules govern the lifecycle of sessions created by the authentication process (logout and expiry).",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session",
+                "invalidates"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "possible_conflict": false,
+              "reason": "Terminating or expiring a session removes the authorization context for that user; active session state is implicitly assumed by authorization rules.",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            }
+          ],
+          "search_keys": [
+            "logout ends session immediately",
+            "expired session cleanup",
+            "background sweep interval",
+            "session termination behavior",
+            "automatic removal of expired sessions",
+            "Sample Service Spec",
+            "Session Termination"
+          ],
+          "section_id": "docs/spec/sample.md#0004-session-termination",
+          "semantic_hash": "b0d1706c752d371ebbf5fc078e40d1d8c9fd392d02bee4faf63247a84875a3ad",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "ddef089649615cc7be54d2f20b814714f55749722eaff16dea636ac7bc71d63e",
+          "source_section_id": "docs/spec/sample.md#0004-session-termination",
+          "stable_section_uid": "5528aacff62867c8",
+          "summary": "Covers immediate invalidation on logout and periodic cleanup of expired sessions by background processing."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [],
+      "blocking_reasons": [],
+      "cache_hits": 4,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [],
+      "llm_calls": 0,
+      "reused_section_ids": [
+        "docs/spec/sample.md#0001-sample-service-spec",
+        "docs/spec/sample.md#0002-authentication",
+        "docs/spec/sample.md#0003-authorization",
+        "docs/spec/sample.md#0004-session-termination"
+      ],
+      "warnings": []
+    },
+    "verify_index": {
+      "checked_count": 5,
+      "executed": true,
+      "hash_mismatch_count": 1,
+      "issues": [
+        {
+          "fields": [],
+          "reason_code": "stale_point",
+          "section_id": "docs/spec/sample.md#0005-password-reset"
+        },
+        {
+          "fields": [
+            "source_hash"
+          ],
+          "reason_code": "hash_mismatch",
+          "section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "missing_point_count": 0,
+      "stale_point_count": 1
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "failed_required_artifacts": [
+        "retrieval_index"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 16.276317937001295,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 4,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 12,
+            "cache_misses": 0,
+            "cache_rejected_hits": 0,
+            "cache_size": 12,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "failed"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/sample.md#0001-sample-service-spec",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "checked_count": 5,
+        "executed": true,
+        "hash_mismatch_count": 1,
+        "issues": [
+          {
+            "fields": [],
+            "reason_code": "stale_point",
+            "section_id": "docs/spec/sample.md#0005-password-reset"
+          },
+          {
+            "fields": [
+              "source_hash"
+            ],
+            "reason_code": "hash_mismatch",
+            "section_id": "docs/spec/sample.md#0004-session-termination"
+          }
+        ],
+        "missing_point_count": 0,
+        "stale_point_count": 1
+      }
+    },
+    "required_artifact_problem_count": 1,
+    "status": "failed",
+    "warnings": [
+      "Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild"
+    ]
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [],
+  "related_sections_status": "success",
+  "retrieval_index_status": "failed",
+  "skipped_sections": [
+    {
+      "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+      "source_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0002-authentication",
+      "source_section_id": "docs/spec/sample.md#0002-authentication"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0003-authorization",
+      "source_section_id": "docs/spec/sample.md#0003-authorization"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0004-session-termination",
+      "source_section_id": "docs/spec/sample.md#0004-session-termination"
+    }
+  ],
+  "skipped_sources": [
+    "docs/spec/sample.md"
+  ],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": [
+    "Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild"
+  ]
+}

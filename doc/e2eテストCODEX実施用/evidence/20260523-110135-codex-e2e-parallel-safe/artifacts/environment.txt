@@ -1,0 +1,7 @@
+run_id=20260523-110135-codex-e2e-parallel-safe
+repo=/home/kazuki/public_html/spec-anchor
+project_base=/tmp/20260523-110135-codex-e2e-parallel-safe
+collection_base=spec_anchor_sections_20260523_110135_parallel_safe
+date=2026-05-23T11:11:02+09:00
+SPEC_ANCHOR_FAKE_LLM=<unset>
+SPEC_ANCHOR_FAKE_RETRIEVAL=<unset>

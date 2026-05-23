@@ -1,0 +1,91 @@
+全情報が揃いました。制約を整形して出力します。
+
+---
+
+## 今回守る制約
+
+**制約 A — 管理者ログイン MFA 必須**
+
+- **statement:** 管理者ログインでは `MFA_REQUIRED_ON_ADMIN_LOGIN` を必須とし、MFA チャレンジをパスワード認証の直後に実行する。MFA 成功まで管理画面セッションを発行してはならない。
+- **evidence_origin:** Source Specs
+- **evidence_ref:** `docs/spec/login.md#0002-admin-login-mfa`
+- **support_refs:**
+  - Section Summary — `docs/spec/login.md#0002-admin-login-mfa`（「Requires multi-factor authentication for administrator login and says the management session must not be issued until MFA succeeds.」到達補助）
+  - Section Summary — `docs/spec/login.md#0001-login-audit-specification`（親ポリシー — same_policy 補助）
+- **applicability:** 管理者ログインフローの実装・テスト全般。一般ユーザーログインや非セッション発行処理は対象外。
+- **uncertainty:** なし
+
+---
+
+**制約 B — 監査イベントの必須記録と必須フィールド**
+
+- **statement:** 管理者ログインの成功時・失敗時それぞれで `AUDIT_EVENT_REQUIRED` を記録し、`actor_id`・`source_ip`・`result`・`mfa_result`・`occurred_at` の全項目を含めなければならない。
+- **evidence_origin:** Source Specs
+- **evidence_ref:** `docs/spec/login.md#0003-audit-event-required`
+- **support_refs:**
+  - Section Summary — `docs/spec/login.md#0003-audit-event-required`（「Requires audit events for both successful and failed administrator logins, with specified fields and an unresolved retention period.」到達補助）
+  - Section Summary — `docs/spec/login.md#0002-admin-login-mfa`（`mfa_result` フィールドの定義元として depends_on 補助）
+- **applicability:** 管理者ログインイベント記録の実装・テスト全般。フィールド欠損は制約違反。
+- **uncertainty:** なし
+
+---
+
+**制約 C — 監査イベントの保存先と保持期間の凍結**
+
+- **statement:** `AUDIT_EVENT_REQUIRED` の保存先は `audit_log_stream` とする。保持期間 `RETENTION_DAYS_FOR_AUTH_LOG` は法務確認待ちであり、Agent・実装が日数を独自に決定してはならない。
+- **evidence_origin:** Source Specs
+- **evidence_ref:** `docs/spec/audit.md#0002-audit-storage-boundary`
+- **support_refs:**
+  - Section Summary — `docs/spec/audit.md#0002-audit-storage-boundary`（「required audit events are stored in the audit log stream and that the retention period for authentication logs is still pending legal review.」到達補助）
+  - Section Summary — `docs/spec/login.md#0003-audit-event-required`（共有識別子 `AUDIT_EVENT_REQUIRED` / `RETENTION_DAYS_FOR_AUTH_LOG` による impacts 補助）
+- **applicability:** 監査ログの保存先設定・保持期間設定に関わる全実装。ハードコードされた日数・独自デフォルト値を設けてはならない。
+- **uncertainty:** `RETENTION_DAYS_FOR_AUTH_LOG` の具体値は法務確認完了後に人間が決定する。実装時に仮置き値を使うことも禁止。
+
+---
+
+## 今回見るべき対象
+
+- **`docs/spec/login.md#0002-admin-login-mfa`**
+  理由: MFA_REQUIRED_ON_ADMIN_LOGIN の主定義を持ち、セッション発行タイミングの制約根拠となる最重要セクション。
+
+- **`docs/spec/login.md#0003-audit-event-required`**
+  理由: 監査イベントの記録義務・必須フィールド・保持期間未確定の主定義。制約 B・C の直接根拠。
+
+- **`docs/spec/audit.md#0002-audit-storage-boundary`**
+  理由: `audit_log_stream` という保存先と `RETENTION_DAYS_FOR_AUTH_LOG` 凍結の境界定義を持つ。制約 C の直接根拠。
+
+---
+
+## 関連先として確認したもの
+
+- **`docs/spec/login.md#0001-login-audit-specification`**（親ポリシー）
+  理由: #0002・#0003 の same_policy 親。ログイン監査全体の枠組み確認のため参照。
+
+- **`docs/spec/login.md#0004-password-reset-out-of-scope`**（スコープ外除外節）
+  理由: パスワードリセット（EMAIL_TOKEN_RESET_FLOW）が MFA 制約・監査イベント要件の対象外であることを see_also として確認。
+
+- **`docs/spec/audit.md#0003-marketing-tracking-irrelevant`**（除外節）
+  理由: MARKETING_PIXEL_LOGIN_PAGE が監査制約に無関係であることを see_also として確認。
+
+- **`docs/spec/audit.md#0001-audit-storage-specification`**（親ポリシー）
+  理由: #0002-audit-storage-boundary の same_policy 親として存在確認。
+
+---
+
+## 採用しなかったもの
+
+- **`docs/spec/login.md#0004-password-reset-out-of-scope`を制約として採用しなかった**
+  理由: 本文で「管理者ログイン MFA の制約としては採用しない」と明示されており、今回のタスク（管理者ログイン監査）のスコープ外と判断。
+
+- **`docs/spec/audit.md#0003-marketing-tracking-irrelevant` を制約として採用しなかった**
+  理由: MARKETING_PIXEL_LOGIN_PAGE は管理者ログインの認証・監査制約と無関係であることが仕様で明示されており、今回の制約セットに含める根拠がない。
+
+- **Conflict Review Items を制約として採用しなかった**
+  理由: `inject-conflicts` の返却件数が 0（resolved / stale でない items なし）。採用できる Conflict Review Item が存在しない。
+
+---
+
+## 不確実性 / 人間確認
+
+- **`RETENTION_DAYS_FOR_AUTH_LOG` の具体値が未確定**
+  `docs/spec/login.md#0003-audit-event-required` および `docs/spec/audit.md#0002-audit-storage-boundary` の両方で「法務確認待ち・未確定」と明記されている。実装時に日数をハードコード・推測・デフォルト設定してはならない。確定値は人間（法務確認後）が提供すること。

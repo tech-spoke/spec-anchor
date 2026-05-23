@@ -1,0 +1,69 @@
+**今回守る制約**
+
+1. statement: 管理者ログインでは `MFA_REQUIRED_ON_ADMIN_LOGIN` を必須とし、パスワード認証直後に MFA チャレンジを実行し、成功するまで管理画面セッションを発行してはならない。  
+   evidence_origin: Source Specs  
+   evidence_ref: `docs/spec/login.md#0002-admin-login-mfa`  
+   support_refs: Purpose の「MFA_REQUIRED_ON_ADMIN_LOGIN を最優先の目的制約」、Section Summary `docs/spec/login.md#0002-admin-login-mfa`  
+   applicability: 管理者ログインの認証フロー、およびログイン監査制約の整理範囲。  
+   uncertainty: 該当なし。
+
+2. statement: 管理者ログインの成功時と失敗時には `AUDIT_EVENT_REQUIRED` を記録し、項目は `actor_id`、`source_ip`、`result`、`mfa_result`、`occurred_at` とする。  
+   evidence_origin: Source Specs  
+   evidence_ref: `docs/spec/login.md#0003-audit-event-required`  
+   support_refs: Related Section `docs/spec/login.md#0002-admin-login-mfa`、Section Summary `docs/spec/login.md#0003-audit-event-required`  
+   applicability: 管理者ログイン監査イベントの記録要件。  
+   uncertainty: 保持期間は未確定。
+
+3. statement: `AUDIT_EVENT_REQUIRED` の保存先は `audit_log_stream` とする。  
+   evidence_origin: Source Specs  
+   evidence_ref: `docs/spec/audit.md#0002-audit-storage-boundary`  
+   support_refs: Related Section `docs/spec/login.md#0003-audit-event-required`、Core Concept `Data Boundary`  
+   applicability: 管理者ログイン監査イベントの保存先境界。  
+   uncertainty: 保持期間の日数は含めない。
+
+4. statement: `RETENTION_DAYS_FOR_AUTH_LOG` は未確定であり、Agent が日数を決めてはならず、人間確認事項として扱う。  
+   evidence_origin: Source Specs  
+   evidence_ref: `docs/spec/audit.md#0002-audit-storage-boundary`  
+   support_refs: `docs/spec/login.md#0003-audit-event-required`、Core Concept `Data Boundary`  
+   applicability: 認証ログ保持期間に関する判断全般。  
+   uncertainty: 法務確認待ち。
+
+5. statement: ログイン監査に関する検討では、監査証跡と人間確認が必要な点を明示する。  
+   evidence_origin: Core Concept  
+   evidence_ref: `docs/core/concept.md#Audit First`  
+   support_refs: Purpose、`docs/spec/login.md#0003-audit-event-required`  
+   applicability: 管理者ログイン監査制約の提示形式。  
+   uncertainty: 該当なし。
+
+**今回見るべき対象**
+
+- `docs/spec/login.md#0002-admin-login-mfa`
+- `docs/spec/login.md#0003-audit-event-required`
+- `docs/spec/audit.md#0002-audit-storage-boundary`
+- `docs/core/concept.md#Audit First`
+- `docs/core/concept.md#Data Boundary`
+- Purpose
+
+**関連先として確認したもの**
+
+- `spec-anchor inject-search`: 「管理者ログイン監査 admin login audit」
+- `spec-anchor inject-section`: `docs/spec/login.md#0002-admin-login-mfa`
+- `spec-anchor inject-section`: `docs/spec/login.md#0003-audit-event-required`
+- `spec-anchor inject-section`: `docs/spec/audit.md#0002-audit-storage-boundary`
+- `spec-anchor inject-purpose`
+- `spec-anchor inject-conflicts`: resolved conflict review items は 0 件
+- Source Specs 本文: `docs/spec/login.md`, `docs/spec/audit.md`
+- Core Concept 本文: `docs/core/concept.md`
+
+**採用しなかったもの**
+
+- `docs/spec/login.md#0004-password-reset-out-of-scope`: パスワードリセットは管理者ログイン MFA の制約として採用しない。
+- `docs/spec/audit.md#0003-marketing-tracking-irrelevant`: `MARKETING_PIXEL_LOGIN_PAGE` は認証制約・監査制約に採用しない。
+- Chapter Anchor path: 今回は具体的な管理者ログイン監査の検索で主要 Source Specs に到達できたため採用しない。
+- Conflict Review Item: resolved conflict review items が 0 件のため採用なし。
+
+**不確実性 / 人間確認**
+
+- `RETENTION_DAYS_FOR_AUTH_LOG` は未確定で、法務確認待ち。
+- 認証ログ保持期間の日数は Agent が決定しない。
+- pending conflict は確認されなかった。

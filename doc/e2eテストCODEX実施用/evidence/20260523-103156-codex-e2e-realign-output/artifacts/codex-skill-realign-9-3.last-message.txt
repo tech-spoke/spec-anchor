@@ -1,0 +1,32 @@
+**今回守る制約**
+
+- 管理者ログインでは `MFA_REQUIRED_ON_ADMIN_LOGIN` を必須とし、MFA 成功まで管理画面セッションを発行しない。
+- 成功時と失敗時の両方で `AUDIT_EVENT_REQUIRED` を記録する。
+- 監査イベントには `actor_id`、`source_ip`、`result`、`mfa_result`、`occurred_at` を含める。
+- `AUDIT_EVENT_REQUIRED` の保存先は `audit_log_stream` とする。
+- `RETENTION_DAYS_FOR_AUTH_LOG` は未確定かつ法務確認待ちであり、Agent は日数を決めてはならない。
+- `MARKETING_PIXEL_LOGIN_PAGE` は管理者ログインの認証制約や監査制約には採用しない。
+
+**今回扱う修正候補または検討対象**
+
+- 管理者ログインの成功、パスワード失敗、MFA 失敗の各経路で監査イベントを残す修正。
+- 監査イベント payload に必須項目を欠落なく含める修正。
+- MFA 成功前に管理画面セッションを発行しない境界の確認。
+- 監査イベントの出力先を `audit_log_stream` に統一する修正。
+- ユーザー草案の `RETENTION_DAYS_FOR_AUTH_LOG=30日` 固定案の扱い。
+
+**競合 / 不確実性 / 人間レビューが必要な点**
+
+- ユーザー草案は `RETENTION_DAYS_FOR_AUTH_LOG` を 30 日固定にするとしているが、仕様は保持期間を未確定、法務確認待ちとし、Agent が日数を決めてはならないとしているため衝突する。
+- 30 日を採用するには、法務または仕様オーナーの判断と Source Specs の更新が必要。
+- spec-anchor の conflict review item には、30 日固定を支持する解決済み判断は見つからなかった。
+- 保存先は `audit_log_stream` と明示されているため、今回の不確実性は主に保持期間に限定される。
+
+**課題プロンプトへの回答または修正案**
+
+- 管理者ログイン監査は、成功時と失敗時の両方で `AUDIT_EVENT_REQUIRED` を `audit_log_stream` に記録する方針に揃える。
+- イベントには `actor_id`、`source_ip`、`result`、`mfa_result`、`occurred_at` を必須項目として含める。
+- パスワード認証直後に MFA を実行し、MFA 成功後にだけ管理画面セッションを発行する。
+- パスワード失敗または MFA 失敗では、失敗結果の監査イベントを残し、管理画面セッションは発行しない。
+- `RETENTION_DAYS_FOR_AUTH_LOG` は 30 日へ固定しない。法務確認待ち、値未確定として扱い、人間レビュー完了まで既定値化を保留する。
+- 受け入れ条件は、成功ログイン、パスワード失敗、MFA 失敗の各経路で必須項目つき監査イベントが残ること、MFA 失敗時に管理画面セッションが作成されないこと、保持期間を 30 日固定にする変更が含まれていないこと。

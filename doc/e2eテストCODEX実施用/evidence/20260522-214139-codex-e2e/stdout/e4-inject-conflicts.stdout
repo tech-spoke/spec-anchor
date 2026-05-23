@@ -1,0 +1,7 @@
+{
+  "command": "/spec-inject inject-conflicts",
+  "count": 0,
+  "excluded_conflict_review_items": [],
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project",
+  "resolved_conflict_review_items": []
+}

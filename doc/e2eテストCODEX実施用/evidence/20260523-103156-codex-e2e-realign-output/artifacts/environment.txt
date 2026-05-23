@@ -1,0 +1,7 @@
+run_id=20260523-103156-codex-e2e-realign-output
+repo=/home/kazuki/public_html/spec-anchor
+project=/tmp/20260523-103156-codex-e2e-realign-output.project
+collection=spec_anchor_sections_20260523_103156_realign_output
+date=2026-05-23T10:34:23+09:00
+SPEC_ANCHOR_FAKE_LLM=<unset>
+SPEC_ANCHOR_FAKE_RETRIEVAL=<unset>

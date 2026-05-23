@@ -1,0 +1,326 @@
+2026-05-22T16:09:07.976Z [DEBUG] MDM settings load completed in 55ms
+2026-05-22T16:09:08.001Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/settings.json
+2026-05-22T16:09:08.001Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/settings.local.json
+2026-05-22T16:09:08.002Z [DEBUG] Broken symlink or missing file encountered for settings.json at path: /etc/claude-code/managed-settings.json
+2026-05-22T16:09:08.002Z [DEBUG] CA certs: Config fallback - globalEnv keys: , settingsEnv keys: ENABLE_TOOL_SEARCH,BASH_MAX_TIMEOUT_MS
+2026-05-22T16:09:08.003Z [DEBUG] [init] configureGlobalMTLS starting
+2026-05-22T16:09:08.003Z [DEBUG] [init] configureGlobalMTLS complete
+2026-05-22T16:09:08.003Z [DEBUG] [init] configureGlobalAgents starting
+2026-05-22T16:09:08.003Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=undefined
+2026-05-22T16:09:08.004Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-22T16:09:08.010Z [DEBUG] CA certs: Loaded 294 system CA certificates
+2026-05-22T16:09:08.011Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-22T16:09:08.011Z [DEBUG] [init] configureGlobalAgents complete
+2026-05-22T16:09:08.013Z [DEBUG] Error log sink initialized
+2026-05-22T16:09:08.069Z [DEBUG] Applying permission update: Adding 37 allow rule(s) to destination 'userSettings': ["mcp__code-intel__get_session_status","Skill(code)","Skill(code:*)","mcp__code-intel__search_text","Bash(ls:*)","mcp__code-intel__cleanup_stale_overlays","mcp__playwright__browser_navigate","Bash(find:*)","mcp__code-intel__review_changes","mcp__code-intel__start_session","Bash(git rev-parse:*)","mcp__code-intel__begin_phase_gate","mcp__code-intel__set_query_frame","mcp__code-intel__cleanup_stale_branches","Skill(test-parallel)","Skill(test-parallel:*)","mcp__code-intel__find_definitions","Bash(git checkout:*)","Bash(git merge:*)","Bash(git branch:*)","mcp__code-intel__check_phase_necessity","mcp__code-intel__semantic_search","mcp__code-intel__search_files","Bash(git add:*)","Bash(git commit:*)","mcp__code-intel__submit_phase","Bash(git push)","mcp__code-intel__find_references","mcp__code-intel__analyze_structure","mcp__code-intel__check_write_target","WebFetch(domain:github.com)","Bash(python3 -m pytest:*)","mcp__code-intel__search_memories","WebFetch(domain:arxiv.org)","Bash(npm root:*)","Read(//home/kazuki/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/claude-code/**)","Bash(codex history *)"]
+2026-05-22T16:09:08.221Z [DEBUG] Applying permission update: Adding 1 directory with destination 'localSettings': ["/home/kazuki/public_html/llm-helper/docs/detailed-design"]
+2026-05-22T16:09:08.221Z [DEBUG] Applying permission update: Adding 1 directory with destination 'localSettings': ["/home/kazuki/public_html/ec-spoke.local/docs/React+NestJS+Astro/drafts"]
+2026-05-22T16:09:08.222Z [DEBUG] [STARTUP] Loading MCP configs...
+2026-05-22T16:09:08.225Z [DEBUG] [STARTUP] Running setup()...
+2026-05-22T16:09:08.228Z [DEBUG] Loading skills from: managed=/etc/claude-code/.claude/skills, user=/home/kazuki/.claude/skills, project=[]
+2026-05-22T16:09:08.228Z [DEBUG] Error log sink initialized
+2026-05-22T16:09:08.230Z [DEBUG] [claudeai-mcp] Fetching from https://api.anthropic.com/v1/mcp_servers?limit=1000
+2026-05-22T16:09:08.236Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/commands: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/commands'
+2026-05-22T16:09:08.236Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/agents: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/agents'
+2026-05-22T16:09:08.236Z [DEBUG] Failed to stat directory /home/kazuki/.claude/agents: ENOENT: no such file or directory, statx '/home/kazuki/.claude/agents'
+2026-05-22T16:09:08.239Z [DEBUG] [STARTUP] setup() completed in 14ms
+2026-05-22T16:09:08.239Z [DEBUG] Cleared CA certificates cache
+2026-05-22T16:09:08.239Z [DEBUG] Cleared mTLS configuration cache
+2026-05-22T16:09:08.239Z [DEBUG] Cleared proxy agent cache
+2026-05-22T16:09:08.240Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=undefined
+2026-05-22T16:09:08.240Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-22T16:09:08.240Z [DEBUG] CA certs: Loaded 294 system CA certificates
+2026-05-22T16:09:08.240Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-22T16:09:08.248Z [DEBUG] [STARTUP] Loading commands and agents...
+2026-05-22T16:09:08.249Z [DEBUG] [ToolSearch:optimistic] mode=tst, ENABLE_TOOL_SEARCH=1, result=true
+2026-05-22T16:09:08.276Z [DEBUG] Loaded 4 installed plugins from /home/kazuki/.claude/plugins/installed_plugins.json
+2026-05-22T16:09:08.284Z [DEBUG] Read hooks.json for plugin codex (enabled=true): /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3/hooks/hooks.json
+2026-05-22T16:09:08.285Z [DEBUG] Found 4 plugins (3 enabled, 1 disabled)
+2026-05-22T16:09:08.285Z [DEBUG] getPluginSkills: Processing 3 enabled plugins
+2026-05-22T16:09:08.285Z [DEBUG] Checking plugin filament-specialist: skillsPath=exists, skillsPaths=0 paths
+2026-05-22T16:09:08.285Z [DEBUG] Attempting to load skills from plugin filament-specialist default skillsPath: /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/skills
+2026-05-22T16:09:08.285Z [DEBUG] Checking plugin codex: skillsPath=exists, skillsPaths=0 paths
+2026-05-22T16:09:08.285Z [DEBUG] Attempting to load skills from plugin codex default skillsPath: /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3/skills
+2026-05-22T16:09:08.286Z [DEBUG] Checking plugin claude-md-management: skillsPath=exists, skillsPaths=0 paths
+2026-05-22T16:09:08.286Z [DEBUG] Attempting to load skills from plugin claude-md-management default skillsPath: /home/kazuki/.claude/plugins/cache/claude-plugins-official/claude-md-management/1.0.0/skills
+2026-05-22T16:09:08.286Z [DEBUG] Loading hooks from plugin: codex
+2026-05-22T16:09:08.286Z [DEBUG] Registered 3 hooks from 3 plugins
+2026-05-22T16:09:08.289Z [DEBUG] Loaded 9 commands from plugin filament-specialist default directory
+2026-05-22T16:09:08.289Z [DEBUG] Plugin filament-specialist has commandsPaths: /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/action.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/diagnose.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/docs.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/form.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/infolist.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/resource.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/table.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/test.md, /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/widget.md
+2026-05-22T16:09:08.289Z [DEBUG] Loaded 7 commands from plugin codex default directory
+2026-05-22T16:09:08.289Z [DEBUG] Loaded 1 commands from plugin claude-md-management default directory
+2026-05-22T16:09:08.289Z [DEBUG] Loaded 1 agents from plugin filament-specialist default directory
+2026-05-22T16:09:08.289Z [DEBUG] Loaded 1 agents from plugin codex default directory
+2026-05-22T16:09:08.290Z [DEBUG] Loaded 1 skills from plugin claude-md-management default directory
+2026-05-22T16:09:08.290Z [DEBUG] Loaded 3 skills from plugin codex default directory
+2026-05-22T16:09:08.291Z [DEBUG] Loaded 8 skills from plugin filament-specialist default directory
+2026-05-22T16:09:08.291Z [DEBUG] Total plugin skills loaded: 12
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/action.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/diagnose.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/table.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/widget.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/test.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/infolist.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/resource.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/form.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.291Z [DEBUG] Checking commandPath /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0/commands/docs.md - isDirectory: false, isFile: true
+2026-05-22T16:09:08.292Z [DEBUG] Total plugin commands loaded: 17
+2026-05-22T16:09:08.292Z [DEBUG] Total plugin agents loaded: 2
+2026-05-22T16:09:08.293Z [DEBUG] Git remote URL: null
+2026-05-22T16:09:08.293Z [DEBUG] No git remote URL found
+2026-05-22T16:09:08.303Z [DEBUG] Loaded 18 unique skills (18 unconditional, 0 conditional, managed: 0, user: 1, project: 0, additional: 0, legacy commands: 17)
+2026-05-22T16:09:08.303Z [DEBUG] getSkills returning: 18 skill dir commands, 12 plugin skills, 13 bundled skills, 0 builtin plugin skills
+2026-05-22T16:09:08.306Z [DEBUG] [STARTUP] Commands and agents loaded in 58ms
+2026-05-22T16:09:08.306Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2026-05-22T16:09:08.306Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2026-05-22T16:09:08.306Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2026-05-22T16:09:08.306Z [DEBUG] Starting background startup prefetches
+2026-05-22T16:09:08.306Z [DEBUG] [Bootstrap] Fetching
+2026-05-22T16:09:08.308Z [DEBUG] Passes: Using fresh cached eligibility data
+2026-05-22T16:09:08.309Z [DEBUG] [STARTUP] MCP configs resolved in 65ms (awaited at +87ms)
+2026-05-22T16:09:08.311Z [DEBUG] All plugins already exist, skipping migration
+2026-05-22T16:09:08.311Z [DEBUG] Cleared CA certificates cache
+2026-05-22T16:09:08.311Z [DEBUG] Cleared mTLS configuration cache
+2026-05-22T16:09:08.311Z [DEBUG] Cleared proxy agent cache
+2026-05-22T16:09:08.311Z [DEBUG] CA certs: stores=bundled,system, extraCertsPath=undefined
+2026-05-22T16:09:08.311Z [DEBUG] CA certs: Loaded 145 bundled root certificates
+2026-05-22T16:09:08.311Z [DEBUG] CA certs: Loaded 294 system CA certificates
+2026-05-22T16:09:08.311Z [DEBUG] mTLS: Creating HTTPS agent with custom certificates
+2026-05-22T16:09:08.312Z [DEBUG] Initialized versioned plugins system with 4 plugins
+2026-05-22T16:09:08.314Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:08.314Z [DEBUG] [MCP] --mcp-config servers running fully async (nonblocking)
+2026-05-22T16:09:08.314Z [DEBUG] [MCP] claude.ai connectors running fully async (nonblocking)
+2026-05-22T16:09:08.316Z [DEBUG] [Perfetto] initializePerfettoTracing called, env value: undefined
+2026-05-22T16:09:08.316Z [DEBUG] [3P telemetry] isTelemetryEnabled=false (CLAUDE_CODE_ENABLE_TELEMETRY=undefined)
+2026-05-22T16:09:08.318Z [WARN] [3P telemetry] Event dropped (no event logger initialized): hook_execution_start
+2026-05-22T16:09:08.327Z [DEBUG] Grove: Using fresh cached config
+2026-05-22T16:09:08.333Z [DEBUG] Total LSP servers loaded: 0
+2026-05-22T16:09:08.333Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2026-05-22T16:09:08.333Z [DEBUG] LSP manager initialized with 0 servers
+2026-05-22T16:09:08.333Z [DEBUG] LSP server manager initialized successfully
+2026-05-22T16:09:08.333Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2026-05-22T16:09:08.360Z [DEBUG] Watching for changes in skill/command directories: /home/kazuki/.claude/skills, /home/kazuki/.claude/commands, /tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/commands...
+2026-05-22T16:09:08.362Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/skills: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/skills'
+2026-05-22T16:09:08.368Z [DEBUG] Watching for changes in setting files /home/kazuki/.claude/settings.json, /tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/settings.json, /tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/settings.local.json...
+2026-05-22T16:09:08.453Z [DEBUG] [auto-mode] verifyAutoModeGateAccess: enabledState=enabled disabledBySettings=false model=claude-sonnet-4-6 modelSupported=true disableFastModeBreakerFires=false carouselAvailable=true canEnterAuto=true
+2026-05-22T16:09:08.454Z [DEBUG] Ripgrep first use test: PASSED (mode=embedded, path=/home/kazuki/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe)
+2026-05-22T16:09:08.455Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T16:09:08.526Z [DEBUG] [claudeai-mcp] Fetched 3 servers
+2026-05-22T16:09:08.587Z [DEBUG] [Bootstrap] Fetch ok
+2026-05-22T16:09:08.587Z [DEBUG] [Bootstrap] Cache unchanged, skipping write
+2026-05-22T16:09:08.685Z [DEBUG] [ScheduledTasks] scheduler start() — enabled=false, hasTasks=false
+2026-05-22T16:09:08.693Z [DEBUG] Failed to stat directory /etc/claude-code/.claude/output-styles: ENOENT: no such file or directory, statx '/etc/claude-code/.claude/output-styles'
+2026-05-22T16:09:08.693Z [DEBUG] Failed to stat directory /home/kazuki/.claude/output-styles: ENOENT: no such file or directory, statx '/home/kazuki/.claude/output-styles'
+2026-05-22T16:09:08.693Z [DEBUG] Total plugin output styles loaded: 0
+2026-05-22T16:09:08.695Z [DEBUG] installPluginsForHeadless: starting
+2026-05-22T16:09:08.702Z [DEBUG] Preserving file permissions: 100600
+2026-05-22T16:09:08.702Z [DEBUG] Writing to temp file: /home/kazuki/.claude.json.tmp.437501.ed34c6412c40
+2026-05-22T16:09:08.703Z [DEBUG] Applied original permissions to temp file
+2026-05-22T16:09:08.705Z [DEBUG] Temp file written successfully, size: 46737 bytes
+2026-05-22T16:09:08.705Z [DEBUG] Renaming /home/kazuki/.claude.json.tmp.437501.ed34c6412c40 to /home/kazuki/.claude.json
+2026-05-22T16:09:08.705Z [DEBUG] File /home/kazuki/.claude.json written atomically
+2026-05-22T16:09:08.708Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T16:09:08.709Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T16:09:08.709Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T16:09:08.709Z [DEBUG] Sending 54 skills via attachment (initial)
+2026-05-22T16:09:08.709Z [DEBUG] Skill prompt: showing "filament-specialist:filament-resource" (userFacingName="filament-resource")
+2026-05-22T16:09:08.709Z [DEBUG] Skill prompt: showing "filament-specialist:filament-testing" (userFacingName="filament-testing")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "filament-specialist:filament-actions" (userFacingName="filament-actions")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "filament-specialist:filament-widgets" (userFacingName="filament-widgets")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "filament-specialist:filament-forms" (userFacingName="filament-forms")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "filament-specialist:filament-docs" (userFacingName="filament-docs")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "filament-specialist:filament-infolists" (userFacingName="filament-infolists")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "filament-specialist:filament-tables" (userFacingName="filament-tables")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "codex:codex-cli-runtime" (userFacingName="codex-cli-runtime")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "codex:codex-result-handling" (userFacingName="codex-result-handling")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "codex:gpt-5-4-prompting" (userFacingName="gpt-5-4-prompting")
+2026-05-22T16:09:08.710Z [DEBUG] Skill prompt: showing "claude-md-management:claude-md-improver" (userFacingName="claude-md-improver")
+2026-05-22T16:09:08.710Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T16:09:08.715Z [DEBUG] Org fast mode: disabled (extra_usage_disabled)
+2026-05-22T16:09:08.777Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T16:09:08.802Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T16:09:08.802Z [DEBUG] "Hook UserPromptSubmit (UserPromptSubmit) success:\n自動想起 (10件):\n  #179 ⚡ 💎 ★★★★★ [枝葉, ワークフロー, 人間確認, コマンド] (1.50)\n       「LLMと仕様書作成の構造的問題を議論。LLMは本質の軸と枝葉を同列に扱い、枝葉が文脈に乗ると軸が侵食される。対策として/distillコマンド（蒸留：軸だけ抽出...」\n       🔥「LLMと仕様書作成の構造的問題を議論。」\n  #182 🔥 💎 ★★★★★ [外部世界, 未決事項, 契約拡張, api] (1.50)\n       「doc27未決事項の残り: 契約拡張のAPI(extendContract)のみ。外部世界の失敗への耐性・サーバー強制反映・writeTargetStores省...」\n       🔥「外部世界の失敗への耐性・サーバー強制反映・writeTargetStores省略時の意味は全て決定済み。」\n  #181 ⚡ 😰 ★★★ [返却, pipeline, 失敗, ctx] (1.21)\n       「Pipeline runner処理順: 1.スナップショット取得 2.steps実行 3.失敗→rollback 4.成功→遅延バッファ一括反映 5.外部書き込...」\n  #180 🔥 😰 ★★★ [反映, out, 限定的, 通知・監査ログ等] (1.21)\n       「Action設計: ctx.store()(internalStores用,即時反映,rollback対象) と ctx.out()(writeTargetSt...」\n  #185 🔥 🤝 ★★★ [return, action, actionregistry, createresourcestore] (1.20)\n       「Store-Action所有関係の確定: StoreはcreateResourceStoreで作る純粋なデータの箱。ActionはactionRegistry....」\n  #178 ⚡ ★★ [ユーザー, 仕様, 自分, 説明] (1.01)\n       「仕様書作成のフィードバック: Claudeは分析枠組み(2軸、4層等の分類体系)を生成しがちだが、これを仕様に定着させない。結論と具体的手段だけを書く。ユーザー...」\n  #184 🔥 ★★ [payload, 原則, ではなく, string] (1.00)\n       「emit/onの設計決定: ctx.emit(signalId, payload)でシグナル発行、on: string[]をRegisteredActionの宣...」\n  #90 🔥 ★★ [stop, 記憶システム, 実装, ghost] (0.95)\n       「Ghost記憶システムの自動保存を実装した。check_surface.py を作成し、UserPromptSubmit フックに追加。10分以上アイドル後にL...」\n  #175 💎 ★★★ [詳細設計書, 修正, フェーズ削除, 単層構成] (0.90)\n       「llm-helper詳細設計書からSemantic Memory（汎化ルール層）を完全削除した。11b_semantic.md削除、SEMANTIC_PROMO...」\n  #163  ★★ [発火, 別管理テスト完了, 別セッション, 本番設定] (0.89)\n       「check_surface.pyのセッションID別管理テスト完了。別セッションでも正常に発火。本番設定（10分）に戻した。」\n"
+2026-05-22T16:09:08.806Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:08.808Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T16:09:08.811Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T16:09:08.812Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T16:09:08.812Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:08.812Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:08.813Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T16:09:08.813Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T16:09:08.813Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T16:09:08.815Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:08.815Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T16:09:08.817Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=6bc08699-f256-4c41-b792-6b720f2d94fe source=sdk
+2026-05-22T16:09:09.191Z [DEBUG] [mcp-registry] Loaded 197 official MCP URLs (legacy)
+2026-05-22T16:09:10.879Z [DEBUG] Stream started - received first chunk
+2026-05-22T16:09:10.879Z [DEBUG] [API:timing] first byte after 2064ms
+2026-05-22T16:09:17.720Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01GBXPRdy5XhUKdr7jZDJnww permissionDecisionMs=4
+2026-05-22T16:09:17.766Z [DEBUG] Creating shell snapshot for bash (/bin/bash)
+2026-05-22T16:09:17.766Z [DEBUG] Looking for shell config file: /home/kazuki/.bashrc
+2026-05-22T16:09:17.767Z [DEBUG] Snapshots directory: /home/kazuki/.claude/shell-snapshots
+2026-05-22T16:09:17.771Z [DEBUG] Spawn-env probe captured 67 keys
+2026-05-22T16:09:17.772Z [DEBUG] Creating snapshot at: /home/kazuki/.claude/shell-snapshots/snapshot-bash-1779466157767-j0hqtp.sh
+2026-05-22T16:09:17.772Z [DEBUG] Execution timeout: 10000ms
+2026-05-22T16:09:18.464Z [DEBUG] Shell snapshot created successfully (234063 bytes)
+2026-05-22T16:09:18.465Z [DEBUG] Session environment loaded from 1 hook file(s)
+2026-05-22T16:09:18.465Z [DEBUG] Session environment script ready (153 chars total)
+2026-05-22T16:09:18.465Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T16:09:18.811Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01GBXPRdy5XhUKdr7jZDJnww outcome=ok durationMs=1091
+2026-05-22T16:09:18.837Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:18.837Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:18.837Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:18.844Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:18.844Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:18.844Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:18.848Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T16:09:18.848Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T16:09:18.848Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T16:09:18.848Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T16:09:18.849Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T16:09:18.849Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T16:09:18.850Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T16:09:18.850Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:18.850Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:18.850Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T16:09:18.850Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T16:09:18.851Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T16:09:18.851Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:18.851Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T16:09:18.852Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=0f21066e-8d96-42b3-9888-f0338371ef57 source=sdk
+2026-05-22T16:09:20.581Z [DEBUG] Stream started - received first chunk
+2026-05-22T16:09:20.581Z [DEBUG] [API:timing] first byte after 1730ms
+2026-05-22T16:09:25.494Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01AWP8iSekAyyDTiqKzkEC9K permissionDecisionMs=3
+2026-05-22T16:09:25.496Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T16:09:34.819Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01AWP8iSekAyyDTiqKzkEC9K outcome=ok durationMs=9325
+2026-05-22T16:09:34.847Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:34.847Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:34.848Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:34.849Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:34.849Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:34.849Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:34.853Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_015CBTDDBt6b5Y8VGVERfEwt permissionDecisionMs=2
+2026-05-22T16:09:34.855Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T16:09:35.293Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_015CBTDDBt6b5Y8VGVERfEwt outcome=ok durationMs=440
+2026-05-22T16:09:35.318Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:35.318Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:35.318Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:35.322Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:35.322Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:35.322Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:35.325Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T16:09:35.325Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T16:09:35.325Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T16:09:35.325Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T16:09:35.326Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T16:09:35.326Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T16:09:35.326Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T16:09:35.327Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:35.327Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:35.327Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T16:09:35.327Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T16:09:35.327Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T16:09:35.328Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:35.328Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T16:09:35.329Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=91ee619f-1272-467a-8bad-61f3a3ede5d5 source=sdk
+2026-05-22T16:09:38.526Z [DEBUG] Stream started - received first chunk
+2026-05-22T16:09:38.526Z [DEBUG] [API:timing] first byte after 3199ms
+2026-05-22T16:09:40.516Z [DEBUG] Zip extraction completed: 362 files, 3827KB uncompressed
+2026-05-22T16:09:40.704Z [DEBUG] Plugin autoupdate: checking installed plugins
+2026-05-22T16:09:40.705Z [DEBUG] Skipping refresh for marketplace 'claude-plugins-official' — refreshed 0s ago
+2026-05-22T16:09:40.734Z [DEBUG] Loading plugin filament-specialist from source: "./filament-specialist"
+2026-05-22T16:09:40.734Z [DEBUG] Loading plugin github from source: "./external_plugins/github"
+2026-05-22T16:09:40.734Z [DEBUG] Loading plugin codex from source: "./plugins/codex"
+2026-05-22T16:09:40.734Z [DEBUG] Loading plugin claude-md-management from source: "./plugins/claude-md-management"
+2026-05-22T16:09:40.735Z [DEBUG] No version found for github@claude-plugins-official, using 'unknown'
+2026-05-22T16:09:40.736Z [DEBUG] Using manifest version for filament-specialist@mwguerra-marketplace: 1.0.0
+2026-05-22T16:09:40.737Z [DEBUG] Using manifest version for claude-md-management@claude-plugins-official: 1.0.0
+2026-05-22T16:09:40.738Z [DEBUG] Using manifest version for codex@openai-codex: 1.0.3
+2026-05-22T16:09:40.738Z [DEBUG] Plugin github@claude-plugins-official version unknown already cached at /home/kazuki/.claude/plugins/cache/claude-plugins-official/github/unknown
+2026-05-22T16:09:40.738Z [DEBUG] Copied plugin github to versioned cache: /home/kazuki/.claude/plugins/cache/claude-plugins-official/github/unknown
+2026-05-22T16:09:40.739Z [DEBUG] Plugin claude-md-management@claude-plugins-official version 1.0.0 already cached at /home/kazuki/.claude/plugins/cache/claude-plugins-official/claude-md-management/1.0.0
+2026-05-22T16:09:40.739Z [DEBUG] Copied plugin claude-md-management to versioned cache: /home/kazuki/.claude/plugins/cache/claude-plugins-official/claude-md-management/1.0.0
+2026-05-22T16:09:40.739Z [DEBUG] Plugin filament-specialist@mwguerra-marketplace version 1.0.0 already cached at /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0
+2026-05-22T16:09:40.739Z [DEBUG] Copied plugin filament-specialist to versioned cache: /home/kazuki/.claude/plugins/cache/mwguerra-marketplace/filament-specialist/1.0.0
+2026-05-22T16:09:40.739Z [DEBUG] Plugin codex@openai-codex version 1.0.3 already cached at /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3
+2026-05-22T16:09:40.739Z [DEBUG] Copied plugin codex to versioned cache: /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3
+2026-05-22T16:09:40.741Z [DEBUG] Read hooks.json for plugin codex (enabled=true): /home/kazuki/.claude/plugins/cache/openai-codex/codex/1.0.3/hooks/hooks.json
+2026-05-22T16:09:40.743Z [DEBUG] Found 4 plugins (3 enabled, 1 disabled)
+2026-05-22T16:09:40.747Z [DEBUG] Using manifest version for claude-md-management@claude-plugins-official: 1.0.0
+2026-05-22T16:09:40.748Z [DEBUG] No version found for github@claude-plugins-official, using 'unknown'
+2026-05-22T16:09:42.460Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01LHaG9nog9XXM919nBw7KzC permissionDecisionMs=4
+2026-05-22T16:09:42.463Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T16:09:43.905Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01LHaG9nog9XXM919nBw7KzC outcome=ok durationMs=1445
+2026-05-22T16:09:43.933Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:43.933Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:43.933Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:43.935Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:43.935Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:43.935Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:43.939Z [INFO] [Stall] tool_dispatch_start tool=Bash toolUseId=toolu_01GDhTGLv7sBxqM7rbPW71ZG permissionDecisionMs=3
+2026-05-22T16:09:43.944Z [DEBUG] Spawning shell without login (-l flag skipped)
+2026-05-22T16:09:44.407Z [INFO] [Stall] tool_dispatch_end tool=Bash toolUseId=toolu_01GDhTGLv7sBxqM7rbPW71ZG outcome=ok durationMs=467
+2026-05-22T16:09:44.433Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:44.434Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:44.434Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:44.438Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:44.438Z [DEBUG] "Hook PostToolUse:Bash (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:44.438Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:44.442Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01YaDt2yBRxXnKZjWtBTChGS permissionDecisionMs=2
+2026-05-22T16:09:44.450Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01YaDt2yBRxXnKZjWtBTChGS outcome=ok durationMs=8
+2026-05-22T16:09:44.479Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:44.480Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:44.480Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:44.484Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:44.485Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:44.485Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:44.489Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T16:09:44.489Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T16:09:44.489Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T16:09:44.489Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T16:09:44.492Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T16:09:44.493Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T16:09:44.494Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T16:09:44.494Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:44.495Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:44.495Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T16:09:44.495Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T16:09:44.496Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T16:09:44.496Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:44.496Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T16:09:44.497Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=a5234996-998a-4fb6-89c5-21d7571d1aac source=sdk
+2026-05-22T16:09:46.514Z [DEBUG] Stream started - received first chunk
+2026-05-22T16:09:46.514Z [DEBUG] [API:timing] first byte after 2018ms
+2026-05-22T16:09:48.227Z [INFO] [Stall] tool_dispatch_start tool=Read toolUseId=toolu_01BKQ8JVY1vwq6ukdNWFwSGZ permissionDecisionMs=0
+2026-05-22T16:09:48.228Z [INFO] [Stall] tool_dispatch_end tool=Read toolUseId=toolu_01BKQ8JVY1vwq6ukdNWFwSGZ outcome=ok durationMs=2
+2026-05-22T16:09:48.256Z [DEBUG] Hooks: Checking first line for async: {"decision": "approve"}
+2026-05-22T16:09:48.256Z [DEBUG] Hooks: Parsed initial response: {"decision":"approve"}
+2026-05-22T16:09:48.256Z [DEBUG] Hooks: Initial response is not async, continuing normal processing
+2026-05-22T16:09:48.257Z [DEBUG] Successfully parsed and validated hook JSON output
+2026-05-22T16:09:48.257Z [DEBUG] "Hook PostToolUse:Read (PostToolUse) success:\n{\"decision\": \"approve\"}"
+2026-05-22T16:09:48.257Z [DEBUG] Hook PostToolUse (python /home/kazuki/public_html/ghost/ghost_hooks.py) returned permissionDecision: allow
+2026-05-22T16:09:48.340Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2026-05-22T16:09:48.340Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2026-05-22T16:09:48.340Z [DEBUG] Hooks: Found 0 total hooks in registry
+2026-05-22T16:09:48.340Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2026-05-22T16:09:48.343Z [DEBUG] autocompact: tokens=[REDACTED] level=ok effectiveWindow=380000
+2026-05-22T16:09:48.344Z [DEBUG] Dynamic tool loading: 0/25 deferred tools included
+2026-05-22T16:09:48.344Z [DEBUG] attribution header x-anthropic-billing-header: cc_version=2.1.147.c83; cc_entrypoint=sdk-cli; cch=00000;
+2026-05-22T16:09:48.344Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:48.344Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:48.345Z [DEBUG] [API:request] Creating client, ANTHROPIC_CUSTOM_HEADERS present: false, has Authorization header: false
+2026-05-22T16:09:48.345Z [DEBUG] [API:auth] OAuth token check starting
+2026-05-22T16:09:48.345Z [DEBUG] [API:auth] OAuth token check complete
+2026-05-22T16:09:48.345Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:09:48.345Z [DEBUG] [API:timing] dispatching to firstParty model=claude-sonnet-4-6
+2026-05-22T16:09:48.346Z [DEBUG] [API REQUEST] /v1/messages x-client-request-id=eb39408c-1c96-44e3-adf8-832b19fe5e87 source=sdk
+2026-05-22T16:09:50.295Z [DEBUG] Stream started - received first chunk
+2026-05-22T16:09:50.295Z [DEBUG] [API:timing] first byte after 1950ms
+2026-05-22T16:10:26.137Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T16:10:26.182Z [DEBUG] Hook output does not start with {, treating as plain text
+2026-05-22T16:10:26.182Z [DEBUG] "Hook Stop (Stop) success:\nリプレイ対象のターンはありません\n(うとうと...)\n✓ リプレイ完了: 0リンク（刈込0本, 減衰0本, 強化0本）, 0件自動忘却\n統合候補はありません\n統合候補はありません\n(nap完了: 2026-05-22T16:10:26Z)\n"
+2026-05-22T16:10:26.185Z [DEBUG] Fast mode unavailable: Fast mode is not available in the Agent SDK
+2026-05-22T16:10:26.191Z [DEBUG] LSP server manager shut down successfully
+2026-05-22T16:10:26.192Z [DEBUG] Cleaned up session snapshot: /home/kazuki/.claude/shell-snapshots/snapshot-bash-1779466157767-j0hqtp.sh
+2026-05-22T16:10:26.247Z [DEBUG] SessionEnd:other [node "${CLAUDE_PLUGIN_ROOT}/scripts/session-lifecycle-hook.mjs" SessionEnd] completed with status 0
+2026-05-22T16:10:26.248Z [DEBUG] Hook output does not start with {, treating as plain text

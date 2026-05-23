@@ -1,0 +1,18 @@
+[setup-project-config] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-config-template.RLvXLI --agent both
+[cli-main-help] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor --help
+[cli-core-help] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor core --help
+[cli-inject-search-help] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor inject-search --help
+[cli-realign-help] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor realign --help
+[cli-inject-search-transcript-rejected] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor inject-search --conversation transcript authentication
+[cli-realign-positional-task-rejected] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor realign 認証仕様に従った回答を整形して
+[cli-inject-purpose-extra-rejected] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor inject-purpose extra
+[cli-inject-conflicts-extra-rejected] /home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor inject-conflicts extra
+[config-no-providers] cd '/tmp/spec-anchor-codex-e2e-config-no-providers.MD332B' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[config-invalid-stage-key] cd '/tmp/spec-anchor-codex-e2e-config-invalid-stage-key.sXJihf' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[config-unknown-stage-provider] cd '/tmp/spec-anchor-codex-e2e-config-unknown-stage-provider.4T68jf' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[config-invalid-rank-fusion] cd '/tmp/spec-anchor-codex-e2e-config-invalid-rank-fusion.ACWWnU' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[config-invalid-embedding-provider] cd '/tmp/spec-anchor-codex-e2e-config-invalid-embedding-provider.ra3b3U' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[config-invalid-vector-store-provider] cd '/tmp/spec-anchor-codex-e2e-config-invalid-vector-store-provider.dRa15O' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[llm-provider-override-fail] cd '/tmp/spec-anchor-codex-e2e-llm-provider-override-fail.AhZxCa' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core --all --llm-provider fail
+[readonly-core] cd '/tmp/spec-anchor-codex-e2e-readonly.MW9hHI' && env -u SPEC_ANCHOR_FAKE_LLM -u SPEC_ANCHOR_FAKE_RETRIEVAL '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor' core
+[setup-system-qdrant-env] env SPEC_ANCHOR_QDRANT_URL='http://127.0.0.1:1' '/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-system' --check-only

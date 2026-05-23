@@ -1,0 +1,3 @@
+claude-core-missing-config=0
+claude-inject-missing-config=0
+claude-realign-missing-config=0

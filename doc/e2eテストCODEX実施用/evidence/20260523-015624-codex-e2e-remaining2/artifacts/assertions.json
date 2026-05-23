@@ -1,0 +1,147 @@
+{
+  "passed": 12,
+  "failed": 3,
+  "checks": [
+    {
+      "label": "setup-project-config-table-keys",
+      "passed": true,
+      "missing": [],
+      "provider_keys_missing": [],
+      "providers": [
+        "claude_judge",
+        "claude_typing",
+        "codex"
+      ],
+      "stage_keys": [
+        "chapter_key_anchor",
+        "conflict_review",
+        "related_sections",
+        "section_metadata"
+      ]
+    },
+    {
+      "label": "cli-command-surface-limited",
+      "passed": true,
+      "help_excerpt": "usage: spec-anchor [-h] [--version] command ...\n\nLightweight SPEC-anchor CLI.\n\npositional arguments:\n  command\n    core            update section metadata, retrieval index, and conflict\n                    review items\n    inject-search   Phase R-6: section-level Qdrant hybrid retrieval (top-K\n                    section payload)\n    inject-section  Phase R-6: id-indexed section payload lookup against\n                    Qdrant\n    inject-chapters\n                    Phase R-6: return chapter_an"
+    },
+    {
+      "label": "cli-inject-search-transcript-rejected",
+      "passed": true,
+      "exit_code": 2,
+      "output": "usage: spec-anchor [-h] [--version] command ...\nspec-anchor: error: unrecognized arguments: --conversation\n"
+    },
+    {
+      "label": "cli-realign-positional-task-rejected",
+      "passed": true,
+      "exit_code": 2,
+      "output": "usage: spec-anchor [-h] [--version] command ...\nspec-anchor: error: unrecognized arguments: 認証仕様に従った回答を整形して\n"
+    },
+    {
+      "label": "cli-inject-purpose-extra-rejected",
+      "passed": true,
+      "exit_code": 2,
+      "output": "usage: spec-anchor [-h] [--version] command ...\nspec-anchor: error: unrecognized arguments: extra\n"
+    },
+    {
+      "label": "cli-inject-conflicts-extra-rejected",
+      "passed": true,
+      "exit_code": 2,
+      "output": "usage: spec-anchor [-h] [--version] command ...\nspec-anchor: error: unrecognized arguments: extra\n"
+    },
+    {
+      "label": "config-no-providers",
+      "passed": false,
+      "exit_code": 1,
+      "status": "failed",
+      "contains": false,
+      "needle": "llm.providers must be a non-empty table"
+    },
+    {
+      "label": "config-invalid-stage-key",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "contains": true,
+      "needle": "llm.stage_routing.conflict_reveiw is not an allowed stage"
+    },
+    {
+      "label": "config-unknown-stage-provider",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "contains": true,
+      "needle": "llm.stage_routing.section_metadata must reference a configured provider"
+    },
+    {
+      "label": "config-invalid-rank-fusion",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "contains": true,
+      "needle": "retrieval.rank_fusion must be rrf"
+    },
+    {
+      "label": "config-invalid-embedding-provider",
+      "passed": false,
+      "exit_code": 0,
+      "status": "updated",
+      "contains": false,
+      "needle": "embedding.provider must be flagembedding"
+    },
+    {
+      "label": "config-invalid-vector-store-provider",
+      "passed": false,
+      "exit_code": 0,
+      "status": "updated",
+      "contains": false,
+      "needle": "vector_store.provider must be qdrant"
+    },
+    {
+      "label": "llm-provider-override-fail",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "text_excerpt": "{\"conflict_review_items\": [], \"diagnostics\": {\"chapter_anchors\": {\"failed_chapter_ids\": [\"docs/spec/auth.md#authentication-specification\"], \"failure_reasons_by_chapter\": {\"docs/spec/auth.md#authentication-specification\": \"llm_generation_failed: LLM command failed\"}, \"status\": \"failed\"}, \"related_sections\": {\"diagnostics\": [{\"candidate_generation_elapsed_sec\": 5.900696663997223, \"candidate_generation_partial_mode\": \"full\", \"candidate_generation_source_count\": 4, \"message\": \"Related Section candid"
+    },
+    {
+      "label": "purpose-concept-readonly",
+      "passed": true,
+      "readonly": [
+        {
+          "path": "docs/core/purpose.md",
+          "before": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+          "after": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+          "unchanged": true
+        },
+        {
+          "path": "docs/core/concept.md",
+          "before": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+          "after": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+          "unchanged": true
+        },
+        {
+          "path": "docs/spec/auth.md",
+          "before": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+          "after": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+          "unchanged": true
+        }
+      ]
+    },
+    {
+      "label": "setup-system-qdrant-url-env",
+      "passed": true,
+      "exit_code": 0,
+      "qdrant_entries": [
+        {
+          "available": false,
+          "error": "URLError",
+          "kind": "vector_store_service",
+          "name": "qdrant",
+          "required": false,
+          "url": "http://127.0.0.1:1",
+          "version": null
+        }
+      ]
+    }
+  ]
+}

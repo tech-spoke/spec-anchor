@@ -1,0 +1,10 @@
+run_id=20260523-001153-codex-e2e-f001-retest
+2026-05-23T00:11:53+09:00
+git_status_before=
+ D .spec-anchor/concept.md
+ D .spec-anchor/config.toml
+ M spec_anchor/inject.py
+?? "doc/e2e\343\203\206\343\202\271\343\203\210CODEX\345\256\237\346\226\275\347\224\250/"
+?? "doc/\347\233\243\346\237\273-CODEX/e2e-evidence-2026-05-21/"
+?? "\343\203\241\343\203\242"
+spec-anchor=spec-anchor 0.1.0

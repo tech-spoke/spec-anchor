@@ -1,0 +1,106 @@
+{
+  "finished_at": "2026-05-22T16:40:21.932410Z",
+  "finished_at_epoch_ms": 1779468021932,
+  "is_running": false,
+  "last_error": null,
+  "last_heartbeat_at": "2026-05-22T16:40:21.926000Z",
+  "last_heartbeat_at_epoch_ms": 1779468021926,
+  "last_lock": {
+    "acquired_at": "2026-05-22T16:39:34.773000Z",
+    "acquired_at_epoch_ms": 1779467974773,
+    "lock_file": "/tmp/spec-anchor-codex-e2e-watch-queue.kod6S5/.spec-anchor/state/core_update.lock.json",
+    "owner": "watcher",
+    "reason": "watcher_running",
+    "run_id": "a53f8da5-0cbd-4bae-845c-05b5903a998d",
+    "updated_at": "2026-05-22T16:40:21.926000Z",
+    "updated_at_epoch_ms": 1779468021926
+  },
+  "last_lock_acquired_at": "2026-05-22T16:39:34.773000Z",
+  "last_lock_acquired_at_epoch_ms": 1779467974773,
+  "last_lock_file": "/tmp/spec-anchor-codex-e2e-watch-queue.kod6S5/.spec-anchor/state/core_update.lock.json",
+  "last_lock_updated_at": "2026-05-22T16:40:21.926000Z",
+  "last_lock_updated_at_epoch_ms": 1779468021926,
+  "last_owner": "watcher",
+  "last_queue_count_at_start": 3,
+  "last_result": {
+    "failed_sections": [],
+    "failed_sources": [],
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "related_sections_status": "success",
+    "retrieval_index_status": "success",
+    "skipped_sources": [],
+    "stale_resolution_count": 0,
+    "updated_sections": [
+      {
+        "section_id": "docs/spec/auth.md#0005-watch-queue-initial-change",
+        "source_section_id": "docs/spec/auth.md#0005-watch-queue-initial-change"
+      }
+    ],
+    "updated_sources": [
+      "docs/spec/auth.md"
+    ]
+  },
+  "last_run_id": "a53f8da5-0cbd-4bae-845c-05b5903a998d",
+  "last_snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779465912359302972,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+        "size": 215
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779465912359302972,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+        "size": 145
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779467974655748023,
+        "path": "docs/spec/auth.md",
+        "relative_path": "docs/spec/auth.md",
+        "sha256": "c76fddbbaa4e43f08ca8be4e0b5f0a6e063da2910987ffe6bc5fbd8813d13d72",
+        "size": 699
+      }
+    ],
+    "fingerprint": "8118c5d027e2b28839b4fc45a87bc1c7da9987a4df54949437877a5a319d94e1",
+    "schema_version": 1
+  },
+  "last_started_at": "2026-05-22T16:39:35.784020Z",
+  "last_started_at_epoch_ms": 1779467974773,
+  "last_success_artifact_revision": null,
+  "last_success_at": "2026-05-22T16:40:21.932466Z",
+  "last_success_at_epoch_ms": 1779468021932,
+  "last_success_result": {
+    "failed_sections": [],
+    "failed_sources": [],
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "related_sections_status": "success",
+    "retrieval_index_status": "success",
+    "skipped_sources": [],
+    "stale_resolution_count": 0,
+    "updated_sections": [
+      {
+        "section_id": "docs/spec/auth.md#0005-watch-queue-initial-change",
+        "source_section_id": "docs/spec/auth.md#0005-watch-queue-initial-change"
+      }
+    ],
+    "updated_sources": [
+      "docs/spec/auth.md"
+    ]
+  },
+  "project_root": "/tmp/spec-anchor-codex-e2e-watch-queue.kod6S5",
+  "queue_count": 1,
+  "running": false,
+  "schema_version": 1,
+  "updated_at": "2026-05-22T16:40:21.932418Z",
+  "updated_at_epoch_ms": 1779468021932
+}

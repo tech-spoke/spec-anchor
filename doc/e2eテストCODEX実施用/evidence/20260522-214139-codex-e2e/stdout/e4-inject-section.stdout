@@ -1,0 +1,93 @@
+{
+  "collection": "spec_anchor_section_20260522_214139_codex_e2e",
+  "command": "/spec-inject inject-section",
+  "found_section_ids": [
+    "docs/spec/sample.md#0002-authentication"
+  ],
+  "missing_section_ids": [],
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e2-project",
+  "requested_section_ids": [
+    "docs/spec/sample.md#0002-authentication"
+  ],
+  "sections": {
+    "docs/spec/sample.md#0002-authentication": {
+      "heading_path": [
+        "Sample Service Spec",
+        "Authentication"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "sample service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "The top-level spec provides the scope and context within which authentication rules apply.",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "login",
+            "session",
+            "administrator"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication (establishing identity via login/session) is a prerequisite for authorization (resource access control).",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/sample.md#0003-authorization"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "session",
+            "expires",
+            "login"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "possible_conflict": false,
+          "reason": "Authentication creates sessions with a 24-hour inactivity expiry; session termination rules directly govern what happens to those sessions.",
+          "relation_hint": "impacts",
+          "target_section_id": "docs/spec/sample.md#0004-session-termination"
+        }
+      ],
+      "search_keys": [
+        "sign in with email and password",
+        "session expires after inactivity",
+        "administrator multi factor login",
+        "user authentication flow",
+        "login and session lifecycle",
+        "Sample Service Spec",
+        "Authentication"
+      ],
+      "semantic_hash": "91c58d0df11f3e05fbf26febdde64ec40bcfa70c1a46aabeb464081658986161",
+      "source_document_id": "docs/spec/sample.md",
+      "source_hash": "ce40aa3d7e507e244933d8bda7825863d00cb7c7e60c190e7803eb44aa57efd0",
+      "source_section_id": "docs/spec/sample.md#0002-authentication",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 310,
+        "start_line": 5,
+        "start_offset": 118
+      },
+      "stable_chunk_uid": "4f781fbcf17adcf4",
+      "stable_section_uid": "4f781fbcf17adcf4",
+      "summary": "Describes sign-in with email and password, session creation, 24-hour inactivity expiration, and multi-factor authentication for administrators.",
+      "text": "Sample Service Spec / Authentication | Describes sign-in with email and password, session creation, 24-hour inactivity expiration, and multi-factor authentication for administrators. | sign in with email and password session expires after inactivity administrator multi factor login user authentication flow login and session lifecycle Sample Service Spec Authentication"
+    }
+  },
+  "warnings": []
+}

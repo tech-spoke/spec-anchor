@@ -1,0 +1,12 @@
+{
+  "blocking_reasons": [
+    "watcher_queue_pending"
+  ],
+  "counts": {
+    "watcher_queue_count": 1
+  },
+  "schema_version": 1,
+  "status": "blocked",
+  "warnings": [],
+  "watcher_queue_count": 1
+}

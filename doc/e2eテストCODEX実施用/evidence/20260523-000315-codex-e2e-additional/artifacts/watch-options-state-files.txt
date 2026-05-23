@@ -1,0 +1,8 @@
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/.core_update.lock.json.evict.lock
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_progress.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/freshness.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/related_sections_state.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/retrieval_index_state.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/section_manifest.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_queue.json
+/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_state.json

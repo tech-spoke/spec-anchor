@@ -1,0 +1,103 @@
+## `spec-anchor core --rebuild` 実行結果
+
+### status: **failed**
+
+---
+
+### 成功した処理
+
+| 項目 | 状態 |
+|---|---|
+| Section Metadata 生成 | **成功** (7セクション、LLM 1回呼び出し) |
+| Chapter Anchors 再生成 | **成功** |
+| Conflict Review Items | **0件**（pending なし）|
+
+**更新済みソース:**
+- `docs/spec/audit.md`
+- `docs/spec/login.md`
+
+**再生成済み Chapter Anchors:**
+- `docs/spec/audit.md#audit-storage-specification`
+- `docs/spec/login.md#login-audit-specification`
+
+---
+
+### 失敗した処理（2件）
+
+#### 1. Related Sections — `failed`
+
+```
+diagnostics.related_sections.status: "failed"
+qdrant_backend_failure:
+  exception_type: ResponseHandlingException
+  failure_reason: [Errno 111] Connection refused
+  provider: qdrant
+  url: http://127.0.0.1:65531
+```
+
+**原因:** Qdrant が `http://127.0.0.1:65531` で応答していません（接続拒否）。
+
+#### 2. Source Retrieval Index — `failed`
+
+```
+retrieval_index_status: "failed"
+```
+
+Related Sections と同じ Qdrant 障害に起因します。
+
+---
+
+### warnings
+
+```
+- "Source Retrieval Index update failed"
+- "Related Sections retrieval backend failure: [Errno 111] Connection refused;
+   canonical related_sections artifact is not updated.
+   Restore Qdrant connectivity and run /spec-core --rebuild."
+```
+
+---
+
+### freshness_report
+
+```
+status: "failed"
+blocking_reasons: ["failed_required_artifact"]
+failed_required_artifacts: ["retrieval_index", "related_sections"]
+required_artifact_problem_count: 2
+```
+
+---
+
+## Qdrant 復旧後の再実行手順
+
+1. **Qdrant サービスを起動する**
+
+   使用している起動方法に応じて以下のいずれかを実行してください。
+
+   ```bash
+   # Docker を使っている場合
+   docker start <qdrant_container_name>
+
+   # または Docker Compose の場合
+   docker compose up -d qdrant
+
+   # または直接起動の場合
+   qdrant
+   ```
+
+2. **Qdrant が `http://127.0.0.1:65531` で応答していることを確認する**
+
+   ```bash
+   curl http://127.0.0.1:65531/healthz
+   ```
+
+3. **`spec-anchor core --rebuild` を再実行する**
+
+   ```bash
+   spec-anchor core --rebuild
+   ```
+
+---
+
+**補足:** Section Metadata・Chapter Anchors・Conflict Review はすでに正常完了しています。Qdrant 復旧後の再実行で `related_sections` と `retrieval_index` が更新されれば `status: success` になります。

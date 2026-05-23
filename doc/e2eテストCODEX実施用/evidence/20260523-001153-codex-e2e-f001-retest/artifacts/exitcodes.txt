@@ -1,0 +1,6 @@
+f001-assert.exitcode 1
+f001-clean-assert.exitcode 0
+f001-clean-inject-search-dirty-after-claude-fix.exitcode 0
+f001-clean-realign-dirty-after-claude-fix.exitcode 0
+f001-inject-search-dirty-after-claude-fix.exitcode 0
+f001-realign-dirty-after-claude-fix.exitcode 0

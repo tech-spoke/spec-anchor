@@ -1,0 +1,7 @@
+run_id=20260523-000315-codex-e2e-additional
+2026-05-23T00:03:15+09:00
+pwd=/home/kazuki/public_html/spec-anchor
+spec-anchor=spec-anchor 0.1.0
+qdrant={"title":"qdrant - vector search engine","version":"1.17.1","commit":"eabee371fda447974a94d29fbaa675a6a596cc7b"}
+codex=codex-cli 0.125.0
+claude=2.1.147 (Claude Code)

@@ -1,0 +1,10 @@
+[preflight-dirty-inject] cwd=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/dirty command=spec-anchor inject-search authentication
+[preflight-dirty-inject] exit=0
+[preflight-watcher-queue-inject] cwd=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/watcher_queue_pending command=spec-anchor inject-search authentication
+[preflight-watcher-queue-inject] exit=0
+[preflight-pending-conflict-inject] cwd=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/pending_conflict command=spec-anchor inject-search authentication
+[preflight-pending-conflict-inject] exit=0
+[preflight-failed-required-inject] cwd=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/failed_required_artifact command=spec-anchor inject-search authentication
+[preflight-failed-required-inject] exit=0
+[preflight-needs-answer-realign] cwd=/tmp/20260523-093821-codex-e2e-agent-blockers-tmp.projects/needs_answer command=spec-anchor realign
+[preflight-needs-answer-realign] exit=0

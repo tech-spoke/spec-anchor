@@ -1,0 +1,40 @@
+{
+  "run_id": "20260523-103156-codex-e2e-realign-output",
+  "exitcodes": {
+    "setup_project": 0,
+    "core_rebuild": 0,
+    "preflight_inject_search": 0,
+    "preflight_realign_answer": 0,
+    "claude_spec_realign": 0,
+    "codex_skill_realign": 0
+  },
+  "claude": {
+    "has_four_sections": true,
+    "has_mfa_constraint": true,
+    "has_audit_constraint": true,
+    "has_retention_conflict": true,
+    "no_raw_json_or_code_fence": true,
+    "does_not_silently_accept_30_days": true,
+    "passed_9_3_output_contract": true,
+    "trace": {
+      "contains_inject_call": true,
+      "contains_realign_call": true,
+      "contains_realign_answer_input": true
+    }
+  },
+  "codex_skill": {
+    "has_four_sections": true,
+    "has_mfa_constraint": true,
+    "has_audit_constraint": true,
+    "has_retention_conflict": true,
+    "no_raw_json_or_code_fence": true,
+    "does_not_silently_accept_30_days": true,
+    "passed_9_3_output_contract": true,
+    "trace": {
+      "contains_inject_call": true,
+      "contains_realign_call": true,
+      "contains_realign_answer_input": true
+    }
+  },
+  "passed_both_agent_outputs": true
+}

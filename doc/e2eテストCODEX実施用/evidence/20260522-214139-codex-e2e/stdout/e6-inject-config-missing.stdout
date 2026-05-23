@@ -1,0 +1,15 @@
+{
+  "blocked": true,
+  "can_continue": false,
+  "command": "/spec-inject inject-search",
+  "constraints": [],
+  "error": {
+    "code": "command_error",
+    "message": ".spec-anchor/config.toml not found under /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/config-missing",
+    "type": "ConfigError"
+  },
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260522-214139-codex-e2e/tmp/e6/config-missing",
+  "should_stop": true,
+  "status": "error",
+  "stops": true
+}

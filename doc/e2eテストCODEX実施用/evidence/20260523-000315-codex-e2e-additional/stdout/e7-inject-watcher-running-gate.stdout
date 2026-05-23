@@ -1,0 +1,28 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "watcher_running"
+  ],
+  "can_continue": false,
+  "command": "/spec-inject inject-search",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "watcher_running"
+    ],
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": []
+  },
+  "generated_at": null,
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watcher-running-gate",
+  "reasons": [
+    "watcher_running"
+  ],
+  "recommended_next_action": "wait for watcher completion before /spec-inject",
+  "should_stop": true,
+  "status": "blocked",
+  "stop_reason": "watcher_running",
+  "stops": true,
+  "warnings": []
+}

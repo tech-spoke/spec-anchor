@@ -1,0 +1,50 @@
+{
+  "run_id": "20260523-112043-codex-e2e-degraded-section-metadata",
+  "exitcodes": {
+    "core_rebuild": 0,
+    "inject_search": 0
+  },
+  "core_degraded": {
+    "status_degraded": false,
+    "freshness_degraded": true,
+    "blocking_reason_degraded_optional": true,
+    "degraded_optional_section_metadata": true,
+    "failed_sections_nonempty": true,
+    "failed_section_is_broken": true,
+    "updated_sections_nonempty": true,
+    "warning_mentions_failed_section": true,
+    "metadata_freshness_status_degraded": true,
+    "retrieval_index_success": true,
+    "related_sections_success": true
+  },
+  "inject_continues_on_degraded": {
+    "status_not_blocked": true,
+    "should_stop_false": false,
+    "blocking_reasons_degraded_optional": false,
+    "warnings_present": false,
+    "results_present": false
+  },
+  "failed_sections": [
+    {
+      "section_id": "docs/spec/flow.md#0003-broken-metadata-section",
+      "source_section_id": "docs/spec/flow.md#0003-broken-metadata-section"
+    }
+  ],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/flow.md#0001-login-flow",
+      "source_section_id": "docs/spec/flow.md#0001-login-flow"
+    },
+    {
+      "section_id": "docs/spec/flow.md#0002-successful-login",
+      "source_section_id": "docs/spec/flow.md#0002-successful-login"
+    },
+    {
+      "section_id": "docs/spec/flow.md#0004-logout",
+      "source_section_id": "docs/spec/flow.md#0004-logout"
+    }
+  ],
+  "passed_core_degraded_contract": false,
+  "passed_inject_degraded_continue": false,
+  "passed_all": false
+}

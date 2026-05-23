@@ -1,0 +1,20 @@
+{
+  "passed": 1,
+  "failed": 1,
+  "checks": [
+    {
+      "label": "inject-ignores-spec-core-llm-provider-config",
+      "passed": true,
+      "exit_code": 0,
+      "status": null,
+      "command": "/spec-inject inject-search"
+    },
+    {
+      "label": "realign-ignores-spec-core-llm-provider-config",
+      "passed": false,
+      "exit_code": 0,
+      "status": "fresh",
+      "should_stop": true
+    }
+  ]
+}

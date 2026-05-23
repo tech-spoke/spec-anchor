@@ -1,0 +1,3 @@
+$ (cwd=/tmp/spec-anchor-codex-e2e-related-prompt-nodebug._2bpaxhy) spec-anchor core
+$ (cwd=/tmp/spec-anchor-codex-e2e-related-prompt-direct.gmtxo35b) spec-anchor core
+$ (cwd=/tmp/spec-anchor-codex-e2e-related-prompt-override.x14cfvgq) spec-anchor core

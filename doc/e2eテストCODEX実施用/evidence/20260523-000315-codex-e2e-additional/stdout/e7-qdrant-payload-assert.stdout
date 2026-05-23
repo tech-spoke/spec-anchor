@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "point_count": 5,
+  "section_count": 4,
+  "errors": [
+    "point_count_mismatch points=5 sections=4",
+    "section_id_set_mismatch missing=[] extra=['docs/spec/sample.md#0005-password-reset']"
+  ]
+}

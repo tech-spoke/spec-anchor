@@ -1,0 +1,7 @@
+{
+  "status": "failed",
+  "errors": [
+    "f001-inject-search-dirty-after-claude-fix: status 'failed' != blocked",
+    "f001-realign-dirty-after-claude-fix: status 'failed' != blocked"
+  ]
+}

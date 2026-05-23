@@ -1,0 +1,9 @@
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/commands/spec-core.md
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/commands/spec-inject.md
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.claude/commands/spec-realign.md
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.codex/skills/spec-anchor/SKILL.md
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.spec-anchor/.gitignore
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/.spec-anchor/config.toml
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/docs/core/concept.md
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/docs/core/purpose.md
+/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/docs/spec/auth.md

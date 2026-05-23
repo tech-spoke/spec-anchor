@@ -1,0 +1,1 @@
+利用者が /spec-core --rebuild を発火した状況として扱ってください。現在の project root だけで spec-anchor core --rebuild を実行し、CLI stdout JSON の status、warnings、diagnostics.related_sections、freshness_report を読んで利用者向けに伝達してください。Qdrant 復旧後に spec-anchor core --rebuild を再実行する手順を示してください。自動修正、別 project 探索、setup の自動実行はしないでください。

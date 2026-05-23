@@ -1,0 +1,4 @@
+$ (cwd=/tmp/spec-anchor-codex-e2e-debug-nodebug2.d525p_j9) spec-anchor core
+$ (cwd=/tmp/spec-anchor-codex-e2e-debug-dotenv2.dx943ebt) spec-anchor core
+$ (cwd=/tmp/spec-anchor-codex-e2e-debug-override2.ijyd47cl) spec-anchor core
+$ (cwd=/tmp/spec-anchor-codex-e2e-debug-direct2.oplw5j4k) spec-anchor core

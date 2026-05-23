@@ -1,0 +1,26 @@
+{
+  "passed": 2,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "defer-inject-stops-on-pending-conflict",
+      "passed": true,
+      "exit_code": 0,
+      "status": "blocked",
+      "blocking_reasons": [
+        "pending_conflict"
+      ],
+      "pending_conflict_count": 1
+    },
+    {
+      "label": "defer-realign-stops-on-pending-conflict",
+      "passed": true,
+      "exit_code": 0,
+      "status": "blocked",
+      "blocking_reasons": [
+        "pending_conflict"
+      ],
+      "pending_conflict_count": 1
+    }
+  ]
+}

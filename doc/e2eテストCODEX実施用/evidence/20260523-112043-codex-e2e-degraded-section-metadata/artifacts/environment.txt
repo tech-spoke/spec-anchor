@@ -1,0 +1,7 @@
+run_id=20260523-112043-codex-e2e-degraded-section-metadata
+repo=/home/kazuki/public_html/spec-anchor
+project=/tmp/20260523-112043-codex-e2e-degraded-section-metadata.project
+collection=spec_anchor_sections_20260523_112043_degraded_section_metadata
+date=2026-05-23T11:25:41+09:00
+SPEC_ANCHOR_FAKE_LLM=<unset>
+SPEC_ANCHOR_FAKE_RETRIEVAL=<unset>

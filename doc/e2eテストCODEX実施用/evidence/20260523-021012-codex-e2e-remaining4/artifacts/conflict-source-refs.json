@@ -1,0 +1,10 @@
+[
+  {
+    "source_section_id": "docs/spec/auth.md#0002-session-management",
+    "source_hash": "433a68ab1268046b860e4ebc95610c013644f085a6de9c330a8ad037c115736b"
+  },
+  {
+    "source_section_id": "docs/spec/auth.md#0003-csrf-protection",
+    "source_hash": "02a54aadfea72152048dd1c09d1bf1e94ca9317da00e63d704f71a8252137356"
+  }
+]

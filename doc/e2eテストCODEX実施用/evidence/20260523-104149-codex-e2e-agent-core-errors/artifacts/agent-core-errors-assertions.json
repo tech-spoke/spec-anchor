@@ -1,0 +1,42 @@
+{
+  "run_id": "20260523-104149-codex-e2e-agent-core-errors",
+  "exitcodes": {
+    "claude_chapter": 0,
+    "codex_chapter": 0,
+    "claude_qdrant": 0,
+    "codex_qdrant": 0
+  },
+  "claude_chapter": {
+    "ran_spec_core_all": true,
+    "reports_failed_status": true,
+    "reports_chapter_warning": true,
+    "reports_canonical_preserved": true,
+    "reports_retry_action": true,
+    "no_setup_autorun": true
+  },
+  "codex_chapter": {
+    "ran_spec_core_all": true,
+    "reports_failed_status": true,
+    "reports_chapter_warning": true,
+    "reports_canonical_preserved": true,
+    "reports_retry_action": true,
+    "no_setup_autorun": true
+  },
+  "claude_qdrant": {
+    "ran_spec_core_rebuild": true,
+    "reports_failed_status": true,
+    "reports_qdrant_failure": true,
+    "reports_recovery_action": true,
+    "no_setup_autorun": true
+  },
+  "codex_qdrant": {
+    "ran_spec_core_rebuild": true,
+    "reports_failed_status": true,
+    "reports_qdrant_failure": true,
+    "reports_recovery_action": true,
+    "no_setup_autorun": true
+  },
+  "passed_chapter_agent_layer": true,
+  "passed_qdrant_agent_layer": true,
+  "passed_all": true
+}

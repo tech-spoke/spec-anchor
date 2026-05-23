@@ -1,0 +1,34 @@
+{
+  "passed": 3,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "max-heading-level-core-ran-to-manifest",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "section_count": 4,
+      "chapter_status": "failed"
+    },
+    {
+      "label": "deep-headings-not-independent-sections",
+      "passed": true,
+      "heading_paths": [
+        "Root Spec",
+        "Root Spec / Feature A",
+        "Root Spec / Feature A / Scenario A1",
+        "Root Spec / Feature B"
+      ]
+    },
+    {
+      "label": "deep-heading-content-folded-into-parent-span",
+      "passed": true,
+      "scenario_source_span": {
+        "end_line": 15,
+        "end_offset": 205,
+        "start_line": 7,
+        "start_offset": 63
+      }
+    }
+  ]
+}

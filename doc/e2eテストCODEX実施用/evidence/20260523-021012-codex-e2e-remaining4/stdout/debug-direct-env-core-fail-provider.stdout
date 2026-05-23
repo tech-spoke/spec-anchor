@@ -1,0 +1,1293 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [
+        "docs/spec/auth.md#authentication-specification"
+      ],
+      "failure_reasons_by_chapter": {
+        "docs/spec/auth.md#authentication-specification": "llm_generation_failed: LLM command failed"
+      },
+      "status": "failed"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 5.966943195002386,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 4,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [
+        {
+          "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+          "model": "fail-model",
+          "prompt_version": "section-metadata-v2",
+          "provider": "",
+          "reason_code": "validation_error",
+          "section_ids": [
+            "docs/spec/auth.md#0001-authentication-specification",
+            "docs/spec/auth.md#0002-session-management",
+            "docs/spec/auth.md#0003-csrf-protection",
+            "docs/spec/auth.md#0004-authorization"
+          ],
+          "severity": "error",
+          "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+          "stage": "section_metadata"
+        },
+        {
+          "attempt": 1,
+          "message": "LLM command failed",
+          "model": "fail-model",
+          "prompt_version": "section-metadata-v2",
+          "provider": "/bin/false",
+          "reason_code": "provider_error",
+          "severity": "error",
+          "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+          "stage": "section_metadata",
+          "timeout_sec": 5
+        }
+      ],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "fail-model",
+        "prompt_version": "section-metadata-v2",
+        "provider": "/bin/false",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v2",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification"
+          ],
+          "identifiers": [],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/auth.md#0001-authentication-specification",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/auth.md#0001-authentication-specification",
+          "stable_section_uid": "9e6a7527ae5c348d",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "Session Management"
+          ],
+          "identifiers": [
+            "HttpOnly"
+          ],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/auth.md#0002-session-management",
+          "semantic_hash": "a0ceaff86194b771e051919788cb42c930b9c083b2698ac1dd266c0ff75b9410",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "433a68ab1268046b860e4ebc95610c013644f085a6de9c330a8ad037c115736b",
+          "source_section_id": "docs/spec/auth.md#0002-session-management",
+          "stable_section_uid": "460e35e7c95721e5",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "CSRF Protection"
+          ],
+          "identifiers": [
+            "CSRF",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/auth.md#0003-csrf-protection",
+          "semantic_hash": "c1a6a4c9aec98c2168df8ababb237a8a89fec69eece9f46a7a884e24841cdbc5",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "02a54aadfea72152048dd1c09d1bf1e94ca9317da00e63d704f71a8252137356",
+          "source_section_id": "docs/spec/auth.md#0003-csrf-protection",
+          "stable_section_uid": "ead5b4571ab9f4d3",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Authentication Specification",
+            "Authorization"
+          ],
+          "identifiers": [],
+          "llm_diagnostics": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/bin/false",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v2",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/auth.md#0004-authorization",
+          "semantic_hash": "a0089f4027f1a49861681466e1b736e38d0386058dbd26e4ddfb4e2c2ba1feba",
+          "source_document_id": "docs/spec/auth.md",
+          "source_hash": "a627ccd4110068745b72037e8c3fd80faa1850088c2bb7ba4ab746c85c33269b",
+          "source_section_id": "docs/spec/auth.md#0004-authorization",
+          "stable_section_uid": "5492c7593f1425f8",
+          "summary": ""
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        4
+      ],
+      "blocking_reasons": [
+        "failed_required_artifact"
+      ],
+      "cache_hits": 0,
+      "diagnostics": {
+        "docs/spec/auth.md#0001-authentication-specification": [
+          {
+            "attempt": 1,
+            "message": "LLM command failed",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/bin/false",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata",
+            "timeout_sec": 5
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          }
+        ],
+        "docs/spec/auth.md#0002-session-management": [
+          {
+            "attempt": 1,
+            "message": "LLM command failed",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/bin/false",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata",
+            "timeout_sec": 5
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          }
+        ],
+        "docs/spec/auth.md#0003-csrf-protection": [
+          {
+            "attempt": 1,
+            "message": "LLM command failed",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/bin/false",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata",
+            "timeout_sec": 5
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          }
+        ],
+        "docs/spec/auth.md#0004-authorization": [
+          {
+            "attempt": 1,
+            "message": "LLM command failed",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "/bin/false",
+            "reason_code": "provider_error",
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata",
+            "timeout_sec": 5
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          },
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "fail-model",
+            "prompt_version": "section-metadata-v2",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/auth.md#0001-authentication-specification",
+              "docs/spec/auth.md#0002-session-management",
+              "docs/spec/auth.md#0003-csrf-protection",
+              "docs/spec/auth.md#0004-authorization"
+            ],
+            "severity": "error",
+            "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+            "stage": "section_metadata"
+          }
+        ]
+      },
+      "failed_sections": [
+        "docs/spec/auth.md#0001-authentication-specification",
+        "docs/spec/auth.md#0002-session-management",
+        "docs/spec/auth.md#0003-csrf-protection",
+        "docs/spec/auth.md#0004-authorization"
+      ],
+      "freshness_status": "failed",
+      "generated_section_ids": [
+        "docs/spec/auth.md#0001-authentication-specification",
+        "docs/spec/auth.md#0002-session-management",
+        "docs/spec/auth.md#0003-csrf-protection",
+        "docs/spec/auth.md#0004-authorization"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [],
+      "warnings": [
+        "LLM generation failed for docs/spec/auth.md#0001-authentication-specification",
+        "LLM generation failed for docs/spec/auth.md#0002-session-management",
+        "LLM generation failed for docs/spec/auth.md#0003-csrf-protection",
+        "LLM generation failed for docs/spec/auth.md#0004-authorization"
+      ]
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [
+    {
+      "section_id": "docs/spec/auth.md#0001-authentication-specification",
+      "source_section_id": "docs/spec/auth.md#0001-authentication-specification"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0002-session-management",
+      "source_section_id": "docs/spec/auth.md#0002-session-management"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0003-csrf-protection",
+      "source_section_id": "docs/spec/auth.md#0003-csrf-protection"
+    },
+    {
+      "section_id": "docs/spec/auth.md#0004-authorization",
+      "source_section_id": "docs/spec/auth.md#0004-authorization"
+    }
+  ],
+  "failed_sources": [
+    "docs/spec/auth.md"
+  ],
+  "freshness_report": {
+    "blocking_reasons": [
+      "failed_required_artifact"
+    ],
+    "counts": {
+      "required_artifact_problem_count": 2
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [
+          "docs/spec/auth.md#authentication-specification"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/auth.md#authentication-specification": "llm_generation_failed: LLM command failed"
+        },
+        "status": "failed"
+      },
+      "failed_required_artifacts": [
+        "section_metadata",
+        "chapter_anchors"
+      ],
+      "missing_required_artifacts": [],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 5.966943195002386,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 4,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          4
+        ],
+        "blocking_reasons": [
+          "failed_required_artifact"
+        ],
+        "cache_hits": 0,
+        "diagnostics": {
+          "docs/spec/auth.md#0001-authentication-specification": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "docs/spec/auth.md#0002-session-management": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "docs/spec/auth.md#0003-csrf-protection": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ],
+          "docs/spec/auth.md#0004-authorization": [
+            {
+              "attempt": 1,
+              "message": "LLM command failed",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "/bin/false",
+              "reason_code": "provider_error",
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata",
+              "timeout_sec": 5
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            },
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "fail-model",
+              "prompt_version": "section-metadata-v2",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/auth.md#0001-authentication-specification",
+                "docs/spec/auth.md#0002-session-management",
+                "docs/spec/auth.md#0003-csrf-protection",
+                "docs/spec/auth.md#0004-authorization"
+              ],
+              "severity": "error",
+              "source_hash": "341fd1a74cdf02ed75b9facf7fad0afac5061a5c83c33885f8633a121f7eebcc",
+              "stage": "section_metadata"
+            }
+          ]
+        },
+        "failed_sections": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-session-management",
+          "docs/spec/auth.md#0003-csrf-protection",
+          "docs/spec/auth.md#0004-authorization"
+        ],
+        "freshness_status": "failed",
+        "generated_section_ids": [
+          "docs/spec/auth.md#0001-authentication-specification",
+          "docs/spec/auth.md#0002-session-management",
+          "docs/spec/auth.md#0003-csrf-protection",
+          "docs/spec/auth.md#0004-authorization"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [],
+        "warnings": [
+          "LLM generation failed for docs/spec/auth.md#0001-authentication-specification",
+          "LLM generation failed for docs/spec/auth.md#0002-session-management",
+          "LLM generation failed for docs/spec/auth.md#0003-csrf-protection",
+          "LLM generation failed for docs/spec/auth.md#0004-authorization"
+        ]
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "required_artifact_problem_count": 2,
+    "status": "failed",
+    "warnings": [
+      "LLM generation failed for docs/spec/auth.md#0001-authentication-specification",
+      "LLM generation failed for docs/spec/auth.md#0002-session-management",
+      "LLM generation failed for docs/spec/auth.md#0003-csrf-protection",
+      "LLM generation failed for docs/spec/auth.md#0004-authorization",
+      "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+    ]
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/auth.md#authentication-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "failed",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [],
+  "updated_sources": [],
+  "warnings": [
+    "LLM generation failed for docs/spec/auth.md#0001-authentication-specification",
+    "LLM generation failed for docs/spec/auth.md#0002-session-management",
+    "LLM generation failed for docs/spec/auth.md#0003-csrf-protection",
+    "LLM generation failed for docs/spec/auth.md#0004-authorization",
+    "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+  ]
+}

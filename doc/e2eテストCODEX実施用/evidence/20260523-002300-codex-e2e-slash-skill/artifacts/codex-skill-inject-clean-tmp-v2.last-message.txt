@@ -1,0 +1,21 @@
+CLI realign completed with `status=fresh` and no blockers. I used external CLI I/O under `/tmp/spec-anchor-io.jQsY9u/`; no project files were edited.
+
+**今回守る制約**
+- Session cookie: login success must issue an `HttpOnly` and `Secure` session cookie. Normal session expiry is 30 minutes, and logout invalidates it immediately.  
+  根拠: Source Specs / `docs/spec/auth.md#0002-session-management` ([auth.md](/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/docs/spec/auth.md:3))
+
+- CSRF: state-changing requests such as `POST`, `PUT`, `PATCH`, and `DELETE` require a CSRF token. Missing or failed token validation must be rejected with `403`.  
+  根拠: Source Specs / `docs/spec/auth.md#0003-csrf-protection` ([auth.md](/tmp/spec-anchor-codex-e2e-slash-skill.OqGMYD/docs/spec/auth.md:7))
+
+**今回扱う修正候補または検討対象**
+- Authentication session expiry.
+- CSRF protection behavior.
+- Primary sections checked: `Session Management` and `CSRF Protection`.
+
+**競合 / 不確実性 / 人間レビューが必要な点**
+- No resolved non-stale Conflict Review Items were found.
+- Cookie name, CSRF token storage, generation, and rotation rules are not specified in the current Source Specs.
+
+**課題プロンプトへの回答または修正案**
+- Session expiry constraint: normal session lifetime is 30 minutes; logout immediately invalidates the session.
+- CSRF constraint: require CSRF token for state-changing methods; reject missing or invalid token with `403`.

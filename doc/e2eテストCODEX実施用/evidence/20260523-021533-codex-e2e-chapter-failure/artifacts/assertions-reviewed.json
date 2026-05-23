@@ -1,0 +1,67 @@
+{
+  "passed": 4,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "chapter-anchor-failure-exit-and-json",
+      "passed": true,
+      "exit_code": 1,
+      "status": "failed",
+      "chapter_diagnostics": {
+        "failed_chapter_ids": [
+          "docs/spec/auth.md#authentication-specification"
+        ],
+        "failure_reasons_by_chapter": {
+          "docs/spec/auth.md#authentication-specification": "llm_generation_failed: LLM command failed"
+        },
+        "status": "failed"
+      }
+    },
+    {
+      "label": "chapter-anchor-canonical-artifact-preserved",
+      "passed": true,
+      "before_sha256": "accb27d729649e3d2c6f7613c2e3f0e6a21a75a1ea97c96709b8e8e5ba8cf21e",
+      "after_sha256": "accb27d729649e3d2c6f7613c2e3f0e6a21a75a1ea97c96709b8e8e5ba8cf21e"
+    },
+    {
+      "label": "chapter-anchor-warning-and-failed-required-artifact",
+      "passed": true,
+      "warnings": [
+        "Chapter Anchors LLM generation failed for 1 chapter(s); canonical chapter_anchors.json is not updated. Run /spec-core --all to retry."
+      ],
+      "failed_required_artifacts": [
+        "chapter_anchors"
+      ]
+    },
+    {
+      "label": "chapter-anchor-progress-recorded-llm-failure",
+      "passed": true,
+      "chapter_progress": {
+        "stage": "chapter_anchors",
+        "raw": "core_chapter_anchors_start",
+        "started_at": "2026-05-22T17:15:34Z",
+        "started_at_epoch": 1779470134.63906,
+        "llm_calls": 2,
+        "token_count": 0,
+        "retry_count": 1,
+        "failed_batch_ids": [
+          "chapter_anchors-batch-0"
+        ],
+        "batch_count": 1,
+        "actual_call_count": 2,
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "cached_input_tokens": 0,
+          "reasoning_output_tokens": 0,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "total_cost_usd": 0.0,
+          "providers_seen": []
+        },
+        "finished_at": "2026-05-22T17:15:34Z",
+        "elapsed_sec": 0.006
+      }
+    }
+  ]
+}

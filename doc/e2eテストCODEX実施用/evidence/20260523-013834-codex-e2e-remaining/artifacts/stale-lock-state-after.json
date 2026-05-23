@@ -1,0 +1,109 @@
+{
+  "finished_at": "2026-05-22T16:40:25.628921Z",
+  "finished_at_epoch_ms": 1779468025628,
+  "is_running": false,
+  "last_error": null,
+  "last_heartbeat_at": "2026-05-22T16:40:25.628927Z",
+  "last_heartbeat_at_epoch_ms": 1000,
+  "last_lock": {
+    "acquired_at": "2026-05-22T16:40:23.725000Z",
+    "acquired_at_epoch_ms": 1779468023725,
+    "lock_file": "/tmp/spec-anchor-codex-e2e-stale-lock.dvC3zb/.spec-anchor/state/core_update.lock.json",
+    "owner": "watcher",
+    "reason": "watcher_running",
+    "run_id": "902bd762-8de1-4d7a-9bc8-a497bbc8d75b",
+    "updated_at": "2026-05-22T16:40:25.623000Z",
+    "updated_at_epoch_ms": 1779468025623
+  },
+  "last_lock_acquired_at": "2026-05-22T16:40:23.725000Z",
+  "last_lock_acquired_at_epoch_ms": 1779468023725,
+  "last_lock_file": "/tmp/spec-anchor-codex-e2e-stale-lock.dvC3zb/.spec-anchor/state/core_update.lock.json",
+  "last_lock_updated_at": "2026-05-22T16:40:25.623000Z",
+  "last_lock_updated_at_epoch_ms": 1779468025623,
+  "last_owner": "watcher",
+  "last_queue_count_at_start": 3,
+  "last_result": {
+    "failed_sections": [],
+    "failed_sources": [],
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "related_sections_status": "skipped_unchanged",
+    "retrieval_index_status": "skipped_unchanged",
+    "skipped_sources": [
+      "docs/spec/auth.md"
+    ],
+    "stale_resolution_count": 0,
+    "updated_sections": [],
+    "updated_sources": []
+  },
+  "last_run_id": "codex-stale-lock-simulated",
+  "last_scan_at": "2026-05-22T16:40:25.941471Z",
+  "last_scan_epoch_ms": 1779468025938,
+  "last_snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779465912359302972,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+        "size": 215
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779465912359302972,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+        "size": 145
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779465912348865678,
+        "path": "docs/spec/auth.md",
+        "relative_path": "docs/spec/auth.md",
+        "sha256": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+        "size": 633
+      }
+    ],
+    "fingerprint": "6aaf712a6d587811bffdaf772790507ccc5a044ee336b610815308db4df215e2",
+    "schema_version": 1
+  },
+  "last_started_at": "2026-05-22T16:40:24.739283Z",
+  "last_started_at_epoch_ms": 1000,
+  "last_success_artifact_revision": null,
+  "last_success_at": "2026-05-22T16:40:25.628961Z",
+  "last_success_at_epoch_ms": 1779468025628,
+  "last_success_result": {
+    "failed_sections": [],
+    "failed_sources": [],
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "related_sections_status": "skipped_unchanged",
+    "retrieval_index_status": "skipped_unchanged",
+    "skipped_sources": [
+      "docs/spec/auth.md"
+    ],
+    "stale_resolution_count": 0,
+    "updated_sections": [],
+    "updated_sources": []
+  },
+  "project_root": "/tmp/spec-anchor-codex-e2e-stale-lock.dvC3zb",
+  "queue_count": 0,
+  "running": false,
+  "schema_version": 1,
+  "stale_lock_discarded": true,
+  "stale_locks": [
+    {
+      "last_owner": "watcher",
+      "last_run_id": "codex-stale-lock-simulated",
+      "last_started_at_epoch_ms": 1000,
+      "last_updated_at": "2026-05-22T16:40:25.628927Z",
+      "last_updated_at_epoch_ms": 1000,
+      "stale_age_ms": 1779468024938
+    }
+  ],
+  "updated_at": "2026-05-22T16:40:25.941492Z",
+  "updated_at_epoch_ms": 1779468025938
+}

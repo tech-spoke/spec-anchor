@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "path": "docs/core/purpose.md",
+      "base_sha256": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+      "resolved_project_sha256": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+      "unchanged": true
+    },
+    {
+      "path": "docs/core/concept.md",
+      "base_sha256": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+      "resolved_project_sha256": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+      "unchanged": true
+    },
+    {
+      "path": "docs/spec/auth.md",
+      "base_sha256": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+      "resolved_project_sha256": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+      "unchanged": true
+    }
+  ],
+  "base_project": "/tmp/spec-anchor-codex-e2e-readonly.MW9hHI",
+  "resolved_project": "/tmp/spec-anchor-codex-e2e-decision4-prefer_a.roxvy34i"
+}

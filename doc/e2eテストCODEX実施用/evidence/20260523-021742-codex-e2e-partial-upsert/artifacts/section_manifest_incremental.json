@@ -1,0 +1,108 @@
+{
+  "concept_hash": "67c4ba92d2bc55b0643a2c5726eba656e05154263903340ffaafa7b9129c279e",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "generation": {
+    "cache_key_inputs": [
+      "stable_section_uid",
+      "source_hash",
+      "prompt_version",
+      "model",
+      "provider",
+      "metadata_version",
+      "limits",
+      "enabled_fields"
+    ],
+    "enabled_fields": {
+      "related_sections": false,
+      "search_keys": false,
+      "summary": false
+    },
+    "identifier_extractor_version": "identifier-extractor-v1",
+    "limits": {
+      "llm_batch_max_chars": 12000,
+      "llm_batch_max_sections": 8,
+      "search_keys_max": 32,
+      "section_summary_max_chars": 480
+    },
+    "metadata_version": 1,
+    "model": "fail",
+    "prompt_version": "section-metadata-v2",
+    "provider": "/bin/false",
+    "stage": "section_metadata"
+  },
+  "purpose_hash": "eb92bbe798ac424c4ee3f891e6f7a056a1f93d1186b58b7a763537619789a26d",
+  "schema_version": 1,
+  "sections": [
+    {
+      "chapter_id": "docs/spec/partial.md#partial-upsert-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Partial Upsert Spec"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "payload_fingerprint": "127d61291f0f11ac9c6c4cb09aa9e005898ad33dd3f5adde5ab25c4bc9bac42a",
+      "section_id": "docs/spec/partial.md#0001-partial-upsert-spec",
+      "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_document_id": "docs/spec/partial.md",
+      "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "source_section_id": "docs/spec/partial.md#0001-partial-upsert-spec",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 23,
+        "start_line": 1,
+        "start_offset": 22
+      },
+      "vector_input_fingerprint": "25a4c2063058f5a41be0f156b6d947944b5a0d291c23a18255e116f6e6f9f6f4"
+    },
+    {
+      "chapter_id": "docs/spec/partial.md#partial-upsert-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Partial Upsert Spec",
+        "Alpha"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "payload_fingerprint": "e12c6fe07fd0b53d01d94640bf73e05274ae0ac38008de08903dc6b1054442d6",
+      "section_id": "docs/spec/partial.md#0002-alpha",
+      "semantic_hash": "24b974dc26f518139a9c5763f9546491e3ba459f98553f6823cf820684e58542",
+      "source_document_id": "docs/spec/partial.md",
+      "source_hash": "7189afc0ed76954cfeff63f98d214a80f60a20a4792486c123199a998d84a188",
+      "source_section_id": "docs/spec/partial.md#0002-alpha",
+      "source_span": {
+        "end_line": 5,
+        "end_offset": 75,
+        "start_line": 3,
+        "start_offset": 32
+      },
+      "vector_input_fingerprint": "9ea1a974822bed845d816e7c06e91e2fe1ca8e52aa93a0c0c9a3a19e243eb6e7"
+    },
+    {
+      "chapter_id": "docs/spec/partial.md#partial-upsert-spec",
+      "generated_at": "1970-01-01T00:00:00Z",
+      "heading_path": [
+        "Partial Upsert Spec",
+        "Beta"
+      ],
+      "last_prompt_version": "section-metadata-v2",
+      "llm_generation_status": "success",
+      "llm_provider": "/bin/false",
+      "payload_fingerprint": "1c40797e8a376b6e16878a5e5d81b94f8a9ecc4b692c0dc95d9d8c5e4ab267f9",
+      "section_id": "docs/spec/partial.md#0003-beta",
+      "semantic_hash": "c42d3a8c2a3c30d80e2fa7ce521939856fb56b596825228ea7212c0b3ecebdef",
+      "source_document_id": "docs/spec/partial.md",
+      "source_hash": "614370dcfafb85143a947126a053e178aaa7d9c734e372a682997f7a8ca14b0b",
+      "source_section_id": "docs/spec/partial.md#0003-beta",
+      "source_span": {
+        "end_line": 7,
+        "end_offset": 101,
+        "start_line": 6,
+        "start_offset": 83
+      },
+      "vector_input_fingerprint": "74956bbebfd3ad1cf7e4850f99e1ad200383520ecf6f333d9fbe1cf445543e21"
+    }
+  ]
+}

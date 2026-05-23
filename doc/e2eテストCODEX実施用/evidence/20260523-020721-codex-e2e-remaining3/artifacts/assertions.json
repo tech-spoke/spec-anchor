@@ -1,0 +1,146 @@
+{
+  "passed": 2,
+  "failed": 3,
+  "checks": [
+    {
+      "label": "dotenv-loads-qdrant-url",
+      "passed": false,
+      "exit_code": 0,
+      "qdrant_urls": [
+        "http://localhost:6333"
+      ]
+    },
+    {
+      "label": "dotenv-does-not-overwrite-shell-env",
+      "passed": true,
+      "exit_code": 0,
+      "qdrant_urls": [
+        "http://127.0.0.1:3"
+      ]
+    },
+    {
+      "label": "direct-env-qdrant-url",
+      "passed": true,
+      "exit_code": 0,
+      "qdrant_urls": [
+        "http://127.0.0.1:4"
+      ]
+    },
+    {
+      "label": "conflict-decision-cli-options-and-enum",
+      "passed": false,
+      "results": [
+        {
+          "decision": "prefer_a",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-prefer_a.r7n87vfh",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "prefer_b",
+          "option": "--decision-file",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-prefer_b.e71l4wtt",
+          "exit_code": 1,
+          "expected_status": "resolved",
+          "actual_status": null,
+          "expected_scope": "global",
+          "actual_scope": null,
+          "pending_conflict_count": null,
+          "blocking_reasons": null,
+          "has_resolution": false,
+          "passed": false
+        },
+        {
+          "decision": "conditional",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-conditional.5z_o5mo8",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "dismiss",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-dismiss.eankuyh3",
+          "exit_code": 0,
+          "expected_status": "dismissed",
+          "actual_status": "dismissed",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        },
+        {
+          "decision": "needs_source_update",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-needs_source_update._9f13d78",
+          "exit_code": 0,
+          "expected_status": "pending",
+          "actual_status": "pending",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 1,
+          "blocking_reasons": [
+            "pending_conflict"
+          ],
+          "has_resolution": false,
+          "passed": true
+        },
+        {
+          "decision": "defer",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-defer.j9hlqhy4",
+          "exit_code": 0,
+          "expected_status": "pending",
+          "actual_status": "pending",
+          "expected_scope": "global",
+          "actual_scope": "global",
+          "pending_conflict_count": 1,
+          "blocking_reasons": [
+            "pending_conflict"
+          ],
+          "has_resolution": false,
+          "passed": true
+        },
+        {
+          "decision": "task_scope_resolution",
+          "option": "--decision-json",
+          "project": "/tmp/spec-anchor-codex-e2e-decision-task_scope_resolution.m24wmiyx",
+          "exit_code": 0,
+          "expected_status": "resolved",
+          "actual_status": "resolved",
+          "expected_scope": "task_scope",
+          "actual_scope": "task_scope",
+          "pending_conflict_count": 0,
+          "blocking_reasons": [],
+          "has_resolution": true,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "label": "resolved-conflict-becomes-stale-after-source-change",
+      "passed": false,
+      "exit_code": 0,
+      "stale_resolution_count": 0,
+      "item_stale_resolution": false,
+      "project": "/tmp/spec-anchor-codex-e2e-stale-resolution.19bhr5vw"
+    }
+  ]
+}

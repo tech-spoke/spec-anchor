@@ -1,0 +1,1 @@
+利用者が /spec-core --all を発火した状況として扱ってください。現在の project root だけで spec-anchor core --all を実行し、CLI stdout JSON の status、warnings、diagnostics.chapter_anchors、freshness_report を読んで利用者向けに伝達してください。自動修正、別 project 探索、setup の自動実行はしないでください。

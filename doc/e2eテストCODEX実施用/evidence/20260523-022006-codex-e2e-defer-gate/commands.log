@@ -1,0 +1,2 @@
+$ (cwd=/tmp/spec-anchor-codex-e2e-decision4-defer.1tdcn5mo) spec-anchor inject-search session
+$ (cwd=/tmp/spec-anchor-codex-e2e-decision4-defer.1tdcn5mo) spec-anchor realign --answer-file /home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-022006-codex-e2e-defer-gate/artifacts/answer.json

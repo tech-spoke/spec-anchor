@@ -1,0 +1,6 @@
+{
+  "今回守る制約": ["LLM provider config boundary check"],
+  "今回扱う修正候補または検討対象": ["inject / realign should not use spec-core stage providers"],
+  "競合 / 不確実性 / 人間レビューが必要な点": [],
+  "課題プロンプトへの回答または修正案": "spec-core stage provider config is not used by this realign answer formatting path."
+}

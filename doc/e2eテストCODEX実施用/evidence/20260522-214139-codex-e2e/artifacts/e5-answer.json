@@ -1,0 +1,11 @@
+{
+  "今回の回答案": "Authentication requires email and password. Administrator accounts require multi-factor authentication. Sessions expire after 24 hours of inactivity and logout invalidates the active session immediately.",
+  "根拠": [
+    "docs/spec/sample.md#0002-authentication",
+    "docs/spec/sample.md#0004-session-termination"
+  ],
+  "関連先": [
+    "docs/spec/sample.md#0003-authorization"
+  ],
+  "競合 / 不確実性 / 人間レビューが必要な点": []
+}

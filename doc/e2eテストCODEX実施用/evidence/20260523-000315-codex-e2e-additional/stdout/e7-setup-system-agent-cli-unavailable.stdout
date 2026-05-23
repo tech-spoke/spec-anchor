@@ -1,0 +1,334 @@
+{
+  "actions": [
+    {
+      "available_count": 5,
+      "missing": [],
+      "name": "console_scripts",
+      "status": "checked"
+    },
+    {
+      "available_count": 6,
+      "missing": [],
+      "name": "packaged_templates",
+      "status": "checked"
+    },
+    {
+      "available": [
+        "FlagEmbedding",
+        "qdrant_client",
+        "qdrant"
+      ],
+      "name": "optional_providers",
+      "status": "checked",
+      "unavailable": [
+        "codex",
+        "claude"
+      ]
+    },
+    {
+      "mode": "editable",
+      "name": "mode_preparation",
+      "reason": "check_only",
+      "status": "skipped"
+    },
+    {
+      "name": "smoke_checks",
+      "reason": "run_smoke_not_requested",
+      "status": "skipped"
+    }
+  ],
+  "agent_cli_entries": {
+    "claude": {
+      "cli": {
+        "available": false,
+        "kind": "agent_cli",
+        "name": "claude",
+        "path": null,
+        "required": false,
+        "version": null
+      },
+      "project_command_path": "<project>/.claude/commands/spec-{core,inject,realign}.md"
+    },
+    "codex": {
+      "cli": {
+        "available": false,
+        "kind": "agent_cli",
+        "name": "codex",
+        "path": null,
+        "required": false,
+        "version": null
+      },
+      "project_skill_path": "<project>/.codex/skills/spec-anchor/SKILL.md"
+    }
+  },
+  "check_only": true,
+  "conflicts": [],
+  "console_scripts": [
+    {
+      "available": true,
+      "name": "spec-anchor",
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-slash",
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-slash"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-watch",
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-watch"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-setup-project",
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-setup-project"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-setup-system",
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-setup-system"
+    }
+  ],
+  "created": [],
+  "diagnostics": [
+    {
+      "kind": "agent_cli",
+      "message": "agent_cli is unavailable: codex",
+      "name": "codex",
+      "reason_code": "provider_unavailable",
+      "severity": "warning"
+    },
+    {
+      "kind": "agent_cli",
+      "message": "agent_cli is unavailable: claude",
+      "name": "claude",
+      "reason_code": "provider_unavailable",
+      "severity": "warning"
+    },
+    {
+      "message": "Codex uses skill entrypoints under <project>/.codex/skills/spec-anchor; SPEC-anchor does not install .codex/commands for Codex.",
+      "project_skill_path": "<project>/.codex/skills/spec-anchor/SKILL.md",
+      "reason_code": "codex_skill_entrypoint",
+      "severity": "info"
+    },
+    {
+      "message": "Claude Code uses project command entrypoints under .claude/commands.",
+      "project_command_path": "<project>/.claude/commands/spec-{core,inject,realign}.md",
+      "reason_code": "claude_command_entrypoint",
+      "severity": "info"
+    }
+  ],
+  "exit_code": 0,
+  "mode": "editable",
+  "prepared": [],
+  "production_readiness": {
+    "blocking_reasons": [
+      "agent_cli_unavailable"
+    ],
+    "checks": [
+      {
+        "details": {
+          "available": true,
+          "error": null,
+          "kind": "vector_store_service",
+          "name": "qdrant",
+          "required": false,
+          "url": "http://localhost:6333",
+          "version": "1.17.1"
+        },
+        "name": "qdrant_service",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "kind": "embedding_provider",
+          "name": "FlagEmbedding",
+          "required": false,
+          "version": "1.4.0"
+        },
+        "name": "flagembedding_package",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "kind": "vector_store_client",
+          "name": "qdrant_client",
+          "required": false,
+          "version": "1.17.1"
+        },
+        "name": "qdrant_client_package",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "claude": {
+            "available": false,
+            "kind": "agent_cli",
+            "name": "claude",
+            "path": null,
+            "required": false,
+            "version": null
+          },
+          "codex": {
+            "available": false,
+            "kind": "agent_cli",
+            "name": "codex",
+            "path": null,
+            "required": false,
+            "version": null
+          }
+        },
+        "name": "agent_cli",
+        "reason_code": "agent_cli_unavailable",
+        "status": "failed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor",
+          "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor"
+        },
+        "name": "console_script:spec-anchor",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-slash",
+          "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-slash"
+        },
+        "name": "console_script:spec-anchor-slash",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-watch",
+          "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-watch"
+        },
+        "name": "console_script:spec-anchor-watch",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-setup-project",
+          "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-setup-project"
+        },
+        "name": "console_script:spec-anchor-setup-project",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-setup-system",
+          "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/bin-no-agent/spec-anchor-setup-system"
+        },
+        "name": "console_script:spec-anchor-setup-system",
+        "reason_code": null,
+        "status": "passed"
+      }
+    ],
+    "flagembedding_version": "1.4.0",
+    "model_cache_dir": "/home/kazuki/.cache/huggingface",
+    "qdrant_server_version": "1.17.1",
+    "qdrant_url": "http://localhost:6333",
+    "status": "blocked"
+  },
+  "providers": [
+    {
+      "available": true,
+      "kind": "embedding_provider",
+      "name": "FlagEmbedding",
+      "required": false,
+      "version": "1.4.0"
+    },
+    {
+      "available": true,
+      "kind": "vector_store_client",
+      "name": "qdrant_client",
+      "required": false,
+      "version": "1.17.1"
+    },
+    {
+      "available": false,
+      "kind": "agent_cli",
+      "name": "codex",
+      "path": null,
+      "required": false,
+      "version": null
+    },
+    {
+      "available": false,
+      "kind": "agent_cli",
+      "name": "claude",
+      "path": null,
+      "required": false,
+      "version": null
+    },
+    {
+      "available": true,
+      "error": null,
+      "kind": "vector_store_service",
+      "name": "qdrant",
+      "required": false,
+      "url": "http://localhost:6333",
+      "version": "1.17.1"
+    }
+  ],
+  "skipped": [
+    {
+      "mode": "editable",
+      "name": "mode_preparation",
+      "reason": "check_only",
+      "status": "skipped"
+    },
+    {
+      "name": "smoke_checks",
+      "reason": "run_smoke_not_requested",
+      "status": "skipped"
+    }
+  ],
+  "smoke": {
+    "executed": false,
+    "skipped": true
+  },
+  "status": "degraded",
+  "templates": [
+    {
+      "available": true,
+      "path": "templates/.codex/skills/spec-anchor/SKILL.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.claude/commands/spec-core.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.claude/commands/spec-inject.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.claude/commands/spec-realign.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.spec-anchor/config.toml"
+    },
+    {
+      "available": true,
+      "path": "templates/.spec-anchor/.gitignore"
+    }
+  ],
+  "updated": []
+}

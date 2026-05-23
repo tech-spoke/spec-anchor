@@ -1,0 +1,14 @@
+{
+  "conflict_id": "codex-e2e4-prefer_b",
+  "decision": "prefer_b",
+  "selected_option": "prefer_b",
+  "reason": "Codex E2E human-authorized decision case: prefer_b",
+  "valid_scope": "global",
+  "referenced_source_refs": [
+    {
+      "source_section_id": "docs/spec/auth.md#0002-session-management",
+      "source_hash": "433a68ab1268046b860e4ebc95610c013644f085a6de9c330a8ad037c115736b"
+    }
+  ],
+  "human_acknowledgement": true
+}

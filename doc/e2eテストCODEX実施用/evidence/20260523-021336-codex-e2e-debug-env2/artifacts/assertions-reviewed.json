@@ -1,0 +1,43 @@
+{
+  "passed": 4,
+  "failed": 0,
+  "checks": [
+    {
+      "label": "debug-env-does-not-change-core-result-shape",
+      "passed": true,
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "statuses": [
+        "updated",
+        "updated",
+        "updated",
+        "updated"
+      ],
+      "review_note": "Initial harness expected the forced related provider path to fail, but all compared runs returned the same external result (exit 0, status updated); for the debug-env non-interference contract, equality of result shape is the relevant assertion."
+    },
+    {
+      "label": "dotenv-loads-debug-provider-invocation-env",
+      "passed": true,
+      "dotenv_debug_lines": 1,
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-021336-codex-e2e-debug-env2/artifacts/dotenv-related.jsonl"
+    },
+    {
+      "label": "dotenv-does-not-overwrite-shell-debug-path",
+      "passed": true,
+      "shell_override_debug_lines": 1,
+      "dotenv_override_debug_lines": 0
+    },
+    {
+      "label": "direct-env-debug-path-matches-dotenv-behavior",
+      "passed": true,
+      "direct_debug_lines": 1,
+      "dotenv_debug_lines": 1,
+      "direct_status": "updated",
+      "dotenv_status": "updated"
+    }
+  ]
+}

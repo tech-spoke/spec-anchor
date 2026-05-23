@@ -1,0 +1,21 @@
+{
+  "all_required_template_keys_present": true,
+  "claude_core_omits_llm_provider_flag": true,
+  "codex_skill_omits_llm_provider_flag": true,
+  "missing": [],
+  "provider_ids": [
+    "claude_judge",
+    "claude_typing",
+    "codex"
+  ],
+  "stage_routing_keys": [
+    "chapter_key_anchor",
+    "conflict_review",
+    "related_sections",
+    "section_metadata"
+  ],
+  "watcher_paths": {
+    "queue_file": ".spec-anchor/state/watch_queue.json",
+    "state_file": ".spec-anchor/state/watch_state.json"
+  }
+}

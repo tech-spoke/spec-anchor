@@ -1,0 +1,11 @@
+{
+  "constraints": [
+    "管理者ログインでは MFA_REQUIRED_ON_ADMIN_LOGIN を必須とする",
+    "管理者ログインの成功時と失敗時に AUDIT_EVENT_REQUIRED を記録する",
+    "RETENTION_DAYS_FOR_AUTH_LOG は未確定であり人間確認が必要"
+  ],
+  "candidate": "管理者ログイン監査を実装する。MFA 成功後に管理画面セッションを発行し、成功時と失敗時に audit_log_stream へ AUDIT_EVENT_REQUIRED を記録する。初期案では RETENTION_DAYS_FOR_AUTH_LOG を 30 日固定にする。",
+  "risks": [
+    "RETENTION_DAYS_FOR_AUTH_LOG を 30 日固定にする案は仕様上の未確定事項と衝突する可能性がある"
+  ]
+}

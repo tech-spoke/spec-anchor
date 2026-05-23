@@ -1,0 +1,35 @@
+`spec-anchor core --rebuild` ran in the current project root and exited with code `1`.
+
+**Status**
+`failed`
+
+**Warnings**
+- `Source Retrieval Index update failed`
+- `Related Sections retrieval backend failure: [Errno 111] Connection refused; canonical related_sections artifact is not updated. Restore Qdrant connectivity and run /spec-core --rebuild.`
+
+**diagnostics.related_sections**
+- `status`: `failed`
+- Diagnostic: `related_sections_generation_failed`, level `warning`, message `[Errno 111] Connection refused`
+- Qdrant backend failure:
+  - `provider`: `qdrant`
+  - `url`: `http://127.0.0.1:65531`
+  - `exception_type`: `ResponseHandlingException`
+  - `failure_reason`: `[Errno 111] Connection refused`
+
+**freshness_report**
+- `status`: `failed`
+- `blocking_reasons`: `failed_required_artifact`
+- `required_artifact_problem_count`: `2`
+- Failed required artifacts: `retrieval_index`, `related_sections`
+- Missing required artifacts: none
+- Chapter anchors: `success`
+- Retrieval index: `failed`
+- Related sections: `failed`
+- Section metadata generation: `fresh`; generated 7 sections; `llm_calls`: 1; `failed_sections`: none
+- Verify index: not requested
+
+Restore Qdrant connectivity, then rerun:
+
+```bash
+spec-anchor core --rebuild
+```

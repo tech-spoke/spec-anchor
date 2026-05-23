@@ -1,0 +1,24 @@
+Used the `spec-anchor` workflow with `inject-*` plus `realign --answer-file` via an external input path. No project files were edited.
+
+**今回守る制約**
+- Session expiry: on successful login, issue an `HttpOnly` and `Secure` session cookie; normal session expiry is 30 minutes; logout invalidates it immediately.  
+  Evidence: `Source Specs` `docs/spec/auth.md#0002-session-management`, [docs/spec/auth.md](/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/docs/spec/auth.md:5)
+
+- CSRF protection: state-changing requests such as `POST`, `PUT`, `PATCH`, and `DELETE` require a CSRF token; missing or invalid tokens must be rejected with `403`.  
+  Evidence: `Source Specs` `docs/spec/auth.md#0003-csrf-protection`, [docs/spec/auth.md](/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/docs/spec/auth.md:9)
+
+**今回見るべき対象**
+- `docs/spec/auth.md#0002-session-management`
+- `docs/spec/auth.md#0003-csrf-protection`
+
+**関連先として確認したもの**
+- Purpose: auth specs exist to confirm session, CSRF, and permission constraints before implementation/answers.
+- Core Concept: session-cookie-centered auth and CSRF for state-changing requests, [docs/core/concept.md](/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy/docs/core/concept.md:3)
+- Chapter anchor: authentication chapter lists session handling and CSRF protection as important sections.
+- Related sections: `docs/spec/auth.md#0001-authentication-specification`, `docs/spec/auth.md#0004-authorization`
+
+**採用しなかったもの**
+- `docs/spec/auth.md#0004-authorization`: checked as related context, but not adopted as a direct constraint for session expiry or CSRF.
+
+**不確実性 / 人間確認**
+- 該当なし. Freshness gate was fresh, blocking reasons were empty, and resolved non-stale Conflict Review Items were 0.

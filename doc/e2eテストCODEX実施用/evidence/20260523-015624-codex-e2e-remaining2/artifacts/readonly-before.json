@@ -1,0 +1,14 @@
+{
+  "docs/core/purpose.md": {
+    "sha256": "9d8fb9b8c76a8da1bbb55784c82a380ec9892bd1e5de15ea824ebf9953de0a54",
+    "text": "# Purpose\n\n認証仕様の根拠を保持し、実装・回答前にセッション、CSRF、権限の制約を確認できるようにする。\n"
+  },
+  "docs/core/concept.md": {
+    "sha256": "04b2be090bb8547740b794da1d2c9392f2b92c0c5e25e8db1914bde8562beb8f",
+    "text": "# Core Concept\n\n- 認証は session cookie を中心に扱う。\n- CSRF 保護は state-changing request に必要である。\n- Source Specs を最終根拠にし、検索補助だけで制約を確定しない。\n"
+  },
+  "docs/spec/auth.md": {
+    "sha256": "2020c715ccf3bb25cbc5ac6d8de1de5e9e370120e6bdb6da4dfc91f2372db06a",
+    "text": "# Authentication Specification\n\n## Session Management\n\nログイン成功時、サーバーは HttpOnly かつ Secure な session cookie を発行する。通常の session 有効期限は 30 分であり、logout 時には即時失効する。\n\n## CSRF Protection\n\nPOST、PUT、PATCH、DELETE のように状態を変更する request は CSRF token を必須とする。CSRF token が無い、または検証に失敗した request は 403 として拒否する。\n\n## Authorization\n\n管理画面の操作は admin role を持つ利用者だけが実行できる。認証済みでも admin role が無い場合は 403 とする。\n"
+  }
+}

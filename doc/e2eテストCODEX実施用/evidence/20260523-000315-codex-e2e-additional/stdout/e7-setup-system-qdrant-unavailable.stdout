@@ -1,0 +1,327 @@
+{
+  "actions": [
+    {
+      "available_count": 5,
+      "missing": [],
+      "name": "console_scripts",
+      "status": "checked"
+    },
+    {
+      "available_count": 6,
+      "missing": [],
+      "name": "packaged_templates",
+      "status": "checked"
+    },
+    {
+      "available": [
+        "FlagEmbedding",
+        "qdrant_client",
+        "codex",
+        "claude"
+      ],
+      "name": "optional_providers",
+      "status": "checked",
+      "unavailable": [
+        "qdrant"
+      ]
+    },
+    {
+      "mode": "editable",
+      "name": "mode_preparation",
+      "reason": "check_only",
+      "status": "skipped"
+    },
+    {
+      "name": "smoke_checks",
+      "reason": "run_smoke_not_requested",
+      "status": "skipped"
+    }
+  ],
+  "agent_cli_entries": {
+    "claude": {
+      "cli": {
+        "available": true,
+        "kind": "agent_cli",
+        "name": "claude",
+        "path": "/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude",
+        "required": false,
+        "version": "2.1.147 (Claude Code)"
+      },
+      "project_command_path": "<project>/.claude/commands/spec-{core,inject,realign}.md"
+    },
+    "codex": {
+      "cli": {
+        "available": true,
+        "kind": "agent_cli",
+        "name": "codex",
+        "path": "/home/kazuki/.nvm/versions/node/v24.11.1/bin/codex",
+        "required": false,
+        "version": "codex-cli 0.125.0"
+      },
+      "project_skill_path": "<project>/.codex/skills/spec-anchor/SKILL.md"
+    }
+  },
+  "check_only": true,
+  "conflicts": [],
+  "console_scripts": [
+    {
+      "available": true,
+      "name": "spec-anchor",
+      "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-slash",
+      "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-slash"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-watch",
+      "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-watch"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-setup-project",
+      "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-project"
+    },
+    {
+      "available": true,
+      "name": "spec-anchor-setup-system",
+      "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-system"
+    }
+  ],
+  "created": [],
+  "diagnostics": [
+    {
+      "kind": "vector_store_service",
+      "message": "vector_store_service is unavailable: qdrant",
+      "name": "qdrant",
+      "reason_code": "provider_unavailable",
+      "severity": "warning"
+    },
+    {
+      "message": "Codex uses skill entrypoints under <project>/.codex/skills/spec-anchor; SPEC-anchor does not install .codex/commands for Codex.",
+      "project_skill_path": "<project>/.codex/skills/spec-anchor/SKILL.md",
+      "reason_code": "codex_skill_entrypoint",
+      "severity": "info"
+    },
+    {
+      "message": "Claude Code uses project command entrypoints under .claude/commands.",
+      "project_command_path": "<project>/.claude/commands/spec-{core,inject,realign}.md",
+      "reason_code": "claude_command_entrypoint",
+      "severity": "info"
+    }
+  ],
+  "exit_code": 0,
+  "mode": "editable",
+  "prepared": [],
+  "production_readiness": {
+    "blocking_reasons": [
+      "qdrant_service_unavailable"
+    ],
+    "checks": [
+      {
+        "details": {
+          "available": false,
+          "error": "URLError",
+          "kind": "vector_store_service",
+          "name": "qdrant",
+          "required": false,
+          "url": "http://127.0.0.1:65530",
+          "version": null
+        },
+        "name": "qdrant_service",
+        "reason_code": "qdrant_service_unavailable",
+        "status": "failed"
+      },
+      {
+        "details": {
+          "available": true,
+          "kind": "embedding_provider",
+          "name": "FlagEmbedding",
+          "required": false,
+          "version": "1.4.0"
+        },
+        "name": "flagembedding_package",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "kind": "vector_store_client",
+          "name": "qdrant_client",
+          "required": false,
+          "version": "1.17.1"
+        },
+        "name": "qdrant_client_package",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "claude": {
+            "available": true,
+            "kind": "agent_cli",
+            "name": "claude",
+            "path": "/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude",
+            "required": false,
+            "version": "2.1.147 (Claude Code)"
+          },
+          "codex": {
+            "available": true,
+            "kind": "agent_cli",
+            "name": "codex",
+            "path": "/home/kazuki/.nvm/versions/node/v24.11.1/bin/codex",
+            "required": false,
+            "version": "codex-cli 0.125.0"
+          }
+        },
+        "name": "agent_cli",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor",
+          "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor"
+        },
+        "name": "console_script:spec-anchor",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-slash",
+          "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-slash"
+        },
+        "name": "console_script:spec-anchor-slash",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-watch",
+          "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-watch"
+        },
+        "name": "console_script:spec-anchor-watch",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-setup-project",
+          "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-project"
+        },
+        "name": "console_script:spec-anchor-setup-project",
+        "reason_code": null,
+        "status": "passed"
+      },
+      {
+        "details": {
+          "available": true,
+          "name": "spec-anchor-setup-system",
+          "path": "/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-system"
+        },
+        "name": "console_script:spec-anchor-setup-system",
+        "reason_code": null,
+        "status": "passed"
+      }
+    ],
+    "flagembedding_version": "1.4.0",
+    "model_cache_dir": "/home/kazuki/.cache/huggingface",
+    "qdrant_server_version": null,
+    "qdrant_url": "http://127.0.0.1:65530",
+    "status": "blocked"
+  },
+  "providers": [
+    {
+      "available": true,
+      "kind": "embedding_provider",
+      "name": "FlagEmbedding",
+      "required": false,
+      "version": "1.4.0"
+    },
+    {
+      "available": true,
+      "kind": "vector_store_client",
+      "name": "qdrant_client",
+      "required": false,
+      "version": "1.17.1"
+    },
+    {
+      "available": true,
+      "kind": "agent_cli",
+      "name": "codex",
+      "path": "/home/kazuki/.nvm/versions/node/v24.11.1/bin/codex",
+      "required": false,
+      "version": "codex-cli 0.125.0"
+    },
+    {
+      "available": true,
+      "kind": "agent_cli",
+      "name": "claude",
+      "path": "/home/kazuki/.nvm/versions/node/v24.11.1/bin/claude",
+      "required": false,
+      "version": "2.1.147 (Claude Code)"
+    },
+    {
+      "available": false,
+      "error": "URLError",
+      "kind": "vector_store_service",
+      "name": "qdrant",
+      "required": false,
+      "url": "http://127.0.0.1:65530",
+      "version": null
+    }
+  ],
+  "skipped": [
+    {
+      "mode": "editable",
+      "name": "mode_preparation",
+      "reason": "check_only",
+      "status": "skipped"
+    },
+    {
+      "name": "smoke_checks",
+      "reason": "run_smoke_not_requested",
+      "status": "skipped"
+    }
+  ],
+  "smoke": {
+    "executed": false,
+    "skipped": true
+  },
+  "status": "degraded",
+  "templates": [
+    {
+      "available": true,
+      "path": "templates/.codex/skills/spec-anchor/SKILL.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.claude/commands/spec-core.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.claude/commands/spec-inject.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.claude/commands/spec-realign.md"
+    },
+    {
+      "available": true,
+      "path": "templates/.spec-anchor/config.toml"
+    },
+    {
+      "available": true,
+      "path": "templates/.spec-anchor/.gitignore"
+    }
+  ],
+  "updated": []
+}

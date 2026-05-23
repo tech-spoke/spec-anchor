@@ -1,0 +1,24 @@
+## claude-core-missing-config
+started_at=2026-05-23T09:10:16+09:00
+cwd=/tmp/spec-anchor-codex-e2e-f004-template.QCe1wC
+prompt=/spec-core
+allowed=Read,Grep,Glob,Bash(spec-anchor core:*)
+exit_code=0
+ended_at=2026-05-23T09:10:36+09:00
+
+## claude-inject-missing-config
+started_at=2026-05-23T09:10:36+09:00
+cwd=/tmp/spec-anchor-codex-e2e-f004-template.QCe1wC
+prompt=/spec-inject 認証仕様を確認して
+allowed=Read,Grep,Glob,Bash(spec-anchor inject*),Bash(spec-anchor realign*)
+exit_code=0
+ended_at=2026-05-23T09:10:53+09:00
+
+## claude-realign-missing-config
+started_at=2026-05-23T09:10:53+09:00
+cwd=/tmp/spec-anchor-codex-e2e-f004-template.QCe1wC
+prompt=/spec-realign 認証仕様に従った回答を整形して。回答案: 認証はセッションcookieを使う。
+allowed=Read,Grep,Glob,Bash(spec-anchor inject*),Bash(spec-anchor realign*)
+exit_code=0
+ended_at=2026-05-23T09:11:43+09:00
+

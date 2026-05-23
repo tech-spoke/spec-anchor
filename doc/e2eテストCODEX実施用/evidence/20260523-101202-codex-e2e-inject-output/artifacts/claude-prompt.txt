@@ -1,0 +1,1 @@
+管理者ログイン監査の制約を準備して。課題への最終回答、実装案、コードは出さない。§8.5 の通常出力として「今回守る制約」「今回見るべき対象」「関連先として確認したもの」「採用しなかったもの」「不確実性 / 人間確認」の5セクションだけを出す。今回守る制約の各 item では statement、evidence_origin、evidence_ref、support_refs、applicability、uncertainty を人間が読める形で示す。raw JSON は出さない。

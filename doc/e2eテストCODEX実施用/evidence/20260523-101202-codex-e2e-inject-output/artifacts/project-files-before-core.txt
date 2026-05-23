@@ -1,0 +1,10 @@
+/tmp/20260523-101202-codex-e2e-inject-output.project/.claude/commands/spec-core.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/.claude/commands/spec-inject.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/.claude/commands/spec-realign.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/.codex/skills/spec-anchor/SKILL.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/.spec-anchor/.gitignore
+/tmp/20260523-101202-codex-e2e-inject-output.project/.spec-anchor/config.toml
+/tmp/20260523-101202-codex-e2e-inject-output.project/docs/core/concept.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/docs/core/purpose.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/docs/spec/audit.md
+/tmp/20260523-101202-codex-e2e-inject-output.project/docs/spec/login.md

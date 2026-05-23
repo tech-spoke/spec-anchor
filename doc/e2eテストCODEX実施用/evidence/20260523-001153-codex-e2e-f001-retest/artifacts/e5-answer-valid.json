@@ -1,0 +1,12 @@
+{
+  "今回守る制約": [
+    "Administrator accounts require multi-factor authentication.",
+    "Sessions expire after 24 hours of inactivity.",
+    "Logout invalidates the active session immediately."
+  ],
+  "今回扱う修正候補または検討対象": [
+    "Authentication and session lifecycle answer for the sample Source Specs."
+  ],
+  "競合 / 不確実性 / 人間レビューが必要な点": [],
+  "課題プロンプトへの回答または修正案": "Authentication requires email and password. Administrator accounts require multi-factor authentication. Sessions expire after 24 hours of inactivity, and logout invalidates the active session immediately."
+}

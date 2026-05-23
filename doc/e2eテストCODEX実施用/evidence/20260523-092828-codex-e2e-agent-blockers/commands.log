@@ -1,0 +1,18 @@
+[inject-dirty] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/dirty prompt=/spec-inject 認証とセッションに関する制約を確認して
+[inject-dirty] exit=0
+[realign-dirty] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/dirty prompt=/spec-realign 認証とセッションに関する回答を整形して。回答案: 認証後はセッション cookie を発行し、ログアウト時に無効化する。
+[realign-dirty] exit=0
+[inject-watcher-queue] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/watcher_queue_pending prompt=/spec-inject 認証とセッションに関する制約を確認して
+[inject-watcher-queue] exit=0
+[realign-watcher-queue] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/watcher_queue_pending prompt=/spec-realign 認証とセッションに関する回答を整形して。回答案: 認証後はセッション cookie を発行し、ログアウト時に無効化する。
+[realign-watcher-queue] exit=0
+[inject-pending-conflict] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/pending_conflict prompt=/spec-inject 認証とセッションに関する制約を確認して
+[inject-pending-conflict] exit=0
+[realign-pending-conflict] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/pending_conflict prompt=/spec-realign 認証とセッションに関する回答を整形して。回答案: 認証後はセッション cookie を発行し、ログアウト時に無効化する。
+[realign-pending-conflict] exit=0
+[inject-failed-required-artifact] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/failed_required_artifact prompt=/spec-inject 認証とセッションに関する制約を確認して
+[inject-failed-required-artifact] exit=0
+[realign-failed-required-artifact] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/failed_required_artifact prompt=/spec-realign 認証とセッションに関する回答を整形して。回答案: 認証後はセッション cookie を発行し、ログアウト時に無効化する。
+[realign-failed-required-artifact] exit=0
+[realign-needs-answer] cwd=doc/e2eテストCODEX実施用/evidence/20260523-092828-codex-e2e-agent-blockers/tmp/needs_answer prompt=/spec-realign 認証とセッションの仕様に沿った回答が必要
+[realign-needs-answer] exit=0

@@ -1,0 +1,42 @@
+{
+  "passed": 3,
+  "failed": 1,
+  "checks": [
+    {
+      "label": "debug-env-does-not-change-core-result-shape",
+      "passed": false,
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "statuses": [
+        "updated",
+        "updated",
+        "updated",
+        "updated"
+      ]
+    },
+    {
+      "label": "dotenv-loads-debug-provider-invocation-env",
+      "passed": true,
+      "dotenv_debug_lines": 1,
+      "path": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-021336-codex-e2e-debug-env2/artifacts/dotenv-related.jsonl"
+    },
+    {
+      "label": "dotenv-does-not-overwrite-shell-debug-path",
+      "passed": true,
+      "shell_override_debug_lines": 1,
+      "dotenv_override_debug_lines": 0
+    },
+    {
+      "label": "direct-env-debug-path-matches-dotenv-behavior",
+      "passed": true,
+      "direct_debug_lines": 1,
+      "dotenv_debug_lines": 1,
+      "direct_status": "updated",
+      "dotenv_status": "updated"
+    }
+  ]
+}

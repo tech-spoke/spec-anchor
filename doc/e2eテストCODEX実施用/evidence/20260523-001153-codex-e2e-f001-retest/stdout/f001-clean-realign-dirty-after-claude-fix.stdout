@@ -1,0 +1,128 @@
+{
+  "blocked": true,
+  "blocking_reasons": [
+    "dirty_or_stale_source"
+  ],
+  "can_continue": false,
+  "command": "/spec-realign",
+  "constraints": [],
+  "freshness_report": {
+    "blocking_reasons": [
+      "dirty_or_stale_source"
+    ],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/sample.md#0001-sample-service-spec",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "schema_version": 1,
+    "status": "blocked",
+    "warnings": []
+  },
+  "generated_at": null,
+  "inject_result": {
+    "blocked": true,
+    "blocking_reasons": [
+      "dirty_or_stale_source"
+    ],
+    "can_continue": false,
+    "command": "/spec-inject",
+    "constraints": [],
+    "freshness_report": {
+      "blocking_reasons": [
+        "dirty_or_stale_source"
+      ],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "related_sections": {
+          "diagnostics": [],
+          "qdrant_backend_failure": null,
+          "status": "skipped_unchanged"
+        },
+        "retrieval_index": {
+          "status": "success"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [],
+          "blocking_reasons": [],
+          "cache_hits": 4,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [],
+          "llm_calls": 0,
+          "reused_section_ids": [
+            "docs/spec/sample.md#0001-sample-service-spec",
+            "docs/spec/sample.md#0002-authentication",
+            "docs/spec/sample.md#0003-authorization",
+            "docs/spec/sample.md#0004-session-termination"
+          ],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "schema_version": 1,
+      "status": "blocked",
+      "warnings": []
+    },
+    "generated_at": null,
+    "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-001153-codex-e2e-f001-retest/tmp/f001-clean-project",
+    "reasons": [
+      "dirty_or_stale_source"
+    ],
+    "recommended_next_action": "run /spec-core before /spec-inject",
+    "should_stop": true,
+    "status": "blocked",
+    "stop_reason": "dirty_or_stale_source",
+    "stops": true,
+    "warnings": []
+  },
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-001153-codex-e2e-f001-retest/tmp/f001-clean-project",
+  "reasons": [
+    "dirty_or_stale_source"
+  ],
+  "recommended_next_action": "run /spec-core before /spec-realign",
+  "should_stop": true,
+  "status": "blocked",
+  "stop_reason": "dirty_or_stale_source",
+  "stops": true,
+  "warnings": []
+}

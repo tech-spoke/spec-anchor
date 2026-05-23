@@ -1,0 +1,51 @@
+[
+  {
+    "label": "claude-core-missing-config",
+    "passed_external_design_row": true,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "invalid_inject_search_keys_option_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": true,
+    "contains_non_contract_recovery_suggestion": false,
+    "commands_seen": [
+      "spec-anchor core 2>&1"
+    ],
+    "final_result_excerpt": "CLI がエラーを返しました。\n\n**エラー内容**\n\n```\n.spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj\n```\n\nプロジェクト `/tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj` に SPEC-anchor の設定ファイルがありません。\n\n**復旧手順**\n\n以下のコマンドでプロジェクトを初期化してください：\n\n```bash\nspec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj\n```\n\nセットアップ後、再度 `/spec-core` を実行してください。"
+  },
+  {
+    "label": "claude-inject-missing-config",
+    "passed_external_design_row": true,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "invalid_inject_search_keys_option_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": true,
+    "contains_non_contract_recovery_suggestion": false,
+    "commands_seen": [
+      "spec-anchor inject-search \"認証 auth authentication\" 2>&1",
+      "spec-anchor inject-purpose 2>&1"
+    ],
+    "final_result_excerpt": "CLI が `status=\"error\"` / `should_stop=true` を返しました。Agentic Search は実行できません。\n\n---\n\n## エラー内容\n\n```\n.spec-anchor/config.toml not found under\n  /tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj\n```\n\n現在の作業ディレクトリに SPEC-anchor プロジェクトが初期化されていません。\n\n---\n\n## 復旧手順\n\n以下のコマンドでプロジェクト skeleton を初期化してください。\n\n```bash\nspec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj\n```\n\n初期化後、改めて `/spec-inject 認証仕様を確認して` を実行してください。\n\n---\n\n**補足:** もし作業対象のプロジェクトが別パスにある場合（例: `/home/kazuki/public_html/llm-helper` など）、そちらのディレクトリで Claude Code を起動し直すか、`--target` にそのパスを指定してください。現 cwd 外のプロジェクトを探索することは spec-inject の仕様上できません。"
+  },
+  {
+    "label": "claude-realign-missing-config",
+    "passed_external_design_row": true,
+    "expected_cli_executed": true,
+    "any_spec_anchor_cli_executed": true,
+    "invalid_generic_inject_called": false,
+    "invalid_inject_search_keys_option_called": false,
+    "precheck_ls_or_test_f": false,
+    "contains_cli_config_error_message": true,
+    "contains_spec_anchor_setup_project_recovery": true,
+    "contains_non_contract_recovery_suggestion": false,
+    "commands_seen": [
+      "spec-anchor realign --answer-json '{\"今回守る制約\":\"\",\"今回扱う修正候補または検討対象\":\"\",\"競合／不確実性／人間レビューが必要な点\":\"\",\"課題プロンプトへの回答または修正案\":\"認証はセッションcookieを使う。\"}' 2>&1"
+    ],
+    "final_result_excerpt": "CLI が `should_stop=true` / `status=\"error\"` を返したため、ここで停止します。\n\n---\n\n## エラー内容\n\n```\n.spec-anchor/config.toml not found under /tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj\n```\n\n現在の project root (`/tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj`) に SPEC-anchor の project skeleton が存在しません。\n\n## 復旧手順\n\n以下のコマンドで project skeleton を初期化してください：\n\n```bash\nspec-anchor-setup-project --target /tmp/spec-anchor-codex-e2e-f004-postfix.mkUWRj\n```\n\n初期化完了後、改めて `/spec-realign` を実行してください。回答の整形は skeleton が存在するまで実行できません。"
+  }
+]

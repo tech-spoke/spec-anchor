@@ -1,0 +1,57 @@
+CLI が正常完了（`should_stop=false` / `status=fresh`）。以下が 4 区分の整形結果です。
+
+---
+
+## 今回守る制約
+
+**[1] 保存先固定**
+`AUDIT_EVENT_REQUIRED` の書き込み先は `audit_log_stream` のみ。他のストリームへ書き込んではならない。
+根拠: `docs/spec/audit.md#0002-audit-storage-boundary`（「AUDIT_EVENT_REQUIRED の保存先は audit_log_stream である」）
+
+**[2] 保持期間の決定禁止**
+`RETENTION_DAYS_FOR_AUTH_LOG` の日数を Agent（LLM・実装者）が独自に決めてはならない。法務確認待ちであり、値はコード内でハードコードしない。
+根拠: `docs/spec/audit.md#0002-audit-storage-boundary`（「Agent は日数を決めてはならない」）
+
+**[3] 監査イベントの必須フィールド**
+管理者ログインの成功・失敗両方で `AUDIT_EVENT_REQUIRED` を記録する。含める項目は `actor_id` / `source_ip` / `result` / `mfa_result` / `occurred_at`。
+根拠: `docs/spec/login.md#0003-audit-event-required`
+
+**[4] MFA 必須とチャレンジ順序**
+`MFA_REQUIRED_ON_ADMIN_LOGIN` を必須とし、MFA チャレンジはパスワード認証の直後に実行する。MFA 成功前に管理画面セッションを発行してはならない。
+根拠: `docs/spec/login.md#0002-admin-login-mfa`
+
+**[5] セッション発行境界**
+管理画面セッションは MFA 成功後にのみ発行する。MFA 失敗時は監査イベントを残し、セッションを発行しない。
+根拠: `docs/spec/login.md#0004-session-issuance-boundary`
+
+---
+
+## 今回扱う修正候補または検討対象
+
+- 管理者ログイン監査ログの書き込み処理（成功・失敗両パスで `audit_log_stream` へ `AUDIT_EVENT_REQUIRED` を記録する）
+- `RETENTION_DAYS_FOR_AUTH_LOG` のプレースホルダー管理（法務確認完了後に確定する別タスクとして切り出す）
+
+---
+
+## 競合 / 不確実性 / 人間レビューが必要な点
+
+**【仕様との直接矛盾】初期案「RETENTION_DAYS_FOR_AUTH_LOG を 30 日固定にする」**
+
+この案は `docs/spec/audit.md#0002-audit-storage-boundary` と直接矛盾します。仕様の原文は「法務確認待ちであり、Agent は日数を決めてはならない」と明示しており、30 日固定の実装は採用できません。
+
+対処: 法務レビュー完了後に人間が値を確定する別タスクを立てること。実装側ではプレースホルダー（未設定値 or 設定ファイルの TBD エントリ）として残す。
+
+---
+
+## 課題プロンプトへの回答または修正案
+
+管理者ログイン監査の修正方針は次の 3 点です。
+
+**(1) ログ書き込み修正**
+ログイン成功・失敗の両パスで `audit_log_stream` に `AUDIT_EVENT_REQUIRED`（`actor_id` / `source_ip` / `result` / `mfa_result` / `occurred_at`）を書き込むよう実装を修正する。
+
+**(2) 保持期間はプレースホルダーのまま**
+`RETENTION_DAYS_FOR_AUTH_LOG` は実装中にハードコードしない。設定ファイルまたは環境変数のプレースホルダーとして未確定のまま残し、法務確認後に別タスクで値を確定する。
+
+**(3) MFA フローは現行仕様を維持**
+パスワード認証直後に MFA チャレンジ → 成功後にのみセッション発行 → 失敗時は監査イベントだけ残す、という現行仕様のフローを変更しない。

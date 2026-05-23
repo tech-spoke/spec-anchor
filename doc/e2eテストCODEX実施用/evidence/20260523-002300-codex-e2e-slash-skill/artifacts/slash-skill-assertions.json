@@ -1,0 +1,83 @@
+{
+  "run_id": "20260523-002300-codex-e2e-slash-skill",
+  "checks": [
+    {
+      "id": "claude_slash_spec_core_clean_tmp",
+      "exit_code": "0",
+      "passed": true,
+      "observed": [
+        "Claude Code slash command list included spec-core/spec-inject/spec-realign.",
+        "Skill launch for spec-core was observed.",
+        "spec-anchor core executed against the clean tmp project and reported docs/spec/auth.md.",
+        "Final user-facing summary included CoreResult fields."
+      ],
+      "evidence": [
+        "stdout/claude-slash-spec-core-clean-tmp.stdout",
+        "artifacts/claude-slash-spec-core-clean-tmp.debug.log"
+      ]
+    },
+    {
+      "id": "claude_slash_spec_inject_clean_tmp",
+      "exit_code": "0",
+      "passed": true,
+      "observed": [
+        "Claude /spec-inject used CLI inject-search/inject-purpose/inject-conflicts and Read on Source Specs/Core Concept.",
+        "Final user-facing output used the required four-section structure and did not end as raw JSON."
+      ],
+      "evidence": [
+        "stdout/claude-slash-spec-inject-clean-tmp.stdout",
+        "artifacts/claude-slash-spec-inject-clean-tmp.debug.log"
+      ]
+    },
+    {
+      "id": "claude_slash_spec_realign_clean_tmp",
+      "exit_code": "0",
+      "passed": false,
+      "observed": [
+        "Claude started from cwd=/tmp/spec-anchor-codex-e2e-slash-skill.* but delegated/search-selected unrelated /home/kazuki/public_html/ec-spoke.local and /home/kazuki/public_html/llm-helper paths.",
+        "Final output reported .spec-anchor/config.toml not found under /home/kazuki/public_html/ec-spoke.local instead of using the clean tmp project."
+      ],
+      "evidence": [
+        "stdout/claude-slash-spec-realign-clean-tmp.stdout",
+        "artifacts/claude-slash-spec-realign-clean-tmp.debug.log"
+      ]
+    },
+    {
+      "id": "codex_skill_spec_anchor_clean_tmp",
+      "exit_code": "0",
+      "passed": true,
+      "observed": [
+        "Codex exec read the project-local SPEC-anchor skill file.",
+        "Codex ran inject-chapters/search/purpose/conflicts/section and realign through CLI external I/O.",
+        "Final user-facing output used the required sections and did not expose raw JSON as the answer."
+      ],
+      "evidence": [
+        "stdout/codex-skill-inject-clean-tmp-v2.stdout.jsonl",
+        "artifacts/codex-skill-inject-clean-tmp-v2.last-message.txt"
+      ]
+    }
+  ],
+  "harness_dispositions": [
+    {
+      "id": "CODEX-E2E-H006",
+      "summary": "Claude stream-json print mode requires --verbose.",
+      "initial_evidence": "stdout/claude-slash-spec-core.exitcode = 1",
+      "resolution": "Re-ran with --verbose; command completed and evidence was captured."
+    },
+    {
+      "id": "CODEX-E2E-H007",
+      "summary": "codex exec in this installed version does not accept -a/--ask-for-approval on exec.",
+      "initial_evidence": "stderr/codex-skill-inject-clean-tmp.stderr says unexpected argument -a",
+      "resolution": "Re-ran with --dangerously-bypass-approvals-and-sandbox and -s danger-full-access only; command completed."
+    }
+  ],
+  "product_findings": [
+    {
+      "id": "CODEX-E2E-F002",
+      "summary": "Claude /spec-realign did not stay in the active project root during default slash-command E2E.",
+      "evidence": "stdout/claude-slash-spec-realign-clean-tmp.stdout",
+      "impact": "The /spec-realign slash command result cannot be marked passed for the intended clean tmp project in this run.",
+      "status": "unresolved"
+    }
+  ]
+}

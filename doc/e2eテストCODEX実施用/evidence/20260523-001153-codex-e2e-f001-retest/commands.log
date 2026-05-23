@@ -1,0 +1,40 @@
+## f001-inject-search-dirty-after-claude-fix
+started_at=2026-05-23T00:11:53+09:00
+cwd=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-001153-codex-e2e-f001-retest/tmp/f001-project
+cmd=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor inject-search password reset 
+exit_code=0
+ended_at=2026-05-23T00:11:53+09:00
+
+## f001-realign-dirty-after-claude-fix
+started_at=2026-05-23T00:11:53+09:00
+cwd=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-001153-codex-e2e-f001-retest/tmp/f001-project
+cmd=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor realign --answer-json \{\ \ \"今回守る制約\":\ \[\ \ \ \ \"Administrator\ accounts\ require\ multi-factor\ authentication.\"\,\ \ \ \ \"Sessions\ expire\ after\ 24\ hours\ of\ inactivity.\"\,\ \ \ \ \"Logout\ invalidates\ the\ active\ session\ immediately.\"\ \ \]\,\ \ \"今回扱う修正候補または検討対象\":\ \[\ \ \ \ \"Authentication\ and\ session\ lifecycle\ answer\ for\ the\ sample\ Source\ Specs.\"\ \ \]\,\ \ \"競合\ /\ 不確実性\ /\ 人間レビューが必要な点\":\ \[\]\,\ \ \"課題プロンプトへの回答または修正案\":\ \"Authentication\ requires\ email\ and\ password.\ Administrator\ accounts\ require\ multi-factor\ authentication.\ Sessions\ expire\ after\ 24\ hours\ of\ inactivity\,\ and\ logout\ invalidates\ the\ active\ session\ immediately.\"\} 
+exit_code=0
+ended_at=2026-05-23T00:11:53+09:00
+
+## f001-assert
+started_at=2026-05-23T00:11:54+09:00
+cmd=python f001 assertion
+exit_code=1
+ended_at=2026-05-23T00:11:54+09:00
+
+## f001-clean-inject-search-dirty-after-claude-fix
+started_at=2026-05-23T00:12:52+09:00
+cwd=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-001153-codex-e2e-f001-retest/tmp/f001-clean-project
+cmd=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor inject-search password reset 
+exit_code=0
+ended_at=2026-05-23T00:12:52+09:00
+
+## f001-clean-realign-dirty-after-claude-fix
+started_at=2026-05-23T00:12:52+09:00
+cwd=/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-001153-codex-e2e-f001-retest/tmp/f001-clean-project
+cmd=/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor realign --answer-json \{\ \ \"今回守る制約\":\ \[\ \ \ \ \"Administrator\ accounts\ require\ multi-factor\ authentication.\"\,\ \ \ \ \"Sessions\ expire\ after\ 24\ hours\ of\ inactivity.\"\,\ \ \ \ \"Logout\ invalidates\ the\ active\ session\ immediately.\"\ \ \]\,\ \ \"今回扱う修正候補または検討対象\":\ \[\ \ \ \ \"Authentication\ and\ session\ lifecycle\ answer\ for\ the\ sample\ Source\ Specs.\"\ \ \]\,\ \ \"競合\ /\ 不確実性\ /\ 人間レビューが必要な点\":\ \[\]\,\ \ \"課題プロンプトへの回答または修正案\":\ \"Authentication\ requires\ email\ and\ password.\ Administrator\ accounts\ require\ multi-factor\ authentication.\ Sessions\ expire\ after\ 24\ hours\ of\ inactivity\,\ and\ logout\ invalidates\ the\ active\ session\ immediately.\"\} 
+exit_code=0
+ended_at=2026-05-23T00:12:53+09:00
+
+## f001-clean-assert
+started_at=2026-05-23T00:12:53+09:00
+cmd=python f001 clean assertion
+exit_code=0
+ended_at=2026-05-23T00:12:53+09:00
+

@@ -1,0 +1,834 @@
+{
+  "core_result": {
+    "conflict_review_items": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "skipped_unchanged"
+      },
+      "section_metadata": {
+        "artifact_role": "retrieval_aid_not_evidence",
+        "diagnostics": [],
+        "generated_at": "1970-01-01T00:00:00Z",
+        "generation": {
+          "cache_key_inputs": [
+            "stable_section_uid",
+            "source_hash",
+            "prompt_version",
+            "model",
+            "provider",
+            "metadata_version",
+            "limits",
+            "enabled_fields"
+          ],
+          "enabled_fields": {
+            "related_sections": true,
+            "search_keys": true,
+            "summary": true
+          },
+          "identifier_extractor_version": "identifier-extractor-v1",
+          "limits": {
+            "llm_batch_max_chars": 12000,
+            "llm_batch_max_sections": 8,
+            "search_keys_max": 32,
+            "section_summary_max_chars": 480
+          },
+          "metadata_version": 1,
+          "model": "gpt-5.4-mini",
+          "prompt_version": "section-metadata-v2",
+          "provider": "codex",
+          "stage": "section_metadata"
+        },
+        "metadata_version": 1,
+        "prompt_version": "section-metadata-v2",
+        "sections": [
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Sample Service Spec"
+            ],
+            "identifiers": [
+              "E2E"
+            ],
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v2",
+            "related_sections": [],
+            "search_keys": [
+              "authentication service overview",
+              "end to end validation",
+              "sample service specification",
+              "service overview",
+              "validation target",
+              "Sample Service Spec"
+            ],
+            "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+            "semantic_hash": "1478b3dd0eea8a111781a527f66b1fae27b9fc7676fc85a1cf932cbc2baf310b",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "bb9271382befa6e59b65c16c95820f9fb092308423e8ee770d94d5a6fe6fad5f",
+            "source_section_id": "docs/spec/sample.md#0001-sample-service-spec",
+            "stable_section_uid": "0550b74a869f95ec",
+            "summary": "Overview of a small authentication service used for end-to-end validation."
+          },
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Sample Service Spec",
+              "Authentication"
+            ],
+            "identifiers": [],
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v2",
+            "related_sections": [],
+            "search_keys": [
+              "sign in with email and password",
+              "session expires after inactivity",
+              "administrator multi factor login",
+              "user authentication flow",
+              "login and session lifecycle",
+              "Sample Service Spec",
+              "Authentication"
+            ],
+            "section_id": "docs/spec/sample.md#0002-authentication",
+            "semantic_hash": "91c58d0df11f3e05fbf26febdde64ec40bcfa70c1a46aabeb464081658986161",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "ce40aa3d7e507e244933d8bda7825863d00cb7c7e60c190e7803eb44aa57efd0",
+            "source_section_id": "docs/spec/sample.md#0002-authentication",
+            "stable_section_uid": "4f781fbcf17adcf4",
+            "summary": "Describes sign-in with email and password, session creation, 24-hour inactivity expiration, and multi-factor authentication for administrators."
+          },
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Sample Service Spec",
+              "Authorization"
+            ],
+            "identifiers": [
+              "API"
+            ],
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v2",
+            "related_sections": [],
+            "search_keys": [
+              "role based access rules",
+              "administrator full access",
+              "own resources only",
+              "service account access keys",
+              "authorization and ownership",
+              "Sample Service Spec",
+              "Authorization"
+            ],
+            "section_id": "docs/spec/sample.md#0003-authorization",
+            "semantic_hash": "1163a49ff395ae6b85aea053b9c9449208d025331c274de9bd724bf0abad490c",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "2f8f36175a38a90b4cea0f1f23bea8952a3ad01f9d14103ee7779abcabfbc88f",
+            "source_section_id": "docs/spec/sample.md#0003-authorization",
+            "stable_section_uid": "789420154d18ed9f",
+            "summary": "Defines role-based access rules for administrators, regular users, and service accounts, including ownership-based access and key-based authentication."
+          },
+          {
+            "generated_at": "1970-01-01T00:00:00Z",
+            "heading_path": [
+              "Sample Service Spec",
+              "Session Termination"
+            ],
+            "identifiers": [],
+            "llm_generation_status": "success",
+            "llm_provider": "codex",
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v2",
+            "related_sections": [],
+            "search_keys": [
+              "logout ends session immediately",
+              "expired session cleanup",
+              "background sweep interval",
+              "session termination behavior",
+              "automatic removal of expired sessions",
+              "Sample Service Spec",
+              "Session Termination"
+            ],
+            "section_id": "docs/spec/sample.md#0004-session-termination",
+            "semantic_hash": "b0d1706c752d371ebbf5fc078e40d1d8c9fd392d02bee4faf63247a84875a3ad",
+            "source_document_id": "docs/spec/sample.md",
+            "source_hash": "ddef089649615cc7be54d2f20b814714f55749722eaff16dea636ac7bc71d63e",
+            "source_section_id": "docs/spec/sample.md#0004-session-termination",
+            "stable_section_uid": "5528aacff62867c8",
+            "summary": "Covers immediate invalidation on logout and periodic cleanup of expired sessions by background processing."
+          }
+        ],
+        "summary_search_keys_are_evidence": false
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/sample.md#0001-sample-service-spec",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "failed_sections": [],
+    "failed_sources": [],
+    "freshness_report": {
+      "blocking_reasons": [],
+      "diagnostics": {
+        "chapter_anchors": {
+          "failed_chapter_ids": [],
+          "failure_reasons_by_chapter": {},
+          "status": "success"
+        },
+        "related_sections": {
+          "diagnostics": [],
+          "qdrant_backend_failure": null,
+          "status": "skipped_unchanged"
+        },
+        "retrieval_index": {
+          "status": "skipped_unchanged"
+        },
+        "section_metadata_generation": {
+          "batch_sizes": [],
+          "blocking_reasons": [],
+          "cache_hits": 4,
+          "diagnostics": {},
+          "failed_sections": [],
+          "freshness_status": "fresh",
+          "generated_section_ids": [],
+          "llm_calls": 0,
+          "reused_section_ids": [
+            "docs/spec/sample.md#0001-sample-service-spec",
+            "docs/spec/sample.md#0002-authentication",
+            "docs/spec/sample.md#0003-authorization",
+            "docs/spec/sample.md#0004-session-termination"
+          ],
+          "warnings": []
+        },
+        "verify_index": {
+          "executed": false,
+          "reason": "not_requested"
+        }
+      },
+      "status": "fresh",
+      "warnings": []
+    },
+    "mode": "incremental",
+    "pending_conflict_count": 0,
+    "potential_conflicts": [],
+    "regenerated_chapter_anchors": [],
+    "related_sections_status": "skipped_unchanged",
+    "retrieval_index_status": "skipped_unchanged",
+    "skipped_sections": [
+      {
+        "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+        "source_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+      },
+      {
+        "section_id": "docs/spec/sample.md#0002-authentication",
+        "source_section_id": "docs/spec/sample.md#0002-authentication"
+      },
+      {
+        "section_id": "docs/spec/sample.md#0003-authorization",
+        "source_section_id": "docs/spec/sample.md#0003-authorization"
+      },
+      {
+        "section_id": "docs/spec/sample.md#0004-session-termination",
+        "source_section_id": "docs/spec/sample.md#0004-session-termination"
+      }
+    ],
+    "skipped_sources": [
+      "docs/spec/sample.md"
+    ],
+    "stale_resolution_count": 0,
+    "status": "updated",
+    "unreflected_conflict_resolutions": [],
+    "updated_sections": [],
+    "updated_sources": [],
+    "warnings": []
+  },
+  "cycle_count": 1,
+  "cycles": [
+    {
+      "core_result": {
+        "conflict_review_items": [],
+        "diagnostics": {
+          "chapter_anchors": {
+            "failed_chapter_ids": [],
+            "failure_reasons_by_chapter": {},
+            "status": "success"
+          },
+          "related_sections": {
+            "diagnostics": [],
+            "qdrant_backend_failure": null,
+            "status": "skipped_unchanged"
+          },
+          "retrieval_index": {
+            "status": "skipped_unchanged"
+          },
+          "section_metadata": {
+            "artifact_role": "retrieval_aid_not_evidence",
+            "diagnostics": [],
+            "generated_at": "1970-01-01T00:00:00Z",
+            "generation": {
+              "cache_key_inputs": [
+                "stable_section_uid",
+                "source_hash",
+                "prompt_version",
+                "model",
+                "provider",
+                "metadata_version",
+                "limits",
+                "enabled_fields"
+              ],
+              "enabled_fields": {
+                "related_sections": true,
+                "search_keys": true,
+                "summary": true
+              },
+              "identifier_extractor_version": "identifier-extractor-v1",
+              "limits": {
+                "llm_batch_max_chars": 12000,
+                "llm_batch_max_sections": 8,
+                "search_keys_max": 32,
+                "section_summary_max_chars": 480
+              },
+              "metadata_version": 1,
+              "model": "gpt-5.4-mini",
+              "prompt_version": "section-metadata-v2",
+              "provider": "codex",
+              "stage": "section_metadata"
+            },
+            "metadata_version": 1,
+            "prompt_version": "section-metadata-v2",
+            "sections": [
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Sample Service Spec"
+                ],
+                "identifiers": [
+                  "E2E"
+                ],
+                "llm_generation_status": "success",
+                "llm_provider": "codex",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v2",
+                "related_sections": [],
+                "search_keys": [
+                  "authentication service overview",
+                  "end to end validation",
+                  "sample service specification",
+                  "service overview",
+                  "validation target",
+                  "Sample Service Spec"
+                ],
+                "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+                "semantic_hash": "1478b3dd0eea8a111781a527f66b1fae27b9fc7676fc85a1cf932cbc2baf310b",
+                "source_document_id": "docs/spec/sample.md",
+                "source_hash": "bb9271382befa6e59b65c16c95820f9fb092308423e8ee770d94d5a6fe6fad5f",
+                "source_section_id": "docs/spec/sample.md#0001-sample-service-spec",
+                "stable_section_uid": "0550b74a869f95ec",
+                "summary": "Overview of a small authentication service used for end-to-end validation."
+              },
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Sample Service Spec",
+                  "Authentication"
+                ],
+                "identifiers": [],
+                "llm_generation_status": "success",
+                "llm_provider": "codex",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v2",
+                "related_sections": [],
+                "search_keys": [
+                  "sign in with email and password",
+                  "session expires after inactivity",
+                  "administrator multi factor login",
+                  "user authentication flow",
+                  "login and session lifecycle",
+                  "Sample Service Spec",
+                  "Authentication"
+                ],
+                "section_id": "docs/spec/sample.md#0002-authentication",
+                "semantic_hash": "91c58d0df11f3e05fbf26febdde64ec40bcfa70c1a46aabeb464081658986161",
+                "source_document_id": "docs/spec/sample.md",
+                "source_hash": "ce40aa3d7e507e244933d8bda7825863d00cb7c7e60c190e7803eb44aa57efd0",
+                "source_section_id": "docs/spec/sample.md#0002-authentication",
+                "stable_section_uid": "4f781fbcf17adcf4",
+                "summary": "Describes sign-in with email and password, session creation, 24-hour inactivity expiration, and multi-factor authentication for administrators."
+              },
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Sample Service Spec",
+                  "Authorization"
+                ],
+                "identifiers": [
+                  "API"
+                ],
+                "llm_generation_status": "success",
+                "llm_provider": "codex",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v2",
+                "related_sections": [],
+                "search_keys": [
+                  "role based access rules",
+                  "administrator full access",
+                  "own resources only",
+                  "service account access keys",
+                  "authorization and ownership",
+                  "Sample Service Spec",
+                  "Authorization"
+                ],
+                "section_id": "docs/spec/sample.md#0003-authorization",
+                "semantic_hash": "1163a49ff395ae6b85aea053b9c9449208d025331c274de9bd724bf0abad490c",
+                "source_document_id": "docs/spec/sample.md",
+                "source_hash": "2f8f36175a38a90b4cea0f1f23bea8952a3ad01f9d14103ee7779abcabfbc88f",
+                "source_section_id": "docs/spec/sample.md#0003-authorization",
+                "stable_section_uid": "789420154d18ed9f",
+                "summary": "Defines role-based access rules for administrators, regular users, and service accounts, including ownership-based access and key-based authentication."
+              },
+              {
+                "generated_at": "1970-01-01T00:00:00Z",
+                "heading_path": [
+                  "Sample Service Spec",
+                  "Session Termination"
+                ],
+                "identifiers": [],
+                "llm_generation_status": "success",
+                "llm_provider": "codex",
+                "metadata_version": 1,
+                "prompt_version": "section-metadata-v2",
+                "related_sections": [],
+                "search_keys": [
+                  "logout ends session immediately",
+                  "expired session cleanup",
+                  "background sweep interval",
+                  "session termination behavior",
+                  "automatic removal of expired sessions",
+                  "Sample Service Spec",
+                  "Session Termination"
+                ],
+                "section_id": "docs/spec/sample.md#0004-session-termination",
+                "semantic_hash": "b0d1706c752d371ebbf5fc078e40d1d8c9fd392d02bee4faf63247a84875a3ad",
+                "source_document_id": "docs/spec/sample.md",
+                "source_hash": "ddef089649615cc7be54d2f20b814714f55749722eaff16dea636ac7bc71d63e",
+                "source_section_id": "docs/spec/sample.md#0004-session-termination",
+                "stable_section_uid": "5528aacff62867c8",
+                "summary": "Covers immediate invalidation on logout and periodic cleanup of expired sessions by background processing."
+              }
+            ],
+            "summary_search_keys_are_evidence": false
+          },
+          "section_metadata_generation": {
+            "batch_sizes": [],
+            "blocking_reasons": [],
+            "cache_hits": 4,
+            "diagnostics": {},
+            "failed_sections": [],
+            "freshness_status": "fresh",
+            "generated_section_ids": [],
+            "llm_calls": 0,
+            "reused_section_ids": [
+              "docs/spec/sample.md#0001-sample-service-spec",
+              "docs/spec/sample.md#0002-authentication",
+              "docs/spec/sample.md#0003-authorization",
+              "docs/spec/sample.md#0004-session-termination"
+            ],
+            "warnings": []
+          },
+          "verify_index": {
+            "executed": false,
+            "reason": "not_requested"
+          }
+        },
+        "failed_sections": [],
+        "failed_sources": [],
+        "freshness_report": {
+          "blocking_reasons": [],
+          "diagnostics": {
+            "chapter_anchors": {
+              "failed_chapter_ids": [],
+              "failure_reasons_by_chapter": {},
+              "status": "success"
+            },
+            "related_sections": {
+              "diagnostics": [],
+              "qdrant_backend_failure": null,
+              "status": "skipped_unchanged"
+            },
+            "retrieval_index": {
+              "status": "skipped_unchanged"
+            },
+            "section_metadata_generation": {
+              "batch_sizes": [],
+              "blocking_reasons": [],
+              "cache_hits": 4,
+              "diagnostics": {},
+              "failed_sections": [],
+              "freshness_status": "fresh",
+              "generated_section_ids": [],
+              "llm_calls": 0,
+              "reused_section_ids": [
+                "docs/spec/sample.md#0001-sample-service-spec",
+                "docs/spec/sample.md#0002-authentication",
+                "docs/spec/sample.md#0003-authorization",
+                "docs/spec/sample.md#0004-session-termination"
+              ],
+              "warnings": []
+            },
+            "verify_index": {
+              "executed": false,
+              "reason": "not_requested"
+            }
+          },
+          "status": "fresh",
+          "warnings": []
+        },
+        "mode": "incremental",
+        "pending_conflict_count": 0,
+        "potential_conflicts": [],
+        "regenerated_chapter_anchors": [],
+        "related_sections_status": "skipped_unchanged",
+        "retrieval_index_status": "skipped_unchanged",
+        "skipped_sections": [
+          {
+            "section_id": "docs/spec/sample.md#0001-sample-service-spec",
+            "source_section_id": "docs/spec/sample.md#0001-sample-service-spec"
+          },
+          {
+            "section_id": "docs/spec/sample.md#0002-authentication",
+            "source_section_id": "docs/spec/sample.md#0002-authentication"
+          },
+          {
+            "section_id": "docs/spec/sample.md#0003-authorization",
+            "source_section_id": "docs/spec/sample.md#0003-authorization"
+          },
+          {
+            "section_id": "docs/spec/sample.md#0004-session-termination",
+            "source_section_id": "docs/spec/sample.md#0004-session-termination"
+          }
+        ],
+        "skipped_sources": [
+          "docs/spec/sample.md"
+        ],
+        "stale_resolution_count": 0,
+        "status": "updated",
+        "unreflected_conflict_resolutions": [],
+        "updated_sections": [],
+        "updated_sources": [],
+        "warnings": []
+      },
+      "freshness_report": {
+        "blocking_reasons": [],
+        "diagnostics": {
+          "chapter_anchors": {
+            "failed_chapter_ids": [],
+            "failure_reasons_by_chapter": {},
+            "status": "success"
+          },
+          "related_sections": {
+            "diagnostics": [],
+            "qdrant_backend_failure": null,
+            "status": "skipped_unchanged"
+          },
+          "retrieval_index": {
+            "status": "skipped_unchanged"
+          },
+          "section_metadata_generation": {
+            "batch_sizes": [],
+            "blocking_reasons": [],
+            "cache_hits": 4,
+            "diagnostics": {},
+            "failed_sections": [],
+            "freshness_status": "fresh",
+            "generated_section_ids": [],
+            "llm_calls": 0,
+            "reused_section_ids": [
+              "docs/spec/sample.md#0001-sample-service-spec",
+              "docs/spec/sample.md#0002-authentication",
+              "docs/spec/sample.md#0003-authorization",
+              "docs/spec/sample.md#0004-session-termination"
+            ],
+            "warnings": []
+          },
+          "verify_index": {
+            "executed": false,
+            "reason": "not_requested"
+          }
+        },
+        "status": "fresh",
+        "warnings": []
+      },
+      "generated_at": null,
+      "last_heartbeat_at": "2026-05-22T15:03:19.431000Z",
+      "last_heartbeat_at_epoch_ms": 1779462199431,
+      "last_lock": {
+        "acquired_at": "2026-05-22T15:03:18.099000Z",
+        "acquired_at_epoch_ms": 1779462198099,
+        "lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+        "owner": "watcher",
+        "reason": "watcher_running",
+        "run_id": "fdd883b9-0a32-48eb-8f4a-7226838fa5a2",
+        "updated_at": "2026-05-22T15:03:19.431000Z",
+        "updated_at_epoch_ms": 1779462199431
+      },
+      "last_lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+      "lock_reused": false,
+      "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options",
+      "queue_count": 0,
+      "queue_pending": false,
+      "queued_changes": [],
+      "ran_core": true,
+      "run_id": "fdd883b9-0a32-48eb-8f4a-7226838fa5a2",
+      "snapshot": {
+        "file_count": 3,
+        "files": [
+          {
+            "exists": true,
+            "mtime_ns": 1779453871045388152,
+            "path": "docs/core/concept.md",
+            "relative_path": "docs/core/concept.md",
+            "sha256": "3c428bb756d03024de21331ad43cb53bfe1969bf90372fb7a0cefcedd5fc2520",
+            "size": 326
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779453871045388152,
+            "path": "docs/core/purpose.md",
+            "relative_path": "docs/core/purpose.md",
+            "sha256": "eb467551954447f4e78f4845d455de1709a0493eb61e8aede9da8083ba36d7d7",
+            "size": 215
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779453871045388152,
+            "path": "docs/spec/sample.md",
+            "relative_path": "docs/spec/sample.md",
+            "sha256": "d51ab4c2db8f54451fe964a5a16fcc2d391123f22095bde613b35e2553f81bc5",
+            "size": 682
+          }
+        ],
+        "fingerprint": "c214c0e0a7f6379ec138b25595a8e7d3a0ca990e457a06b0212982de86092a4a",
+        "schema_version": 1
+      },
+      "source_snapshot": {
+        "file_count": 3,
+        "files": [
+          {
+            "exists": true,
+            "mtime_ns": 1779453871045388152,
+            "path": "docs/core/concept.md",
+            "relative_path": "docs/core/concept.md",
+            "sha256": "3c428bb756d03024de21331ad43cb53bfe1969bf90372fb7a0cefcedd5fc2520",
+            "size": 326
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779453871045388152,
+            "path": "docs/core/purpose.md",
+            "relative_path": "docs/core/purpose.md",
+            "sha256": "eb467551954447f4e78f4845d455de1709a0493eb61e8aede9da8083ba36d7d7",
+            "size": 215
+          },
+          {
+            "exists": true,
+            "mtime_ns": 1779453871045388152,
+            "path": "docs/spec/sample.md",
+            "relative_path": "docs/spec/sample.md",
+            "sha256": "d51ab4c2db8f54451fe964a5a16fcc2d391123f22095bde613b35e2553f81bc5",
+            "size": 682
+          }
+        ],
+        "fingerprint": "c214c0e0a7f6379ec138b25595a8e7d3a0ca990e457a06b0212982de86092a4a",
+        "schema_version": 1
+      },
+      "status": "updated",
+      "updated": true,
+      "watcher": {
+        "is_running": false,
+        "lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+        "queue_count": 0,
+        "queue_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_queue.json",
+        "queue_pending": false,
+        "running": false,
+        "state_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_state.json"
+      }
+    }
+  ],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "related_sections": {
+        "diagnostics": [],
+        "qdrant_backend_failure": null,
+        "status": "skipped_unchanged"
+      },
+      "retrieval_index": {
+        "status": "skipped_unchanged"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [],
+        "blocking_reasons": [],
+        "cache_hits": 4,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [],
+        "llm_calls": 0,
+        "reused_section_ids": [
+          "docs/spec/sample.md#0001-sample-service-spec",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination"
+        ],
+        "warnings": []
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "fresh",
+    "warnings": []
+  },
+  "generated_at": null,
+  "last_heartbeat_at": "2026-05-22T15:03:19.431000Z",
+  "last_heartbeat_at_epoch_ms": 1779462199431,
+  "last_lock": {
+    "acquired_at": "2026-05-22T15:03:18.099000Z",
+    "acquired_at_epoch_ms": 1779462198099,
+    "lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+    "owner": "watcher",
+    "reason": "watcher_running",
+    "run_id": "fdd883b9-0a32-48eb-8f4a-7226838fa5a2",
+    "updated_at": "2026-05-22T15:03:19.431000Z",
+    "updated_at_epoch_ms": 1779462199431
+  },
+  "last_lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+  "lock_reused": false,
+  "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options",
+  "queue_count": 0,
+  "queue_pending": false,
+  "queued_changes": [],
+  "ran_core": true,
+  "run_count": 1,
+  "run_id": "fdd883b9-0a32-48eb-8f4a-7226838fa5a2",
+  "runs": 1,
+  "settings": {
+    "config_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/config.toml",
+    "debounce_sec": 0.1,
+    "enabled": true,
+    "interval_sec": 0.2,
+    "lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+    "project_root": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options",
+    "queue_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_queue.json",
+    "stale_lock_sec": 1.0,
+    "state_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_state.json"
+  },
+  "snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779453871045388152,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "3c428bb756d03024de21331ad43cb53bfe1969bf90372fb7a0cefcedd5fc2520",
+        "size": 326
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779453871045388152,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "eb467551954447f4e78f4845d455de1709a0493eb61e8aede9da8083ba36d7d7",
+        "size": 215
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779453871045388152,
+        "path": "docs/spec/sample.md",
+        "relative_path": "docs/spec/sample.md",
+        "sha256": "d51ab4c2db8f54451fe964a5a16fcc2d391123f22095bde613b35e2553f81bc5",
+        "size": 682
+      }
+    ],
+    "fingerprint": "c214c0e0a7f6379ec138b25595a8e7d3a0ca990e457a06b0212982de86092a4a",
+    "schema_version": 1
+  },
+  "source_snapshot": {
+    "file_count": 3,
+    "files": [
+      {
+        "exists": true,
+        "mtime_ns": 1779453871045388152,
+        "path": "docs/core/concept.md",
+        "relative_path": "docs/core/concept.md",
+        "sha256": "3c428bb756d03024de21331ad43cb53bfe1969bf90372fb7a0cefcedd5fc2520",
+        "size": 326
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779453871045388152,
+        "path": "docs/core/purpose.md",
+        "relative_path": "docs/core/purpose.md",
+        "sha256": "eb467551954447f4e78f4845d455de1709a0493eb61e8aede9da8083ba36d7d7",
+        "size": 215
+      },
+      {
+        "exists": true,
+        "mtime_ns": 1779453871045388152,
+        "path": "docs/spec/sample.md",
+        "relative_path": "docs/spec/sample.md",
+        "sha256": "d51ab4c2db8f54451fe964a5a16fcc2d391123f22095bde613b35e2553f81bc5",
+        "size": 682
+      }
+    ],
+    "fingerprint": "c214c0e0a7f6379ec138b25595a8e7d3a0ca990e457a06b0212982de86092a4a",
+    "schema_version": 1
+  },
+  "status": "updated",
+  "updated": true,
+  "watcher": {
+    "is_running": false,
+    "lock_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/core_update.lock.json",
+    "queue_count": 0,
+    "queue_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_queue.json",
+    "queue_pending": false,
+    "running": false,
+    "state_file": "/home/kazuki/public_html/spec-anchor/doc/e2eテストCODEX実施用/evidence/20260523-000315-codex-e2e-additional/tmp/watch-options/.spec-anchor/state/watch_state.json"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "blocked": true,
+  "can_continue": false,
+  "command": "/spec-core",
+  "constraints": [],
+  "error": {
+    "code": "command_error",
+    "message": "[Errno 2] No such file or directory: 'doc/e2eテストCODEX実施用/evidence/20260523-020721-codex-e2e-remaining3/artifacts/decision-prefer_b.json'",
+    "type": "FileNotFoundError"
+  },
+  "project_root": "/tmp/spec-anchor-codex-e2e-decision-prefer_b.e71l4wtt",
+  "should_stop": true,
+  "status": "error",
+  "stops": true
+}

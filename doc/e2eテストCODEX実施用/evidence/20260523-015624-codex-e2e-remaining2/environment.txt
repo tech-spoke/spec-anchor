@@ -1,0 +1,4 @@
+run_id=20260523-015624-codex-e2e-remaining2
+base_project=/tmp/spec-anchor-codex-e2e-f002-retest.N4Lyjy
+2026-05-23T01:56:24+09:00
+spec-anchor 0.1.0
