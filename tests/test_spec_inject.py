@@ -553,3 +553,56 @@ def test_t_i08_inject_does_not_call_agentic_llm_provider(tmp_path: Path) -> None
 
     assert provider.calls == 0
     assert _stopped(result) is False
+
+
+def test_live_source_dirty_detects_edited_source_after_core(tmp_path: Path) -> None:
+    """§3.3: inject gate stops when Source Specs changed after /spec-core."""
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    _run_spec_core(project_root)
+
+    result_before = _result_dict(_run_spec_inject(project_root))
+    assert result_before.get("status") == "fresh"
+    assert _stopped(result_before) is False
+
+    paths["spec"].write_text(
+        "# Security\n"
+        "Intro.\n\n"
+        "## Authentication\n"
+        "Authentication must validate sessions before privileged actions.\n\n"
+        "## Session\n"
+        "Sessions expire after inactivity and must be refreshed explicitly.\n\n"
+        "## Password Reset\n"
+        "Password reset tokens expire in 30 minutes.\n"
+    )
+
+    result_after = _result_dict(_run_spec_inject(project_root))
+    assert result_after.get("status") == "blocked"
+    assert "dirty_or_stale_source" in (result_after.get("blocking_reasons") or [])
+    assert _stopped(result_after) is True
+
+
+def test_live_source_dirty_detects_removed_section_after_core(tmp_path: Path) -> None:
+    """§3.3: inject gate stops when a section is removed from Source Specs."""
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+    _run_spec_core(project_root)
+
+    (project_root / "docs/spec/security.md").write_text(
+        "# Security\nIntro.\n\n## Authentication\nValidate sessions.\n"
+    )
+
+    result = _result_dict(_run_spec_inject(project_root))
+    assert result.get("status") == "blocked"
+    assert "dirty_or_stale_source" in (result.get("blocking_reasons") or [])
+
+
+def test_live_source_dirty_unchanged_source_stays_fresh(tmp_path: Path) -> None:
+    """§3.3: inject gate passes when Source Specs are unchanged after /spec-core."""
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+    _run_spec_core(project_root)
+
+    result = _result_dict(_run_spec_inject(project_root))
+    assert result.get("status") == "fresh"
+    assert _stopped(result) is False

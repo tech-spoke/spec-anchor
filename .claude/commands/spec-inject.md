@@ -8,6 +8,8 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 
 正本は SPEC-anchor の外部 command contract と SPEC-anchor CLI の入出力である。この Claude command template は独立した仕様ではない。
 
+すべての `spec-anchor` CLI 呼び出しは現在の作業ディレクトリ (cwd) を project root として実行する。親ディレクトリ、別プロジェクト、記憶にある他のパスを探索してはならない。cwd に `.spec-anchor/config.toml` がなければ、その旨を報告して `spec-anchor-setup-project` を提案する。
+
 ユーザーが課題固有 constraints を必要としており、まだ最終回答や実装を求めていない場合に `/spec-inject` を使う。
 
 ## 必須手順
@@ -89,3 +91,31 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor は navigation / support 専用である。`support_refs` には入れられるが、constraint の sole evidence にはしない。
 
 Purpose と Core Concept は人間が維持する read-only input である。両ファイルは変更しない。`.spec-anchor/config.toml` の `[llm]` provider は使わない。`/spec-inject` はこの command を実行している Agent / LLM が担当する。
+
+## CLI 出力と人間向け整形
+
+`spec-anchor inject-*` の戻り値は **stdout に出る内部 JSON** であり、CLI 自身は人間向け整形を持たない (外部設計書 §8.5)。Agent はこの JSON を読んで、ユーザー宛の会話に対して次の 5 セクション構造で整形する。各セクションは、該当 0 件のときも「該当なし」を明示する。セクション自体の省略は許可しない。
+
+```text
+今回守る制約
+  - <statement>
+    根拠: <evidence_origin> / <evidence_ref>
+    参照補助: <support_refs (origin/ref) の要約>
+
+今回見るべき対象
+  - <Section または topic>
+    理由: <なぜ今回関係するか>
+
+関連先として確認したもの
+  - <related Section>
+    理由: <depends / impacts / related / conflicts など>
+
+採用しなかったもの
+  - <候補>
+    理由: <今回の課題には遠い / 根拠不足 / 別論点>
+
+不確実性 / 人間確認
+  - <確認すべき点>
+```
+
+CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。

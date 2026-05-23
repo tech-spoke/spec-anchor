@@ -8,6 +8,8 @@ allowed-tools: Bash(spec-anchor core:*)
 
 正本は SPEC-anchor の外部 command contract と SPEC-anchor CLI の入出力である。この Claude command template は、Agent がその契約をどう呼び出すかだけを示す。
 
+すべての `spec-anchor` CLI 呼び出しは現在の作業ディレクトリ (cwd) を project root として実行する。親ディレクトリ、別プロジェクト、記憶にある他のパスを探索してはならない。cwd に `.spec-anchor/config.toml` がなければ、その旨を報告して `spec-anchor-setup-project` を提案する。
+
 project root で `spec-anchor core` を実行する。`--all` または `-a` は、ユーザーが full rebuild を明示した場合だけ追加する。`.spec-anchor/config.toml` の `[llm.stage_routing]` が H-4 calibration で確定した stage 別最適 model / effort (`section_metadata` / `related_sections` / `conflict_review`) を適用する。`--llm-provider` を明示すると stage_routing が上書きされるので、特別な事情がない限り指定しない。
 
 `/spec-core` は SPEC-anchor の保持 artifact を生成または更新する: Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor、Source Retrieval Index、Conflict Review Items。

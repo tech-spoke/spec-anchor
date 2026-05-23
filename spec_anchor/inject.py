@@ -169,14 +169,97 @@ def _read_freshness_artifact(project_root: Path) -> dict[str, Any]:
     store = ContextArtifactStore(_context_dir(project_root))
     path = store.path_for("freshness")
     payload = _read_json_file(path)
-    if payload:
-        return payload
-    return {
-        "status": "failed",
-        "blocking_reasons": ["failed_required_artifact"],
-        "warnings": [f"freshness artifact missing or unreadable: {path.as_posix()}"],
-        "diagnostics": {"missing_required_artifacts": ["freshness"]},
-    }
+    if not payload:
+        return {
+            "status": "failed",
+            "blocking_reasons": ["failed_required_artifact"],
+            "warnings": [f"freshness artifact missing or unreadable: {path.as_posix()}"],
+            "diagnostics": {"missing_required_artifacts": ["freshness"]},
+        }
+
+    if _live_source_dirty(project_root, store):
+        reasons = list(payload.get("blocking_reasons") or [])
+        if "dirty_or_stale_source" not in reasons:
+            reasons.insert(0, "dirty_or_stale_source")
+        payload = {**payload, "status": "blocked", "blocking_reasons": reasons}
+
+    return payload
+
+
+def _live_source_dirty(project_root: Path, store: "ContextArtifactStore") -> bool:  # noqa: F821
+    """Compare current Source Specs hashes against section_manifest to detect drift."""
+    try:
+        from spec_anchor import section_parser as section_parser_api
+
+        raw_config = _read_project_config(project_root)
+        sources_table = raw_config.get("sources") or {}
+        include = sources_table.get("include")
+        if not isinstance(include, list) or not include:
+            return False
+        exclude = sources_table.get("exclude", [])
+        if not isinstance(exclude, list):
+            exclude = []
+        source_files = _resolve_source_files(project_root, include, exclude)
+        if not source_files:
+            return False
+
+        section_table = raw_config.get("section") or {}
+        max_level = int(section_table.get("max_heading_level", 4))
+
+        manifest_path = store.path_for("section_manifest")
+        manifest = _read_json_file(manifest_path)
+        if not manifest:
+            return False
+
+        stored_sections = manifest.get("sections")
+        if not isinstance(stored_sections, list) or not stored_sections:
+            return False
+
+        stored_map: dict[str, str] = {}
+        for entry in stored_sections:
+            sid = entry.get("source_section_id") or entry.get("section_id") or ""
+            shash = entry.get("source_hash") or ""
+            if sid:
+                stored_map[sid] = shash
+
+        current_map: dict[str, str] = {}
+        for source_file in source_files:
+            if not source_file.is_file():
+                return True
+            text = source_file.read_text()
+            relative = source_file.relative_to(project_root).as_posix()
+            for section in section_parser_api.parse_markdown_sections(
+                text, source_path=relative, max_heading_level=max_level,
+            ):
+                current_map[section.source_section_id] = section.source_hash
+
+        return current_map != stored_map
+    except Exception:
+        return False
+
+
+def _resolve_source_files(
+    root: Path, include: list[str], exclude: list[str],
+) -> list[Path]:
+    import glob as glob_mod
+
+    included: set[Path] = set()
+    for pattern in include:
+        if not isinstance(pattern, str) or not pattern:
+            continue
+        for item in glob_mod.glob(str(root / pattern), recursive=True):
+            path = Path(item).resolve()
+            if path.is_file():
+                included.add(path)
+    excluded: set[Path] = set()
+    for pattern in exclude:
+        if not isinstance(pattern, str) or not pattern:
+            continue
+        for item in glob_mod.glob(str(root / pattern), recursive=True):
+            path = Path(item).resolve()
+            if path.is_file():
+                excluded.add(path)
+    return sorted(included - excluded)
 
 
 def _context_dir(project_root: Path) -> Path:

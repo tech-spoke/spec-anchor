@@ -8,6 +8,8 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 
 正本は SPEC-anchor の外部 command contract と SPEC-anchor CLI の入出力である。この Claude command template は独立した仕様ではない。
 
+すべての `spec-anchor` CLI 呼び出しは現在の作業ディレクトリ (cwd) を project root として実行する。親ディレクトリ、別プロジェクト、記憶にある他のパスを探索してはならない。cwd に `.spec-anchor/config.toml` がなければ、その旨を報告して `spec-anchor-setup-project` を提案する。
+
 ユーザーが課題固有 constraints を必要としており、まだ最終回答や実装を求めていない場合に `/spec-inject` を使う。
 
 ## 必須手順
@@ -74,11 +76,15 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
   - <related Section>
     理由: <depends / impacts / related / conflicts など>
 
+採用しなかったもの
+  - <候補>
+    理由: <今回の課題には遠い / 根拠不足 / 別論点>
+
 不確実性 / 人間確認
-  - <constraint.uncertainty に挙がった項目>
+  - <確認すべき点>
 ```
 
-CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
+各セクションは、該当 0 件のときも「該当なし」を明示する。セクション自体の省略は許可しない。CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
 
 ### constraints JSON の作り方
 
