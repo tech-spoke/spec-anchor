@@ -33,7 +33,7 @@ from spec_anchor.llm_provider import (
 )
 
 
-SECTION_METADATA_PROMPT_VERSION = "section-metadata-v2"
+SECTION_METADATA_PROMPT_VERSION = "section-metadata-v3"
 SECTION_METADATA_ROLE = "retrieval_aid_not_evidence"
 IDENTIFIER_EXTRACTOR_VERSION = "identifier-extractor-v1"
 
@@ -993,6 +993,13 @@ def _batch_prompt_payload(
         "artifact_role": SECTION_METADATA_ROLE,
         "summary_search_keys_are_evidence": False,
         "instructions": _SEARCH_KEYS_INSTRUCTIONS,
+        "batch_completeness_rule": (
+            "Return exactly one item in output sections[] for every item in input sections[]."
+            " Use the exact section_id string from the input."
+            " Do not omit, add, rename, or merge sections."
+            " If a section is unclear, return empty summary and empty search_keys for that"
+            " item but keep it in the output."
+        ),
         "return_shape": {
             "sections": [
                 {

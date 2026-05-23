@@ -1,0 +1,400 @@
+{
+  "conflict_review_items": [],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 7.069455852993997,
+          "candidate_generation_partial_mode": "full",
+          "candidate_generation_source_count": 4,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 6,
+          "cache_rejected_hits": 0,
+          "cache_size": 6,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [
+        {
+          "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+          "model": "partial-section-provider",
+          "prompt_version": "section-metadata-v3",
+          "provider": "",
+          "reason_code": "validation_error",
+          "section_ids": [
+            "docs/spec/flow.md#0003-broken-metadata-section"
+          ],
+          "severity": "error",
+          "source_hash": "80ef938c27a30f6aa5897091175afbf8a57c8432343749f1c2e03599e3363e40",
+          "stage": "section_metadata"
+        }
+      ],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 1,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "partial-section-provider",
+        "prompt_version": "section-metadata-v3",
+        "provider": "/tmp/20260523-f006-retest-after-fix.project/tools/partial-section-provider.py",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Login Flow"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-f006-retest-after-fix.project/tools/partial-section-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "login audit",
+            "session boundary",
+            "Login Flow"
+          ],
+          "section_id": "docs/spec/flow.md#0001-login-flow",
+          "semantic_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "source_section_id": "docs/spec/flow.md#0001-login-flow",
+          "stable_section_uid": "e6b04bd74571836c",
+          "summary": "summary for docs/spec/flow.md#0001-login-flow"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Login Flow",
+            "Successful Login"
+          ],
+          "identifiers": [
+            "LOGIN_SUCCESS_AUDIT"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-f006-retest-after-fix.project/tools/partial-section-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "login audit",
+            "session boundary",
+            "Login Flow",
+            "Successful Login"
+          ],
+          "section_id": "docs/spec/flow.md#0002-successful-login",
+          "semantic_hash": "98aecdc6eb906b755f6aed69e85c8ff9093979bf272ae4867eb6674396852a19",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "66f5aa9fe016c08b92b5d9b2c18bebc144fa80ef108210ed4a26f92f8e46b82a",
+          "source_section_id": "docs/spec/flow.md#0002-successful-login",
+          "stable_section_uid": "8468d9c9e21afdf9",
+          "summary": "summary for docs/spec/flow.md#0002-successful-login"
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Login Flow",
+            "Broken Metadata Section"
+          ],
+          "identifiers": [
+            "BROKEN_METADATA_SENTINEL"
+          ],
+          "llm_diagnostics": [
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "partial-section-provider",
+              "prompt_version": "section-metadata-v3",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/flow.md#0003-broken-metadata-section"
+              ],
+              "severity": "error",
+              "source_hash": "80ef938c27a30f6aa5897091175afbf8a57c8432343749f1c2e03599e3363e40",
+              "stage": "section_metadata"
+            }
+          ],
+          "llm_generation_status": "failed",
+          "llm_provider": "/tmp/20260523-f006-retest-after-fix.project/tools/partial-section-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [],
+          "section_id": "docs/spec/flow.md#0003-broken-metadata-section",
+          "semantic_hash": "b63dd5af3eea563deaf73260e8f5eb1869ba4b0bab353441f810b4923c3ea114",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "699174bfdc5031147d441c40e3e8afcb9ce53e8d348c875bf2277ac6189ce0ac",
+          "source_section_id": "docs/spec/flow.md#0003-broken-metadata-section",
+          "stable_section_uid": "2c6359d1b32ffa07",
+          "summary": ""
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Login Flow",
+            "Logout"
+          ],
+          "identifiers": [
+            "LOGOUT_AUDIT"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "/tmp/20260523-f006-retest-after-fix.project/tools/partial-section-provider.py",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [],
+          "search_keys": [
+            "login audit",
+            "session boundary",
+            "Login Flow",
+            "Logout"
+          ],
+          "section_id": "docs/spec/flow.md#0004-logout",
+          "semantic_hash": "e0ae997d86819aea507a280d9c7b1afbd655cccbd8f027c15ff92944e23e1d88",
+          "source_document_id": "docs/spec/flow.md",
+          "source_hash": "eac6bfdbca668c11825ad453934da64478af6b103e7bdc11b3d069e3f7f8f15a",
+          "source_section_id": "docs/spec/flow.md#0004-logout",
+          "stable_section_uid": "8d1e3f784894bf04",
+          "summary": "summary for docs/spec/flow.md#0004-logout"
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "blocking_reasons": [
+        "degraded_optional_artifact"
+      ],
+      "cache_hits": 0,
+      "diagnostics": {
+        "docs/spec/flow.md#0003-broken-metadata-section": [
+          {
+            "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+            "model": "partial-section-provider",
+            "prompt_version": "section-metadata-v3",
+            "provider": "",
+            "reason_code": "validation_error",
+            "section_ids": [
+              "docs/spec/flow.md#0003-broken-metadata-section"
+            ],
+            "severity": "error",
+            "source_hash": "80ef938c27a30f6aa5897091175afbf8a57c8432343749f1c2e03599e3363e40",
+            "stage": "section_metadata"
+          }
+        ]
+      },
+      "failed_sections": [
+        "docs/spec/flow.md#0003-broken-metadata-section"
+      ],
+      "freshness_status": "degraded",
+      "generated_section_ids": [
+        "docs/spec/flow.md#0001-login-flow",
+        "docs/spec/flow.md#0002-successful-login",
+        "docs/spec/flow.md#0003-broken-metadata-section",
+        "docs/spec/flow.md#0004-logout"
+      ],
+      "llm_calls": 4,
+      "reused_section_ids": [],
+      "warnings": [
+        "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section"
+      ]
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [
+    {
+      "section_id": "docs/spec/flow.md#0003-broken-metadata-section",
+      "source_section_id": "docs/spec/flow.md#0003-broken-metadata-section"
+    }
+  ],
+  "failed_sources": [
+    "docs/spec/flow.md"
+  ],
+  "freshness_report": {
+    "blocking_reasons": [
+      "degraded_optional_artifact"
+    ],
+    "counts": {
+      "degraded_optional_artifact_count": 1
+    },
+    "degraded_optional_artifact_count": 1,
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "degraded_optional_artifacts": [
+        "section_metadata"
+      ],
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 7.069455852993997,
+            "candidate_generation_partial_mode": "full",
+            "candidate_generation_source_count": 4,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 6,
+            "cache_rejected_hits": 0,
+            "cache_size": 6,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "blocking_reasons": [
+          "degraded_optional_artifact"
+        ],
+        "cache_hits": 0,
+        "diagnostics": {
+          "docs/spec/flow.md#0003-broken-metadata-section": [
+            {
+              "message": "section_metadata LLM output did not contain sections, summary, or search_keys",
+              "model": "partial-section-provider",
+              "prompt_version": "section-metadata-v3",
+              "provider": "",
+              "reason_code": "validation_error",
+              "section_ids": [
+                "docs/spec/flow.md#0003-broken-metadata-section"
+              ],
+              "severity": "error",
+              "source_hash": "80ef938c27a30f6aa5897091175afbf8a57c8432343749f1c2e03599e3363e40",
+              "stage": "section_metadata"
+            }
+          ]
+        },
+        "failed_sections": [
+          "docs/spec/flow.md#0003-broken-metadata-section"
+        ],
+        "freshness_status": "degraded",
+        "generated_section_ids": [
+          "docs/spec/flow.md#0001-login-flow",
+          "docs/spec/flow.md#0002-successful-login",
+          "docs/spec/flow.md#0003-broken-metadata-section",
+          "docs/spec/flow.md#0004-logout"
+        ],
+        "llm_calls": 4,
+        "reused_section_ids": [],
+        "warnings": [
+          "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section"
+        ]
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "status": "degraded",
+    "warnings": [
+      "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section",
+      "degraded_optional_artifact"
+    ]
+  },
+  "mode": "full",
+  "pending_conflict_count": 0,
+  "potential_conflicts": [],
+  "regenerated_chapter_anchors": [
+    "docs/spec/flow.md#login-flow"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "skipped_sections": [],
+  "skipped_sources": [],
+  "stale_resolution_count": 0,
+  "status": "degraded",
+  "unreflected_conflict_resolutions": [],
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/flow.md#0001-login-flow",
+      "source_section_id": "docs/spec/flow.md#0001-login-flow"
+    },
+    {
+      "section_id": "docs/spec/flow.md#0002-successful-login",
+      "source_section_id": "docs/spec/flow.md#0002-successful-login"
+    },
+    {
+      "section_id": "docs/spec/flow.md#0004-logout",
+      "source_section_id": "docs/spec/flow.md#0004-logout"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/flow.md"
+  ],
+  "warnings": [
+    "LLM generation failed for docs/spec/flow.md#0003-broken-metadata-section",
+    "degraded_optional_artifact"
+  ]
+}

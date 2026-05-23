@@ -507,7 +507,12 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
         output_contract = (
             "The JSON object must include array field \"sections\". "
             "Each item must include string field \"section_id\", string field "
-            "\"summary\", and array field \"search_keys\"."
+            "\"summary\", and array field \"search_keys\". "
+            "Return exactly one item in \"sections\" for every section in the input \"sections\" array. "
+            "Use the exact \"section_id\" value from the input. "
+            "Do not omit, add, rename, or merge sections. "
+            "If a section is unclear, return an empty \"summary\" and empty \"search_keys\" "
+            "for that item but keep the item in the output."
         )
     else:
         output_contract = (

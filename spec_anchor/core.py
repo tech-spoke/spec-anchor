@@ -784,7 +784,11 @@ def _run_spec_core_unlocked(
     diagnostics_payload = dict(generation_diagnostics)
     diagnostics_payload["section_metadata"] = section_metadata
     return {
-        "status": "failed" if freshness_report["status"] == "failed" else "updated",
+        "status": (
+            "failed" if freshness_report["status"] == "failed"
+            else "degraded" if freshness_report["status"] == "degraded"
+            else "updated"
+        ),
         "mode": mode_name,
         "updated_sources": updated_sources,
         "skipped_sources": skipped_sources,

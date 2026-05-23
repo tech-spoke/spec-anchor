@@ -320,22 +320,29 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _gate_stop_for_command(project: Path, command: str) -> dict[str, Any] | None:
-    """Return a stopped result if the freshness gate or pending conflict blocks.
+def _run_gate(
+    project: Path, command: str
+) -> tuple[dict[str, Any] | None, list[Any]]:
+    """Run freshness gate; return (stopped_result, gate_warnings).
 
     Each `/spec-inject inject-*` and `/spec-realign` command enforces the
     freshness gate (§3.3), pending conflict gate (§2.8 / §3.4), and watcher
     gate (§6.3) before doing its specific work. The Agent only sees the
     stopped payload — there is no separate `spec-anchor inject` probe to call
     in advance.
+
+    When the gate blocks, returns a stopped result dict and an empty list.
+    When the gate allows continuation (fresh or degraded), returns None and
+    any gate warnings (e.g. ``"degraded_optional_artifact"``) for the caller
+    to merge into its own output.
     """
 
     gate = run_spec_inject(project_root=project)
-    if not gate.get("should_stop"):
-        return None
-    result = dict(gate)
-    result["command"] = command
-    return result
+    if gate.get("should_stop"):
+        result = dict(gate)
+        result["command"] = command
+        return result, []
+    return None, list(gate.get("warnings") or [])
 
 
 def _config_missing_error_result(
@@ -400,7 +407,7 @@ def run_inject_section(
     config_missing = _config_missing_error_result(project, "/spec-inject inject-section")
     if config_missing is not None:
         return config_missing
-    gate = _gate_stop_for_command(project, "/spec-inject inject-section")
+    gate, gate_warnings = _run_gate(project, "/spec-inject inject-section")
     if gate is not None:
         return gate
     requested_ids = [str(value) for value in section_ids if value]
@@ -413,7 +420,7 @@ def run_inject_section(
         "sections": {},
         "found_section_ids": [],
         "missing_section_ids": requested_ids,
-        "warnings": [],
+        "warnings": list(gate_warnings),
     }
     if not requested_ids:
         return base_result
@@ -462,11 +469,11 @@ def run_inject_chapters(
     config_missing = _config_missing_error_result(project, "/spec-inject inject-chapters")
     if config_missing is not None:
         return config_missing
-    gate = _gate_stop_for_command(project, "/spec-inject inject-chapters")
+    gate, gate_warnings = _run_gate(project, "/spec-inject inject-chapters")
     if gate is not None:
         return gate
     artifact_path = _context_dir(project) / "chapter_anchors.json"
-    warnings: list[dict[str, Any]] = []
+    warnings: list[Any] = list(gate_warnings)
     if not artifact_path.is_file():
         warnings.append(
             {
@@ -502,7 +509,7 @@ def run_inject_purpose(
     config_missing = _config_missing_error_result(project, "/spec-inject inject-purpose")
     if config_missing is not None:
         return config_missing
-    gate = _gate_stop_for_command(project, "/spec-inject inject-purpose")
+    gate, gate_warnings = _run_gate(project, "/spec-inject inject-purpose")
     if gate is not None:
         return gate
     config = _read_project_config(project)
@@ -516,7 +523,7 @@ def run_inject_purpose(
         str(core_section.get("concept_file") or "") if isinstance(core_section, Mapping) else "",
     )
     purpose_text, purpose_warning = _read_text_or_warning(purpose_path, "purpose_file")
-    warnings: list[dict[str, Any]] = []
+    warnings: list[Any] = list(gate_warnings)
     if purpose_warning is not None:
         warnings.append(purpose_warning)
     if concept_path is None:
@@ -560,7 +567,7 @@ def run_inject_conflicts(
     config_missing = _config_missing_error_result(project, "/spec-inject inject-conflicts")
     if config_missing is not None:
         return config_missing
-    gate = _gate_stop_for_command(project, "/spec-inject inject-conflicts")
+    gate, gate_warnings = _run_gate(project, "/spec-inject inject-conflicts")
     if gate is not None:
         return gate
     raw_items = _read_conflict_review_items(project)
@@ -595,6 +602,7 @@ def run_inject_conflicts(
         "resolved_conflict_review_items": resolved_items,
         "excluded_conflict_review_items": excluded_items,
         "count": len(resolved_items),
+        "warnings": list(gate_warnings),
     }
 
 
@@ -622,7 +630,7 @@ def run_inject_search(
     config_missing = _config_missing_error_result(project, "/spec-inject inject-search")
     if config_missing is not None:
         return config_missing
-    gate = _gate_stop_for_command(project, "/spec-inject inject-search")
+    gate, gate_warnings = _run_gate(project, "/spec-inject inject-search")
     if gate is not None:
         return gate
     qdrant_config = _qdrant_section_config(project)
@@ -641,7 +649,7 @@ def run_inject_search(
         "top_k": int(top_k),
         "collection": qdrant_config["section_collection"],
         "hits": [],
-        "warnings": [],
+        "warnings": list(gate_warnings),
     }
     if not query or not str(query).strip():
         base_result["warnings"].append(

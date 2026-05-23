@@ -467,9 +467,9 @@ def test_section_metadata_prompt_includes_role_constraint_instructions() -> None
 
 def test_section_metadata_prompt_version_is_v2() -> None:
     module = importlib.import_module("spec_anchor.section_metadata")
-    assert module.SECTION_METADATA_PROMPT_VERSION == "section-metadata-v2", (
-        "Phase R-0 requires the section_metadata prompt_version to be bumped to "
-        "section-metadata-v2 so existing caches are invalidated."
+    assert module.SECTION_METADATA_PROMPT_VERSION == "section-metadata-v3", (
+        "F006 fix requires the section_metadata prompt_version to be bumped to "
+        "section-metadata-v3 so existing caches are invalidated after prompt update."
     )
 
 

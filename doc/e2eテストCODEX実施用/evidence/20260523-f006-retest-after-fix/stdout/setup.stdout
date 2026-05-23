@@ -1,0 +1,27 @@
+{
+  "agent": "both",
+  "applied": true,
+  "codex_skill_path": ".codex/skills/spec-anchor/SKILL.md",
+  "conflicts": [],
+  "created": [
+    ".spec-anchor/config.toml",
+    ".spec-anchor/.gitignore",
+    ".claude/commands/spec-core.md",
+    ".claude/commands/spec-inject.md",
+    ".claude/commands/spec-realign.md",
+    ".codex/skills/spec-anchor/SKILL.md",
+    "docs/core/purpose.md",
+    "docs/core/concept.md"
+  ],
+  "diagnostics": [],
+  "dry_run": false,
+  "exit_code": 0,
+  "force": true,
+  "missing_core_files": [],
+  "no_init_core_files": false,
+  "protected": [],
+  "skipped": [],
+  "status": "ok",
+  "target": "/tmp/20260523-f006-retest-after-fix.project",
+  "updated": []
+}
