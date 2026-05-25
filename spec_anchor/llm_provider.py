@@ -503,6 +503,23 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
             "Each item must include \"target_section_id\", \"relation_hint\", "
             "\"confidence\", \"reason\", \"evidence_terms\", and \"channels\"."
         )
+    elif stage == "conflict_review":
+        output_contract = (
+            "You are reviewing a potential conflict between two specification sections. "
+            "The JSON object must include string field \"outcome\" and string field \"severity\". "
+            "\"outcome\" must be one of: \"needs_human_review\" (a real conflict requiring human decision), "
+            "\"not_a_conflict\" (sections are compatible), or \"false_positive\" (no actual conflict). "
+            "\"severity\" must be one of: \"low\", \"medium\", \"high\". "
+            "Optional: string field \"why_not_pending\" (reason when outcome is not needs_human_review), "
+            "string field \"summary\" (brief description of the conflict)."
+        )
+    elif stage == "chapter_key_anchor":
+        output_contract = (
+            "The JSON object must include string field \"summary\" (2-3 sentence description of the "
+            "chapter's intent, must not be empty), array field \"key_topics\" (3-6 natural-language "
+            "phrases describing the chapter's themes), array field \"important_sections\" (section_ids "
+            "to read first, max 5), and array field \"notes\" (0-3 cautions for the Agent)."
+        )
     elif is_batch:
         output_contract = (
             "The JSON object must include array field \"sections\". "
@@ -538,6 +555,8 @@ def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
         return _related_section_selection_output_schema()
     if request.stage == "chapter_key_anchor":
         return _chapter_key_anchor_output_schema()
+    if request.stage == "conflict_review":
+        return _conflict_review_output_schema()
     section_hashes = request.section_hashes
     is_batch = len(section_hashes) > 1
     section_item_schema = {
@@ -593,6 +612,28 @@ def _chapter_key_anchor_output_schema() -> dict[str, Any]:
             "notes": {"type": "array", "items": {"type": "string"}},
         },
         "required": ["summary", "key_topics", "important_sections", "notes"],
+        "additionalProperties": False,
+    }
+
+
+def _conflict_review_output_schema() -> dict[str, Any]:
+    """JSON schema for the conflict_review LLM stage."""
+
+    return {
+        "type": "object",
+        "properties": {
+            "outcome": {
+                "type": "string",
+                "enum": ["needs_human_review", "not_a_conflict", "false_positive"],
+            },
+            "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+            },
+            "summary": {"type": "string"},
+            "why_not_pending": {"type": "string"},
+        },
+        "required": ["outcome", "severity"],
         "additionalProperties": False,
     }
 
@@ -1146,6 +1187,9 @@ def _validate_field_types(
         elif expected == "list|object":
             if not isinstance(value, (list, Mapping)):
                 errors.append(f"{field_name} must be a list or object")
+        elif expected == "non_empty_str":
+            if not isinstance(value, str) or not value.strip():
+                errors.append(f"{field_name} must be a non-empty string")
         elif isinstance(expected, type):
             if not isinstance(value, expected):
                 errors.append(f"{field_name} must be {expected.__name__}")

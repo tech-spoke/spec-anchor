@@ -330,24 +330,68 @@ def select_conflict_judging_pairs(
     else:
         related_iter = []
 
+    # relation_hint values that do not indicate incompatible requirements even when
+    # possible_conflict=True. These are filtered before evaluation to avoid wasting
+    # LLM calls on dependency/association relations that the related_sections LLM
+    # may over-flag (e.g. "do not directly interact" + possible_conflict=True).
+    _NON_CONFLICT_HINTS: frozenset[str] = frozenset({"see_also", "related", "background"})
+    filtered_possible_conflicts: list[dict[str, Any]] = []
+
     for relation in related_iter:
         # Phase E: Related Sections no longer finalizes conflicts_with. The
         # LLM typing stage now emits possible_conflict=True as a referral
         # signal, and the Conflict Review pipeline below re-judges with full
         # Purpose / Core Concept / Source Specs grounding. The legacy
         # relation_hint=conflicts_with path is kept for backward compat.
-        if relation.get("relation_hint") == "conflicts_with" or bool(
-            relation.get("possible_conflict", False)
-        ):
+        hint = relation.get("relation_hint")
+        if hint == "conflicts_with":
             add_pair(relation, explicit=True)
+        elif bool(relation.get("possible_conflict", False)):
+            if hint in _NON_CONFLICT_HINTS:
+                # Deterministic pre-filter: non-conflict-bearing relation_hint
+                # makes possible_conflict semantically void. Record for diagnostics.
+                filtered_possible_conflicts.append(
+                    {
+                        "source_section_id": str(
+                            relation.get("source_section_id") or relation.get("a") or ""
+                        ),
+                        "target_section_id": str(
+                            relation.get("target_section_id") or relation.get("b") or ""
+                        ),
+                        "relation_hint": hint,
+                        "reason_code": "non_conflict_bearing_relation_hint",
+                        "reason": (
+                            f"relation_hint={hint!r} is not conflict-bearing; "
+                            "possible_conflict=True was ignored"
+                        ),
+                    }
+                )
+            else:
+                add_pair(relation, explicit=True)
 
     candidate_items = _coerce_candidate_items(candidates) + _coerce_candidate_items(related_section_candidates)
     for candidate in candidate_items:
         if isinstance(candidate, dict) and _looks_high_risk(candidate):
             add_pair(candidate, explicit=False)
 
+    diagnostics_entries: list[dict[str, Any]] = []
+    if filtered_possible_conflicts:
+        diagnostics_entries.append(
+            {
+                "kind": "conflict_pair_selection",
+                "level": "info",
+                "stage": "conflict_review",
+                "reason_code": "filtered_possible_conflicts",
+                "filtered_count": len(filtered_possible_conflicts),
+                "filtered_pairs": filtered_possible_conflicts,
+                "message": (
+                    "possible_conflict pairs with non-conflict-bearing relation_hint "
+                    "(see_also/related/background) were excluded before conflict evaluation."
+                ),
+            }
+        )
     if skipped_pairs:
-        selected_diagnostics = [
+        diagnostics_entries.append(
             {
                 "kind": "conflict_pair_selection",
                 "level": "info",
@@ -358,8 +402,9 @@ def select_conflict_judging_pairs(
                 "skipped_pairs_sample": skipped_pairs[:20],
                 "message": "Some high-risk conflict candidate pairs were not sent to Conflict Review because conflict_pair_max_per_section was reached.",
             }
-        ]
-        setattr(selected, "selection_diagnostics", selected_diagnostics)
+        )
+    if diagnostics_entries:
+        setattr(selected, "selection_diagnostics", diagnostics_entries)
 
     return selected
 
@@ -452,7 +497,12 @@ def evaluate_conflicts(
         + _candidate_items_from_metadata(section_metadata)
     )
     active_judge = conflict_judge or judge or provider
-    timeout_sec = int(getattr(getattr(config, "llm", None), "timeout_sec", 5) or 5)
+    _llm_cfg = getattr(config, "llm", None)
+    if _llm_cfg is None and isinstance(config, dict):
+        _llm_cfg = config.get("llm") or {}
+    timeout_sec = int(getattr(_llm_cfg, "timeout_sec", None) or (
+        _llm_cfg.get("timeout_sec") if isinstance(_llm_cfg, dict) else None
+    ) or 120)
     sections_by_id = _section_map(sections)
     pairs = select_conflict_judging_pairs(
         sections=sections,

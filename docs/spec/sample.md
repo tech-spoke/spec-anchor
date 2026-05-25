@@ -13,3 +13,11 @@ Admin users may read, create, update, and delete any resource. Regular users may
 ## Session Termination
 
 Logging out invalidates the current session immediately. Sessions that exceed the 24-hour inactivity window are automatically purged by a background sweep that runs every five minutes.
+
+## Session Retention Policy
+
+For compliance and audit purposes, all session records must be retained and kept active for a minimum of 30 days regardless of inactivity. Sessions must not be terminated before the 30-day retention window has elapsed.
+
+## Account Lockout
+
+After 3 consecutive failed login attempts, the account is locked for 30 minutes. During a lockout period, all further login attempts are rejected immediately without incrementing the rate-limit counter. Administrator accounts require manual unlock by a system operator.

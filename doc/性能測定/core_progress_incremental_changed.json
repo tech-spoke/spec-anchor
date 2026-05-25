@@ -1,0 +1,315 @@
+{
+  "run_id": "e06cae9f-5d6a-4d91-9c30-8003e167b880",
+  "mode": "incremental",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "started_at": "2026-05-25T23:05:08Z",
+  "started_at_epoch": 1779750308.5558274,
+  "updated_at": "2026-05-25T23:06:20Z",
+  "current_stage": null,
+  "finalized_at": "2026-05-25T23:06:20Z",
+  "final_status": "completed",
+  "stage_order": [
+    "start",
+    "inputs_loaded",
+    "sections_loaded",
+    "section_metadata",
+    "section_collection_upsert",
+    "verify_index",
+    "related_sections",
+    "conflict_evaluation",
+    "chapter_anchors",
+    "artifact_write"
+  ],
+  "stages": {
+    "start": {
+      "stage": "start",
+      "raw": "core_start",
+      "started_at": "2026-05-25T23:05:08Z",
+      "started_at_epoch": 1779750308.556134,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-25T23:05:09Z",
+      "elapsed_sec": 0.723
+    },
+    "inputs_loaded": {
+      "stage": "inputs_loaded",
+      "raw": "core_inputs_loaded",
+      "started_at": "2026-05-25T23:05:08Z",
+      "started_at_epoch": 1779750308.556412,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_inputs_loaded",
+          "at": "2026-05-25T23:05:08Z"
+        }
+      ]
+    },
+    "sections_loaded": {
+      "stage": "sections_loaded",
+      "raw": "core_sections_loaded",
+      "started_at": "2026-05-25T23:05:09Z",
+      "started_at_epoch": 1779750309.278393,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_sections_loaded",
+          "at": "2026-05-25T23:05:09Z"
+        }
+      ]
+    },
+    "section_metadata": {
+      "stage": "section_metadata",
+      "raw": "core_section_metadata_start",
+      "started_at": "2026-05-25T23:05:09Z",
+      "started_at_epoch": 1779750309.278688,
+      "llm_calls": 1,
+      "token_count": 17993,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 17441,
+        "output_tokens": 552,
+        "cached_input_tokens": 2432,
+        "reasoning_output_tokens": 227,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-25T23:05:20Z",
+      "elapsed_sec": 10.747
+    },
+    "section_collection_upsert": {
+      "stage": "section_collection_upsert",
+      "raw": "core_section_collection_upsert_start",
+      "started_at": "2026-05-25T23:05:20Z",
+      "started_at_epoch": 1779750320.026284,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "upserted_partial",
+      "reason": "source_hash",
+      "recreate": false,
+      "diagnostics": {
+        "real_section_index": true,
+        "qdrant_url": "http://localhost:6333",
+        "collection": "spec_anchor_section",
+        "qdrant_server_version": "1.17.1",
+        "total_section_input_count": 6,
+        "embedding_provider": "flagembedding",
+        "embedding_model": "BAAI/bge-m3",
+        "embedding_device": "unknown",
+        "recreate": false,
+        "stale_points_deleted": 0,
+        "sections_upserted_count": 1,
+        "sections_deleted_count": 0,
+        "embed_documents_input_size": 1,
+        "partial_requested": true
+      },
+      "finished_at": "2026-05-25T23:05:28Z",
+      "elapsed_sec": 8.882
+    },
+    "verify_index": {
+      "stage": "verify_index",
+      "raw": "core_verify_index",
+      "started_at": "2026-05-25T23:05:28Z",
+      "started_at_epoch": 1779750328.908812,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "disabled",
+      "reason": "not_requested",
+      "diagnostics": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "related_sections": {
+      "stage": "related_sections",
+      "raw": "core_related_sections_start",
+      "started_at": "2026-05-25T23:05:28Z",
+      "started_at_epoch": 1779750328.9090738,
+      "llm_calls": 1,
+      "token_count": 267,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "regenerated_partial",
+      "reason": "source_hash",
+      "diagnostics": [
+        {
+          "reason_code": "related_section_candidate_generation_scope",
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "stage": "candidate_generation",
+          "severity": "info",
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "candidate_generation_elapsed_sec": 4.981249800999649
+        },
+        {
+          "reason_code": "related_typing_cache_stats",
+          "message": "pair-level relation typing cache statistics",
+          "stage": "related_section_selection",
+          "severity": "warning",
+          "cache_hits": 0,
+          "cache_misses": 1,
+          "cache_rejected_hits": 0,
+          "cache_size": 31
+        },
+        {
+          "reason_code": "related_sections_partial_regenerated",
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "stage": "related_sections",
+          "severity": "info",
+          "partial_regeneration": true,
+          "partial_mode": "source_changed_only",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "unchanged_source_inheritance": true,
+          "removed_source_exclusion": true,
+          "fallback_regenerated": false,
+          "changed_target_relations_inherited": true,
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "changed_source_section_ids": [
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "changed_target_section_ids": [
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "added_or_changed_source_section_ids": [
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "inherited_source_section_ids": [
+            "docs/spec/sample.md#0001-sample-specification",
+            "docs/spec/sample.md#0002-authentication",
+            "docs/spec/sample.md#0003-authorization",
+            "docs/spec/sample.md#0004-session-termination",
+            "docs/spec/sample.md#0005-session-retention-policy"
+          ],
+          "removed_source_section_ids": [],
+          "candidate_count": 1,
+          "candidate_count_for_selection": 1,
+          "candidate_generation_elapsed_sec": 4.981249800999649,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "selection_elapsed_sec": 9.46783078997396,
+          "selection_source_count": 1,
+          "inherited_source_count": 5,
+          "removed_source_count": 0,
+          "batch_count": 1,
+          "llm_calls": 1
+        }
+      ],
+      "batch_count": 1,
+      "changed_source_section_ids": [
+        "docs/spec/sample.md#0006-account-lockout"
+      ],
+      "candidate_generation_elapsed_sec": 4.981249800999649,
+      "selection_elapsed_sec": 9.46783078997396,
+      "candidate_generation_source_count": 1,
+      "candidate_generation_partial_mode": "source_changed_only",
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 263,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 20557,
+        "cache_read_input_tokens": 33814,
+        "total_cost_usd": 0.09118995,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": [
+          "claude-sonnet-4-6"
+        ]
+      },
+      "finished_at": "2026-05-25T23:05:42Z",
+      "elapsed_sec": 13.887
+    },
+    "conflict_evaluation": {
+      "stage": "conflict_evaluation",
+      "raw": "core_conflict_evaluation_start",
+      "started_at": "2026-05-25T23:05:42Z",
+      "started_at_epoch": 1779750342.7961493,
+      "llm_calls": 2,
+      "token_count": 1065,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-25T23:06:13Z",
+      "elapsed_sec": 30.651,
+      "batch_count": 2,
+      "actual_call_count": 2,
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 1057,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 42396,
+        "cache_read_input_tokens": 67681,
+        "total_cost_usd": 0.19516830000000002,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": []
+      }
+    },
+    "chapter_anchors": {
+      "stage": "chapter_anchors",
+      "raw": "core_chapter_anchors_start",
+      "started_at": "2026-05-25T23:06:13Z",
+      "started_at_epoch": 1779750373.452057,
+      "llm_calls": 1,
+      "token_count": 19385,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 19141,
+        "output_tokens": 244,
+        "cached_input_tokens": 16768,
+        "reasoning_output_tokens": 18,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-25T23:06:20Z",
+      "elapsed_sec": 6.582
+    },
+    "artifact_write": {
+      "stage": "artifact_write",
+      "raw": "core_artifact_write_start",
+      "started_at": "2026-05-25T23:06:20Z",
+      "started_at_epoch": 1779750380.0342798,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-25T23:06:20Z",
+      "elapsed_sec": 0.008
+    }
+  }
+}

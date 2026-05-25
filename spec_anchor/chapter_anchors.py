@@ -231,10 +231,10 @@ def generate_chapter_anchors(
             request,
             required_fields=("summary", "key_topics", "important_sections", "notes"),
             field_schema={
-                "summary": object,
-                "key_topics": "list[string]",
-                "important_sections": "list[string]",
-                "notes": "list[string]",
+                "summary": "non_empty_str",
+                "key_topics": "list[str]",
+                "important_sections": "list[str]",
+                "notes": "list[str]",
             },
             timeout_sec=timeout_sec,
             max_retries=max_retries,
@@ -351,6 +351,9 @@ def _build_chapter_request(
             "Generate a Chapter Key Anchor that helps an Agent decide whether"
             " to enter this chapter for a task. summary must capture the"
             " chapter's intent in 2-3 sentences (natural language)."
+            " If the chapter has very few or very short sections, use the"
+            " section headings and key phrases verbatim rather than returning"
+            " an empty summary. summary must never be an empty string."
             " key_topics must be 3-6 short natural-language phrases that"
             " describe the chapter's themes (no code symbols / API names)."
             " important_sections must be section_ids drawn from the input,"

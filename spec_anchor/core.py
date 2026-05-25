@@ -3165,6 +3165,7 @@ def _build_conflict_review_llm_request(
 def _coerce_conflict_judge_output(output: Any) -> dict[str, Any]:
     if isinstance(output, Mapping):
         result = dict(output)
+        usage = result.get("__spec_anchor_usage")
         # If the LLM returned a top-level conflict outcome, pass through.
         if "outcome" in result:
             return result
@@ -3173,15 +3174,21 @@ def _coerce_conflict_judge_output(output: Any) -> dict[str, Any]:
         for key in ("result", "output", "judgement", "judgment"):
             value = result.get(key)
             if isinstance(value, Mapping) and "outcome" in value:
-                return dict(value)
+                coerced = dict(value)
+                if usage is not None:
+                    coerced["__spec_anchor_usage"] = usage
+                return coerced
         # No outcome found in structured output → mark as needing human review
         # and preserve any reason/text present for diagnostics.
-        return {
+        fallback: dict[str, Any] = {
             "outcome": "needs_human_review",
             "severity": "medium",
             "reason": "conflict_review LlmProvider output missing outcome field",
             "raw": result,
         }
+        if usage is not None:
+            fallback["__spec_anchor_usage"] = usage
+        return fallback
     return {
         "outcome": "needs_human_review",
         "severity": "medium",

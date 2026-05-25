@@ -281,10 +281,13 @@ def test_generate_chapter_anchors_marks_failed_when_llm_output_missing_summary()
     assert set(result.failed_chapter_ids) == failed_ids
     assert result.artifact["status"] == "failed"
     assert set(result.artifact["generation"]["failed_chapter_ids"]) == failed_ids
-    assert result.artifact["generation"]["failure_reasons_by_chapter"] == {
-        chapter_id: "llm_output_unparseable_or_missing_summary"
-        for chapter_id in failed_ids
-    }
+    reasons = result.artifact["generation"]["failure_reasons_by_chapter"]
+    assert set(reasons) == failed_ids
+    # Both "" and None fail "non_empty_str" validation → LlmValidationError → retried →
+    # generation_failed. The field_schema uses "non_empty_str" so empty strings are
+    # caught before _anchor_from_llm_output is reached.
+    assert reasons["docs/spec/main.md"].startswith("llm_generation_failed: ")
+    assert reasons["docs/spec/other.md"].startswith("llm_generation_failed: ")
     assert result.chapters == []
 
 
