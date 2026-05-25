@@ -958,18 +958,35 @@ def validate_related_sections_result(
                 ),
             )
             continue
-        reason = item.get("reason")
-        if not isinstance(reason, str) or not reason.strip():
-            diagnostics.append(
-                _validation_drop(
-                    "invalid_reason",
-                    "reason is required",
-                    source_section_id,
-                    index,
-                    target_section_id=target_id,
-                ),
-            )
-            continue
+        possible_conflict = bool(item.get("possible_conflict", False))
+        reason = item.get("reason") or ""
+        shared_subject = ""
+        conflict_axis = ""
+        if possible_conflict:
+            shared_subject = item.get("shared_subject") or ""
+            if not shared_subject.strip():
+                diagnostics.append(
+                    _validation_drop(
+                        "missing_shared_subject",
+                        "shared_subject is required when possible_conflict=true",
+                        source_section_id,
+                        index,
+                        target_section_id=target_id,
+                    ),
+                )
+                continue
+            conflict_axis = item.get("conflict_axis") or ""
+            if not conflict_axis.strip():
+                diagnostics.append(
+                    _validation_drop(
+                        "missing_conflict_axis",
+                        "conflict_axis is required when possible_conflict=true",
+                        source_section_id,
+                        index,
+                        target_section_id=target_id,
+                    ),
+                )
+                continue
         evidence_terms = item.get("evidence_terms")
         if not isinstance(evidence_terms, Sequence) or isinstance(
             evidence_terms,
@@ -1035,22 +1052,23 @@ def validate_related_sections_result(
         if target_id in seen_targets:
             continue
         seen_targets.add(target_id)
-        possible_conflict = bool(item.get("possible_conflict", False))
-        valid.append(
-            {
-                "target_section_id": target_id,
-                "relation_hint": relation_hint,
-                "confidence": confidence,
-                "reason": _normalize_public_text(reason),
-                "evidence_terms": evidence_terms,
-                "channels": sorted(
-                    channels,
-                    key=lambda channel: CHANNEL_ORDER.get(channel, 999),
-                ),
-                "possible_conflict": possible_conflict,
-                "generated_at": generated_at,
-            },
-        )
+        entry: dict[str, Any] = {
+            "target_section_id": target_id,
+            "relation_hint": relation_hint,
+            "confidence": confidence,
+            "reason": _normalize_public_text(reason) if reason.strip() else "",
+            "evidence_terms": evidence_terms,
+            "channels": sorted(
+                channels,
+                key=lambda channel: CHANNEL_ORDER.get(channel, 999),
+            ),
+            "possible_conflict": possible_conflict,
+            "generated_at": generated_at,
+        }
+        if possible_conflict:
+            entry["shared_subject"] = _normalize_public_text(shared_subject)
+            entry["conflict_axis"] = _normalize_public_text(conflict_axis)
+        valid.append(entry)
 
     limit = max(0, limits_config.related_selected_max_per_section)
     if len(valid) > limit:
@@ -2182,7 +2200,7 @@ def _build_batch_selection_request(
             "Each candidate has been pre-scored by deterministic signals "
             "(markdown_link, shared_identifier, search_key_match, qdrant_section_hybrid).",
             "Your task is to classify each candidate's relation_hint, confidence, "
-            "and reason. Reject only obviously unrelated candidates.",
+            "and possible_conflict. Reject only obviously unrelated candidates.",
             "Do not search beyond the supplied candidates. Use only catalog entries.",
             "Set possible_conflict=true ONLY when: (1) both sections address the same "
             "concrete subject (the same resource, lifecycle, action, or policy), AND "
@@ -2191,6 +2209,11 @@ def _build_batch_selection_request(
             "order, see_also, shared vocabulary, or general conceptual relationship. "
             "The Conflict Review pipeline will independently verify before any conflict "
             "is finalized; do not output relation_hint=conflicts_with from this stage.",
+            "When possible_conflict=true: omit reason; set shared_subject (the concrete "
+            "topic both sections address) and conflict_axis (the specific incompatibility "
+            "in one phrase).",
+            "When possible_conflict=false: reason is optional; if included, one short "
+            "sentence max 120 characters.",
         ],
         "boundary": {
             "must_choose_from_candidate_target_section_ids_per_source": True,
@@ -2206,10 +2229,12 @@ def _build_batch_selection_request(
                             "target_section_id": "string",
                             "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                             "confidence": sorted(ALLOWED_CONFIDENCE),
-                            "reason": "string",
+                            "possible_conflict": "boolean",
+                            "reason": "string — optional; one short sentence max 120 chars; omit when possible_conflict=true",
+                            "shared_subject": "string — REQUIRED when possible_conflict=true; concrete topic both sections address",
+                            "conflict_axis": "string — REQUIRED when possible_conflict=true; specific incompatibility in one phrase",
                             "evidence_terms": ["string"],
                             "channels": list(MVP_CANDIDATE_CHANNELS),
-                            "possible_conflict": "boolean",
                         },
                     ],
                 },
