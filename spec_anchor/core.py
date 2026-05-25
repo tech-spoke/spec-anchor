@@ -2932,9 +2932,12 @@ def _conflict_candidates_from_related_output(
                         "target_section_id": tid,
                         "relation_hint": "conflicts_with",
                         "reason": str(
-                            entry.get("reason")
+                            entry.get("conflict_axis")
+                            or entry.get("reason")
                             or "LLM relation typing flagged possible_conflict=true."
                         ),
+                        "conflict_axis": entry.get("conflict_axis") or "",
+                        "shared_subject": entry.get("shared_subject") or "",
                         "evidence_terms": _dedupe_strings(
                             [
                                 *_list_of_strings(base.get("evidence_terms")),
