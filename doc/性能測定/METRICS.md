@@ -209,6 +209,78 @@ EOF
 - **変更後インクリメントで `related_sections calls=0`**: Account Lockout セクションが変更されても、gpt-5.4-mini の前回分類キャッシュが「コンフリクト候補なし」を返し、LLM 再呼び出しが不要と判定された。conflict_evaluation もゼロのまま。
 - **結論**: gpt-5.4-mini は related_sections の速度面（1/3 以下）では有利だが、コンフリクト検出 recall がゼロ。`claude-sonnet-4-6` を `related_sections` / `conflict_review` に維持することが現時点での設定方針。
 
+## 測定結果（第5回・スキーマ最終版）
+
+測定日: 2026-05-26　実装変更: `related_sections` プロンプト変更（`reason` 必須・120 文字上限、`possible_conflict=true` 時に `shared_subject` / `conflict_axis` を必須追加）+ `conflict_review.py` の `why_conflicting` フォールバックを `conflict_axis` 優先に変更 + `core.py` の conflict 候補 dict に `conflict_axis` / `shared_subject` を伝播
+
+実験メモ: 中間実装として「`reason` オプション化（`possible_conflict=false` では省略可、`possible_conflict=true` では `shared_subject`/`conflict_axis` に置換）」を試みたが、LLM が chain-of-thought を省略して recall がゼロになり、かつ output_tok が 6,921（第4回比 +73%）に悪化した。`reason` 必須化に戻した上で 120 字上限を加えた結果が第5回。
+
+### rebuild（`spec-anchor core --rebuild`）
+
+測定日: 2026-05-26（第5回）　ソース: docs/spec/sample.md（5セクション、Session Retention Policy 含む）　総 wall: 95 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 8.858 | 1 | 18,589 | 447 | — | — | — | codex | gpt-5.4-mini |
+| related_sections | 56.051 | 1 | 4 | 4,193 | 0 | 26,173 | 36,154 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 9.722 | 1 | 4 | 334 | 0 | 20,896 | 33,733 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 6.963 | 1 | 19,122 | 246 | — | — | — | codex | gpt-5.4-mini |
+| section_collection_upsert | 12.272 | — | — | — | — | — | — | — | — |
+
+備考: 第4回（out=4,009）から 4,193 へわずかな増加（+4.6%）。`reason` 120 字制限の効果は誤差範囲内。`conflict_evaluation calls=1`（第4回は calls=2）。2 件の pending conflict を単一バッチで評価したため calls 減。
+
+### ALL（`spec-anchor core --all`）
+
+測定日: 2026-05-26（第5回）　ソース: docs/spec/sample.md（5セクション）　総 wall: 94 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 8.684 | 1 | 18,589 | 469 | — | — | — | codex | gpt-5.4-mini |
+| related_sections | 54.376 | 1 | 4 | 3,920 | 0 | 31,490 | 29,379 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 10.969 | 1 | 4 | 293 | 0 | 46,805 | 6,594 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 7.199 | 1 | 19,175 | 253 | — | — | — | codex | gpt-5.4-mini |
+| section_collection_upsert | 12.575 | — | — | — | — | — | — | — | — |
+
+### 未修整インクリメント（ソース無変更）
+
+測定日: 2026-05-26（第5回）　総 wall: 0.8 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 0.005 | 0 | 0 | 0 | — | — | — | — | — |
+| related_sections | 0.001 | 0 | 0 | 0 | 0 | — | — | — | — |
+| conflict_evaluation | 0.000 | 0 | 0 | 0 | 0 | — | — | — | — |
+| chapter_anchors | 0.002 | 0 | 0 | 0 | — | — | — | — | — |
+| section_collection_upsert | 0.023 | — | — | — | — | — | — | — | — |
+
+### 修正後インクリメント
+
+測定日: 2026-05-26（第5回）　ソース: docs/spec/sample.md（1セクション変更: Account Lockout の lockout 回数・時間）　総 wall: 28 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 8.612 | 1 | 17,441 | 396 | — | — | — | codex | gpt-5.4-mini |
+| related_sections | 4.707 | 0 | 0 | 0 | 0 | — | — | — | — |
+| conflict_evaluation | 0.000 | 0 | 0 | 0 | 0 | — | — | — | — |
+| chapter_anchors | 6.083 | 1 | 19,145 | 242 | — | — | — | codex | gpt-5.4-mini |
+| section_collection_upsert | 8.901 | — | — | — | — | — | — | — | — |
+
+備考: `related_sections calls=0` ・ `conflict_evaluation calls=0`。Account Lockout セクション変更分の関連分類はキャッシュから直接返却。2 件の pending conflict（session-termination ↔ session-retention-policy、authentication ↔ session-retention-policy）はいずれも変更セクションに含まれないため再評価不要と判定。第4回の changed で calls=2 が出ていたのとは異なる。
+
+### 第5回まとめ
+
+| 指標 | 第4回（基準） | 第5回（120字上限 + shared_subject/conflict_axis 追加） | 差分 |
+|---|---|---|---|
+| related_sections wall (rebuild) | 53.1 s | 56.1 s | +3 s（+6%、誤差範囲） |
+| related_sections output_tok (rebuild) | 4,009 | 4,193 | +184（+4.6%、誤差範囲） |
+| conflict_evaluation calls (rebuild) | 2 | 1 | −1（バッチ化による削減） |
+| changed incremental total wall | 71 s | 28 s | −43 s（conflict_evaluation 呼び出しなし） |
+
+- `reason` 120 字上限は output_tok に統計的に有意な削減をもたらさなかった（Claude は以前から短い reason を生成していた）。
+- 中間の「`reason` オプション化」実験では output_tok が 6,921（+73%）に増加し recall がゼロになった。LLM の chain-of-thought は `reason` フィールドを必須にすることで維持されることを確認。
+- `shared_subject` / `conflict_axis` フィールドの追加は output_tok にほぼ影響なし（今回の計測では `possible_conflict=true` キャッシュエントリが生成されなかったため）。
+- `conflict_review.py` の `why_conflicting` フォールバックと `core.py` の conflict 候補伝播は実装済み。次回 related_sections が `possible_conflict=true` エントリを生成した際に機能する。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。

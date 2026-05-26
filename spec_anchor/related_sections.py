@@ -1972,12 +1972,11 @@ def _build_selection_request(
             "(2) their requirements cannot be simultaneously satisfied. "
             "Do NOT set possible_conflict=true for dependency (impacts), implementation "
             "order, see_also, shared vocabulary, or general conceptual relationship.",
-            "When possible_conflict=true: omit reason; set shared_subject (the concrete "
+            "reason: one short sentence max 120 chars describing the relationship. "
+            "When possible_conflict=true: also set shared_subject (the concrete "
             "topic both sections address, e.g. 'session lifetime') and conflict_axis "
             "(the specific incompatibility in one phrase, e.g. '24h expiry vs 30-day "
             "active retention').",
-            "When possible_conflict=false: reason is optional; if included, one short "
-            "sentence max 120 characters.",
         ],
         "return_shape": {
             "related_sections": [
@@ -1986,7 +1985,7 @@ def _build_selection_request(
                     "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                     "confidence": sorted(ALLOWED_CONFIDENCE),
                     "possible_conflict": "boolean — true only if requirements are mutually incompatible",
-                    "reason": "string — optional; one short sentence max 120 chars; omit when possible_conflict=true",
+                    "reason": "string — one short sentence max 120 chars",
                     "shared_subject": "string — REQUIRED when possible_conflict=true; concrete topic both sections address",
                     "conflict_axis": "string — REQUIRED when possible_conflict=true; specific incompatibility in one phrase",
                     "evidence_terms": ["string"],
@@ -2209,11 +2208,10 @@ def _build_batch_selection_request(
             "order, see_also, shared vocabulary, or general conceptual relationship. "
             "The Conflict Review pipeline will independently verify before any conflict "
             "is finalized; do not output relation_hint=conflicts_with from this stage.",
-            "When possible_conflict=true: omit reason; set shared_subject (the concrete "
+            "reason: one short sentence max 120 chars describing the relationship. "
+            "When possible_conflict=true: also set shared_subject (the concrete "
             "topic both sections address) and conflict_axis (the specific incompatibility "
             "in one phrase).",
-            "When possible_conflict=false: reason is optional; if included, one short "
-            "sentence max 120 characters.",
         ],
         "boundary": {
             "must_choose_from_candidate_target_section_ids_per_source": True,
@@ -2230,7 +2228,7 @@ def _build_batch_selection_request(
                             "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                             "confidence": sorted(ALLOWED_CONFIDENCE),
                             "possible_conflict": "boolean",
-                            "reason": "string — optional; one short sentence max 120 chars; omit when possible_conflict=true",
+                            "reason": "string — one short sentence max 120 chars",
                             "shared_subject": "string — REQUIRED when possible_conflict=true; concrete topic both sections address",
                             "conflict_axis": "string — REQUIRED when possible_conflict=true; specific incompatibility in one phrase",
                             "evidence_terms": ["string"],
