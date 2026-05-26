@@ -451,7 +451,7 @@ def _build_conflict_item(
         "severity": str(judge_payload.get("severity") or "medium"),
         "source_refs": source_refs,
         "claims": deepcopy(judge_payload.get("claims") or []),
-        "why_conflicting": str(judge_payload.get("why_conflicting") or pair.get("conflict_axis") or pair.get("reason") or "Potential source specifications conflict."),
+        "why_conflicting": str(judge_payload.get("why_conflicting") or pair.get("reason") or "Potential source specifications conflict."),
         "why_llm_cannot_decide": str(
             judge_payload.get("why_llm_cannot_decide")
             or judge_payload.get("why_unresolved")

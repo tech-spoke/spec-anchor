@@ -1,12 +1,12 @@
 {
-  "run_id": "36e5d368-43d8-4ead-83ec-f65eabdc7ab7",
+  "run_id": "2af55272-3c99-4566-b7b2-b2df0c768b3a",
   "mode": "full",
   "generated_at": "1970-01-01T00:00:00Z",
-  "started_at": "2026-05-25T23:50:52Z",
-  "started_at_epoch": 1779753052.9644213,
-  "updated_at": "2026-05-25T23:52:27Z",
+  "started_at": "2026-05-26T00:14:48Z",
+  "started_at_epoch": 1779754488.2463136,
+  "updated_at": "2026-05-26T00:16:33Z",
   "current_stage": null,
-  "finalized_at": "2026-05-25T23:52:27Z",
+  "finalized_at": "2026-05-26T00:16:33Z",
   "final_status": "completed",
   "stage_order": [
     "start",
@@ -24,20 +24,20 @@
     "start": {
       "stage": "start",
       "raw": "core_start",
-      "started_at": "2026-05-25T23:50:52Z",
-      "started_at_epoch": 1779753052.964663,
+      "started_at": "2026-05-26T00:14:48Z",
+      "started_at_epoch": 1779754488.2465475,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-25T23:50:53Z",
-      "elapsed_sec": 0.689
+      "finished_at": "2026-05-26T00:14:48Z",
+      "elapsed_sec": 0.698
     },
     "inputs_loaded": {
       "stage": "inputs_loaded",
       "raw": "core_inputs_loaded",
-      "started_at": "2026-05-25T23:50:52Z",
-      "started_at_epoch": 1779753052.9649649,
+      "started_at": "2026-05-26T00:14:48Z",
+      "started_at_epoch": 1779754488.2468307,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -45,15 +45,15 @@
       "checkpoints": [
         {
           "raw": "core_inputs_loaded",
-          "at": "2026-05-25T23:50:52Z"
+          "at": "2026-05-26T00:14:48Z"
         }
       ]
     },
     "sections_loaded": {
       "stage": "sections_loaded",
       "raw": "core_sections_loaded",
-      "started_at": "2026-05-25T23:50:53Z",
-      "started_at_epoch": 1779753053.6532254,
+      "started_at": "2026-05-26T00:14:48Z",
+      "started_at_epoch": 1779754488.9442313,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -61,26 +61,26 @@
       "checkpoints": [
         {
           "raw": "core_sections_loaded",
-          "at": "2026-05-25T23:50:53Z"
+          "at": "2026-05-26T00:14:48Z"
         }
       ]
     },
     "section_metadata": {
       "stage": "section_metadata",
       "raw": "core_section_metadata_start",
-      "started_at": "2026-05-25T23:50:53Z",
-      "started_at_epoch": 1779753053.6535068,
+      "started_at": "2026-05-26T00:14:48Z",
+      "started_at_epoch": 1779754488.944503,
       "llm_calls": 1,
-      "token_count": 19036,
+      "token_count": 19080,
       "retry_count": 0,
       "failed_batch_ids": [],
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
         "input_tokens": 18589,
-        "output_tokens": 447,
+        "output_tokens": 491,
         "cached_input_tokens": 2432,
-        "reasoning_output_tokens": 18,
+        "reasoning_output_tokens": 24,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "total_cost_usd": 0.0,
@@ -91,14 +91,14 @@
           "gpt-5.4-mini"
         ]
       },
-      "finished_at": "2026-05-25T23:51:02Z",
-      "elapsed_sec": 8.858
+      "finished_at": "2026-05-26T00:14:57Z",
+      "elapsed_sec": 8.242
     },
     "section_collection_upsert": {
       "stage": "section_collection_upsert",
       "raw": "core_section_collection_upsert_start",
-      "started_at": "2026-05-25T23:51:02Z",
-      "started_at_epoch": 1779753062.5115464,
+      "started_at": "2026-05-26T00:14:57Z",
+      "started_at_epoch": 1779754497.1868656,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -122,14 +122,14 @@
         "embed_documents_input_size": 6,
         "partial_requested": false
       },
-      "finished_at": "2026-05-25T23:51:14Z",
-      "elapsed_sec": 12.272
+      "finished_at": "2026-05-26T00:15:10Z",
+      "elapsed_sec": 13.329
     },
     "verify_index": {
       "stage": "verify_index",
       "raw": "core_verify_index",
-      "started_at": "2026-05-25T23:51:14Z",
-      "started_at_epoch": 1779753074.7835255,
+      "started_at": "2026-05-26T00:15:10Z",
+      "started_at_epoch": 1779754510.5162249,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -144,28 +144,28 @@
     "related_sections": {
       "stage": "related_sections",
       "raw": "core_related_sections_start",
-      "started_at": "2026-05-25T23:51:14Z",
-      "started_at_epoch": 1779753074.7837687,
+      "started_at": "2026-05-26T00:15:10Z",
+      "started_at_epoch": 1779754510.5164824,
       "llm_calls": 1,
-      "token_count": 4197,
+      "token_count": 3922,
       "retry_count": 0,
       "failed_batch_ids": [],
       "action": "generated",
       "reason": "full_rebuild",
-      "candidate_generation_elapsed_sec": 9.110473334993003,
-      "selection_elapsed_sec": 48.339927558990894,
+      "candidate_generation_elapsed_sec": 9.5174350310117,
+      "selection_elapsed_sec": 49.966261839988874,
       "candidate_generation_source_count": 6,
       "candidate_generation_partial_mode": "full",
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
         "input_tokens": 4,
-        "output_tokens": 4193,
+        "output_tokens": 3918,
         "cached_input_tokens": 0,
         "reasoning_output_tokens": 0,
-        "cache_creation_input_tokens": 26173,
-        "cache_read_input_tokens": 36154,
-        "total_cost_usd": 0.17190195000000003,
+        "cache_creation_input_tokens": 3307,
+        "cache_read_input_tokens": 58640,
+        "total_cost_usd": 0.08877525,
         "providers_seen": [
           "claude"
         ],
@@ -173,30 +173,30 @@
           "claude-sonnet-4-6"
         ]
       },
-      "finished_at": "2026-05-25T23:52:10Z",
-      "elapsed_sec": 56.051
+      "finished_at": "2026-05-26T00:16:08Z",
+      "elapsed_sec": 57.955
     },
     "conflict_evaluation": {
       "stage": "conflict_evaluation",
       "raw": "core_conflict_evaluation_start",
-      "started_at": "2026-05-25T23:52:10Z",
-      "started_at_epoch": 1779753130.835896,
-      "llm_calls": 1,
-      "token_count": 338,
+      "started_at": "2026-05-26T00:16:08Z",
+      "started_at_epoch": 1779754568.4720643,
+      "llm_calls": 2,
+      "token_count": 495,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-25T23:52:20Z",
-      "elapsed_sec": 9.722,
-      "batch_count": 1,
-      "actual_call_count": 1,
+      "finished_at": "2026-05-26T00:16:26Z",
+      "elapsed_sec": 17.616,
+      "batch_count": 2,
+      "actual_call_count": 2,
       "usage": {
-        "input_tokens": 4,
-        "output_tokens": 334,
+        "input_tokens": 8,
+        "output_tokens": 487,
         "cached_input_tokens": 0,
         "reasoning_output_tokens": 0,
-        "cache_creation_input_tokens": 20896,
-        "cache_read_input_tokens": 33733,
-        "total_cost_usd": 0.0935019,
+        "cache_creation_input_tokens": 41517,
+        "cache_read_input_tokens": 67372,
+        "total_cost_usd": 0.18322935,
         "providers_seen": [
           "claude"
         ],
@@ -206,18 +206,18 @@
     "chapter_anchors": {
       "stage": "chapter_anchors",
       "raw": "core_chapter_anchors_start",
-      "started_at": "2026-05-25T23:52:20Z",
-      "started_at_epoch": 1779753140.562864,
+      "started_at": "2026-05-26T00:16:26Z",
+      "started_at_epoch": 1779754586.0932367,
       "llm_calls": 1,
-      "token_count": 19368,
+      "token_count": 19515,
       "retry_count": 0,
       "failed_batch_ids": [],
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
-        "input_tokens": 19122,
-        "output_tokens": 246,
-        "cached_input_tokens": 2432,
+        "input_tokens": 19253,
+        "output_tokens": 262,
+        "cached_input_tokens": 16768,
         "reasoning_output_tokens": 20,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
@@ -229,19 +229,19 @@
           "gpt-5.4-mini"
         ]
       },
-      "finished_at": "2026-05-25T23:52:27Z",
-      "elapsed_sec": 6.963
+      "finished_at": "2026-05-26T00:16:33Z",
+      "elapsed_sec": 7.048
     },
     "artifact_write": {
       "stage": "artifact_write",
       "raw": "core_artifact_write_start",
-      "started_at": "2026-05-25T23:52:27Z",
-      "started_at_epoch": 1779753147.5271897,
+      "started_at": "2026-05-26T00:16:33Z",
+      "started_at_epoch": 1779754593.1418302,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-25T23:52:27Z",
+      "finished_at": "2026-05-26T00:16:33Z",
       "elapsed_sec": 0.008
     }
   }

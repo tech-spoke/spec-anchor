@@ -959,34 +959,6 @@ def validate_related_sections_result(
             )
             continue
         possible_conflict = bool(item.get("possible_conflict", False))
-        reason = item.get("reason") or ""
-        shared_subject = ""
-        conflict_axis = ""
-        if possible_conflict:
-            shared_subject = item.get("shared_subject") or ""
-            if not shared_subject.strip():
-                diagnostics.append(
-                    _validation_drop(
-                        "missing_shared_subject",
-                        "shared_subject is required when possible_conflict=true",
-                        source_section_id,
-                        index,
-                        target_section_id=target_id,
-                    ),
-                )
-                continue
-            conflict_axis = item.get("conflict_axis") or ""
-            if not conflict_axis.strip():
-                diagnostics.append(
-                    _validation_drop(
-                        "missing_conflict_axis",
-                        "conflict_axis is required when possible_conflict=true",
-                        source_section_id,
-                        index,
-                        target_section_id=target_id,
-                    ),
-                )
-                continue
         evidence_terms = item.get("evidence_terms")
         if not isinstance(evidence_terms, Sequence) or isinstance(
             evidence_terms,
@@ -1056,7 +1028,6 @@ def validate_related_sections_result(
             "target_section_id": target_id,
             "relation_hint": relation_hint,
             "confidence": confidence,
-            "reason": _normalize_public_text(reason) if reason.strip() else "",
             "evidence_terms": evidence_terms,
             "channels": sorted(
                 channels,
@@ -1065,9 +1036,6 @@ def validate_related_sections_result(
             "possible_conflict": possible_conflict,
             "generated_at": generated_at,
         }
-        if possible_conflict:
-            entry["shared_subject"] = _normalize_public_text(shared_subject)
-            entry["conflict_axis"] = _normalize_public_text(conflict_axis)
         valid.append(entry)
 
     limit = max(0, limits_config.related_selected_max_per_section)
@@ -1086,6 +1054,27 @@ def validate_related_sections_result(
                 ],
             ),
         )
+    raw_count = len(raw_items)
+    valid_count = len(valid)
+    drop_reasons: dict[str, int] = {}
+    for diag in diagnostics:
+        if "item_index" not in diag:
+            continue
+        reason_code = str(diag.get("reason_code") or "unknown")
+        drop_reasons[reason_code] = drop_reasons.get(reason_code, 0) + 1
+    possible_conflict_count = sum(1 for entry in valid if entry.get("possible_conflict"))
+    diagnostics.append(
+        _diagnostic(
+            "related_selection_counts",
+            "Per-source validation counts after LLM selection.",
+            source_section_id=source_section_id,
+            raw_candidate_count=raw_count,
+            valid_candidate_count=valid_count,
+            validation_dropped_count=raw_count - valid_count,
+            validation_drop_reasons=drop_reasons,
+            possible_conflict_true_count=possible_conflict_count,
+        ),
+    )
     return RelatedSectionValidation(related_sections=valid, diagnostics=diagnostics)
 
 
@@ -1972,11 +1961,6 @@ def _build_selection_request(
             "(2) their requirements cannot be simultaneously satisfied. "
             "Do NOT set possible_conflict=true for dependency (impacts), implementation "
             "order, see_also, shared vocabulary, or general conceptual relationship.",
-            "reason: one short sentence max 120 chars describing the relationship. "
-            "When possible_conflict=true: also set shared_subject (the concrete "
-            "topic both sections address, e.g. 'session lifetime') and conflict_axis "
-            "(the specific incompatibility in one phrase, e.g. '24h expiry vs 30-day "
-            "active retention').",
         ],
         "return_shape": {
             "related_sections": [
@@ -1985,9 +1969,6 @@ def _build_selection_request(
                     "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                     "confidence": sorted(ALLOWED_CONFIDENCE),
                     "possible_conflict": "boolean — true only if requirements are mutually incompatible",
-                    "reason": "string — one short sentence max 120 chars",
-                    "shared_subject": "string — REQUIRED when possible_conflict=true; concrete topic both sections address",
-                    "conflict_axis": "string — REQUIRED when possible_conflict=true; specific incompatibility in one phrase",
                     "evidence_terms": ["string"],
                     "channels": list(MVP_CANDIDATE_CHANNELS),
                 },
@@ -2208,10 +2189,6 @@ def _build_batch_selection_request(
             "order, see_also, shared vocabulary, or general conceptual relationship. "
             "The Conflict Review pipeline will independently verify before any conflict "
             "is finalized; do not output relation_hint=conflicts_with from this stage.",
-            "reason: one short sentence max 120 chars describing the relationship. "
-            "When possible_conflict=true: also set shared_subject (the concrete "
-            "topic both sections address) and conflict_axis (the specific incompatibility "
-            "in one phrase).",
         ],
         "boundary": {
             "must_choose_from_candidate_target_section_ids_per_source": True,
@@ -2228,9 +2205,6 @@ def _build_batch_selection_request(
                             "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                             "confidence": sorted(ALLOWED_CONFIDENCE),
                             "possible_conflict": "boolean",
-                            "reason": "string — one short sentence max 120 chars",
-                            "shared_subject": "string — REQUIRED when possible_conflict=true; concrete topic both sections address",
-                            "conflict_axis": "string — REQUIRED when possible_conflict=true; specific incompatibility in one phrase",
                             "evidence_terms": ["string"],
                             "channels": list(MVP_CANDIDATE_CHANNELS),
                         },

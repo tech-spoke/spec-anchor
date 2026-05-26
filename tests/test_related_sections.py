@@ -408,12 +408,12 @@ def test_t_u10_related_sections_validation_filters_invalid_items_and_applies_lim
         "target_section_id",
         "relation_hint",
         "confidence",
-        "reason",
         "evidence_terms",
         "channels",
         "generated_at",
     ):
         assert field in item
+    assert "reason" not in item
     assert item["relation_hint"] in ALLOWED_RELATION_HINTS
     assert item["confidence"] in ALLOWED_CONFIDENCE
     assert "evidence" not in item
