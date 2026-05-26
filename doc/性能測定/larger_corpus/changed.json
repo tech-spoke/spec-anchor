@@ -1,0 +1,371 @@
+{
+  "run_id": "1a3fd4f6-4fb3-4e0f-ac3d-b20944a3d231",
+  "mode": "incremental",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "started_at": "2026-05-26T18:54:12Z",
+  "started_at_epoch": 1779821652.1240141,
+  "updated_at": "2026-05-26T18:56:05Z",
+  "current_stage": null,
+  "finalized_at": "2026-05-26T18:56:05Z",
+  "final_status": "completed",
+  "stage_order": [
+    "start",
+    "inputs_loaded",
+    "sections_loaded",
+    "section_metadata",
+    "section_collection_upsert",
+    "verify_index",
+    "related_sections",
+    "conflict_evaluation",
+    "chapter_anchors",
+    "artifact_write"
+  ],
+  "stages": {
+    "start": {
+      "stage": "start",
+      "raw": "core_start",
+      "started_at": "2026-05-26T18:54:12Z",
+      "started_at_epoch": 1779821652.1243076,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T18:54:12Z",
+      "elapsed_sec": 0.647
+    },
+    "inputs_loaded": {
+      "stage": "inputs_loaded",
+      "raw": "core_inputs_loaded",
+      "started_at": "2026-05-26T18:54:12Z",
+      "started_at_epoch": 1779821652.124639,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_inputs_loaded",
+          "at": "2026-05-26T18:54:12Z"
+        }
+      ]
+    },
+    "sections_loaded": {
+      "stage": "sections_loaded",
+      "raw": "core_sections_loaded",
+      "started_at": "2026-05-26T18:54:12Z",
+      "started_at_epoch": 1779821652.7706122,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_sections_loaded",
+          "at": "2026-05-26T18:54:12Z"
+        }
+      ]
+    },
+    "section_metadata": {
+      "stage": "section_metadata",
+      "raw": "core_section_metadata_start",
+      "started_at": "2026-05-26T18:54:12Z",
+      "started_at_epoch": 1779821652.7712326,
+      "llm_calls": 1,
+      "token_count": 14411,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 14171,
+        "output_tokens": 240,
+        "cached_input_tokens": 2432,
+        "reasoning_output_tokens": 78,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-26T18:54:18Z",
+      "elapsed_sec": 5.583
+    },
+    "section_collection_upsert": {
+      "stage": "section_collection_upsert",
+      "raw": "core_section_collection_upsert_start",
+      "started_at": "2026-05-26T18:54:18Z",
+      "started_at_epoch": 1779821658.3573973,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "upserted_partial",
+      "reason": "source_hash",
+      "recreate": false,
+      "diagnostics": {
+        "real_section_index": true,
+        "qdrant_url": "http://localhost:6333",
+        "collection": "spec_anchor_section",
+        "qdrant_server_version": "1.17.1",
+        "total_section_input_count": 50,
+        "embedding_provider": "flagembedding",
+        "embedding_model": "BAAI/bge-m3",
+        "embedding_device": "unknown",
+        "recreate": false,
+        "stale_points_deleted": 0,
+        "sections_upserted_count": 1,
+        "sections_deleted_count": 0,
+        "embed_documents_input_size": 1,
+        "partial_requested": true
+      },
+      "finished_at": "2026-05-26T18:54:37Z",
+      "elapsed_sec": 18.741
+    },
+    "verify_index": {
+      "stage": "verify_index",
+      "raw": "core_verify_index",
+      "started_at": "2026-05-26T18:54:37Z",
+      "started_at_epoch": 1779821677.0990946,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "disabled",
+      "reason": "not_requested",
+      "diagnostics": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "related_sections": {
+      "stage": "related_sections",
+      "raw": "core_related_sections_start",
+      "started_at": "2026-05-26T18:54:37Z",
+      "started_at_epoch": 1779821677.0996714,
+      "llm_calls": 1,
+      "token_count": 1013,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "regenerated_partial",
+      "reason": "source_hash",
+      "diagnostics": [
+        {
+          "reason_code": "related_section_candidate_generation_scope",
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "stage": "candidate_generation",
+          "severity": "info",
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "candidate_generation_elapsed_sec": 6.596060561000058
+        },
+        {
+          "reason_code": "related_selection_counts",
+          "message": "Per-source validation counts after LLM selection.",
+          "stage": "related_sections",
+          "severity": "warning",
+          "source_section_id": "テスト用ドキュメント/30_テスト用矛盾例.md#0002-bindcontext-再登録の禁止",
+          "raw_candidate_count": 5,
+          "valid_candidate_count": 5,
+          "validation_dropped_count": 0,
+          "validation_drop_reasons": {},
+          "possible_conflict_true_count": 1
+        },
+        {
+          "reason_code": "related_typing_cache_stats",
+          "message": "pair-level relation typing cache statistics",
+          "stage": "related_section_selection",
+          "severity": "warning",
+          "cache_hits": 0,
+          "cache_misses": 5,
+          "cache_rejected_hits": 0,
+          "cache_size": 845
+        },
+        {
+          "reason_code": "related_sections_partial_regenerated",
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "stage": "related_sections",
+          "severity": "info",
+          "partial_regeneration": true,
+          "partial_mode": "source_changed_only",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "unchanged_source_inheritance": true,
+          "removed_source_exclusion": true,
+          "fallback_regenerated": false,
+          "changed_target_relations_inherited": true,
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "changed_source_section_ids": [
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0002-bindcontext-再登録の禁止"
+          ],
+          "changed_target_section_ids": [
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0002-bindcontext-再登録の禁止"
+          ],
+          "added_or_changed_source_section_ids": [
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0002-bindcontext-再登録の禁止"
+          ],
+          "inherited_source_section_ids": [
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0001-コンポーネント層-配置操作",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0002-目的",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0003-スコープ",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0004-配置操作",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0005-操作一覧",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0006-アンカー",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0007-未登録-id-への挙動",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0008-core-customize-の役割分担",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0009-core-標準構成を積み上げる",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0010-customize-標準構成を改変する",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0011-並び順の指定方針",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0012-replacecomponent-の位置づけ",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0013-registry-collector-型の設計根拠",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0014-registry-collector-型を採る理由",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0015-schema-builder-型を採らない理由",
+            "テスト用ドキュメント/25_コンポーネント層（配置操作）.md#0016-collector-の入口は-component-で統一する",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0001-内部世界の基盤制御と-storegroup-設計原則",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0002-位置づけ",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0003-この案の前提になる-state-の責任モデル",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0004-この文書で固定する結論",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0005-実行時の基盤制御",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0006-内部世界",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0007-排他制御",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0008-action-scopeの規則",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0009-資源宣言と実行戦略の分離",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0010-排他-scope-の推移閉包",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0011-ctx-call-の-savepoint-セマンティクス",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0012-storegroup-の設計原則",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0013-storegroup-の役割",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0014-なぜ-storegroup-が必要か",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0015-設計原則としての帰結",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0016-同じ画面内に複数-storegroup-があってよい",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0017-この設計原則の実務上の読み方",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0018-action-scope",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0019-action-が持つべき抽象-scope",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0020-action-scopeと-storegroup-の関係",
+            "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md#0021-action-scope-と-customize",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0001-振る舞い層-customize側api一覧",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0002-1-store",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0003-2-storegroup",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0004-3-middleware",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0005-4-preset",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0006-5-action",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0007-全体操作",
+            "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md#0008-個別操作",
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0001-テスト用矛盾例",
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0003-store-初期値の変更禁止",
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0004-storegroup-全体差し替えの禁止",
+            "テスト用ドキュメント/30_テスト用矛盾例.md#0005-action-全体差し替えの必須化"
+          ],
+          "removed_source_section_ids": [],
+          "candidate_count": 5,
+          "candidate_count_for_selection": 5,
+          "candidate_generation_elapsed_sec": 6.596060561000058,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "selection_elapsed_sec": 18.972730987999967,
+          "selection_source_count": 1,
+          "inherited_source_count": 49,
+          "removed_source_count": 0,
+          "batch_count": 1,
+          "llm_calls": 1
+        }
+      ],
+      "batch_count": 1,
+      "changed_source_section_ids": [
+        "テスト用ドキュメント/30_テスト用矛盾例.md#0002-bindcontext-再登録の禁止"
+      ],
+      "candidate_generation_elapsed_sec": 6.596060561000058,
+      "selection_elapsed_sec": 18.972730987999967,
+      "candidate_generation_source_count": 1,
+      "candidate_generation_partial_mode": "source_changed_only",
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 1009,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 25653,
+        "cache_read_input_tokens": 36512,
+        "total_cost_usd": 0.12229935000000001,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": [
+          "claude-sonnet-4-6"
+        ]
+      },
+      "finished_at": "2026-05-26T18:55:04Z",
+      "elapsed_sec": 27.678
+    },
+    "conflict_evaluation": {
+      "stage": "conflict_evaluation",
+      "raw": "core_conflict_evaluation_start",
+      "started_at": "2026-05-26T18:55:04Z",
+      "started_at_epoch": 1779821704.778744,
+      "llm_calls": 5,
+      "token_count": 1535,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T18:55:56Z",
+      "elapsed_sec": 51.412,
+      "batch_count": 5,
+      "actual_call_count": 5,
+      "usage": {
+        "input_tokens": 20,
+        "output_tokens": 1515,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 109163,
+        "cache_read_input_tokens": 173503,
+        "total_cost_usd": 0.48419715,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": []
+      }
+    },
+    "chapter_anchors": {
+      "stage": "chapter_anchors",
+      "raw": "core_chapter_anchors_start",
+      "started_at": "2026-05-26T18:55:56Z",
+      "started_at_epoch": 1779821756.1959257,
+      "llm_calls": 1,
+      "token_count": 16733,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 16376,
+        "output_tokens": 357,
+        "cached_input_tokens": 12672,
+        "reasoning_output_tokens": 34,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-26T18:56:05Z",
+      "elapsed_sec": 8.938
+    },
+    "artifact_write": {
+      "stage": "artifact_write",
+      "raw": "core_artifact_write_start",
+      "started_at": "2026-05-26T18:56:05Z",
+      "started_at_epoch": 1779821765.1354473,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T18:56:05Z",
+      "elapsed_sec": 0.012
+    }
+  }
+}

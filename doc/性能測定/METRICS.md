@@ -565,6 +565,106 @@ EOF
 - 1 source（changed）では cg overhead が固定的に乗るためか改善幅は出にくい。複数 source（rebuild/all）で GPU 恩恵が明確。
 - selection_elapsed_sec の variance（±10s 級）が GPU 効果を上回るため、回帰測定 3 ラウンドで median を取らないと total wall の改善は判定不能。
 
+## 測定結果（第8回・大規模 corpus）
+
+測定日: 2026-05-26（commit 62fffb3、契約は第6回以降と同一）　GPU: NVIDIA GeForce RTX 3060　ソース: `テスト用ドキュメント/{25, 27, 29, 30}.md`（4 ファイル、合計 50 セクション・約 30KB、`30_テスト用矛盾例.md` に意図的な矛盾 fixture を含む）
+
+第7回（sample.md 5 セクション）からのスケール変化のみを測定。実装・GPU 構成は同一。`./メモ` の `[sources]` / `[core]` 設定を `.spec-anchor/config.toml` に適用し、第7回までの 5 セクション設定との対比を取る。`concept_file` は存在しない `.spec-grag/concept.md` から `.spec-anchor/concept.md` へ変更。
+
+ソース内訳:
+
+| ファイル | セクション数 | 行数 | bytes |
+|---|---|---|---|
+| `25_コンポーネント層（配置操作）.md` | 15 | 114 | 6,322 |
+| `27_内部世界の基盤制御とStoreGroup設計原則.md` | 20 | 269 | 13,372 |
+| `29_振る舞い層（Customize側API一覧）.md` | 7 | 86 | 7,562 |
+| `30_テスト用矛盾例.md` | 4 | 33 | 2,779 |
+| **合計** | **46（H4 込み 50）** | **502** | **30,035** |
+
+### rebuild（`spec-anchor core --rebuild`）
+
+総 wall: 517.4 s（8.6 分）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 28.820 | 7 | 118,016 | 7,476 | 230 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 249.692 | 7 | 28 | 68,829 | 0 | 447,565 | 402,735 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 194.308 | 12 | 48 | 4,670 | 0 | 262,214 | 415,596 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 32.669 | 4 | 86,436 | 1,533 | 85 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 11.930 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `candidate_generation_elapsed_sec=7.69s`、`selection_elapsed_sec=231.56s`、`batch_count=7`、`candidate_generation_source_count=50`。
+
+### ALL（`spec-anchor core --all`）
+
+総 wall: 402.7 s（6.7 分）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 25.774 | 7 | 118,016 | 7,028 | 249 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 233.390 | 7 | 28 | 65,121 | 0 | 447,375 | 403,056 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 101.494 | 7 | 28 | 2,189 | 0 | 152,364 | 242,372 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 30.217 | 4 | 85,582 | 1,479 | 56 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 11.829 | — | — | — | — | — | — | — | — |
+
+### 未修整インクリメント（ソース無変更）
+
+総 wall: 0.03 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 0.005 | 0 | 0 | 0 | — | — | — | — | — |
+| related_sections | 0.001 | 0 | 0 | 0 | 0 | — | — | — | — |
+| conflict_evaluation | 0.000 | 0 | 0 | 0 | 0 | — | — | — | — |
+| chapter_anchors | 0.002 | 0 | 0 | 0 | — | — | — | — | — |
+| section_collection_upsert | 0.020 | — | — | — | — | — | — | — | — |
+
+### 修正後インクリメント
+
+ソース変更: `30_テスト用矛盾例.md` の "bindContext 再登録の禁止" セクションに 1 文追記　総 wall: 112.4 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 5.583 | 1 | 14,171 | 240 | 78 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 27.678 | 1 | 4 | 1,009 | 0 | 25,653 | 36,512 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 51.412 | 5 | 20 | 1,515 | 0 | 109,163 | 173,503 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 8.938 | 1 | 16,376 | 357 | 34 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 18.741 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `cg=6.60s`、`sel=18.97s`、`batch_count=1`、`src_count=1`、`action=regenerated_partial`。1 セクション変更を partial で正しく処理。
+
+### 第8回・回帰確認
+
+- **既知 conflict 検出**: 5 件。`30_テスト用矛盾例.md` の意図的な矛盾 fixture（bindContext / Store extend / StoreGroup / Action 全体差し替え）と `29_振る舞い層 API` セクションが対として正しく検出。
+- cache の `possible_conflict=true` エントリ: 9 件
+- cache 総エントリ: 845（50 セクション × 約 17 候補/source）
+- `validation_dropped_count`: 0
+
+### 第7回（5 セクション）との比較
+
+| ケース / 指標 | 第7回 (5 sec) | 第8回 (50 sec) | スケール比 |
+|---|---|---|---|
+| rebuild 総 wall | 119.8 s | 517.4 s | **×4.3** |
+| rebuild related_sections wall | 60.6 s | 249.7 s | **×4.1** |
+| rebuild selection_elapsed | 53.2 s | 231.6 s | ×4.4 |
+| rebuild candidate_generation | 5.12 s | 7.69 s | ×1.5 |
+| rebuild batch_count | 1 | 7 | ×7 |
+| rebuild related_sections out_tok | 4,101 | 68,829 | ×16.8 |
+| rebuild conflict_evaluation calls | 2 | 12 | ×6 |
+| rebuild conflict_evaluation wall | 28.3 s | 194.3 s | ×6.9 |
+| changed related_sections wall | 36.7 s | 27.7 s | ×0.75（不変） |
+| changed src_count | 1 | 1 | 同（partial 動作確認） |
+| 既知 conflict 検出 | 3 | 5 | recall 維持 |
+
+評価:
+
+- **rebuild は 10× corpus で約 4.3× の wall**。線形より sublinear（バッチ並列性 + cache_read amortization）。10× → 約 4-5× で済む。
+- **selection が依然支配的**。50 セクション × ~17 候補/source = 845 候補ペアを 7 バッチで並列処理。BGE-M3 (GPU) による candidate_generation は 50 セクションでも 7.7s に収まり、影響は無視できる。
+- **changed は corpus size 非依存**。1 セクション変更なら関連セクション 17 候補のみ評価するため、5 セクション corpus と同じく ~28s。partial 経路がスケール問題を分離している。
+- **conflict_evaluation のスケール**: rebuild で calls=12（×6）、wall=194s（×6.9）。候補数増加にほぼ比例。バッチ化されておらず、conflict 候補ごとに個別 LLM 呼び出しが発生している（最適化余地あり）。
+- **conflict 検出は意図通り**。`30_テスト用矛盾例.md` の矛盾 fixture が `29_振る舞い層 API` の同名 API セクションと対として全て検出された。
+- **GPU 効果（cg ≦ 8s）が顕著**。CPU 環境では 50 セクションで cg が秒オーダーから分オーダーへ悪化する可能性があるため、大規模 corpus では GPU 必須に近い。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。
