@@ -1,0 +1,15 @@
+[sources]
+# H-4 calibration corpus + conflict_review 試験用矛盾 fixture (30)
+# - 30 は 29 の API と shared_identifier (bindContext / extend / replace) で繋がりつつ
+#   require ↔ forbid の対立を含む。conflict_review pipeline の発火試験用
+include = [
+  "テスト用ドキュメント/25_コンポーネント層（配置操作）.md",
+  "テスト用ドキュメント/27_内部世界の基盤制御とStoreGroup設計原則.md",
+  "テスト用ドキュメント/29_振る舞い層（Customize側API一覧）.md",
+  "テスト用ドキュメント/30_テスト用矛盾例.md",
+]
+exclude = ["archive/**", "**/drafts/**"]
+
+[core]
+purpose_file = "テスト用ドキュメント/01_システム目標.md"
+concept_file = ".spec-grag/concept.md"
