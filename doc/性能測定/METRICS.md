@@ -478,6 +478,93 @@ EOF
 
 差分は 1 ラウンドのみのためサンプリングノイズの範囲。回帰測定 3 ラウンドで観測した min-max 幅（rebuild wall 58〜69s, out_tok 3,636〜4,484）に対し、第6回の単発値はその内側に収まる。**契約変更による恒常的な性能差は判定不能**。
 
+## 測定結果（第7回・GPU 導入後）
+
+測定日: 2026-05-26（commit 58a3cf0、契約は第6回と同一）　ソース: docs/spec/sample.md（5セクション、Session Retention Policy 含む）　GPU: NVIDIA GeForce RTX 3060（FlagEmbedding BGE-M3 が CUDA で実行）
+
+第6回からの変化点は GPU 有効化のみ（コードは同じ commit）。LLM 呼び出し（Sonnet 4.6 / gpt-5.4-mini）は変化なし、影響を受けるのは FlagEmbedding を使う `candidate_generation`（Qdrant hybrid の query embedding）と `section_collection_upsert`（embedding upsert）。
+
+### rebuild（`spec-anchor core --rebuild`）
+
+総 wall: 119.8 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 10.546 | 1 | 15,006 | 480 | 18 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 60.596 | 1 | 4 | 4,101 | 0 | 32,715 | 29,158 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 28.335 | 2 | 8 | 483 | 0 | 48,058 | 60,729 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 7.753 | 1 | 15,567 | 237 | 20 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 12.575 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `candidate_generation_elapsed_sec=5.12s`、`selection_elapsed_sec=53.22s`。第6回 cg 10.65s → 5.12s（GPU で −5.5s ≒ ハーフ）。selection は LLM 側で GPU の影響なし。
+
+### ALL（`spec-anchor core --all`）
+
+総 wall: 107.5 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 8.399 | 1 | 15,006 | 515 | 15 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 48.388 | 1 | 4 | 3,133 | 0 | 25,017 | 35,971 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 31.674 | 2 | 8 | 461 | 0 | 41,471 | 67,352 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 6.714 | 1 | 15,606 | 275 | 33 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 12.307 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `candidate_generation_elapsed_sec=5.48s`、`selection_elapsed_sec=41.66s`。
+
+### 未修整インクリメント（ソース無変更）
+
+総 wall: 0.03 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 0.002 | 0 | 0 | 0 | — | — | — | — | — |
+| related_sections | 0.001 | 0 | 0 | 0 | 0 | — | — | — | — |
+| conflict_evaluation | 0.000 | 0 | 0 | 0 | 0 | — | — | — | — |
+| chapter_anchors | 0.002 | 0 | 0 | 0 | — | — | — | — | — |
+| section_collection_upsert | 0.026 | — | — | — | — | — | — | — | — |
+
+### 修正後インクリメント
+
+ソース変更: Account Lockout（lockout 回数・時間）　総 wall: 92.3 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 6.977 | 1 | 13,858 | 165 | 71 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 36.708 | 1 | 4 | 1,115 | 0 | 21,993 | 34,506 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 25.440 | 2 | 8 | 578 | 0 | 41,558 | 67,322 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 13.066 | 1 | 15,617 | 244 | 22 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 10.081 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `candidate_generation_elapsed_sec=6.20s`、`selection_elapsed_sec=29.09s`。
+
+### 第7回・回帰確認
+
+- 既知 conflict 検出: 3 件（第6回と同じ 3 件）
+- cache の `possible_conflict=true` エントリ: 4 件（第6回 3 件 → 4 件、LLM サンプリング揺らぎの範囲）
+- `validation_dropped_count`: 0
+
+### 第6回（CPU）との比較
+
+| ケース | 指標 | 第6回 (CPU) | 第7回 (GPU) | 差分 |
+|---|---|---|---|---|
+| rebuild | candidate_generation_elapsed_sec | 10.65 s | 5.12 s | **−5.53 s（−52%）** |
+| rebuild | selection_elapsed_sec | 51.5 s | 53.22 s | +1.7 s（誤差範囲） |
+| rebuild | related_sections wall | 62.1 s | 60.6 s | −1.5 s |
+| rebuild | section_collection_upsert | 18.8 s | 12.6 s | −6.2 s |
+| ALL | candidate_generation_elapsed_sec | 10.98 s | 5.48 s | **−5.50 s（−50%）** |
+| ALL | related_sections wall | 65.8 s | 48.4 s | −17.4 s（selection 揺らぎ込み） |
+| changed | candidate_generation_elapsed_sec | 4.10 s | 6.20 s | +2.10 s（1 source、誤差範囲） |
+| changed | related_sections wall | 19.7 s | 36.7 s | +17.0 s（selection 揺らぎ） |
+
+評価:
+
+- **候補生成は GPU で約 50% 短縮**（10s → 5s）。FlagEmbedding BGE-M3 の query embedding が CUDA で高速化された結果。
+- **section_collection_upsert も −6s 程度の改善傾向**（embedding upsert で GPU が効く）。
+- **total wall への影響は限定的**。related_sections の主因は selection（LLM 側）で、GPU の影響を受けない。
+- 1 source（changed）では cg overhead が固定的に乗るためか改善幅は出にくい。複数 source（rebuild/all）で GPU 恩恵が明確。
+- selection_elapsed_sec の variance（±10s 級）が GPU 効果を上回るため、回帰測定 3 ラウンドで median を取らないと total wall の改善は判定不能。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。
