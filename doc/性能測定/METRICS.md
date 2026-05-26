@@ -281,6 +281,79 @@ EOF
 - `shared_subject` / `conflict_axis` フィールドの追加は output_tok にほぼ影響なし（今回の計測では `possible_conflict=true` キャッシュエントリが生成されなかったため）。
 - `conflict_review.py` の `why_conflicting` フォールバックと `core.py` の conflict 候補伝播は実装済み。次回 related_sections が `possible_conflict=true` エントリを生成した際に機能する。
 
+## 第5回・続報（empirical 調査と契約単純化）
+
+第5回測定後、LLM raw 出力をデバッグダンプして調査した結果、**第5回の解釈は誤りだった**。
+
+### 誤りの内容
+
+第5回まとめでは「reason 必須が chain-of-thought を維持するために必要、reason オプション化すると recall がゼロになる」と結論した。実際には：
+
+- LLM は `reason` の有無に関係なく `possible_conflict=true` を正しく出力していた（debug dump で確認）
+- recall=0 の原因は、`shared_subject` / `conflict_axis` を必須化した validation が `possible_conflict=true` のエントリを全件 drop していたこと（[related_sections.py:965-989](spec_anchor/related_sections.py)）
+- LLM は instructions に従わず `shared_subject` / `conflict_axis` を出力しなかったため、validation drop が連鎖的に発生
+
+「reason 削除」だけを試した別の empirical run では、reason 無しでも LLM は 4 件の `possible_conflict=true` を検出した。chain-of-thought 仮説は否定された。
+
+### 採用した対応（第6回相当・契約単純化）
+
+性能改善ではなく、**契約単純化と「補助フィールド必須化による recall 破壊」の再発防止**を目的とする。
+
+- prompt から `reason` / `shared_subject` / `conflict_axis` の出力指示を削除
+- validation の entry 構築から同フィールドを削除
+- `related_selection_counts` diagnostic を追加（raw_candidate_count / valid_candidate_count / validation_dropped_count / validation_drop_reasons / possible_conflict_true_count）
+- `conflict_review.py` の `why_conflicting` fallback から `conflict_axis` 参照を削除
+- `core.py` の `possible_conflict_flag` 経路で reason を固定文字列に簡素化
+
+### 第5回・続報・回帰測定（同条件 3 ラウンド）
+
+測定日: 2026-05-26（第5回続報、commit c4c01b2）　ソース: docs/spec/sample.md（5セクション）
+
+保存ファイル: `doc/性能測定/regression/run{1,2,3}_{rebuild,all,unchanged,changed}.json`
+
+#### rebuild（3 ラウンド median / min / max）
+
+| 指標 | run1 | run2 | run3 | median | min | max |
+|---|---|---|---|---|---|---|
+| section_metadata wall (s) | 11.9 | 8.3 | 7.9 | 8.3 | 7.9 | 11.9 |
+| section_metadata out | 523 | 509 | 492 | 509 | 492 | 523 |
+| related_sections wall (s) | 68.8 | 66.9 | 58.0 | 66.9 | 58.0 | 68.8 |
+| related_sections out | 4,484 | 4,219 | 3,636 | 4,219 | 3,636 | 4,484 |
+| conflict_evaluation wall (s) | 17.6 | 42.7 | 19.6 | 19.6 | 17.6 | 42.7 |
+| conflict_evaluation calls | 2 | 2 | 2 | 2 | 2 | 2 |
+| chapter_anchors wall (s) | 7.7 | 6.1 | 7.7 | 7.7 | 6.1 | 7.7 |
+
+#### ALL（3 ラウンド）
+
+| 指標 | run1 | run2 | run3 | median | min | max |
+|---|---|---|---|---|---|---|
+| related_sections wall (s) | 49.0 | 65.4 | 59.6 | 59.6 | 49.0 | 65.4 |
+| related_sections out | 3,077 | 4,461 | 4,210 | 4,210 | 3,077 | 4,461 |
+| conflict_evaluation calls | 3 | 2 | 2 | 2 | 2 | 3 |
+
+#### 未変更インクリメント（3 ラウンド）
+
+全ステージ wall=0.0s / calls=0（全ラウンド一致）。
+
+#### 修正後インクリメント（Account Lockout 1 セクション変更）
+
+| 指標 | run1 | run2 | run3 | median | min | max |
+|---|---|---|---|---|---|---|
+| related_sections wall (s) | 36.1 | 31.6 | 18.4 | 31.6 | 18.4 | 36.1 |
+| related_sections out | 1,260 | 1,196 | 593 | 1,196 | 593 | 1,260 |
+| conflict_evaluation calls | 3 | 2 | 2 | 2 | 2 | 3 |
+
+### 回帰確認結果
+
+- **既知 conflict 検出**: 全 12 runs で `session-termination ↔ session-retention-policy` を `possible_conflict_flag` 経路で検出。`authentication ↔ session-retention-policy` を `pattern_signal_legacy` 経路で検出（`.spec-anchor/context/conflict_review_items.json` 2 件）。
+- **validation_dropped_count**: 全 runs で 0（補助フィールド drop の事故が再発しないことを確認）。
+- **conflict_evaluation calls 変動**: 2 〜 3 回（LLM 非決定性の範囲）。
+- **wall / output_tok 変動幅**: rebuild の related_sections wall は 58 〜 69 秒（±10s）、output_tok は 3,636 〜 4,484（±400）。**サンプリングノイズが大きく、契約変更前後の性能差は判定不能**。性能比較ではなく回帰確認として読む。
+
+### 第5回・続報まとめ
+
+採用理由は性能改善ではなく契約単純化と recall 破壊の再発防止。実装は 174 件 pytest pass。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。

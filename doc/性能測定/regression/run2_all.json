@@ -1,0 +1,248 @@
+{
+  "run_id": "f561f410-ceab-4ec0-861b-a753ad3cda62",
+  "mode": "full",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "started_at": "2026-05-26T00:46:46Z",
+  "started_at_epoch": 1779756406.3889122,
+  "updated_at": "2026-05-26T00:48:34Z",
+  "current_stage": null,
+  "finalized_at": "2026-05-26T00:48:34Z",
+  "final_status": "completed",
+  "stage_order": [
+    "start",
+    "inputs_loaded",
+    "sections_loaded",
+    "section_metadata",
+    "section_collection_upsert",
+    "verify_index",
+    "related_sections",
+    "conflict_evaluation",
+    "chapter_anchors",
+    "artifact_write"
+  ],
+  "stages": {
+    "start": {
+      "stage": "start",
+      "raw": "core_start",
+      "started_at": "2026-05-26T00:46:46Z",
+      "started_at_epoch": 1779756406.3892324,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T00:46:47Z",
+      "elapsed_sec": 0.828
+    },
+    "inputs_loaded": {
+      "stage": "inputs_loaded",
+      "raw": "core_inputs_loaded",
+      "started_at": "2026-05-26T00:46:46Z",
+      "started_at_epoch": 1779756406.3895872,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_inputs_loaded",
+          "at": "2026-05-26T00:46:46Z"
+        }
+      ]
+    },
+    "sections_loaded": {
+      "stage": "sections_loaded",
+      "raw": "core_sections_loaded",
+      "started_at": "2026-05-26T00:46:47Z",
+      "started_at_epoch": 1779756407.2168148,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_sections_loaded",
+          "at": "2026-05-26T00:46:47Z"
+        }
+      ]
+    },
+    "section_metadata": {
+      "stage": "section_metadata",
+      "raw": "core_section_metadata_start",
+      "started_at": "2026-05-26T00:46:47Z",
+      "started_at_epoch": 1779756407.217125,
+      "llm_calls": 1,
+      "token_count": 15515,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 15006,
+        "output_tokens": 509,
+        "cached_input_tokens": 2432,
+        "reasoning_output_tokens": 17,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-26T00:46:55Z",
+      "elapsed_sec": 8.25
+    },
+    "section_collection_upsert": {
+      "stage": "section_collection_upsert",
+      "raw": "core_section_collection_upsert_start",
+      "started_at": "2026-05-26T00:46:55Z",
+      "started_at_epoch": 1779756415.4669263,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "upserted_full",
+      "reason": "full_rebuild",
+      "recreate": false,
+      "diagnostics": {
+        "real_section_index": true,
+        "qdrant_url": "http://localhost:6333",
+        "collection": "spec_anchor_section",
+        "qdrant_server_version": "1.17.1",
+        "total_section_input_count": 6,
+        "embedding_provider": "flagembedding",
+        "embedding_model": "BAAI/bge-m3",
+        "embedding_device": "unknown",
+        "recreate": false,
+        "stale_points_deleted": 0,
+        "sections_upserted_count": 6,
+        "sections_deleted_count": 0,
+        "embed_documents_input_size": 6,
+        "partial_requested": false
+      },
+      "finished_at": "2026-05-26T00:47:07Z",
+      "elapsed_sec": 11.809
+    },
+    "verify_index": {
+      "stage": "verify_index",
+      "raw": "core_verify_index",
+      "started_at": "2026-05-26T00:47:07Z",
+      "started_at_epoch": 1779756427.2763166,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "disabled",
+      "reason": "not_requested",
+      "diagnostics": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "related_sections": {
+      "stage": "related_sections",
+      "raw": "core_related_sections_start",
+      "started_at": "2026-05-26T00:47:07Z",
+      "started_at_epoch": 1779756427.2766404,
+      "llm_calls": 1,
+      "token_count": 4465,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "generated",
+      "reason": "full_rebuild",
+      "candidate_generation_elapsed_sec": 10.114425353996921,
+      "selection_elapsed_sec": 56.92712800600566,
+      "candidate_generation_source_count": 6,
+      "candidate_generation_partial_mode": "full",
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 4461,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 3895,
+        "cache_read_input_tokens": 58446,
+        "total_cost_usd": 0.09906704999999999,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": [
+          "claude-sonnet-4-6"
+        ]
+      },
+      "finished_at": "2026-05-26T00:48:12Z",
+      "elapsed_sec": 65.382
+    },
+    "conflict_evaluation": {
+      "stage": "conflict_evaluation",
+      "raw": "core_conflict_evaluation_start",
+      "started_at": "2026-05-26T00:48:12Z",
+      "started_at_epoch": 1779756492.6588306,
+      "llm_calls": 2,
+      "token_count": 512,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T00:48:29Z",
+      "elapsed_sec": 17.087,
+      "batch_count": 2,
+      "actual_call_count": 2,
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 504,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 41564,
+        "cache_read_input_tokens": 67402,
+        "total_cost_usd": 0.1836696,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": []
+      }
+    },
+    "chapter_anchors": {
+      "stage": "chapter_anchors",
+      "raw": "core_chapter_anchors_start",
+      "started_at": "2026-05-26T00:48:29Z",
+      "started_at_epoch": 1779756509.7510676,
+      "llm_calls": 1,
+      "token_count": 15914,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 15673,
+        "output_tokens": 241,
+        "cached_input_tokens": 2432,
+        "reasoning_output_tokens": 24,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-26T00:48:34Z",
+      "elapsed_sec": 4.927
+    },
+    "artifact_write": {
+      "stage": "artifact_write",
+      "raw": "core_artifact_write_start",
+      "started_at": "2026-05-26T00:48:34Z",
+      "started_at_epoch": 1779756514.679151,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T00:48:34Z",
+      "elapsed_sec": 0.008
+    }
+  }
+}

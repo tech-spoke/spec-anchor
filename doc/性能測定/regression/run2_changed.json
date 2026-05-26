@@ -1,0 +1,327 @@
+{
+  "run_id": "b68ba63b-c176-4556-ab1f-0c51e24410f2",
+  "mode": "incremental",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "started_at": "2026-05-26T00:48:37Z",
+  "started_at_epoch": 1779756517.0347345,
+  "updated_at": "2026-05-26T00:49:50Z",
+  "current_stage": null,
+  "finalized_at": "2026-05-26T00:49:50Z",
+  "final_status": "completed",
+  "stage_order": [
+    "start",
+    "inputs_loaded",
+    "sections_loaded",
+    "section_metadata",
+    "section_collection_upsert",
+    "verify_index",
+    "related_sections",
+    "conflict_evaluation",
+    "chapter_anchors",
+    "artifact_write"
+  ],
+  "stages": {
+    "start": {
+      "stage": "start",
+      "raw": "core_start",
+      "started_at": "2026-05-26T00:48:37Z",
+      "started_at_epoch": 1779756517.035009,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T00:48:37Z",
+      "elapsed_sec": 0.802
+    },
+    "inputs_loaded": {
+      "stage": "inputs_loaded",
+      "raw": "core_inputs_loaded",
+      "started_at": "2026-05-26T00:48:37Z",
+      "started_at_epoch": 1779756517.0353734,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_inputs_loaded",
+          "at": "2026-05-26T00:48:37Z"
+        }
+      ]
+    },
+    "sections_loaded": {
+      "stage": "sections_loaded",
+      "raw": "core_sections_loaded",
+      "started_at": "2026-05-26T00:48:37Z",
+      "started_at_epoch": 1779756517.836266,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "checkpoints": [
+        {
+          "raw": "core_sections_loaded",
+          "at": "2026-05-26T00:48:37Z"
+        }
+      ]
+    },
+    "section_metadata": {
+      "stage": "section_metadata",
+      "raw": "core_section_metadata_start",
+      "started_at": "2026-05-26T00:48:37Z",
+      "started_at_epoch": 1779756517.8365955,
+      "llm_calls": 1,
+      "token_count": 13964,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 13858,
+        "output_tokens": 106,
+        "cached_input_tokens": 2432,
+        "reasoning_output_tokens": 18,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-26T00:48:44Z",
+      "elapsed_sec": 6.87
+    },
+    "section_collection_upsert": {
+      "stage": "section_collection_upsert",
+      "raw": "core_section_collection_upsert_start",
+      "started_at": "2026-05-26T00:48:44Z",
+      "started_at_epoch": 1779756524.7067232,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "upserted_partial",
+      "reason": "source_hash",
+      "recreate": false,
+      "diagnostics": {
+        "real_section_index": true,
+        "qdrant_url": "http://localhost:6333",
+        "collection": "spec_anchor_section",
+        "qdrant_server_version": "1.17.1",
+        "total_section_input_count": 6,
+        "embedding_provider": "flagembedding",
+        "embedding_model": "BAAI/bge-m3",
+        "embedding_device": "unknown",
+        "recreate": false,
+        "stale_points_deleted": 0,
+        "sections_upserted_count": 1,
+        "sections_deleted_count": 0,
+        "embed_documents_input_size": 1,
+        "partial_requested": true
+      },
+      "finished_at": "2026-05-26T00:48:53Z",
+      "elapsed_sec": 9.071
+    },
+    "verify_index": {
+      "stage": "verify_index",
+      "raw": "core_verify_index",
+      "started_at": "2026-05-26T00:48:53Z",
+      "started_at_epoch": 1779756533.7776496,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "disabled",
+      "reason": "not_requested",
+      "diagnostics": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "related_sections": {
+      "stage": "related_sections",
+      "raw": "core_related_sections_start",
+      "started_at": "2026-05-26T00:48:53Z",
+      "started_at_epoch": 1779756533.7778995,
+      "llm_calls": 1,
+      "token_count": 1200,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "action": "regenerated_partial",
+      "reason": "source_hash",
+      "diagnostics": [
+        {
+          "reason_code": "related_section_candidate_generation_scope",
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "stage": "candidate_generation",
+          "severity": "info",
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "candidate_generation_elapsed_sec": 4.665105309017235
+        },
+        {
+          "reason_code": "related_selection_counts",
+          "message": "Per-source validation counts after LLM selection.",
+          "stage": "related_sections",
+          "severity": "warning",
+          "source_section_id": "docs/spec/sample.md#0006-account-lockout",
+          "raw_candidate_count": 5,
+          "valid_candidate_count": 5,
+          "validation_dropped_count": 0,
+          "validation_drop_reasons": {},
+          "possible_conflict_true_count": 0
+        },
+        {
+          "reason_code": "related_typing_cache_stats",
+          "message": "pair-level relation typing cache statistics",
+          "stage": "related_section_selection",
+          "severity": "warning",
+          "cache_hits": 0,
+          "cache_misses": 5,
+          "cache_rejected_hits": 0,
+          "cache_size": 35
+        },
+        {
+          "reason_code": "related_sections_partial_regenerated",
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "stage": "related_sections",
+          "severity": "info",
+          "partial_regeneration": true,
+          "partial_mode": "source_changed_only",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "unchanged_source_inheritance": true,
+          "removed_source_exclusion": true,
+          "fallback_regenerated": false,
+          "changed_target_relations_inherited": true,
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "changed_source_section_ids": [
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "changed_target_section_ids": [
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "added_or_changed_source_section_ids": [
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "inherited_source_section_ids": [
+            "docs/spec/sample.md#0001-sample-specification",
+            "docs/spec/sample.md#0002-authentication",
+            "docs/spec/sample.md#0003-authorization",
+            "docs/spec/sample.md#0004-session-termination",
+            "docs/spec/sample.md#0005-session-retention-policy"
+          ],
+          "removed_source_section_ids": [],
+          "candidate_count": 5,
+          "candidate_count_for_selection": 5,
+          "candidate_generation_elapsed_sec": 4.665105309017235,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "selection_elapsed_sec": 27.729564973997185,
+          "selection_source_count": 1,
+          "inherited_source_count": 5,
+          "removed_source_count": 0,
+          "batch_count": 1,
+          "llm_calls": 1
+        }
+      ],
+      "batch_count": 1,
+      "changed_source_section_ids": [
+        "docs/spec/sample.md#0006-account-lockout"
+      ],
+      "candidate_generation_elapsed_sec": 4.665105309017235,
+      "selection_elapsed_sec": 27.729564973997185,
+      "candidate_generation_source_count": 1,
+      "candidate_generation_partial_mode": "source_changed_only",
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 1196,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 1103,
+        "cache_read_input_tokens": 55352,
+        "total_cost_usd": 0.038693849999999995,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": [
+          "claude-sonnet-4-6"
+        ]
+      },
+      "finished_at": "2026-05-26T00:49:25Z",
+      "elapsed_sec": 31.577
+    },
+    "conflict_evaluation": {
+      "stage": "conflict_evaluation",
+      "raw": "core_conflict_evaluation_start",
+      "started_at": "2026-05-26T00:49:25Z",
+      "started_at_epoch": 1779756565.3561516,
+      "llm_calls": 2,
+      "token_count": 540,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T00:49:42Z",
+      "elapsed_sec": 17.109,
+      "batch_count": 2,
+      "actual_call_count": 2,
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 532,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "cache_creation_input_tokens": 41379,
+        "cache_read_input_tokens": 67189,
+        "total_cost_usd": 0.18333195,
+        "providers_seen": [
+          "claude"
+        ],
+        "models_seen": []
+      }
+    },
+    "chapter_anchors": {
+      "stage": "chapter_anchors",
+      "raw": "core_chapter_anchors_start",
+      "started_at": "2026-05-26T00:49:42Z",
+      "started_at_epoch": 1779756582.470261,
+      "llm_calls": 1,
+      "token_count": 15934,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "batch_count": 1,
+      "actual_call_count": 1,
+      "usage": {
+        "input_tokens": 15680,
+        "output_tokens": 254,
+        "cached_input_tokens": 13696,
+        "reasoning_output_tokens": 21,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "total_cost_usd": 0.0,
+        "providers_seen": [
+          "codex"
+        ],
+        "models_seen": [
+          "gpt-5.4-mini"
+        ]
+      },
+      "finished_at": "2026-05-26T00:49:50Z",
+      "elapsed_sec": 8.285
+    },
+    "artifact_write": {
+      "stage": "artifact_write",
+      "raw": "core_artifact_write_start",
+      "started_at": "2026-05-26T00:49:50Z",
+      "started_at_epoch": 1779756590.7564354,
+      "llm_calls": 0,
+      "token_count": 0,
+      "retry_count": 0,
+      "failed_batch_ids": [],
+      "finished_at": "2026-05-26T00:49:50Z",
+      "elapsed_sec": 0.008
+    }
+  }
+}
