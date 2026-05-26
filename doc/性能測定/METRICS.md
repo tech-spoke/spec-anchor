@@ -267,7 +267,7 @@ EOF
 
 備考: `related_sections calls=0` ・ `conflict_evaluation calls=0`。Account Lockout セクション変更分の関連分類はキャッシュから直接返却。2 件の pending conflict（session-termination ↔ session-retention-policy、authentication ↔ session-retention-policy）はいずれも変更セクションに含まれないため再評価不要と判定。第4回の changed で calls=2 が出ていたのとは異なる。
 
-### 第5回まとめ
+### 第5回まとめ（⚠️ 続報で訂正済み — 下記「第5回・続報」を参照）
 
 | 指標 | 第4回（基準） | 第5回（120字上限 + shared_subject/conflict_axis 追加） | 差分 |
 |---|---|---|---|
@@ -276,10 +276,16 @@ EOF
 | conflict_evaluation calls (rebuild) | 2 | 1 | −1（バッチ化による削減） |
 | changed incremental total wall | 71 s | 28 s | −43 s（conflict_evaluation 呼び出しなし） |
 
+第5回時点の解釈（後に誤りと判明）:
+
+- ~~中間の「`reason` オプション化」実験では output_tok が 6,921（+73%）に増加し recall がゼロになった。LLM の chain-of-thought は `reason` フィールドを必須にすることで維持されることを確認。~~ → 続報で否定。recall=0 の真因は `reason` 喪失ではなく `shared_subject` / `conflict_axis` 必須化による validation 全件 drop だった。
+
+事実として残る観察:
+
 - `reason` 120 字上限は output_tok に統計的に有意な削減をもたらさなかった（Claude は以前から短い reason を生成していた）。
-- 中間の「`reason` オプション化」実験では output_tok が 6,921（+73%）に増加し recall がゼロになった。LLM の chain-of-thought は `reason` フィールドを必須にすることで維持されることを確認。
-- `shared_subject` / `conflict_axis` フィールドの追加は output_tok にほぼ影響なし（今回の計測では `possible_conflict=true` キャッシュエントリが生成されなかったため）。
-- `conflict_review.py` の `why_conflicting` フォールバックと `core.py` の conflict 候補伝播は実装済み。次回 related_sections が `possible_conflict=true` エントリを生成した際に機能する。
+- `conflict_evaluation calls=1` への減少はバッチ化の効果。
+
+**input_tok の解釈に関する補注**: Claude の `input_tok` は prompt cache 適用後の **非キャッシュ分のみ**を示す（`METRICS.md` 冒頭の測定カラム表でも明記）。`input_tok=4` でも実プロンプト規模は `input_tok + cache_create_tok + cache_read_tok` ≒ 60,000+ tok 級。related_sections wall ≒ 50-60s の主因は出力 token 削減で説明できる範囲ではなく、Sonnet 4.6 の **大きな cached prompt 処理 + 1-call latency + 出力ばらつき**の合算である。
 
 ## 第5回・続報（empirical 調査と契約単純化）
 
@@ -353,6 +359,43 @@ EOF
 ### 第5回・続報まとめ
 
 採用理由は性能改善ではなく契約単純化と recall 破壊の再発防止。実装は 174 件 pytest pass。
+
+## `channels` を LLM 出力契約から削除（実験 1 ラウンド）
+
+`channels` は candidate 生成時に決定される機械的メタデータ（`search_key_match` / `qdrant_section_hybrid` 等）であり、LLM が判断する情報ではない。LLM に echo させる必然性がないため出力契約から削除し、validation で candidate 由来の channels に置き換える形に変更。
+
+実装変更:
+
+- prompt return_shape から `channels` を削除
+- validation の `raw_channels` 検証ループを削除し、`_candidate_channels(candidate)` で復元する形に置換
+- entry には引き続き `channels` フィールドを含む（cache / downstream API 後方互換）
+
+合格条件: 既知 conflict 2 件以上の検出 + `validation_dropped_count=0`
+
+測定（1 ラウンド、回帰測定 3 ラウンド median との比較）:
+
+| ケース | 指標 | channels あり (3 ラウンド median) | channels なし (1 ラウンド) | 差分 |
+|---|---|---|---|---|
+| rebuild | related_sections wall | 66.9 s | 60.2 s | −6.7 s |
+| rebuild | related_sections out_tok | 4,219 | 4,042 | −177 |
+| rebuild | selection_elapsed_sec | 59.2 s | 52.4 s | −6.8 s |
+| ALL | related_sections wall | 59.6 s | 63.0 s | +3.4 s |
+| ALL | related_sections out_tok | 4,210 | 3,706 | −504 |
+| changed | related_sections wall | 31.6 s | 32.0 s | +0.4 s |
+| changed | related_sections out_tok | 1,196 | 1,186 | −10 |
+
+回帰確認:
+
+- `validation_dropped_count`: 0（rebuild 確認）
+- 既知 conflict 検出: `session-termination ↔ session-retention-policy`（`possible_conflict_flag`）+ `authentication ↔ session-retention-policy`（今回は `possible_conflict_flag` でも検出、3 件キャッシュ）
+- 174 件 pytest pass
+
+評価:
+
+- output_tok は ALL で −504（−12%）、rebuild で −177（−4%）の小幅減少。channels JSON 文字列が候補ごと約 25-40 char 程度のため、削減効果は小さい。
+- wall は rebuild で −6.7s 改善に見えるが、回帰測定の min-max が 58〜69s と幅広く、サンプリングノイズと区別できない（1 ラウンドのみのため統計的判断不能）。
+- recall は改善方向（authentication ↔ session-retention-policy が LLM 経路でも検出された）。これは channels 削除と直接因果ではなく、LLM 非決定性のサンプリング揺らぎの範囲。
+- 副作用ゼロで契約が単純化された点が主な収穫。
 
 ## incremental vs full の差分を見るポイント
 

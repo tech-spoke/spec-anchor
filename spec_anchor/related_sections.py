@@ -992,29 +992,12 @@ def validate_related_sections_result(
                 ),
             )
             continue
-        raw_channels = item.get("channels")
-        if not isinstance(raw_channels, Sequence) or isinstance(raw_channels, (str, bytes)):
-            diagnostics.append(
-                _validation_drop(
-                    "invalid_channels",
-                    "channels must be a list",
-                    source_section_id,
-                    index,
-                    target_section_id=target_id,
-                ),
-            )
-            continue
-        candidate_channels = _candidate_channels(candidate)
-        channels = [
-            channel
-            for channel in _dedupe_public_terms(raw_channels)
-            if channel in candidate_channels
-        ]
+        channels = _candidate_channels(candidate)
         if not channels:
             diagnostics.append(
                 _validation_drop(
                     "invalid_channels",
-                    "channels must overlap the candidate channels",
+                    "candidate has no recognized channels to restore",
                     source_section_id,
                     index,
                     target_section_id=target_id,
@@ -1970,7 +1953,6 @@ def _build_selection_request(
                     "confidence": sorted(ALLOWED_CONFIDENCE),
                     "possible_conflict": "boolean — true only if requirements are mutually incompatible",
                     "evidence_terms": ["string"],
-                    "channels": list(MVP_CANDIDATE_CHANNELS),
                 },
             ],
         },
@@ -2206,7 +2188,6 @@ def _build_batch_selection_request(
                             "confidence": sorted(ALLOWED_CONFIDENCE),
                             "possible_conflict": "boolean",
                             "evidence_terms": ["string"],
-                            "channels": list(MVP_CANDIDATE_CHANNELS),
                         },
                     ],
                 },
