@@ -665,6 +665,99 @@ EOF
 - **conflict 検出は意図通り**。`30_テスト用矛盾例.md` の矛盾 fixture が `29_振る舞い層 API` の同名 API セクションと対として全て検出された。
 - **GPU 効果（cg ≦ 8s）が顕著**。CPU 環境では 50 セクションで cg が秒オーダーから分オーダーへ悪化する可能性があるため、大規模 corpus では GPU 必須に近い。
 
+## 測定結果（第9回・実装修正後）
+
+測定日: 2026-05-26　ソース: `docs/spec/{sample.md, 25_*, 27_*, 29_*, 30_*}.md`（5 ファイル、合計 56 セクション）　GPU: NVIDIA GeForce RTX 3060
+
+第8回からの実装変更（同一 session 内で CODEX の指摘を受けて修正）:
+
+- **#6**: `llm_provider.py` の `_provider_prompt()` output_contract 文 + `_related_section_selection_output_schema()` JSON schema から `reason` / `channels` を削除。第6回以降の「契約最小化」は `related_sections.py` builder 側だけで provider 側が依然 required にしており、LLM は実際には reason/channels を出力していた（出力後に validation で捨てていた）。本修正でようやく LLM 出力契約と一致。
+- **#5**: `related_sections.py:660` の batch 分割に `llm_batch_max_chars` を実際に効かせる。従来は `llm_batch_max_sections` のみで分割していた。source ごとに「自セクション text + 候補 target text」の概算 char 数を累積し、threshold (12,000) を超える前に batch を切る。
+- **#2**: `conflict_review.py:519` の `for pair in pairs:` を `ThreadPoolExecutor(max_workers=llm_batch_concurrency)` で並列化。LLM 契約変更なし、ペア単位呼び出しの実装は維持したまま並列度を上げた。
+
+### rebuild（`spec-anchor core --rebuild`）
+
+総 wall: 353.4 s（5.9 分）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 29.71 | 7 | — | 7,546 | — | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 218.11 | **34** | — | 51,421 | 0 | 1,150,844 | 1,524,729 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | **53.13** | 11 | — | 6,475 | 0 | 242,572 | 380,978 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 38.30 | 5 | — | 1,722 | — | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 14.11 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `cg=8.56s`, `sel=198.69s`, `batch_count=34`, `src_count=56`。#5 で max_chars 効かせた結果、batch_count が 7（第8回）→ 34 に増加。並列度 4 で 34 batch → ~9 順次ラウンド × ~22s/round ≒ 198s。
+
+### ALL（`spec-anchor core --all`）
+
+総 wall: 353.4 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 29.16 | 7 | — | 8,174 | — | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 228.03 | 34 | — | 50,961 | 0 | 1,149,895 | 1,527,413 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 46.49 | 11 | — | 5,198 | 0 | 241,200 | 380,884 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 37.41 | 5 | — | 1,658 | — | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 12.35 | — | — | — | — | — | — | — | — |
+
+### 未修整インクリメント（ソース無変更）
+
+総 wall: 0.03 s
+
+全ステージ `calls=0`（キャッシュ HIT）。
+
+### 修正後インクリメント
+
+ソース変更: `30_テスト用矛盾例.md` の "bindContext 再登録の禁止" セクションに 1 文追記　総 wall: 79.1 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 4.53 | 1 | — | 109 | — | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 24.40 | 1 | — | 863 | 0 | 22,136 | 34,822 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 32.45 | 8 | — | 3,580 | 0 | 174,622 | 276,411 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 6.34 | 1 | — | 264 | — | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 11.36 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `cg=4.64s`, `sel=19.55s`, `batch_count=1`, `src_count=1`, `action=regenerated_partial`。
+
+### 第9回・回帰確認
+
+- 既知 conflict 検出: **6 件**（sample.md 由来 2 件 + テスト用ドキュメント 29↔30 由来 4 件）
+- cache の `possible_conflict=true` エントリ: 14 件（第8回 9 件、+56%）
+- cache 総エントリ: 879
+- `validation_dropped_count`: 0
+- 589 件 pytest pass（regression なし）
+
+### 第8回（同 corpus 規模）との比較
+
+第8回は 50 セクション、第9回は 55 セクション。corpus 規模はほぼ同等（+10%）として、契約修正・並列化・max_chars 効果を見る。
+
+| ケース / 指標 | 第8回 (50 sec) | 第9回 (56 sec) | 差分 |
+|---|---|---|---|
+| rebuild 総 wall | 517.4 s | 353.4 s | **−164 s（−32%）** |
+| rebuild related_sections wall | 249.7 s | 218.1 s | −31.6 s（−13%） |
+| rebuild related_sections out_tok | 68,829 | 51,421 | **−17,408（−25%）** |
+| rebuild related_sections batch_count | 7 | 34 | +27（#5 max_chars 適用） |
+| rebuild conflict_evaluation wall | 194.3 s | **53.13 s** | **−141 s（−73%）** |
+| rebuild conflict_evaluation calls | 12 | 11 | −1（同水準） |
+| ALL 総 wall | 402.7 s | 353.4 s | −49.3 s |
+| changed 総 wall | 112.4 s | 79.1 s | −33.3 s |
+| changed conflict_evaluation wall | 51.4 s | 32.45 s | −18.9 s |
+
+評価:
+
+- **#2 並列化が決定的**。conflict_evaluation wall が −73%（194s → 53s）。LLM 契約変更なしの単純な ThreadPoolExecutor 化で大幅短縮、ペア間に依存がないため副作用なし。
+- **#6 契約修正が初めて output_tok に反映**。第6〜8回で「契約最小化済み」と謳っていたが LLM 側は依然 reason/channels を出力していた事実が今回露呈。本修正で実際に −25% 削減（68,829 → 51,421）。
+- **#5 max_chars 効果は微妙**。batch_count が 7 → 34 に増加し並列度を活かしやすくなった反面、prompt cache の再利用効率は下がる。selection wall は −13% で大幅改善ではない。1 batch あたり処理が軽くなり leaning toward 並列度上限張りつき。
+- **recall 改善方向**。possible_conflict=true cache が 9 → 14 件（+56%）、conflict_review_items が 5 → 6 件。意図された矛盾 fixture は全て検出。
+- **partial 経路は引き続き機能**。changed で `action=regenerated_partial / src_count=1`、related_sections は 24s で完了。
+- **section_collection_upsert は GPU 安定**。corpus 拡大しても 12-14s 維持。
+
+### 第9回まとめ
+
+実装変更は 3 件すべて意図通り効いた。conflict_evaluation の並列化（#2）が最大の win で、コードは ThreadPoolExecutor 1 行追加レベル。次の最適化候補は conflict_evaluation の真のバッチ化（1 call で複数 pair を judge する LLM 契約変更）だが、recall 維持の検証コストが大きいため別タスク。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。

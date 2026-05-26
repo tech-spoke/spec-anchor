@@ -1,12 +1,12 @@
 {
-  "run_id": "7c45b151-c296-4187-bcc4-2a992be6427d",
+  "run_id": "32e148d8-4595-43ad-a57a-1ecc360d7d47",
   "mode": "incremental",
   "generated_at": "1970-01-01T00:00:00Z",
-  "started_at": "2026-05-26T18:31:19Z",
-  "started_at_epoch": 1779820279.6138964,
-  "updated_at": "2026-05-26T18:32:52Z",
+  "started_at": "2026-05-26T19:29:00Z",
+  "started_at_epoch": 1779823740.156965,
+  "updated_at": "2026-05-26T19:30:19Z",
   "current_stage": null,
-  "finalized_at": "2026-05-26T18:32:52Z",
+  "finalized_at": "2026-05-26T19:30:19Z",
   "final_status": "completed",
   "stage_order": [
     "start",
@@ -24,20 +24,20 @@
     "start": {
       "stage": "start",
       "raw": "core_start",
-      "started_at": "2026-05-26T18:31:19Z",
-      "started_at_epoch": 1779820279.6142433,
+      "started_at": "2026-05-26T19:29:00Z",
+      "started_at_epoch": 1779823740.1573231,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T18:31:20Z",
-      "elapsed_sec": 0.73
+      "finished_at": "2026-05-26T19:29:00Z",
+      "elapsed_sec": 0.676
     },
     "inputs_loaded": {
       "stage": "inputs_loaded",
       "raw": "core_inputs_loaded",
-      "started_at": "2026-05-26T18:31:19Z",
-      "started_at_epoch": 1779820279.6145024,
+      "started_at": "2026-05-26T19:29:00Z",
+      "started_at_epoch": 1779823740.1576452,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -45,15 +45,15 @@
       "checkpoints": [
         {
           "raw": "core_inputs_loaded",
-          "at": "2026-05-26T18:31:19Z"
+          "at": "2026-05-26T19:29:00Z"
         }
       ]
     },
     "sections_loaded": {
       "stage": "sections_loaded",
       "raw": "core_sections_loaded",
-      "started_at": "2026-05-26T18:31:20Z",
-      "started_at_epoch": 1779820280.3441577,
+      "started_at": "2026-05-26T19:29:00Z",
+      "started_at_epoch": 1779823740.832729,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -61,26 +61,26 @@
       "checkpoints": [
         {
           "raw": "core_sections_loaded",
-          "at": "2026-05-26T18:31:20Z"
+          "at": "2026-05-26T19:29:00Z"
         }
       ]
     },
     "section_metadata": {
       "stage": "section_metadata",
       "raw": "core_section_metadata_start",
-      "started_at": "2026-05-26T18:31:20Z",
-      "started_at_epoch": 1779820280.3444703,
+      "started_at": "2026-05-26T19:29:00Z",
+      "started_at_epoch": 1779823740.8337457,
       "llm_calls": 1,
-      "token_count": 14023,
+      "token_count": 13921,
       "retry_count": 0,
       "failed_batch_ids": [],
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
-        "input_tokens": 13858,
-        "output_tokens": 165,
+        "input_tokens": 13812,
+        "output_tokens": 109,
         "cached_input_tokens": 2432,
-        "reasoning_output_tokens": 71,
+        "reasoning_output_tokens": 20,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "total_cost_usd": 0.0,
@@ -91,14 +91,14 @@
           "gpt-5.4-mini"
         ]
       },
-      "finished_at": "2026-05-26T18:31:27Z",
-      "elapsed_sec": 6.977
+      "finished_at": "2026-05-26T19:29:05Z",
+      "elapsed_sec": 4.528
     },
     "section_collection_upsert": {
       "stage": "section_collection_upsert",
       "raw": "core_section_collection_upsert_start",
-      "started_at": "2026-05-26T18:31:27Z",
-      "started_at_epoch": 1779820287.3215945,
+      "started_at": "2026-05-26T19:29:05Z",
+      "started_at_epoch": 1779823745.3623369,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -111,7 +111,7 @@
         "qdrant_url": "http://localhost:6333",
         "collection": "spec_anchor_section",
         "qdrant_server_version": "1.17.1",
-        "total_section_input_count": 6,
+        "total_section_input_count": 56,
         "embedding_provider": "flagembedding",
         "embedding_model": "BAAI/bge-m3",
         "embedding_device": "unknown",
@@ -122,14 +122,14 @@
         "embed_documents_input_size": 1,
         "partial_requested": true
       },
-      "finished_at": "2026-05-26T18:31:37Z",
-      "elapsed_sec": 10.081
+      "finished_at": "2026-05-26T19:29:16Z",
+      "elapsed_sec": 11.364
     },
     "verify_index": {
       "stage": "verify_index",
       "raw": "core_verify_index",
-      "started_at": "2026-05-26T18:31:37Z",
-      "started_at_epoch": 1779820297.4031758,
+      "started_at": "2026-05-26T19:29:16Z",
+      "started_at_epoch": 1779823756.726565,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -144,10 +144,10 @@
     "related_sections": {
       "stage": "related_sections",
       "raw": "core_related_sections_start",
-      "started_at": "2026-05-26T18:31:37Z",
-      "started_at_epoch": 1779820297.4034564,
+      "started_at": "2026-05-26T19:29:16Z",
+      "started_at_epoch": 1779823756.7269318,
       "llm_calls": 1,
-      "token_count": 1119,
+      "token_count": 867,
       "retry_count": 0,
       "failed_batch_ids": [],
       "action": "regenerated_partial",
@@ -160,7 +160,7 @@
           "severity": "info",
           "candidate_generation_partial_mode": "source_changed_only",
           "candidate_generation_source_count": 1,
-          "candidate_generation_elapsed_sec": 6.196224769000025
+          "candidate_generation_elapsed_sec": 4.6352258150000125
         },
         {
           "reason_code": "related_selection_counts",
@@ -182,7 +182,7 @@
           "cache_hits": 0,
           "cache_misses": 5,
           "cache_rejected_hits": 0,
-          "cache_size": 35
+          "cache_size": 879
         },
         {
           "reason_code": "related_sections_partial_regenerated",
@@ -208,6 +208,56 @@
             "docs/spec/sample.md#0006-account-lockout"
           ],
           "inherited_source_section_ids": [
+            "docs/spec/25_コンポーネント層（配置操作）.md#0001-コンポーネント層-配置操作",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0002-目的",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0003-スコープ",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0004-配置操作",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0005-操作一覧",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0006-アンカー",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0007-未登録-id-への挙動",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0008-core-customize-の役割分担",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0009-core-標準構成を積み上げる",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0010-customize-標準構成を改変する",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0011-並び順の指定方針",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0012-replacecomponent-の位置づけ",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0013-registry-collector-型の設計根拠",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0014-registry-collector-型を採る理由",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0015-schema-builder-型を採らない理由",
+            "docs/spec/25_コンポーネント層（配置操作）.md#0016-collector-の入口は-component-で統一する",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0001-内部世界の基盤制御と-storegroup-設計原則",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0002-位置づけ",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0003-この案の前提になる-state-の責任モデル",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0004-この文書で固定する結論",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0005-実行時の基盤制御",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0006-内部世界",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0007-排他制御",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0008-action-scopeの規則",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0009-資源宣言と実行戦略の分離",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0010-排他-scope-の推移閉包",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0011-ctx-call-の-savepoint-セマンティクス",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0012-storegroup-の設計原則",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0013-storegroup-の役割",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0014-なぜ-storegroup-が必要か",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0015-設計原則としての帰結",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0016-同じ画面内に複数-storegroup-があってよい",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0017-この設計原則の実務上の読み方",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0018-action-scope",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0019-action-が持つべき抽象-scope",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0020-action-scopeと-storegroup-の関係",
+            "docs/spec/27_内部世界の基盤制御とStoreGroup設計原則.md#0021-action-scope-と-customize",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0001-振る舞い層-customize側api一覧",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0002-1-store",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0003-2-storegroup",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0004-3-middleware",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0005-4-preset",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0006-5-action",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0007-全体操作",
+            "docs/spec/29_振る舞い層（Customize側API一覧）.md#0008-個別操作",
+            "docs/spec/30_テスト用矛盾例.md#0001-テスト用矛盾例",
+            "docs/spec/30_テスト用矛盾例.md#0002-bindcontext-再登録の禁止",
+            "docs/spec/30_テスト用矛盾例.md#0003-store-初期値の変更禁止",
+            "docs/spec/30_テスト用矛盾例.md#0004-storegroup-全体差し替えの禁止",
+            "docs/spec/30_テスト用矛盾例.md#0005-action-全体差し替えの必須化",
             "docs/spec/sample.md#0001-sample-specification",
             "docs/spec/sample.md#0002-authentication",
             "docs/spec/sample.md#0003-authorization",
@@ -217,12 +267,12 @@
           "removed_source_section_ids": [],
           "candidate_count": 5,
           "candidate_count_for_selection": 5,
-          "candidate_generation_elapsed_sec": 6.196224769000025,
+          "candidate_generation_elapsed_sec": 4.6352258150000125,
           "candidate_generation_partial_mode": "source_changed_only",
           "candidate_generation_source_count": 1,
-          "selection_elapsed_sec": 29.08557599400001,
+          "selection_elapsed_sec": 19.55014869600018,
           "selection_source_count": 1,
-          "inherited_source_count": 5,
+          "inherited_source_count": 55,
           "removed_source_count": 0,
           "batch_count": 1,
           "llm_calls": 1
@@ -232,19 +282,19 @@
       "changed_source_section_ids": [
         "docs/spec/sample.md#0006-account-lockout"
       ],
-      "candidate_generation_elapsed_sec": 6.196224769000025,
-      "selection_elapsed_sec": 29.08557599400001,
+      "candidate_generation_elapsed_sec": 4.6352258150000125,
+      "selection_elapsed_sec": 19.55014869600018,
       "candidate_generation_source_count": 1,
       "candidate_generation_partial_mode": "source_changed_only",
       "actual_call_count": 1,
       "usage": {
         "input_tokens": 4,
-        "output_tokens": 1115,
+        "output_tokens": 863,
         "cached_input_tokens": 0,
         "reasoning_output_tokens": 0,
-        "cache_creation_input_tokens": 21993,
-        "cache_read_input_tokens": 34506,
-        "total_cost_usd": 0.10956255000000001,
+        "cache_creation_input_tokens": 22136,
+        "cache_read_input_tokens": 34822,
+        "total_cost_usd": 0.10641360000000001,
         "providers_seen": [
           "claude"
         ],
@@ -252,30 +302,30 @@
           "claude-sonnet-4-6"
         ]
       },
-      "finished_at": "2026-05-26T18:32:14Z",
-      "elapsed_sec": 36.708
+      "finished_at": "2026-05-26T19:29:41Z",
+      "elapsed_sec": 24.396
     },
     "conflict_evaluation": {
       "stage": "conflict_evaluation",
       "raw": "core_conflict_evaluation_start",
-      "started_at": "2026-05-26T18:32:14Z",
-      "started_at_epoch": 1779820334.1122677,
-      "llm_calls": 2,
-      "token_count": 586,
+      "started_at": "2026-05-26T19:29:41Z",
+      "started_at_epoch": 1779823781.1238804,
+      "llm_calls": 8,
+      "token_count": 3612,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T18:32:39Z",
-      "elapsed_sec": 25.44,
-      "batch_count": 2,
-      "actual_call_count": 2,
+      "finished_at": "2026-05-26T19:30:13Z",
+      "elapsed_sec": 32.449,
+      "batch_count": 8,
+      "actual_call_count": 8,
       "usage": {
-        "input_tokens": 8,
-        "output_tokens": 578,
+        "input_tokens": 32,
+        "output_tokens": 3580,
         "cached_input_tokens": 0,
         "reasoning_output_tokens": 0,
-        "cache_creation_input_tokens": 41558,
-        "cache_read_input_tokens": 67322,
-        "total_cost_usd": 0.18473309999999998,
+        "cache_creation_input_tokens": 174622,
+        "cache_read_input_tokens": 276411,
+        "total_cost_usd": 0.7915517999999999,
         "providers_seen": [
           "claude"
         ],
@@ -285,19 +335,19 @@
     "chapter_anchors": {
       "stage": "chapter_anchors",
       "raw": "core_chapter_anchors_start",
-      "started_at": "2026-05-26T18:32:39Z",
-      "started_at_epoch": 1779820359.5581744,
+      "started_at": "2026-05-26T19:30:13Z",
+      "started_at_epoch": 1779823813.5779433,
       "llm_calls": 1,
-      "token_count": 15861,
+      "token_count": 16019,
       "retry_count": 0,
       "failed_batch_ids": [],
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
-        "input_tokens": 15617,
-        "output_tokens": 244,
+        "input_tokens": 15755,
+        "output_tokens": 264,
         "cached_input_tokens": 12672,
-        "reasoning_output_tokens": 22,
+        "reasoning_output_tokens": 19,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "total_cost_usd": 0.0,
@@ -308,20 +358,20 @@
           "gpt-5.4-mini"
         ]
       },
-      "finished_at": "2026-05-26T18:32:52Z",
-      "elapsed_sec": 13.066
+      "finished_at": "2026-05-26T19:30:19Z",
+      "elapsed_sec": 6.344
     },
     "artifact_write": {
       "stage": "artifact_write",
       "raw": "core_artifact_write_start",
-      "started_at": "2026-05-26T18:32:52Z",
-      "started_at_epoch": 1779820372.625474,
+      "started_at": "2026-05-26T19:30:19Z",
+      "started_at_epoch": 1779823819.9226415,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T18:32:52Z",
-      "elapsed_sec": 0.008
+      "finished_at": "2026-05-26T19:30:19Z",
+      "elapsed_sec": 0.009
     }
   }
 }

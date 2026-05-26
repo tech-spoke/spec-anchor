@@ -658,16 +658,50 @@ def select_related_sections_result(
             related_by_source[source_id] = cached_entries
 
     batch_size = max(1, int(getattr(limits_config, "llm_batch_max_sections", 8) or 8))
+    max_chars = max(0, int(getattr(limits_config, "llm_batch_max_chars", 0) or 0))
+
+    def _estimate_source_chars(source: _SectionRecord) -> int:
+        # Rough proxy: source section's own text + its candidates' target text.
+        # The actual prompt also serializes metadata, but text dominates.
+        own = len(source.text or "")
+        cands = pending_candidates_by_source.get(source.source_section_id, [])
+        cand_chars = 0
+        for cand in cands:
+            tid = str(cand.get("target_section_id") or "")
+            target = records_by_id.get(tid)
+            if target is not None:
+                cand_chars += len(target.text or "")
+        return own + cand_chars
+
     batches: list[tuple[list[_SectionRecord], dict[str, list[Mapping[str, Any]]]]] = []
-    for batch_start in range(0, len(sources_to_evaluate), batch_size):
-        batch_sources = sources_to_evaluate[batch_start : batch_start + batch_size]
+    current_batch: list[_SectionRecord] = []
+    current_chars = 0
+    for source in sources_to_evaluate:
+        source_chars = _estimate_source_chars(source)
+        would_exceed_size = len(current_batch) >= batch_size
+        would_exceed_chars = (
+            max_chars > 0 and current_batch and current_chars + source_chars > max_chars
+        )
+        if would_exceed_size or would_exceed_chars:
+            batch_candidates_by_source = {
+                s.source_section_id: pending_candidates_by_source.get(
+                    s.source_section_id, []
+                )
+                for s in current_batch
+            }
+            batches.append((current_batch, batch_candidates_by_source))
+            current_batch = []
+            current_chars = 0
+        current_batch.append(source)
+        current_chars += source_chars
+    if current_batch:
         batch_candidates_by_source = {
-            source.source_section_id: pending_candidates_by_source.get(
-                source.source_section_id, []
+            s.source_section_id: pending_candidates_by_source.get(
+                s.source_section_id, []
             )
-            for source in batch_sources
+            for s in current_batch
         }
-        batches.append((batch_sources, batch_candidates_by_source))
+        batches.append((current_batch, batch_candidates_by_source))
 
     def _run_related_batch(batch: tuple[list[_SectionRecord], dict[str, list[Mapping[str, Any]]]]):
         batch_sources, batch_candidates_by_source = batch

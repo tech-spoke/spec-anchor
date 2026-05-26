@@ -501,7 +501,7 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
         output_contract = (
             "The JSON object must include array field \"related_sections\". "
             "Each item must include \"target_section_id\", \"relation_hint\", "
-            "\"confidence\", \"reason\", \"evidence_terms\", and \"channels\"."
+            "\"confidence\", \"possible_conflict\", and \"evidence_terms\"."
         )
     elif stage == "conflict_review":
         output_contract = (
@@ -663,18 +663,14 @@ def _related_section_selection_output_schema() -> dict[str, Any]:
                 ],
             },
             "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-            "reason": {"type": "string"},
             "evidence_terms": {"type": "array", "items": {"type": "string"}},
-            "channels": {"type": "array", "items": {"type": "string"}},
             "possible_conflict": {"type": "boolean"},
         },
         "required": [
             "target_section_id",
             "relation_hint",
             "confidence",
-            "reason",
             "evidence_terms",
-            "channels",
             "possible_conflict",
         ],
         "additionalProperties": False,

@@ -8,6 +8,7 @@ human decisions, freshness, and evidence filtering.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -516,13 +517,30 @@ def evaluate_conflicts(
     items: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
     call_usages: list[dict[str, Any]] = []
-    for pair in pairs:
+
+    def _judge_one(pair: Mapping[str, Any]) -> tuple[Mapping[str, Any], dict[str, Any]]:
         request = {
             "pair": deepcopy(pair),
             "section_a": deepcopy(sections_by_id.get(str(pair.get("source_section_id")), {})),
             "section_b": deepcopy(sections_by_id.get(str(pair.get("target_section_id")), {})),
         }
-        payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
+        return pair, _call_judge(active_judge, request, timeout_sec=timeout_sec)
+
+    # Resolve concurrency from limits (defaults to llm_batch_concurrency = 4).
+    concurrency = max(1, int(getattr(limits, "llm_batch_concurrency", 0) or 0))
+    if concurrency <= 1 and isinstance(limits, Mapping):
+        concurrency = max(1, int(limits.get("llm_batch_concurrency") or 4))
+    if concurrency <= 1:
+        concurrency = 4
+
+    pair_payloads: list[tuple[Mapping[str, Any], dict[str, Any]]]
+    if concurrency > 1 and len(pairs) > 1:
+        with ThreadPoolExecutor(max_workers=concurrency) as ex:
+            pair_payloads = list(ex.map(_judge_one, pairs))
+    else:
+        pair_payloads = [_judge_one(pair) for pair in pairs]
+
+    for pair, payload in pair_payloads:
         # Collect per-call token usage injected by SubprocessLlmProvider.
         call_usage = dict(payload.pop("__spec_anchor_usage", None) or {})
         if call_usage:
