@@ -1,12 +1,12 @@
 {
-  "run_id": "32e148d8-4595-43ad-a57a-1ecc360d7d47",
+  "run_id": "d0fcd338-6acc-4e18-bcec-7597e1cae320",
   "mode": "incremental",
   "generated_at": "1970-01-01T00:00:00Z",
-  "started_at": "2026-05-26T19:29:00Z",
-  "started_at_epoch": 1779823740.156965,
-  "updated_at": "2026-05-26T19:30:19Z",
+  "started_at": "2026-05-26T20:09:03Z",
+  "started_at_epoch": 1779826143.921085,
+  "updated_at": "2026-05-26T20:10:40Z",
   "current_stage": null,
-  "finalized_at": "2026-05-26T19:30:19Z",
+  "finalized_at": "2026-05-26T20:10:40Z",
   "final_status": "completed",
   "stage_order": [
     "start",
@@ -24,20 +24,20 @@
     "start": {
       "stage": "start",
       "raw": "core_start",
-      "started_at": "2026-05-26T19:29:00Z",
-      "started_at_epoch": 1779823740.1573231,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.921362,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:29:00Z",
-      "elapsed_sec": 0.676
+      "finished_at": "2026-05-26T20:09:04Z",
+      "elapsed_sec": 0.774
     },
     "inputs_loaded": {
       "stage": "inputs_loaded",
       "raw": "core_inputs_loaded",
-      "started_at": "2026-05-26T19:29:00Z",
-      "started_at_epoch": 1779823740.1576452,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.9216955,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -45,15 +45,15 @@
       "checkpoints": [
         {
           "raw": "core_inputs_loaded",
-          "at": "2026-05-26T19:29:00Z"
+          "at": "2026-05-26T20:09:03Z"
         }
       ]
     },
     "sections_loaded": {
       "stage": "sections_loaded",
       "raw": "core_sections_loaded",
-      "started_at": "2026-05-26T19:29:00Z",
-      "started_at_epoch": 1779823740.832729,
+      "started_at": "2026-05-26T20:09:04Z",
+      "started_at_epoch": 1779826144.6950948,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -61,26 +61,26 @@
       "checkpoints": [
         {
           "raw": "core_sections_loaded",
-          "at": "2026-05-26T19:29:00Z"
+          "at": "2026-05-26T20:09:04Z"
         }
       ]
     },
     "section_metadata": {
       "stage": "section_metadata",
       "raw": "core_section_metadata_start",
-      "started_at": "2026-05-26T19:29:00Z",
-      "started_at_epoch": 1779823740.8337457,
+      "started_at": "2026-05-26T20:09:04Z",
+      "started_at_epoch": 1779826144.6957824,
       "llm_calls": 1,
-      "token_count": 13921,
+      "token_count": 14008,
       "retry_count": 0,
       "failed_batch_ids": [],
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
         "input_tokens": 13812,
-        "output_tokens": 109,
+        "output_tokens": 196,
         "cached_input_tokens": 2432,
-        "reasoning_output_tokens": 20,
+        "reasoning_output_tokens": 81,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "total_cost_usd": 0.0,
@@ -91,14 +91,14 @@
           "gpt-5.4-mini"
         ]
       },
-      "finished_at": "2026-05-26T19:29:05Z",
-      "elapsed_sec": 4.528
+      "finished_at": "2026-05-26T20:09:11Z",
+      "elapsed_sec": 6.328
     },
     "section_collection_upsert": {
       "stage": "section_collection_upsert",
       "raw": "core_section_collection_upsert_start",
-      "started_at": "2026-05-26T19:29:05Z",
-      "started_at_epoch": 1779823745.3623369,
+      "started_at": "2026-05-26T20:09:11Z",
+      "started_at_epoch": 1779826151.024299,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -122,14 +122,14 @@
         "embed_documents_input_size": 1,
         "partial_requested": true
       },
-      "finished_at": "2026-05-26T19:29:16Z",
-      "elapsed_sec": 11.364
+      "finished_at": "2026-05-26T20:09:21Z",
+      "elapsed_sec": 10.305
     },
     "verify_index": {
       "stage": "verify_index",
       "raw": "core_verify_index",
-      "started_at": "2026-05-26T19:29:16Z",
-      "started_at_epoch": 1779823756.726565,
+      "started_at": "2026-05-26T20:09:21Z",
+      "started_at_epoch": 1779826161.329641,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -144,10 +144,10 @@
     "related_sections": {
       "stage": "related_sections",
       "raw": "core_related_sections_start",
-      "started_at": "2026-05-26T19:29:16Z",
-      "started_at_epoch": 1779823756.7269318,
+      "started_at": "2026-05-26T20:09:21Z",
+      "started_at_epoch": 1779826161.330108,
       "llm_calls": 1,
-      "token_count": 867,
+      "token_count": 951,
       "retry_count": 0,
       "failed_batch_ids": [],
       "action": "regenerated_partial",
@@ -160,7 +160,7 @@
           "severity": "info",
           "candidate_generation_partial_mode": "source_changed_only",
           "candidate_generation_source_count": 1,
-          "candidate_generation_elapsed_sec": 4.6352258150000125
+          "candidate_generation_elapsed_sec": 5.457382235000296
         },
         {
           "reason_code": "related_selection_counts",
@@ -182,7 +182,7 @@
           "cache_hits": 0,
           "cache_misses": 5,
           "cache_rejected_hits": 0,
-          "cache_size": 879
+          "cache_size": 877
         },
         {
           "reason_code": "related_sections_partial_regenerated",
@@ -267,10 +267,10 @@
           "removed_source_section_ids": [],
           "candidate_count": 5,
           "candidate_count_for_selection": 5,
-          "candidate_generation_elapsed_sec": 4.6352258150000125,
+          "candidate_generation_elapsed_sec": 5.457382235000296,
           "candidate_generation_partial_mode": "source_changed_only",
           "candidate_generation_source_count": 1,
-          "selection_elapsed_sec": 19.55014869600018,
+          "selection_elapsed_sec": 19.51681723999991,
           "selection_source_count": 1,
           "inherited_source_count": 55,
           "removed_source_count": 0,
@@ -282,19 +282,19 @@
       "changed_source_section_ids": [
         "docs/spec/sample.md#0006-account-lockout"
       ],
-      "candidate_generation_elapsed_sec": 4.6352258150000125,
-      "selection_elapsed_sec": 19.55014869600018,
+      "candidate_generation_elapsed_sec": 5.457382235000296,
+      "selection_elapsed_sec": 19.51681723999991,
       "candidate_generation_source_count": 1,
       "candidate_generation_partial_mode": "source_changed_only",
       "actual_call_count": 1,
       "usage": {
         "input_tokens": 4,
-        "output_tokens": 863,
+        "output_tokens": 947,
         "cached_input_tokens": 0,
         "reasoning_output_tokens": 0,
-        "cache_creation_input_tokens": 22136,
-        "cache_read_input_tokens": 34822,
-        "total_cost_usd": 0.10641360000000001,
+        "cache_creation_input_tokens": 22179,
+        "cache_read_input_tokens": 34781,
+        "total_cost_usd": 0.10782254999999999,
         "providers_seen": [
           "claude"
         ],
@@ -302,30 +302,30 @@
           "claude-sonnet-4-6"
         ]
       },
-      "finished_at": "2026-05-26T19:29:41Z",
-      "elapsed_sec": 24.396
+      "finished_at": "2026-05-26T20:09:48Z",
+      "elapsed_sec": 26.832
     },
     "conflict_evaluation": {
       "stage": "conflict_evaluation",
       "raw": "core_conflict_evaluation_start",
-      "started_at": "2026-05-26T19:29:41Z",
-      "started_at_epoch": 1779823781.1238804,
-      "llm_calls": 8,
-      "token_count": 3612,
+      "started_at": "2026-05-26T20:09:48Z",
+      "started_at_epoch": 1779826188.1628804,
+      "llm_calls": 10,
+      "token_count": 5571,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:30:13Z",
-      "elapsed_sec": 32.449,
-      "batch_count": 8,
-      "actual_call_count": 8,
+      "finished_at": "2026-05-26T20:10:34Z",
+      "elapsed_sec": 46.658,
+      "batch_count": 10,
+      "actual_call_count": 10,
       "usage": {
-        "input_tokens": 32,
-        "output_tokens": 3580,
+        "input_tokens": 40,
+        "output_tokens": 5531,
         "cached_input_tokens": 0,
         "reasoning_output_tokens": 0,
-        "cache_creation_input_tokens": 174622,
-        "cache_read_input_tokens": 276411,
-        "total_cost_usd": 0.7915517999999999,
+        "cache_creation_input_tokens": 246008,
+        "cache_read_input_tokens": 317308,
+        "total_cost_usd": 1.1008074,
         "providers_seen": [
           "claude"
         ],
@@ -335,19 +335,19 @@
     "chapter_anchors": {
       "stage": "chapter_anchors",
       "raw": "core_chapter_anchors_start",
-      "started_at": "2026-05-26T19:30:13Z",
-      "started_at_epoch": 1779823813.5779433,
+      "started_at": "2026-05-26T20:10:34Z",
+      "started_at_epoch": 1779826234.8264136,
       "llm_calls": 1,
-      "token_count": 16019,
+      "token_count": 16026,
       "retry_count": 0,
       "failed_batch_ids": [],
       "batch_count": 1,
       "actual_call_count": 1,
       "usage": {
-        "input_tokens": 15755,
-        "output_tokens": 264,
-        "cached_input_tokens": 12672,
-        "reasoning_output_tokens": 19,
+        "input_tokens": 15773,
+        "output_tokens": 253,
+        "cached_input_tokens": 2432,
+        "reasoning_output_tokens": 17,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "total_cost_usd": 0.0,
@@ -358,20 +358,20 @@
           "gpt-5.4-mini"
         ]
       },
-      "finished_at": "2026-05-26T19:30:19Z",
-      "elapsed_sec": 6.344
+      "finished_at": "2026-05-26T20:10:40Z",
+      "elapsed_sec": 5.676
     },
     "artifact_write": {
       "stage": "artifact_write",
       "raw": "core_artifact_write_start",
-      "started_at": "2026-05-26T19:30:19Z",
-      "started_at_epoch": 1779823819.9226415,
+      "started_at": "2026-05-26T20:10:40Z",
+      "started_at_epoch": 1779826240.5039854,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:30:19Z",
-      "elapsed_sec": 0.009
+      "finished_at": "2026-05-26T20:10:40Z",
+      "elapsed_sec": 0.01
     }
   }
 }

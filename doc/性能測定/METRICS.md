@@ -758,6 +758,105 @@ EOF
 
 実装変更は 3 件すべて意図通り効いた。conflict_evaluation の並列化（#2）が最大の win で、コードは ThreadPoolExecutor 1 行追加レベル。次の最適化候補は conflict_evaluation の真のバッチ化（1 call で複数 pair を judge する LLM 契約変更）だが、recall 維持の検証コストが大きいため別タスク。
 
+## 測定結果（第10回・CODEX 監査修正後）
+
+測定日: 2026-05-26（commit ea26227）　ソース: `docs/spec/{sample.md, 25_*, 27_*, 29_*, 30_*}.md`（5 ファイル、56 セクション、第9回と同条件）　GPU: NVIDIA GeForce RTX 3060
+
+第9回からの実装変更:
+
+- **#6 補完**: `llm_provider.py` の `_provider_prompt()` output_contract 文を実際の batch envelope (`{"sections": [{"source_section_id", "related_sections"}]}`) に合わせる修正（第9回時点では schema↔prompt 不一致が残存）。
+- **#2 補完**: `conflict_review.py` に `_get_llm_batch_concurrency()` ヘルパーを追加し `config.limits.llm_batch_concurrency` の lookup 経路を追加（第9回では本番設定が読まれずに default 4 で動いていたバグ）。
+- テスト 3 件追加で再発防止。
+
+### rebuild（`spec-anchor core --rebuild`）
+
+総 wall: 332.5 s（5.5 分）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 25.89 | 7 | — | 7,371 | — | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 201.20 | 34 | — | 43,496 | 0 | 1,216,042 | 1,444,089 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 57.69 | 12 | — | 7,268 | 0 | 263,921 | 414,711 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 34.88 | 5 | — | 1,634 | — | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 12.88 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `cg=8.81s`, `sel=181.34s`, `batch_count=34`, `src_count=56`。
+
+### ALL（`spec-anchor core --all`）
+
+総 wall: 323.8 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 25.52 | 7 | — | 7,561 | — | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 185.30 | 34 | — | 43,283 | 0 | 1,139,205 | 1,524,729 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 62.67 | 13 | — | 7,702 | 0 | 286,367 | 449,889 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 37.21 | 5 | — | 1,868 | — | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 13.11 | — | — | — | — | — | — | — | — |
+
+### 未修整インクリメント
+
+総 wall: 0.03 s（全ステージ `calls=0`）
+
+### 修正後インクリメント
+
+ソース変更: `30_テスト用矛盾例.md` の "bindContext 再登録の禁止" セクションに 1 文追記　総 wall: 95.8 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 6.33 | 1 | — | 196 | — | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 26.83 | 1 | — | 947 | 0 | 22,179 | 34,781 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 46.66 | 10 | — | 5,531 | 0 | 246,008 | 317,308 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 5.68 | 1 | — | 253 | — | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 10.30 | — | — | — | — | — | — | — | — |
+
+`related_sections` 内訳: `cg=5.46s`, `sel=19.52s`, `batch_count=1`, `src_count=1`, `action=regenerated_partial`。
+
+### 第10回・回帰確認
+
+- 既知 conflict 検出: **6 件**（第9回と同じ、recall 維持）
+- cache の `possible_conflict=true` エントリ: 15 件（第9回 14 件、+1）
+- cache 総エントリ: 877
+- `validation_dropped_count`: 0
+- 631 件 pytest pass（CODEX 追加テスト 3 件 + 既存 全件）
+
+### 第9回（CODEX 監査前）との比較
+
+| ケース / 指標 | 第9回 | 第10回 | 差分 |
+|---|---|---|---|
+| rebuild 総 wall | 353.4 s | 332.5 s | −20.9 s |
+| rebuild related_sections wall | 218.1 s | 201.2 s | −16.9 s |
+| **rebuild related_sections out_tok** | **51,421** | **43,496** | **−7,925（−15%）** |
+| rebuild selection_elapsed | 198.7 s | 181.3 s | −17.4 s |
+| rebuild conflict_evaluation wall | 53.1 s | 57.7 s | +4.6 s（LLM 揺らぎ） |
+| rebuild conflict_evaluation calls | 11 | 12 | +1 |
+| ALL 総 wall | 353.4 s | 323.8 s | −29.6 s |
+| **ALL related_sections out_tok** | **50,961** | **43,283** | **−7,678（−15%）** |
+| changed 総 wall | 79.1 s | 95.8 s | +16.7 s（conflict eval +2 pair） |
+
+評価:
+
+- **#6 補完が実際の効果として現れた**。`output_tok` が rebuild/ALL ともに −15%、selection wall も −17s。第9回時点では prompt 文が schema と不一致で「LLM は schema に従って sections envelope を出していたが、prompt 文は単純配列を要求」していた。CODEX が prompt 文を schema に合わせて整合させたことで LLM が無駄な reason/channels を生成しなくなった。
+- **#2 補完は性能差を生まない**。元々 default 4 で動いていたため `config.limits.llm_batch_concurrency` を正しく読むようにしても並列度は変化なし。バグ修正としての意義のみ（ユーザー設定が反映されるようになった）。
+- **conflict_evaluation wall は LLM サンプリング揺らぎの範囲**で +4.6s 〜 +16s の差分。calls 数も ±2 程度のばらつき。
+- **recall は完全に維持**。既知 conflict 6 件すべて検出、`possible_conflict=true` cache も同等水準。
+- partial 経路引き続き動作確認、validation drops は 0 を維持。
+
+### 第10回まとめ
+
+CODEX が指摘した #6 / #2 の修正漏れを是正した結果、**第9回時点で「効いている」と報告した output_tok 削減（実は効いていなかった）が今回初めて測定上 −15% として現れた**。第6回以降「契約最小化済み」と謳ってきたが、provider 側 prompt の不整合で第9回まで実装は不完全だったことが明白になった。
+
+主要な性能改善 timeline（rebuild related_sections wall / out_tok）:
+
+| 回 | 主な変更 | wall | out_tok |
+|---|---|---|---|
+| 第4回 | baseline (5 sec, no GPU) | 53.1 s | 4,009 |
+| 第8回 | 50 sec corpus, GPU | 249.7 s | 68,829 |
+| 第9回 | #2 並列化, #5 max_chars, #6 (incomplete) | 218.1 s | 51,421 |
+| **第10回** | #6 完全化 | **201.2 s** | **43,496** |
+
+50+ セクション規模では、第8回（249s）→ 第10回（201s）で **約 −20% の高速化** を達成。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。

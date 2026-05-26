@@ -1,12 +1,12 @@
 {
-  "run_id": "1f38d821-eaad-4846-9d3e-8460bf343313",
+  "run_id": "62a35d0c-47d7-46f8-b266-155c5583bc7a",
   "mode": "incremental",
   "generated_at": "1970-01-01T00:00:00Z",
-  "started_at": "2026-05-26T19:28:59Z",
-  "started_at_epoch": 1779823739.137407,
-  "updated_at": "2026-05-26T19:28:59Z",
+  "started_at": "2026-05-26T20:09:02Z",
+  "started_at_epoch": 1779826142.834649,
+  "updated_at": "2026-05-26T20:09:03Z",
   "current_stage": null,
-  "finalized_at": "2026-05-26T19:28:59Z",
+  "finalized_at": "2026-05-26T20:09:03Z",
   "final_status": "completed",
   "stage_order": [
     "start",
@@ -24,20 +24,20 @@
     "start": {
       "stage": "start",
       "raw": "core_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.1377242,
+      "started_at": "2026-05-26T20:09:02Z",
+      "started_at_epoch": 1779826142.8349555,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:28:59Z",
-      "elapsed_sec": 0.685
+      "finished_at": "2026-05-26T20:09:03Z",
+      "elapsed_sec": 0.705
     },
     "inputs_loaded": {
       "stage": "inputs_loaded",
       "raw": "core_inputs_loaded",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.1380413,
+      "started_at": "2026-05-26T20:09:02Z",
+      "started_at_epoch": 1779826142.8353148,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -45,15 +45,15 @@
       "checkpoints": [
         {
           "raw": "core_inputs_loaded",
-          "at": "2026-05-26T19:28:59Z"
+          "at": "2026-05-26T20:09:02Z"
         }
       ]
     },
     "sections_loaded": {
       "stage": "sections_loaded",
       "raw": "core_sections_loaded",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.8225026,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.538711,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -61,27 +61,27 @@
       "checkpoints": [
         {
           "raw": "core_sections_loaded",
-          "at": "2026-05-26T19:28:59Z"
+          "at": "2026-05-26T20:09:03Z"
         }
       ]
     },
     "section_metadata": {
       "stage": "section_metadata",
       "raw": "core_section_metadata_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.8231022,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.539623,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:28:59Z",
-      "elapsed_sec": 0.005
+      "finished_at": "2026-05-26T20:09:03Z",
+      "elapsed_sec": 0.009
     },
     "section_collection_upsert": {
       "stage": "section_collection_upsert",
       "raw": "core_section_collection_upsert_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.8280492,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.5484853,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -94,14 +94,14 @@
         "embed_documents_input_size": 0,
         "stale_points_deleted": 0
       },
-      "finished_at": "2026-05-26T19:28:59Z",
-      "elapsed_sec": 0.023
+      "finished_at": "2026-05-26T20:09:03Z",
+      "elapsed_sec": 0.022
     },
     "verify_index": {
       "stage": "verify_index",
       "raw": "core_verify_index",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.8511016,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.5708952,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
@@ -116,51 +116,51 @@
     "related_sections": {
       "stage": "related_sections",
       "raw": "core_related_sections_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.851468,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.5712519,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
       "action": "skipped_unchanged",
       "reason": "input_and_config_fingerprint_match",
-      "finished_at": "2026-05-26T19:28:59Z",
+      "finished_at": "2026-05-26T20:09:03Z",
       "elapsed_sec": 0.001
     },
     "conflict_evaluation": {
       "stage": "conflict_evaluation",
       "raw": "core_conflict_evaluation_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.8527534,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.5724845,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:28:59Z",
+      "finished_at": "2026-05-26T20:09:03Z",
       "elapsed_sec": 0.0
     },
     "chapter_anchors": {
       "stage": "chapter_anchors",
       "raw": "core_chapter_anchors_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.854722,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.5741234,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:28:59Z",
+      "finished_at": "2026-05-26T20:09:03Z",
       "elapsed_sec": 0.002
     },
     "artifact_write": {
       "stage": "artifact_write",
       "raw": "core_artifact_write_start",
-      "started_at": "2026-05-26T19:28:59Z",
-      "started_at_epoch": 1779823739.8576677,
+      "started_at": "2026-05-26T20:09:03Z",
+      "started_at_epoch": 1779826143.5769882,
       "llm_calls": 0,
       "token_count": 0,
       "retry_count": 0,
       "failed_batch_ids": [],
-      "finished_at": "2026-05-26T19:28:59Z",
+      "finished_at": "2026-05-26T20:09:03Z",
       "elapsed_sec": 0.01
     }
   }
