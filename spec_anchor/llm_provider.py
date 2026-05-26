@@ -499,9 +499,11 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
     is_batch = isinstance(section_hashes, Mapping) and len(section_hashes) > 1
     if stage == "related_section_selection":
         output_contract = (
-            "The JSON object must include array field \"related_sections\". "
-            "Each item must include \"target_section_id\", \"relation_hint\", "
-            "\"confidence\", \"possible_conflict\", and \"evidence_terms\"."
+            "The JSON object must include array field \"sections\". "
+            "Each section item must include \"source_section_id\" and array field "
+            "\"related_sections\". Each related_sections item must include "
+            "\"target_section_id\", \"relation_hint\", \"confidence\", "
+            "\"possible_conflict\", and \"evidence_terms\"."
         )
     elif stage == "conflict_review":
         output_contract = (

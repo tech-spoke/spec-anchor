@@ -12,4 +12,4 @@ exclude = ["archive/**", "**/drafts/**"]
 
 [core]
 purpose_file = "テスト用ドキュメント/01_システム目標.md"
-concept_file = ".spec-grag/concept.md"
+concept_file = "docs/core/concept.md"

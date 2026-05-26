@@ -11,6 +11,8 @@ from __future__ import annotations
 import importlib
 import inspect
 import sys
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -123,7 +125,11 @@ def _call(func: Any, **kwargs: Any) -> Any:
         return func(*kwargs.get("_positional", ()), **supported)
 
 
-def _config(*, conflict_pair_max_per_section: int = 8) -> SimpleNamespace:
+def _config(
+    *,
+    conflict_pair_max_per_section: int = 8,
+    llm_batch_concurrency: int = 4,
+) -> SimpleNamespace:
     return SimpleNamespace(
         llm=SimpleNamespace(model="fake-model", effort="low", timeout_sec=5, max_retries=0),
         limits=SimpleNamespace(
@@ -134,6 +140,7 @@ def _config(*, conflict_pair_max_per_section: int = 8) -> SimpleNamespace:
             conflict_pair_max_per_section=conflict_pair_max_per_section,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
+            llm_batch_concurrency=llm_batch_concurrency,
         ),
     )
 
@@ -856,6 +863,69 @@ def test_t_u20_evaluate_conflicts_extracts_related_section_candidates_from_metad
 
     assert judge.calls, "section_metadata related_section_candidates must be judged"
     assert len(_items(result)) == 1
+
+
+def test_conflict_review_concurrency_uses_config_limits() -> None:
+    module = _module()
+    evaluate = _required_function(
+        module,
+        (
+            "evaluate_conflicts",
+            "evaluate_conflict_review_items",
+            "run_conflict_review",
+            "generate_conflict_review_items",
+        ),
+    )
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    class TrackingJudge:
+        def judge_conflict(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            nonlocal active, max_active
+            del request, timeout_sec
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.01)
+            with lock:
+                active -= 1
+            return {"outcome": "not_a_conflict", "severity": "low"}
+
+    sections = [
+        _section(
+            f"docs/spec/conflict.md#s{index}",
+            text="FEATURE_X is required.",
+            ordinal=index + 1,
+        )
+        for index in range(5)
+    ]
+    related_sections = [
+        {
+            "source_section_id": "docs/spec/conflict.md#s0",
+            "target_section_id": f"docs/spec/conflict.md#s{index}",
+            "relation_hint": "conflicts_with",
+        }
+        for index in range(1, 5)
+    ]
+
+    _call(
+        evaluate,
+        sections=sections,
+        related_sections=related_sections,
+        conflict_judge=TrackingJudge(),
+        config=_config(llm_batch_concurrency=1),
+    )
+
+    assert max_active == 1
+
+
+def test_conflict_review_concurrency_uses_mapping_config_limits() -> None:
+    module = _module()
+    get_concurrency = getattr(module, "_get_llm_batch_concurrency")
+
+    assert get_concurrency(config={"limits": {"llm_batch_concurrency": 2}}) == 2
+    assert get_concurrency(limits={"llm_batch_concurrency": 3}) == 3
 
 
 def test_t_u20_conflict_pair_zero_limit_keeps_explicit_and_skips_high_risk_candidates() -> None:

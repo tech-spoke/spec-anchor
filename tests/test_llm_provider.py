@@ -280,6 +280,77 @@ def test_t_u26_codex_provider_uses_batch_sections_schema(
     assert '"sections"' in calls[0]["kwargs"]["input"]
 
 
+def test_related_section_selection_prompt_matches_sections_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        command = list(args[0])
+        schema_path = Path(command[command.index("--output-schema") + 1])
+        schema = json.loads(schema_path.read_text())
+        calls.append({"schema": schema, "kwargs": kwargs})
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="\n".join(
+                [
+                    json.dumps(
+                        {
+                            "type": "done",
+                            "result": json.dumps(
+                                {
+                                    "sections": [
+                                        {
+                                            "source_section_id": "docs/spec/a.md#a",
+                                            "related_sections": [],
+                                        }
+                                    ]
+                                },
+                                ensure_ascii=False,
+                            ),
+                        },
+                        ensure_ascii=False,
+                    )
+                ]
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
+    provider = SubprocessLlmProvider(["codex"], real_smoke_enabled=True)
+    request = LlmRequest(
+        task="related_section_selection",
+        stage="related_section_selection",
+        prompt="{}",
+        prompt_version="related-sections-v1",
+        model="gpt-test",
+        source_hash="related-hash",
+        section_hashes={"docs/spec/a.md#a": "ha"},
+    )
+
+    output = provider.generate(request, timeout_sec=3)
+
+    prompt = calls[0]["kwargs"]["input"]
+    assert output == {
+        "sections": [
+            {
+                "source_section_id": "docs/spec/a.md#a",
+                "related_sections": [],
+            }
+        ]
+    }
+    assert calls[0]["schema"]["required"] == ["sections"]
+    assert 'array field "sections"' in prompt
+    assert 'array field "related_sections"' in prompt
+    assert 'array field "related_sections". Each item' not in prompt
+    related_item_schema = calls[0]["schema"]["properties"]["sections"]["items"][
+        "properties"
+    ]["related_sections"]["items"]
+    assert "reason" not in related_item_schema["required"]
+    assert "channels" not in related_item_schema["required"]
+
+
 def test_t_u26_claude_provider_uses_print_and_structured_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

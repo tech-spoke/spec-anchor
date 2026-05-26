@@ -234,6 +234,38 @@ def _get_limit(config: Any = None, limits: Any = None, default: int = 8) -> int:
         return default
 
 
+def _get_llm_batch_concurrency(
+    config: Any = None,
+    limits: Any = None,
+    default: int = 4,
+) -> int:
+    sentinel = object()
+    value: Any = sentinel
+    if limits is not None:
+        if isinstance(limits, Mapping):
+            value = limits.get("llm_batch_concurrency", sentinel)
+        else:
+            value = getattr(limits, "llm_batch_concurrency", sentinel)
+    if value is sentinel:
+        if isinstance(config, Mapping):
+            limit_source = config.get("limits")
+        else:
+            limit_source = getattr(config, "limits", None)
+        if isinstance(limit_source, Mapping):
+            value = limit_source.get("llm_batch_concurrency", sentinel)
+        elif limit_source is not None:
+            value = getattr(limit_source, "llm_batch_concurrency", sentinel)
+    if value is sentinel:
+        if isinstance(config, Mapping):
+            value = config.get("llm_batch_concurrency", default)
+        else:
+            value = getattr(config, "llm_batch_concurrency", default)
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
 def _looks_high_risk(candidate: dict[str, Any]) -> bool:
     channels = {str(channel) for channel in candidate.get("channels", [])}
     terms = " ".join(str(term).lower() for term in candidate.get("evidence_terms", []))
@@ -526,12 +558,7 @@ def evaluate_conflicts(
         }
         return pair, _call_judge(active_judge, request, timeout_sec=timeout_sec)
 
-    # Resolve concurrency from limits (defaults to llm_batch_concurrency = 4).
-    concurrency = max(1, int(getattr(limits, "llm_batch_concurrency", 0) or 0))
-    if concurrency <= 1 and isinstance(limits, Mapping):
-        concurrency = max(1, int(limits.get("llm_batch_concurrency") or 4))
-    if concurrency <= 1:
-        concurrency = 4
+    concurrency = _get_llm_batch_concurrency(config=config, limits=limits)
 
     pair_payloads: list[tuple[Mapping[str, Any], dict[str, Any]]]
     if concurrency > 1 and len(pairs) > 1:
