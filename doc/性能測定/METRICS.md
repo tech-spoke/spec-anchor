@@ -397,6 +397,87 @@ EOF
 - recall は改善方向（authentication ↔ session-retention-policy が LLM 経路でも検出された）。これは channels 削除と直接因果ではなく、LLM 非決定性のサンプリング揺らぎの範囲。
 - 副作用ゼロで契約が単純化された点が主な収穫。
 
+## 測定結果（第6回・契約最小化後）
+
+測定日: 2026-05-26（commit a831c62、契約最小化後）　ソース: docs/spec/sample.md（5セクション、Session Retention Policy 含む）
+
+実装状態:
+
+- `related_sections` LLM 出力契約から `reason` / `shared_subject` / `conflict_axis` / `channels` を削除
+- entry 構造の `channels` は candidate 由来で復元（後方互換）
+- validation diagnostic `related_selection_counts` で `raw_candidate_count / valid_candidate_count / validation_dropped_count / possible_conflict_true_count` を記録
+- `conflict_review.py` の `why_conflicting` fallback と `core.py` の conflict 候補伝播を簡素化
+
+### rebuild（`spec-anchor core --rebuild`）
+
+総 wall: 116.5 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 10.744 | 1 | 15,006 | 475 | 32 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 62.134 | 1 | 4 | 3,966 | 0 | 32,536 | 29,148 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 17.959 | 2 | 8 | 564 | 0 | 48,095 | 60,685 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 6.905 | 1 | 15,641 | 241 | 22 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 18.778 | — | — | — | — | — | — | — | — |
+
+### ALL（`spec-anchor core --all`）
+
+総 wall: 115.5 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 10.587 | 1 | 15,006 | 513 | 25 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 65.845 | 1 | 4 | 4,339 | 0 | 26,168 | 35,958 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 19.501 | 2 | 8 | 587 | 0 | 41,615 | 67,370 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 6.222 | 1 | 15,692 | 264 | 34 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 13.388 | — | — | — | — | — | — | — | — |
+
+### 未修整インクリメント（ソース無変更）
+
+総 wall: 0.03 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 0.004 | 0 | 0 | 0 | — | — | — | — | — |
+| related_sections | 0.001 | 0 | 0 | 0 | 0 | — | — | — | — |
+| conflict_evaluation | 0.000 | 0 | 0 | 0 | 0 | — | — | — | — |
+| chapter_anchors | 0.001 | 0 | 0 | 0 | — | — | — | — | — |
+| section_collection_upsert | 0.026 | — | — | — | — | — | — | — | — |
+
+### 修正後インクリメント
+
+ソース変更: Account Lockout（lockout 回数・時間）　総 wall: 65.7 s
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 7.158 | 1 | 13,858 | 126 | 23 | 0 | 0 | codex | gpt-5.4-mini |
+| related_sections | 19.741 | 1 | 4 | 648 | 0 | 21,510 | 34,481 | claude | claude-sonnet-4-6 |
+| conflict_evaluation | 21.802 | 2 | 8 | 721 | 0 | 41,811 | 67,433 | claude | (claude-sonnet-4-6) |
+| chapter_anchors | 6.689 | 1 | 15,668 | 253 | 22 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 10.306 | — | — | — | — | — | — | — | — |
+
+備考: `regenerated_partial / source_changed_only / src_count=1` で動作。`related_sections` の `selection_elapsed_sec` ≒ 15.6s、`candidate_generation_elapsed_sec` ≒ 4.1s。
+
+### 第6回・回帰確認
+
+- 既知 conflict 検出: 3 件（`session-termination ↔ session-retention-policy` の双方向 + `authentication ↔ session-retention-policy`）
+- `validation_dropped_count`: 0
+- cache の `possible_conflict=true` エントリ: 3 件
+- 174 件 pytest pass（前回測定時から変更なし）
+
+### 第4回（基準）との median 比較
+
+| ケース | 指標 | 第4回 | 第6回 | 差分 |
+|---|---|---|---|---|
+| rebuild | related_sections wall | 53.1 s | 62.1 s | +9.0 s |
+| rebuild | related_sections out_tok | 4,009 | 3,966 | −43 |
+| ALL | related_sections wall | 51.6 s | 65.8 s | +14.2 s |
+| ALL | related_sections out_tok | 3,225 | 4,339 | +1,114 |
+| changed | related_sections wall | 13.9 s | 19.7 s | +5.8 s |
+| changed | related_sections out_tok | 263 | 648 | +385 |
+
+差分は 1 ラウンドのみのためサンプリングノイズの範囲。回帰測定 3 ラウンドで観測した min-max 幅（rebuild wall 58〜69s, out_tok 3,636〜4,484）に対し、第6回の単発値はその内側に収まる。**契約変更による恒常的な性能差は判定不能**。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。
