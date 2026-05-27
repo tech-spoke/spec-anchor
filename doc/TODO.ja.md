@@ -20,6 +20,16 @@
 優先順位:
 
 1. **T-conflict-source-update-flow**: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
+2. **T-spec-claim-phase-1**: SpecClaim 抽出 stage の新規実装 (SCD-032 Phase 1)
+3. **T-spec-claim-phase-2**: Claim Retrieval stage の新規実装 (SCD-032 Phase 2)
+4. **T-spec-claim-phase-3**: LLM triage stage の新規実装 (SCD-032 Phase 3)
+5. **T-spec-claim-phase-4**: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
+6. **T-spec-claim-phase-5**: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界を SpecClaim pair に固定 (SCD-032 / SCD-033 Phase 5)
+
+依存関係:
+
+- T-spec-claim-phase-1 → T-spec-claim-phase-2 → T-spec-claim-phase-3 → T-spec-claim-phase-4 → T-spec-claim-phase-5 の順で実装する。各 Phase は前 Phase の完了を前提とする。
+- T-conflict-source-update-flow は SpecClaim 移行と独立。先に解消する。Phase 5 が Conflict Review 入力境界を変更する際、T-conflict の auto-dismiss ロジックは `conflict_review_items.json` 側で完結しているため、SpecClaim pair 入力に変更しても直交する。Phase 5 で Related Sections 由来 pair 依存の test fixture (T-conflict B 区分) は SpecClaim retrieval 由来 fixture に更新する。
 
 ### T-conflict-source-update-flow: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
 
@@ -182,3 +192,500 @@ F. **watch 経路**
   - Agent / LLM が人間の代わりに conflict を裁定する機能。Human が Source Specs / Purpose / Core Concept を修正するか、明示的に `--decision-json` / `--decision-file` 相当の判断を渡す責務は維持する。
   - Purpose / Core Concept の自動更新。両ファイルは引き続き人間管理対象。
   - constraints の意味論的真偽を CLI が完全検証する機能。今回の scope は template / skill の必須文言と、機械的に検査できる根拠ルールの regression 防止まで。
+
+### T-spec-claim-phase-1: SpecClaim 抽出 stage の新規実装 (SCD-032 Phase 1)
+
+#### 背景
+
+`doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` (commit 4a68f54) で、Related Sections の `possible_conflict` を完全廃止し、section 内の仕様主張単位で矛盾候補を抽出する SpecClaim 経路に置き換える方針が確定した。本 Phase は SpecClaim 経路の最初のステップ (SpecClaim 抽出 stage の新規実装) を扱う。
+
+`doc/EXTERNAL_DESIGN.ja.md` §2.11 / §4.1 / §7.4 / §10.2 (commit aa83f63) と `doc/DESIGN.ja.md` §0 implementation tracker / §3.4 / §5.10 (commit 8272ab9) には、SpecClaim を section_metadata と別 stage / 別 cache / 別 schema で扱う外部契約と内部設計指針がすでに反映済み。`.spec-anchor/context/spec_claims.jsonl` を正本にする / `[retrieval].claim_collection` を別 Qdrant collection にする / `[llm.stage_routing].spec_claims` を許可 stage に追加する、などの契約はこの commit 群で固定されている。
+
+#### 真因 / 対応方針
+
+真因 (確定):
+
+- 現在 `/spec-core` は section 単位の summary / search_keys / identifiers / related_sections しか抽出していない。section 内の「仕様主張」を独立した record として持たないため、Conflict Review に送るべき候補を section pair ではなく claim pair で扱う仕組みがない。
+- Related Sections の `possible_conflict` flag は Phase 5 で削除予定だが、それまでの間に Conflict Review に届く別経路 (SpecClaim 経路) を立ち上げる必要がある。
+
+対応方針 (確定):
+
+- 新規 module `spec_anchor/spec_claims.py` を作る。SpecClaim 抽出 stage 用の prompt / schema validation / cache key / state file (`spec_claims_state.json`) / version 定数 (`SPEC_CLAIM_SCHEMA_VERSION` / `SPEC_CLAIM_PROMPT_VERSION` / `SPEC_CLAIM_IDENTITY_VERSION` / `SPEC_CLAIM_RETRIEVAL_SCHEMA_VERSION`) をすべてこの module に集約する。詳細は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §5 / §9 を参照。
+- `spec_anchor/core.py` のフローに spec_claims stage を組み込む。section_metadata stage の後 (または並列) に実行する。Related Sections stage との順序依存は持たない (SpecClaim 抽出は Related Sections を必須前提にしない)。
+- `spec_anchor/llm_provider.py` に SpecClaim 抽出 prompt / response schema を追加する。`[llm.stage_routing].spec_claims` の provider 解決を core.py の stage routing に組み込む。
+- 保持物 `.spec-anchor/context/spec_claims.jsonl` を JSONL 形式で永続化する。1 SpecClaim record = 1 行。schema は `claim_uid` / `display_id` / `claim_hash` / `claim_text` / `target` / `target_aliases` / `scope` / `condition` / `value` / `claim_kind` / `evidence_span` / `evidence_start` / `evidence_end` / `evidence_hash` / `source_hash` / `semantic_hash` / `retrieval` / `source_section_id` / `generated_at` を持つ (詳細は SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md §5)。
+- state file `.spec-anchor/state/spec_claims_state.json` を新設し、section 集合指紋 / 各 section の `source_hash` / `semantic_hash` / 抽出設定指紋 / claim uid / hash / retrieval hash 集合を保存する。incremental 経路では state file の指紋一致時に LLM を呼ばず skip する。
+- diagnostics field `success_with_claims` / `success_no_claims` / `failed_spec_claim_sections` / `claim_limit_reached_sections` を CoreResult / `core_progress.json` に追加する。SpecClaim 抽出に失敗した section が 1 件以上ある場合、stage status は `partial_success` または `failed` とする (`claims=[]` で成功扱いしない)。
+- LLM 出力には `claim_uid`、`claim_hash`、`evidence_span`、`evidence_start`、`evidence_end`、`evidence_hash`、`target_aliases`、`source_hash` を必須化し、schema validation で reject する。`evidence_start` / `evidence_end` が Source Specs の section text と一致することを検証し、不一致時は補正または validation failure とする。
+- Phase 1 では Claim Retrieval (Qdrant claim_collection への upsert を含む) と LLM triage は実装しない。SpecClaim 抽出と保持物生成だけを完成させる。後続 Phase で claim retrieval / triage を実装する。
+
+#### 目的
+
+`/spec-core` 実行時に section 内の仕様主張 (SpecClaim) を抽出し、`.spec-anchor/context/spec_claims.jsonl` に保存する経路を確立する。Phase 2 以降の Claim Retrieval / LLM triage / Conflict Review への入力源として使える状態を作る。
+
+合格基準:
+
+- 実 Codex / Claude CLI を使う `/spec-core` 実行で `.spec-anchor/context/spec_claims.jsonl` が生成され、含まれる record が schema validation を通る。
+- 変更なし incremental で `spec_claims: skipped_unchanged` が出て、SpecClaim 抽出の LLM call が 0 になる。
+- 変更あり incremental で、変更・追加 section だけ SpecClaim が再抽出され、削除 section の SpecClaim が `.spec-anchor/context/spec_claims.jsonl` から除外される。
+- `evidence_start` / `evidence_end` が Source Specs の section text と一致することが検証され、不一致時は補正または validation failure として diagnostics に出る。
+- SpecClaim 抽出に失敗した section が 1 件以上あれば、stage status は `partial_success` または `failed` となり、`failed_spec_claim_sections` が CoreResult / `core_progress.json` に記録される。
+- `claims=[]` を失敗 section の代替値として保存していない。
+- `[llm.stage_routing].spec_claims` で provider を切り替えられる。
+
+#### 実装方針
+
+1. `spec_anchor/spec_claims.py` を新規作成し、次を実装する:
+   - version 定数 (`SPEC_CLAIM_SCHEMA_VERSION` / `SPEC_CLAIM_PROMPT_VERSION` / `SPEC_CLAIM_IDENTITY_VERSION` / `SPEC_CLAIM_RETRIEVAL_SCHEMA_VERSION`)
+   - SpecClaim 抽出 prompt template
+   - LLM response schema validation
+   - `claim_uid` 生成 (LLM 出力順、schema version、offset に依存しない安定 ID)
+   - `evidence_span` / `evidence_start` / `evidence_end` の Source Specs 照合
+   - schema validation failure / LLM call failure の diagnostics
+   - cache key (`source_section_id`, `source_hash`, `semantic_hash`, `spec_claim_prompt_version`, `model`, `effort`, `schema_version`)
+   - state file (`spec_claims_state.json`) の読み書き
+   - `.spec-anchor/context/spec_claims.jsonl` の atomic write (削除 section の record 除外を含む)
+2. `spec_anchor/core.py` に `_generate_spec_claims_if_enabled` 相当の wire を追加し、stage routing で SpecClaim 抽出を起動する。
+3. `spec_anchor/llm_provider.py` に SpecClaim 抽出 stage の LLM provider 呼び出し経路を追加する。
+4. `spec_anchor/cli.py` / config loader に `[llm.stage_routing].spec_claims` の解決を追加する。
+5. fake 用テスト fixture (`tests/test_spec_claims.py` 新規) で schema validation / cache reuse / failed section diagnostics を確認する。
+6. 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` 実行で `.spec-anchor/context/spec_claims.jsonl` が生成されることを確認する。
+
+#### 検証条件
+
+A. **fake 用テスト** (`tests/test_spec_claims.py` 新規):
+
+- schema validation、cache key、失敗 diagnostics、`evidence_start` / `evidence_end` の検証、offset 補正、`ambiguous_evidence_span` / `invalid_evidence_span` の判定、`success_with_claims` / `success_no_claims` / `failed_spec_claim_sections` の区別、`max_claims_per_section` 到達時の `claim_limit_reached_sections`、`claim_uid` の LLM 出力順 / schema version / offset 非依存性。
+
+B. **incremental 経路** (`tests/test_spec_core.py` 拡張):
+
+- 変更なし incremental で `spec_claims: skipped_unchanged` となり SpecClaim 抽出の LLM call が 0 になる。
+- 変更あり incremental で変更・追加 section だけ SpecClaim が再抽出され、削除 section の SpecClaim が `.spec-anchor/context/spec_claims.jsonl` から除外される。
+
+C. **実機経路** (real provider 経路、未実行時は残 TODO):
+
+- 実 Codex / Claude CLI を使う `/spec-core` 実行で `.spec-anchor/context/spec_claims.jsonl` が生成され、含まれる record が schema validation を通る。
+- `[llm.stage_routing].spec_claims` で provider を切り替えると、stage が指定 provider を使う。
+
+D. **既存 pytest**: `pytest --skip-external` が pass する。
+
+#### 触れる主なファイル
+
+- `spec_anchor/spec_claims.py` (新規): SpecClaim 抽出 stage 本体
+- `spec_anchor/core.py`: stage 組み込み、CoreResult への `spec_claims_status` 追加
+- `spec_anchor/llm_provider.py`: SpecClaim 抽出 prompt / response schema
+- `spec_anchor/cli.py` / config loader: `[llm.stage_routing].spec_claims` 解決
+- `tests/test_spec_claims.py` (新規): SpecClaim 抽出の fake 用テスト
+- `tests/test_spec_core.py`: incremental 経路 test 拡張
+
+#### 完了条件
+
+- A / B の fake 用テストが pass する。
+- C の実機経路を実行できた範囲で確認結果を記録する。実 provider / Qdrant / BGE-M3 が未実行の場合は未完了 TODO として残す。
+- D の `pytest --skip-external` が pass する。
+- `doc/DESIGN.ja.md` §0 implementation tracker の T-spec-claim-phase-1 関連 `[ ]` task を `[x]` に変えて evidence link (file:line + test) を併記する。
+- 本 task entry を「完了確認済み」へ移動する場合は、完了内容と未実行検証を保持する。
+
+#### 依存 / scope 外
+
+- **依存**: なし (新規追加)。
+- **scope 外**:
+  - Claim Retrieval (Qdrant claim_collection への upsert と retrieval 処理) は T-spec-claim-phase-2 で実装する。本 Phase では retrieval 派生表現を `spec_claims.jsonl` 内の `retrieval` field に保持するまでで止める。
+  - LLM triage は T-spec-claim-phase-3 で実装する。
+  - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。本 Phase では既存 `possible_conflict` 経路を変更しない。
+
+### T-spec-claim-phase-2: Claim Retrieval stage の新規実装 (SCD-032 Phase 2)
+
+#### 背景
+
+T-spec-claim-phase-1 で SpecClaim 抽出と `.spec-anchor/context/spec_claims.jsonl` 保持物が確立されたら、本 Phase は SpecClaim pair を絞り込む Claim Retrieval stage を実装する。
+
+`doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §7.3 と `doc/EXTERNAL_DESIGN.ja.md` §10.2 に従い、Claim Retrieval は LLM を呼ばない。Qdrant の専用 collection (`[retrieval].claim_collection`、default `spec_anchor_claim`) に SpecClaim を upsert し、dense retrieval / sparse retrieval / conflict probe retrieval の 3 channel を RRF (Reciprocal Rank Fusion) で融合して候補 SpecClaim pair を作る。
+
+#### 真因 / 対応方針
+
+真因 (確定):
+
+- T-spec-claim-phase-1 完了後でも、SpecClaim pair の絞り込み機構が無いと、Phase 3 の LLM triage は全 SpecClaim pair の総当たりを送らざるを得ない。これは大規模 spec で O(N^2) になり、運用不能。
+- claim-level retrieval は section-level retrieval (`section_collection`) と別 collection にする必要がある (粒度、metadata、削除単位、検索目的が異なるため)。
+
+対応方針 (確定):
+
+- 新規 module `spec_anchor/claim_retrieval.py` を作る。Qdrant claim_collection への upsert / dense+sparse retrieval / conflict probe retrieval / RRF / 上限による truncation / state file (`conflict_candidate_pairs_state.json` の retrieval 部分) を実装する。
+- claim-level Qdrant collection の point id は `claim_uid` から生成した UUID5 とする (section-level collection と同じ namespace を使うか別 namespace を使うかは実装時に決定し、決定理由を doc に追記)。
+- `[retrieval].claim_collection` の payload には `target` / `target_aliases` / `claim_text` / `claim_hash` / `source_section_id` / `evidence_span` / `retrieval_hash` を含む。
+- retrieval pipeline (`spec_anchor/claim_retrieval.py` 内):
+  - 起点 claim ごとに dense_hits / sparse_key_hits / conflict_probe_hits を取る
+  - pair を作る (`route = "dense_claim_retrieval"` / `"sparse_key_claim_retrieval"` / `"conflict_probe_claim_retrieval"`)
+  - sorted `claim_uid` tuple で dedup する (= 順序非依存)
+  - 同一 pair が複数 channel から来た場合は `retrieval_sources[]` に集約する
+  - RRF で順位融合する (`rrf_score = Σ source_weight[source] / (rrf_k + rank_source(pair))`)
+  - `per_claim_top_k` / `per_section_top_k` / `per_target_top_k` / `global_candidate_top_k` の上限で truncate する
+  - truncate 発生時は `truncated_candidate_sources` / `truncated_pair_count` を diagnostics に出す
+- 初期 default では同一 section 内 SpecClaim pair も候補対象にする (`allow_same_section_claim_pair = true`)。
+- 出力は `.spec-anchor/context/conflict_candidate_pairs.jsonl` の **retrieval-only candidate** として保存する (`triage = null`、`route = "claim_retrieval"`)。LLM triage は次 Phase で `triage` を埋める。
+- 実装時は `[conflict_candidate_detection]` の default config (`per_claim_top_k = 10` / `per_section_top_k = 20` / `per_target_top_k = 20` / `global_candidate_top_k = 100` / `triage_max_pairs = 30` / `min_dense_score = 0.55` / `min_sparse_score = 0.0` / `rank_fusion = "rrf"` / `allow_same_section_claim_pair = true` / `allow_same_source_file_claim_pair = true`) を `spec_anchor/config.py` の loader が受理することを確認する。
+
+#### 目的
+
+`/spec-core` 実行時に SpecClaim retrieval で候補 SpecClaim pair を作り、`.spec-anchor/context/conflict_candidate_pairs.jsonl` に retrieval-only candidate として保存する経路を確立する。
+
+合格基準:
+
+- 実 Qdrant / FlagEmbedding BGE-M3 を使う構成で `.spec-anchor/context/conflict_candidate_pairs.jsonl` が生成され、各候補が `claim_retrieval_llm_triage` route の前段 retrieval として `retrieval_sources[]` を持つ。
+- 上限により候補が切られた場合、`truncated_candidate_sources` と `truncated_pair_count` が diagnostics に出る。
+- 同一 section 内 SpecClaim pair が初期 default で候補対象になる。
+- 変更あり incremental で、変更 claim を起点に全 SpecClaim 集合から候補 pair を取り直す (変更 claim 同士の探索だけに絞らない)。
+- 未変更 claim 同士の candidate pair は、claim retrieval 設定指紋一致時に再利用される。
+
+#### 実装方針
+
+1. `spec_anchor/claim_retrieval.py` を新規作成し、次を実装する:
+   - Qdrant claim_collection の作成・upsert・delete (incremental 経路の変更・追加・削除 claim 対応)
+   - dense / sparse / conflict_probe retrieval の 3 channel
+   - sorted `claim_uid` tuple での dedup
+   - `retrieval_sources[]` の集約
+   - RRF 順位融合
+   - 上限 truncation と diagnostics
+   - retrieval-only candidate の `.spec-anchor/context/conflict_candidate_pairs.jsonl` 書き込み (`triage = null`)
+   - state file (`conflict_candidate_pairs_state.json`) の retrieval 部分の読み書き
+2. `spec_anchor/core.py` に `_generate_claim_retrieval_if_enabled` 相当を追加し、Phase 1 の SpecClaim 抽出後に起動する。
+3. `spec_anchor/config.py` / config loader に `[conflict_candidate_detection]` block と `[retrieval].claim_collection` の解決を追加する。
+4. fake 用テスト (`tests/test_claim_retrieval.py` 新規) で dedup / 上限 truncation / 削除 claim を含む pair の除外 / 同一 section pair 採用を確認する。
+5. 実 Qdrant + FlagEmbedding BGE-M3 を使う統合 test で claim_collection の upsert / retrieval を確認する。
+
+#### 検証条件
+
+A. **fake 用テスト** (`tests/test_claim_retrieval.py` 新規):
+
+- dedup (sorted `claim_uid` tuple)、上限 truncation (`truncated_candidate_sources` / `truncated_pair_count`)、削除 claim を含む pair の除外、`retrieval_sources[]` 集約、同一 section pair 採用、変更 claim 起点の全 SpecClaim 集合探索、未変更 pair の reuse。
+
+B. **incremental 経路** (`tests/test_spec_core.py` 拡張):
+
+- 変更なし incremental で `claim_retrieval: skipped_unchanged` となり Qdrant upsert / retrieval call が 0 になる。
+- 変更あり incremental で変更・追加 claim だけ upsert され、削除 claim が claim_collection から除外される。
+
+C. **実機経路** (real Qdrant + FlagEmbedding BGE-M3、未実行時は残 TODO):
+
+- 実 Qdrant + FlagEmbedding BGE-M3 を使う構成で claim_collection の upsert と retrieval が動く。
+- `.spec-anchor/context/conflict_candidate_pairs.jsonl` に retrieval-only candidate (`triage = null`、`route = "claim_retrieval"`) が保存される。
+
+D. **既存 pytest**: `pytest --skip-external` が pass する。
+
+#### 触れる主なファイル
+
+- `spec_anchor/claim_retrieval.py` (新規): Claim Retrieval stage 本体
+- `spec_anchor/core.py`: stage 組み込み、CoreResult / state file の retrieval 部分の wire
+- `spec_anchor/config.py` / config loader: `[conflict_candidate_detection]` / `[retrieval].claim_collection` の解決
+- `tests/test_claim_retrieval.py` (新規): Claim Retrieval の fake 用テスト
+- `tests/test_spec_core.py`: incremental 経路 test 拡張
+
+#### 完了条件
+
+- A / B の fake 用テストが pass する。
+- C の実機経路を実行できた範囲で確認結果を記録する。実 Qdrant / BGE-M3 が未実行の場合は未完了 TODO として残す。
+- D の `pytest --skip-external` が pass する。
+- `doc/DESIGN.ja.md` §0 implementation tracker の Claim Retrieval 関連 evidence を記録する。
+
+#### 依存 / scope 外
+
+- **依存**: T-spec-claim-phase-1 (SpecClaim 抽出 stage と `.spec-anchor/context/spec_claims.jsonl` 保持物)。
+- **scope 外**:
+  - LLM triage は T-spec-claim-phase-3 で実装する。本 Phase では `triage = null` の retrieval-only candidate までで止める。
+  - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。
+
+### T-spec-claim-phase-3: LLM triage stage の新規実装 (SCD-032 Phase 3)
+
+#### 背景
+
+T-spec-claim-phase-2 で Claim Retrieval が候補 SpecClaim pair を作るようになったら、本 Phase は少数 pair に対して LLM triage を実行し、Conflict Review に送るべきかを判定する stage を実装する。
+
+`doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §2.3 / §7.4 に従い、LLM triage は `send_to_review` の bool と `reason` / `confidence` だけを返す。conflict 確定や人間判断必須性、Source Specs 優先関係の決定はしない。
+
+#### 真因 / 対応方針
+
+真因 (確定):
+
+- T-spec-claim-phase-2 完了後でも、retrieval だけでは Conflict Review に送る価値があるかの判定がない。Conflict Review pipeline は Purpose / Core Concept grounding を伴う厳密な judge call なので、retrieval が拾った候補すべてを送ると Conflict Review の cost が肥大化する。
+- LLM triage は軽量な judgement (送るべき / 送らない) に絞り、Conflict Review に責務を寄せる構造にする。
+
+対応方針 (確定):
+
+- 新規 module `spec_anchor/conflict_candidates.py` を作る。LLM triage prompt / response schema / cache key / version 定数 (`CONFLICT_CANDIDATE_SCHEMA_VERSION` / `CONFLICT_TRIAGE_PROMPT_VERSION`) / state file (`conflict_candidate_pairs_state.json` の triage 部分) をこの module に集約する。
+- LLM triage 入力は section 全文ではなく、SpecClaim pair と `evidence_span` 中心。Purpose / Core Concept は本 stage の grounding に含めない (Conflict Review が grounding を持つ責務)。
+- LLM triage 出力は `send_to_review` (bool)、`reason` (str)、`confidence` (`high` / `medium` / `low`) のみ。`conflict_confirmed` / `human_review_required` / `resolution` を出力してはいけない (schema validation で reject する)。
+- T-spec-claim-phase-2 が書いた retrieval-only candidate を読み、`triage_max_pairs` の上限内で LLM triage を実行する。`triage.send_to_review = true` になった pair の `triage` field を埋め、`.spec-anchor/context/conflict_candidate_pairs.jsonl` を atomic に更新する。
+- `triage = null` のままの retrieval-only record は `.spec-anchor/context/conflict_candidate_pairs.jsonl` から除外する (Conflict Review に送る対象は `triage.send_to_review = true` のみ)。
+- cache key は両 claim の `claim_uid` / `claim_hash` / `retrieval_hash` / 両 source の `source_hash` / `triage_prompt_version` / `triage_schema_version` / `triage_model` / `triage_effort` を含める。これらが一致する pair の triage cache は再利用する。
+- diagnostics field `send_to_review_count` / `send_to_review_false_count` / `triage_truncated_pairs` を CoreResult / `core_progress.json` に追加する。
+
+#### 目的
+
+`/spec-core` 実行時に Claim Retrieval が拾った少数の SpecClaim pair に対して LLM triage を実行し、`triage.send_to_review = true` の pair だけを `.spec-anchor/context/conflict_candidate_pairs.jsonl` に保存する経路を確立する。Conflict Review pipeline の入力源として使える状態を作る。
+
+合格基準:
+
+- LLM triage の出力 schema が `send_to_review` / `reason` / `confidence` のみで、それ以外の field を含む応答は reject される。
+- 実 Codex / Claude CLI を使う `/spec-core` で少数 claim pair だけが LLM triage に送られる (全 retrieval candidate ではなく `triage_max_pairs` 上限内)。
+- 両 claim の `claim_hash` / `retrieval_hash` と triage 設定が一致する pair の triage cache が再利用される。
+- `triage = null` の record は `.spec-anchor/context/conflict_candidate_pairs.jsonl` に保存されない (diagnostics 用途も含めて Conflict Review に送らない)。
+- `[llm.stage_routing].conflict_candidate_triage` で provider を切り替えられる。
+
+#### 実装方針
+
+1. `spec_anchor/conflict_candidates.py` を新規作成し、次を実装する:
+   - version 定数 (`CONFLICT_CANDIDATE_SCHEMA_VERSION` / `CONFLICT_TRIAGE_PROMPT_VERSION`)
+   - LLM triage prompt template
+   - response schema validation (`send_to_review` / `reason` / `confidence` のみ受理、それ以外は reject)
+   - cache key の生成と triage cache 読み書き
+   - `triage_max_pairs` 上限内の LLM triage 実行
+   - `triage.send_to_review = true` の pair だけ `.spec-anchor/context/conflict_candidate_pairs.jsonl` に保存
+   - `triage = null` の record の除外
+   - state file (`conflict_candidate_pairs_state.json`) の triage 部分の読み書き
+2. `spec_anchor/core.py` に `_generate_conflict_candidate_triage_if_enabled` 相当を追加し、Phase 2 の Claim Retrieval 後に起動する。
+3. `spec_anchor/llm_provider.py` に LLM triage stage の provider 呼び出し経路を追加する。
+4. `spec_anchor/cli.py` / config loader に `[llm.stage_routing].conflict_candidate_triage` の解決を追加する。
+5. fake 用テスト (`tests/test_conflict_candidates.py` 新規) で schema validation / cache reuse / `triage = null` の record 除外 / `[llm.stage_routing].conflict_candidate_triage` の provider 切り替えを確認する。
+6. 実 Codex / Claude CLI を使う統合 test で少数 claim pair だけが LLM triage に送られることを確認する。
+
+#### 検証条件
+
+A. **fake 用テスト** (`tests/test_conflict_candidates.py` 新規):
+
+- `send_to_review` / `reason` / `confidence` 以外の field を含む応答が reject される。
+- `triage = null` の record が `.spec-anchor/context/conflict_candidate_pairs.jsonl` に保存されない。
+- `triage = null` の record が Conflict Review に送られない (diagnostics 用途も含む)。
+- 両 claim の `claim_hash` / `retrieval_hash` と triage 設定が一致する pair で triage cache が再利用される。
+- `triage_max_pairs` 上限が機能する。
+
+B. **incremental 経路** (`tests/test_spec_core.py` 拡張):
+
+- 変更なし incremental で `conflict_candidate_triage: skipped_unchanged` となり LLM triage call が 0 になる。
+- 変更あり incremental で変更 claim を含む pair だけ triage cache miss となり、LLM call が走る。
+
+C. **実機経路** (real provider 経路、未実行時は残 TODO):
+
+- 実 Codex / Claude CLI を使い、少数 claim pair だけが LLM triage に送られる (全 retrieval candidate ではなく上限内)。
+- `triage.send_to_review = true` の pair だけが Conflict Review pipeline の入力候補として保存される。
+- `[llm.stage_routing].conflict_candidate_triage` で provider を切り替えると、stage が指定 provider を使う。
+
+D. **既存 pytest**: `pytest --skip-external` が pass する。
+
+#### 触れる主なファイル
+
+- `spec_anchor/conflict_candidates.py` (新規): LLM triage stage 本体
+- `spec_anchor/core.py`: stage 組み込み、CoreResult / state file の triage 部分の wire
+- `spec_anchor/llm_provider.py`: LLM triage prompt / response schema
+- `spec_anchor/cli.py` / config loader: `[llm.stage_routing].conflict_candidate_triage` 解決
+- `tests/test_conflict_candidates.py` (新規): LLM triage の fake 用テスト
+- `tests/test_spec_core.py`: incremental 経路 test 拡張
+
+#### 完了条件
+
+- A / B の fake 用テストが pass する。
+- C の実機経路を実行できた範囲で確認結果を記録する。実 provider が未実行の場合は未完了 TODO として残す。
+- D の `pytest --skip-external` が pass する。
+- `doc/DESIGN.ja.md` §0 implementation tracker の LLM triage 関連 evidence を記録する。
+
+#### 依存 / scope 外
+
+- **依存**: T-spec-claim-phase-1、T-spec-claim-phase-2。
+- **scope 外**:
+  - Conflict Review pipeline 自体 (Purpose / Core Concept grounding 付き judge) の責務変更は T-spec-claim-phase-5 で行う。本 Phase では既存 Conflict Review pipeline をそのまま使う (入力経路に SpecClaim pair が増えるだけ)。
+  - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。
+
+### T-spec-claim-phase-4: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
+
+#### 背景
+
+T-spec-claim-phase-1 〜 phase-3 で SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage) の実装が完了したら、本 Phase は既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことを実機経路で確認する。これは Phase 5 (`possible_conflict` 完全削除) に進むための gate。
+
+`doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §12 Phase 4 / §14.2 Phase 4 完了条件 に従い、recall 比較を任意のサブステップとして実施できる。
+
+#### 真因 / 対応方針
+
+真因 (確定):
+
+- Phase 1-3 の fake 用テストだけでは「既存 `possible_conflict` 経路で拾えていた conflict が SpecClaim 経路でも拾える」ことを保証できない。fake 用テストは fixed response でのみ動く。
+- Phase 5 で `possible_conflict` 経路を削除すると、recall regression が発生しても回復経路がない (削除後の revision では `possible_conflict` 経路は無い)。したがって Phase 5 着手前に recall を実機で確認する必要がある。
+
+対応方針 (確定):
+
+- 既知 conflict fixture (現在の `tests/test_conflict_review.py::test_phase_e_possible_conflict_flag_routes_to_conflict_review` で使われている fixture と等価、または独自定義) を SpecClaim 経路で再実行し、`triage.send_to_review = true` として Conflict Review pipeline に届くことを確認する。
+- 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` 実行で確認する。fake 用テストの passing は完了証跡として認めない。
+- 任意のサブステップとして、Phase 5 着手前の revision (`possible_conflict` 経路が動いている revision) で `/spec-core` 実行し、artifact (`conflict_review_items.json` / `core_progress.json`) を退避する。新 SpecClaim 経路の結果と diff して recall 比較する。比較が必要な場合、production config を変更しない (legacy mode を増やさない)。比較は revision 切替と artifact 退避で行う。
+- recall 比較の手順と結果は新規ファイル `doc/性能測定/spec_claim_migration_comparison.md` に記録する (作成タイミングは本 task 着手時)。
+
+#### 目的
+
+Phase 5 着手前に、SpecClaim 経路で既知 conflict fixture が Conflict Review に届くことを実機経路で保証する。recall 比較を実施した場合はその結果を記録し、Phase 5 削除判断の根拠データにする。
+
+合格基準:
+
+- 既知 conflict fixture を含む Source Specs で実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` を実行し、当該 conflict pair が SpecClaim 経路で `triage.send_to_review = true` として Conflict Review pipeline に届く。
+- 当該 conflict が `conflict_review_items.json` に `status="pending"` として記録される (LLM judge が pending と判定した場合) または `potential_conflicts` warning として diagnostics に出る (LLM judge が non-pending と判定した場合) のいずれか。
+- production config に legacy mode key を追加していない。
+- 任意で recall 比較を実施した場合、`doc/性能測定/spec_claim_migration_comparison.md` に手順と結果を記録する。
+
+#### 実装方針
+
+1. 既知 conflict fixture を `tests/fixtures/spec_claim_recall/` 配下に整備する (Source Specs / Purpose / Core Concept / 想定 conflict pair の expected outcome を含む)。
+2. integration test `tests/test_spec_claim_e2e.py` (新規) を追加し、fake 用 fixture で SpecClaim 抽出 → Claim Retrieval → LLM triage → Conflict Review pipeline 着信までを E2E で確認する。
+3. 実機検証ガイド `doc/性能測定/spec_claim_migration_comparison.md` を新規作成し、次を記述する:
+   - Phase 5 着手前 revision の checkout 手順
+   - `/spec-core` 実行と artifact 退避手順
+   - Phase 4 完了時点 revision での `/spec-core` 実行手順
+   - artifact diff の比較観点 (recall / wall time / token / candidate 数 / Conflict Review 到達数 / Conflict Review Item 作成数)
+   - 結果記録テンプレート (実施日 / fixture / 旧経路 / 新経路 / diff)
+4. 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` 実行を実施し、結果を `doc/性能測定/spec_claim_migration_comparison.md` に記録する (実機 1 回で十分。複数 fixture を使う場合は entry を追加)。
+
+#### 検証条件
+
+A. **fake 用 E2E テスト** (`tests/test_spec_claim_e2e.py` 新規):
+
+- 既知 conflict fixture (fake 版) で SpecClaim 抽出 → Claim Retrieval → LLM triage → Conflict Review pipeline まで一貫して動き、当該 pair が `triage.send_to_review = true` として Conflict Review に届く。
+
+B. **実機経路** (real Codex / Claude CLI + Qdrant + FlagEmbedding BGE-M3、未実行時は残 TODO):
+
+- 既知 conflict fixture を含む Source Specs で実機 `/spec-core` を実行し、当該 conflict が SpecClaim 経路で `triage.send_to_review = true` として Conflict Review に届く。
+- 結果を `doc/性能測定/spec_claim_migration_comparison.md` に記録する。
+- production config に `legacy_*` key を追加していないことを `grep -nE "legacy_possible_conflict_mode|legacy_related_possible_conflict" .spec-anchor/config.toml` で確認する。
+
+C. **任意 recall 比較** (Phase 5 着手判断の根拠データとして):
+
+- Phase 5 着手前 revision で `/spec-core` 実行 → artifact 退避 → Phase 4 完了時点 revision で `/spec-core` 実行 → artifact diff の手順を `doc/性能測定/spec_claim_migration_comparison.md` に従って実施する。
+- 結果 (recall 維持 / 低下 / 増加) を記録する。recall 低下が検出された場合は Phase 5 着手を保留し、SpecClaim 経路の retrieval / triage の改善を別 task として切り出す。
+
+D. **既存 pytest**: `pytest --skip-external` が pass する。
+
+#### 触れる主なファイル
+
+- `tests/fixtures/spec_claim_recall/` (新規): 既知 conflict fixture
+- `tests/test_spec_claim_e2e.py` (新規): fake 用 E2E テスト
+- `doc/性能測定/spec_claim_migration_comparison.md` (新規): 実機検証ガイド + 結果記録
+- 実機検証実施時は対象プロジェクトの `.spec-anchor/config.toml` / `.spec-anchor/context/` / `.spec-anchor/state/` を読み取り対象とする (本 task では編集対象としない)
+
+#### 完了条件
+
+- A の fake 用 E2E テストが pass する。
+- B の実機検証を 1 回以上実施し、結果を `doc/性能測定/spec_claim_migration_comparison.md` に記録する。実機検証が未実施の場合、Phase 5 (T-spec-claim-phase-5) 着手を保留する。
+- C の recall 比較を任意で実施した場合、結果を `doc/性能測定/spec_claim_migration_comparison.md` に追記する。
+- D の `pytest --skip-external` が pass する。
+
+#### 依存 / scope 外
+
+- **依存**: T-spec-claim-phase-1、T-spec-claim-phase-2、T-spec-claim-phase-3。
+- **scope 外**:
+  - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。本 Phase では既存 `possible_conflict` 経路を変更しない (recall 比較で旧経路を実行する必要があるため)。
+  - Conflict Review 入力境界の SpecClaim pair 固定 (SCD-033) は T-spec-claim-phase-5 で実装する。
+
+### T-spec-claim-phase-5: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界変更 (SCD-032 / SCD-033 Phase 5)
+
+#### 背景
+
+T-spec-claim-phase-4 で SpecClaim 経路の recall が許容範囲であることが実機で確認できたら、本 Phase は `possible_conflict` 経路を production code / docs / tests から完全削除し、Conflict Review 入力境界を SpecClaim pair に固定する (SCD-033)。
+
+これは契約と実装の divergence を解消する commit。`doc/EXTERNAL_DESIGN.ja.md` (commit aa83f63) と `doc/DESIGN.ja.md` (commit 8272ab9) はすでに最終状態 (`possible_conflict` 言及なし) を記述しているので、本 Phase の実装変更で doc と code の整合が回復する。
+
+#### 真因 / 対応方針
+
+真因 (確定):
+
+- 現在 `spec_anchor/related_sections.py` / `spec_anchor/llm_provider.py` / `spec_anchor/core.py` / `spec_anchor/conflict_review.py` / 関連 tests / `[limits].conflict_pair_max_per_section` 設定が `possible_conflict` 経路を生かしている。これらを Phase 5 で完全削除する。
+- Conflict Review pipeline は現在 Related Sections の `relation_hint` と `possible_conflict` flag を入力にしているが、Phase 5 では SpecClaim pair / evidence / triage result のみを入力にする (SCD-033)。
+
+対応方針 (確定):
+
+- `spec_anchor/related_sections.py` の schema / prompt / output から `possible_conflict` field を削除する。LLM prompt が `possible_conflict` 判定を要求する箇所、schema validation で `possible_conflict` field を期待する箇所、`possible_conflict` flag を読み取り output へ書き込む箇所をすべて削除する。
+- `spec_anchor/llm_provider.py` の `possible_conflict` schema 定義を削除する。
+- `spec_anchor/core.py` の `possible_conflict=true` 由来 Conflict Review routing (`conflict_route: "possible_conflict_flag"` 等) を削除する。Conflict Review への入力は SpecClaim pair の `triage.send_to_review = true` 由来のみとする。
+- `spec_anchor/conflict_review.py` の relation_hint 整合 filter (現状 L367-421 周辺、`possible_conflict` flag 前提で relation_hint を再 filter する処理) を削除する。`evaluate_conflicts` の入力 schema を SpecClaim pair / evidence / triage result に変更する。`select_conflict_judging_pairs` の legacy backward compat 経路も削除する。
+- `[limits].conflict_pair_max_per_section` 設定 key と関連処理を削除する。`spec_anchor/config.py` / config loader の該当 field validation を削除する。
+- `tests/test_conflict_review.py::test_phase_e_possible_conflict_flag_routes_to_conflict_review` および関連 `possible_conflict` 経路 routing test を削除する。代わりに次の test を追加する (`tests/test_related_sections.py` / `tests/test_conflict_review.py`):
+  - Related Sections output に `possible_conflict` field が存在しない
+  - Related Sections prompt が conflict 判定を要求しない
+  - `spec_anchor/core.py` が Related Sections output から `possible_conflict` を読まない
+  - SpecClaim candidate pair の `triage.send_to_review = true` だけが Conflict Review に渡る
+- `doc/DESIGN.ja.md` §0 implementation tracker の T-spec-claim-phase-5 関連 `[ ]` task を `[x]` に変える。evidence link (file:line + test) を併記する。
+- T-conflict-source-update-flow の test fixture (B 区分「pair が消えた場合の解除」内の Related Sections candidate fixture) を SpecClaim retrieval candidate fixture に更新する (Phase 5 後は Related Sections は conflict pair を出さないため)。
+
+#### 目的
+
+`possible_conflict` 経路を production code / docs / tests から完全削除し、Conflict Review pipeline の入力境界を SpecClaim pair に固定する。doc と code の divergence を解消する。
+
+合格基準:
+
+- `git grep -nE "possible_conflict|legacy_related_possible_conflict|legacy_possible_conflict_mode|conflict_pair_max_per_section" spec_anchor tests` の hit が 0 件 (`doc/性能測定/spec_claim_migration_comparison.md` 内の比較記録、および `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §18 retired SCDs の歴史記録、`doc/DESIGN.ja.md` §0 implementation tracker の歴史記録は許容例外)。
+- Related Sections output に `possible_conflict` field が存在しないことを test で検出できる。
+- Related Sections prompt が conflict 判定を要求しないことを test で検出できる。
+- `spec_anchor/core.py` が Related Sections output から `possible_conflict` を読まないことを test で検出できる。
+- SpecClaim candidate pair の `triage.send_to_review = true` だけが Conflict Review に渡ることを test で検出できる。
+- Conflict Review pipeline の入力が SpecClaim pair / evidence / triage result に変わっており、Related Sections の `relation_hint` や旧 `possible_conflict` 由来 pair が渡らない。
+- 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` で T-spec-claim-phase-4 の既知 conflict fixture が引き続き Conflict Review に届く (recall 維持)。
+
+#### 実装方針
+
+1. `spec_anchor/related_sections.py` の `possible_conflict` 関連処理を削除する (schema、prompt 文言、output 書き込み、validation の各箇所)。
+2. `spec_anchor/llm_provider.py` の `possible_conflict` schema 定義を削除する。
+3. `spec_anchor/core.py` の `possible_conflict=true` Conflict Review routing を削除する (`_generate_related_sections` 後の routing block、`conflict_route: "possible_conflict_flag"` 関連)。
+4. `spec_anchor/conflict_review.py` の relation_hint 整合 filter (L367-421 周辺) を削除し、`evaluate_conflicts` の入力 schema を SpecClaim pair / evidence / triage result に変更する。`select_conflict_judging_pairs` の legacy 経路を削除する。
+5. `spec_anchor/config.py` / config loader から `[limits].conflict_pair_max_per_section` を削除する。
+6. `tests/test_conflict_review.py::test_phase_e_possible_conflict_flag_routes_to_conflict_review` を削除する。
+7. 新規 test を `tests/test_related_sections.py` / `tests/test_conflict_review.py` に追加する:
+   - `test_related_sections_output_has_no_possible_conflict_field`
+   - `test_related_sections_prompt_does_not_request_conflict_judgment`
+   - `test_core_does_not_route_related_sections_to_conflict_review`
+   - `test_conflict_review_accepts_only_spec_claim_pair_input`
+8. T-conflict-source-update-flow の test fixture (Related Sections candidate fixture 由来部分) を SpecClaim retrieval candidate fixture に更新する。
+9. `git grep -nE "possible_conflict|legacy_related_possible_conflict|legacy_possible_conflict_mode|conflict_pair_max_per_section" spec_anchor tests` を実行し、hit が 0 件であることを確認する (許容例外を除く)。
+10. 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` を T-spec-claim-phase-4 の既知 conflict fixture で実行し、当該 conflict が引き続き Conflict Review に届くことを確認する。
+11. `doc/DESIGN.ja.md` §0 implementation tracker の SCD-032 / SCD-033 関連 `[ ]` task を `[x]` に変えて evidence link を記録する。
+
+#### 検証条件
+
+A. **削除の grep 検証**:
+
+- `git grep -nE "possible_conflict|legacy_related_possible_conflict|legacy_possible_conflict_mode|conflict_pair_max_per_section" spec_anchor tests` の hit が 0 件 (`doc/` 配下の歴史記録、`doc/性能測定/spec_claim_migration_comparison.md` の比較記録、`doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §18 retired section、`doc/DESIGN.ja.md` §0 implementation tracker の歴史記録は許容)。
+
+B. **新規 test**:
+
+- `test_related_sections_output_has_no_possible_conflict_field` / `test_related_sections_prompt_does_not_request_conflict_judgment` / `test_core_does_not_route_related_sections_to_conflict_review` / `test_conflict_review_accepts_only_spec_claim_pair_input` が pass する。
+
+C. **既存 test**:
+
+- T-conflict-source-update-flow の B 区分 (pair が消えた場合の解除) の fixture を SpecClaim retrieval candidate fixture に更新したうえで pass する。
+- `tests/test_conflict_review.py::test_phase_e_possible_conflict_flag_routes_to_conflict_review` が削除されている (= 該当 test が collection に存在しない)。
+
+D. **実機経路** (real provider 経路、未実行時は残 TODO):
+
+- 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` で T-spec-claim-phase-4 の既知 conflict fixture が引き続き `triage.send_to_review = true` として Conflict Review に届く (recall 維持)。
+
+E. **既存 pytest**: `pytest --skip-external` が pass する。
+
+#### 触れる主なファイル
+
+- `spec_anchor/related_sections.py`: `possible_conflict` 関連処理の削除
+- `spec_anchor/llm_provider.py`: `possible_conflict` schema 定義の削除
+- `spec_anchor/core.py`: `possible_conflict=true` Conflict Review routing の削除
+- `spec_anchor/conflict_review.py`: relation_hint 整合 filter の削除、`evaluate_conflicts` 入力 schema の SpecClaim pair 化、`select_conflict_judging_pairs` legacy 経路の削除
+- `spec_anchor/config.py` / config loader: `[limits].conflict_pair_max_per_section` の削除
+- `tests/test_conflict_review.py`: `test_phase_e_possible_conflict_flag_routes_to_conflict_review` の削除、新規 test の追加
+- `tests/test_related_sections.py`: 新規 test の追加 (`possible_conflict` field 不在の検証)
+- `tests/test_spec_core.py`: T-conflict-source-update-flow B 区分 fixture の SpecClaim retrieval candidate fixture への更新
+- `doc/DESIGN.ja.md` §0 implementation tracker: SCD-032 / SCD-033 関連 task を `[x]` に変更
+
+#### 完了条件
+
+- A の grep 検証で許容例外以外の hit が 0 件。
+- B / C の test が pass する。
+- D の実機経路を実行できた範囲で確認結果を記録する。実 provider / Qdrant / BGE-M3 が未実行の場合は未完了 TODO として残す。recall regression が検出された場合、Phase 5 commit を revert して SpecClaim 経路の改善を別 task として切り出す。
+- E の `pytest --skip-external` が pass する。
+- `doc/DESIGN.ja.md` §0 implementation tracker の SCD-032 / SCD-033 関連 task が `[x]` に更新され、evidence link (file:line + test) が併記されている。
+
+#### 依存 / scope 外
+
+- **依存**: T-spec-claim-phase-1、T-spec-claim-phase-2、T-spec-claim-phase-3、T-spec-claim-phase-4 (特に Phase 4 の実機 recall 確認が完了していること)。T-conflict-source-update-flow (Phase 5 で T-conflict の B 区分 fixture を SpecClaim retrieval candidate fixture に更新するため)。
+- **scope 外**:
+  - SpecClaim 経路の retrieval / triage の改善 (recall regression が Phase 4 で検出された場合の改善は別 task)。
+  - Conflict Review pipeline の prompt 改善や judge ロジック変更は今回の scope 外 (本 Phase は入力境界変更のみ)。
+  - `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` 自体を archive へ移す判断は別 task (本 Phase 完了後の整理 task として切り出してよい)。
