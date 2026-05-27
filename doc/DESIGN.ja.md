@@ -41,6 +41,16 @@
 - [x] §8 `/spec-inject` CLI 拡張 (`inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts`)
   - 実装: Phase R-6 で spec_anchor/inject.py に `run_inject_search` / `run_inject_section` / `run_inject_chapters` / `run_inject_purpose` / `run_inject_conflicts` を追加、spec_anchor/cli.py に対応する subparser + dispatcher を追加。Qdrant / FlagEmbedding 不可時は structured warning fallback。F-C 採用後、各 inject-* の冒頭に freshness gate を組み込み、gate probe 専用 subcommand (`spec-anchor inject`) は撤去
   - 検証: tests/test_inject_cli_extension.py
+- [ ] §5.10 SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage) を新規実装する (SCD-032)
+  - 詳細: `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` の §1-§17 を参照
+  - 実装範囲: spec_anchor/spec_claims.py (SpecClaim 抽出 stage)、spec_anchor/claim_retrieval.py (Claim Retrieval stage)、spec_anchor/conflict_candidates.py (LLM triage stage)、spec_anchor/core.py のフロー組み込み
+  - 検証: 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` 実行で `.spec-anchor/context/spec_claims.jsonl` と `.spec-anchor/context/conflict_candidate_pairs.jsonl` が生成されることを確認
+- [ ] §5 / §5.5 / §5.8 / §3.4 から `possible_conflict` field / `conflict_pair_max_per_section` / Related Sections 由来 conflict routing を完全削除する (SCD-032, Phase 5)
+  - 実装範囲: spec_anchor/related_sections.py の schema / prompt / output から `possible_conflict` 削除、spec_anchor/llm_provider.py の `possible_conflict` schema 定義削除、spec_anchor/core.py の `possible_conflict=true` routing 削除、spec_anchor/conflict_review.py の relation_hint 整合 filter 削除、`[limits].conflict_pair_max_per_section` 設定 key 削除
+  - 検証: `git grep -nE "possible_conflict|conflict_pair_max_per_section" spec_anchor tests` の hit が 0 件 (`doc/性能測定/spec_claim_migration_comparison.md` の比較記録以外)、Related Sections output に `possible_conflict` field が存在しない test を追加
+- [ ] §5.8 Conflict Review の入力境界を SpecClaim pair / evidence / triage result に固定する (SCD-033)
+  - 実装範囲: spec_anchor/conflict_review.py の `evaluate_conflicts` を SpecClaim pair 入力に変更、Related Sections の `relation_hint` を Conflict Review の入力にしない
+  - 検証: Conflict Review に Related Sections 由来 pair が渡らない test を追加
 
 ## 1. 設計方針
 
@@ -202,7 +212,7 @@ status / warning words
 
 ### 3.4 LLM Generation Policy
 
-`/spec-core` は `[llm.providers.<id>]` 設定の command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、Chapter Key Anchor、conflict 判定を生成・実行する。`SPEC_ANCHOR_FAKE_LLM` env var が truthy のときは provider 設定を無視して in-process FakeLlmProvider を使う (test / smoke 専用)。`SPEC_ANCHOR_FAKE_RETRIEVAL` が truthy のときは Qdrant + FlagEmbedding の実構築を block する (`allow_real_provider=True` 経路を除く)。
+`/spec-core` は `[llm.providers.<id>]` 設定の command / model / effort / timeout_sec / max_retries を使って、Section Summary、Section Search Keys、Related Sections の選定、SpecClaim 抽出、Conflict Candidate Triage (SpecClaim pair に対する LLM triage)、Conflict Review (LLM が既存根拠で解消できない conflict の判定)、Chapter Key Anchor を生成・実行する。`SPEC_ANCHOR_FAKE_LLM` env var が truthy のときは provider 設定を無視して in-process FakeLlmProvider を使う (test / smoke 専用)。`SPEC_ANCHOR_FAKE_RETRIEVAL` が truthy のときは Qdrant + FlagEmbedding の実構築を block する (`allow_real_provider=True` 経路を除く)。
 
 Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[llm.stage_routing]` に従って stage 別に provider を選ばせる。direct CLI / watcher / 手動実行も同様で、`--llm-provider` 未指定なら `[llm.stage_routing]` が、`stage_routing` 未指定の stage は `[llm.providers.<id>]` の先頭定義が選ばれる。`--llm-provider` を明示するとその id が全 stage を上書きする。`max_retries` は CLI subprocess 1 stage 呼び出しが失敗したときの追加 retry 回数で、`max_retries = 1` は最大 attempt 数 2 (初回 + retry) を意味する。
 
@@ -212,13 +222,13 @@ Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[
 
 Section Summary と Section Search Keys は同一 section に対して同じ LLM 呼び出しで生成してよい。Related Sections の LLM Selection は、CLI が作った `related_section_candidates` を入力にし、候補外の全文探索を LLM に任せない。
 
-Conflict 判定は Related Sections の LLM Selection 後に実行する別 stage である。Phase E で `relation_hint = conflicts_with` を Related Sections 出力 enum から削除しているので、対象は **`possible_conflict = true` フラグが立った pair** と、高リスク条件に一致して上限内に入った pair に限定する。全 section pair の総当たり LLM 判定は行わない。
+SpecClaim 抽出は Source Specs の section から仕様主張を抽出する LLM stage であり、Related Sections の生成と独立に実行される。Claim Retrieval は claim-level の dense / sparse / conflict probe retrieval で候補 SpecClaim pair を絞る LLM を呼ばない stage、Conflict Candidate Triage は絞った少数 pair に対する LLM triage stage、Conflict Review は LLM が既存根拠で解消できない conflict を Conflict Review Item として記録する LLM stage である。全 SpecClaim pair の総当たり LLM 判定は行わない。詳細は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` を参照。
 
-stage 単位での model / effort 切替は `[llm.stage_routing]` で指定する。許可される stage key は `section_metadata` / `related_sections` / `conflict_review` / `chapter_key_anchor` の 4 つ。stage_routing で指定された provider が `[llm.providers.<id>]` に存在しない場合、または stage key が許可外の場合は `ConfigError` で reject する。stage_routing 未指定の stage は `[llm.providers.<id>]` の先頭定義へフォールバックする。`select_llm_provider_config(stage=...)` の解決優先順は `provider_id (CLI 引数 / env)` → `stage_routing[stage]` → `[llm.providers.<id>]` の先頭定義の順である。
+stage 単位での model / effort 切替は `[llm.stage_routing]` で指定する。許可される stage key は `section_metadata` / `related_sections` / `spec_claims` / `conflict_candidate_triage` / `conflict_review` / `chapter_key_anchor` の 6 つ。`claim_retrieval` stage は LLM を呼ばないため stage_routing 対象外。stage_routing で指定された provider が `[llm.providers.<id>]` に存在しない場合、または stage key が許可外の場合は `ConfigError` で reject する。stage_routing 未指定の stage は `[llm.providers.<id>]` の先頭定義へフォールバックする。`select_llm_provider_config(stage=...)` の解決優先順は `provider_id (CLI 引数 / env)` → `stage_routing[stage]` → `[llm.providers.<id>]` の先頭定義の順である。
 
-高リスク pair は、Related Sections として採用されなかった候補も含める。初期条件は、同一 identifier、同一 config / status 名、must / must not / 禁止 / 例外 / required / optional などの衝突語を共有する pair とする。条件に一致した pair は、`conflict_pair_max_per_section` の範囲で conflict 判定 stage に送る。上限で送らなかった pair は diagnostics に残す。
+Claim Retrieval の処理量制御は `[conflict_candidate_detection]` の `per_claim_top_k`、`per_section_top_k`、`per_target_top_k`、`global_candidate_top_k`、`triage_max_pairs` の各上限で行う。上限により候補が切られた場合は CoreResult の diagnostics に `truncated_candidate_sources` / `truncated_pair_count` が残る。Related Sections 由来 pair や Related Sections として採用されなかった「高リスク候補」を Conflict Review に送る経路は持たない (SCD-033)。
 
-Conflict 判定 stage は、複数 pair を chapter、source document、shared identifier 単位で batch 化してよい。cache key は、対象 pair の section ids、source_hash / semantic_hash、Purpose / Core Concept hash、prompt version、LLM model を含める。
+Conflict Candidate Triage stage は、複数 SpecClaim pair を target / source document 単位で batch 化してよい。cache key は、対象 pair の `claim_uid`、`claim_hash`、`retrieval_hash`、両 claim の `source_hash`、Purpose / Core Concept hash、triage prompt version、LLM model を含める。Conflict Review stage の cache key は §5.8 を参照。
 
 LLM generation artifact は、prompt version、model、source_hash、semantic_hash、metadata_version を持つ。同じ入力と同じ prompt version の生成結果は再利用してよい。
 
@@ -231,10 +241,11 @@ section_summary_max_chars = 480
 search_keys_max = 32
 related_candidate_max_per_section = 32
 related_selected_max_per_section = 8
-conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 ```
+
+Conflict Candidate Detection 専用の上限は `[conflict_candidate_detection]` で管理する (`per_claim_top_k = 10` / `per_section_top_k = 20` / `per_target_top_k = 20` / `global_candidate_top_k = 100` / `triage_max_pairs = 30` 等)。詳細は `doc/EXTERNAL_DESIGN.ja.md` §10.2 と `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §16 を参照。
 
 ### 3.6 Section Metadata Cache の entry 単位再構築
 
@@ -655,7 +666,7 @@ prerequisite
 see_also
 ```
 
-`conflicts_with` は本 stage の出力 enum から **削除** されている。LLM が矛盾の兆候を見つけた場合は `possible_conflict: true` フラグだけ立て、Conflict Review pipeline (§5.8) が Purpose / Core Concept / Source Specs grounding 付きで独立に判定する。これにより軽量な分類タスクと厳密な矛盾判定の evidence 厳密度を分離する。
+`conflicts_with` は本 stage の出力 enum から **削除** されている。Related Sections は conflict 判定を持たない。仕様上の矛盾候補抽出は SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage、詳細は §5.10 と `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md`) が独立して扱う。これにより Related Sections の軽量な分類タスクと厳密な矛盾判定の evidence 厳密度を分離し、Related Sections のモデル選択が conflict recall を左右しない構造にする。
 
 最初に重視する relation:
 
@@ -686,7 +697,6 @@ confidence
 reason
 evidence_terms[]
 channels[]
-possible_conflict     # bool、Conflict Review pipeline への referral signal
 generated_at
 ```
 
@@ -706,7 +716,6 @@ related_sections:
       - shared_identifier
       - search_key_match
       - qdrant_section_hybrid
-    possible_conflict: false
 ```
 
 ### 5.6 Validation
@@ -847,13 +856,11 @@ fast path に入る条件 (すべて満たす場合):
 
 ### 5.8 Conflict Review Items
 
-`related_sections` の `possible_conflict: true` フラグが立った section pair について、CLI は該当 section pair の Source Specs snippet、関連する Purpose / Core Concept、候補生成 channel を LLM に渡して conflict 判定を行う。Related Sections の relation_hint には `conflicts_with` は含まれない (§5.4 参照)。Conflict Review pipeline は Related Sections の分類とは独立した judge call で、Purpose / Core Concept / Source Specs grounding を必須とする。
+Conflict Candidate Triage stage で `triage.send_to_review = true` と判定された SpecClaim pair について、CLI は該当 SpecClaim pair の `evidence_span` (Source Specs 内の根拠範囲)、両 claim の `source_section_id` の本文、関連する Purpose / Core Concept、`triage.reason` / `triage.confidence` を LLM に渡して Conflict Review judge を実行する。Related Sections の `relation_hint` や旧 Related Sections conflict referral 由来 pair は本 stage の入力にしない (SCD-033)。Conflict Review pipeline は Conflict Candidate Detection の分類とは独立した judge call で、Purpose / Core Concept / Source Specs grounding を必須とする。
 
 `conflict_review.evaluate_conflicts` は `judge` callable を引数として受け取る薄い orchestration である。Purpose / Core Concept / Source Specs を実際に grounding として LLM に渡す責務は呼び出し側が用意する `judge` 実装が担う。core.py の通常経路では `_EvidenceGroundedConflictJudge` ラッパーが Purpose と Core Concept のテキストとハッシュを毎 request に付与する。`evaluate_conflicts` を単体で呼ぶ caller (テストや外部ツール) も同等の grounding を持つ judge を渡す責任を負う。
 
 Source Specs grounding は section_a / section_b の本文を judge prompt に含める形で行う。周辺 section や全 corpus を judge に渡すことはしない。judge が追加 context を必要とする場合は、`evidence_terms` を経由した snippet 抽出のみを使い、Source Specs 全文の盲目的注入は CLAUDE.md ルール 4 に反するため行わない。
-
-旧 `relation_hint == "conflicts_with"` 経路は backward compatibility のため `conflict_review.select_conflict_judging_pairs` で受理されるが、新規 LLM 出力ではこの hint を使わない。
 
 `apply_conflict_decision` は status を `resolved` または `dismissed` に変更する場合、`decision_payload.human_acknowledgement = true` を必須とする。CLAUDE.md ルール 5 / EXTERNAL_DESIGN §2.8 に従い、最終裁定は人間の判断であることを caller が明示的に attest する。Agent / LLM が独断で resolve / dismiss を実行する経路はサポートしない。
 
@@ -920,6 +927,25 @@ B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) で 50 section fix
 
 `RelatedTypingCache` の永続化レイヤは 1 file = 全 entry の構成で、entry 追加時に file 全体を rewrite する。50 section / 1632〜1796 entry の規模では I/O コストは観測されない (wall time 1.0s = 全 stage skipped_unchanged のケース)。大規模 spec (500 section, ~50000 entry) でのコストは未確認 (B-6 検討範囲)。
 
+### 5.10 SpecClaim と Conflict Candidate Detection (内部設計参照)
+
+SpecClaim、Claim Retrieval、LLM triage、conflict_candidate_pairs の内部設計詳細は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` に集約する。実装はその文書の §1-§17 を一次資料として参照する。
+
+DESIGN.ja.md と SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md の整合:
+
+- §0 implementation tracker (本ファイル): SpecClaim 経路の実装 task と Phase 5 削除 task を `[ ]` で記録する。
+- §3.4 LLM Generation Policy: `[llm.stage_routing]` 許可 stage に `spec_claims` / `conflict_candidate_triage` / `conflict_review` を含める。`claim_retrieval` は LLM を呼ばないため stage_routing 対象外。
+- §3.5 Limits: Conflict Candidate Detection の処理量上限は `[conflict_candidate_detection]` で管理する。
+- §5.4 LLM Selection: Related Sections は conflict 判定を持たない (SCD-003)。
+- §5.5 Related Sections Schema: 旧 Related Sections conflict referral field を持たない。
+- §5.8 Conflict Review Items: 入力境界は SpecClaim pair / evidence / triage result (SCD-033)。Related Sections 由来 pair を受け取らない。
+- §7 `/spec-core` フロー: SpecClaim 抽出 → Claim Retrieval → LLM triage → Conflict Review の 4 stage で構成する。
+- §5.10 (本節): SpecClaim / Claim Retrieval / LLM triage の詳細 schema と prompt contract は参照先文書を正本にし、本ファイルでは他節との境界だけを固定する。
+
+SpecClaim 経路の version 定数 (`SPEC_CLAIM_SCHEMA_VERSION` / `SPEC_CLAIM_PROMPT_VERSION` / `SPEC_CLAIM_IDENTITY_VERSION` / `SPEC_CLAIM_RETRIEVAL_SCHEMA_VERSION` / `CONFLICT_CANDIDATE_SCHEMA_VERSION` / `CONFLICT_TRIAGE_PROMPT_VERSION`) は、実装 module (`spec_anchor/spec_claims.py` / `spec_anchor/conflict_candidates.py`) に置く。bump 条件は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §9.1 を参照。
+
+保持ファイルと cache の物理配置 (`.spec-anchor/context/spec_claims.jsonl` / `.spec-anchor/context/conflict_candidate_pairs.jsonl` / `.spec-anchor/state/spec_claims_state.json` / `.spec-anchor/state/conflict_candidate_pairs_state.json`、claim-level Qdrant collection `[retrieval].claim_collection`) は `doc/EXTERNAL_DESIGN.ja.md` §4.1 と `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §4 を参照する。
+
 ## 6. Chapter Key Anchor
 
 Chapter Key Anchor は、章全体の重要テーマ、判断軸、主要 section への入口を、LLM が章単位で抽象化して生成する。`/spec-inject` の path ② が章単位エントリポイントとして利用する。
@@ -977,8 +1003,10 @@ update Source Retrieval Index
 generate related_section_candidates
 run LLM selection for Related Sections
 validate Related Sections
-evaluate conflicts_with pairs
-update Conflict Review Items
+extract SpecClaims for changed sections
+run Claim Retrieval for changed claims
+run LLM triage on candidate SpecClaim pairs
+update Conflict Review Items from triage.send_to_review = true pairs
 update impacted Chapter Key Anchors
 write context artifacts atomically
 write freshness
@@ -997,8 +1025,10 @@ rebuild Source Retrieval Index
 generate all related_section_candidates
 run LLM selection for all Related Sections
 validate Related Sections
-evaluate all conflicts_with pairs
-update Conflict Review Items
+regenerate all SpecClaims
+run Claim Retrieval for all claims
+run LLM triage on all candidate SpecClaim pairs
+update Conflict Review Items from triage.send_to_review = true pairs
 regenerate Chapter Key Anchors
 write context artifacts atomically
 write freshness
