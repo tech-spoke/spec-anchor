@@ -43,6 +43,9 @@
 | C-8 | source 修正で何件自動解除されたか利用者が観測できない | 採用 / CoreResult field 追加 | `auto_dismissed_conflict_count` と `auto_dismissed_conflict_ids[]` を CoreResult に追加し、`/spec-core` 後に自動解除が見えるようにする |
 | C-9 | 外部設計書の追記箇所と文言が task 内に未記載 | 採用 / ドラフトを TODO 内に固定 | `doc/EXTERNAL_DESIGN.ja.md` §3.3 と §7 decision 表直後に入れる文言ドラフトを本 task に持つ。`needs_source_update` は「人間が source 修正を選ぶ pending decision」、自動 dismiss は「修正後の再評価結果」として分ける |
 | C-10 | 自動 dismiss 時の audit trail field が未定義 | 採用 / schema 明確化が必要 | `resolution.applied_at`、`resolution.previous_status`、`resolution.decision_origin`、`resolution.auto_dismiss_reason` を規約化する |
+| C-11 | `needs_source_update` の人間 decision が自動 dismiss で上書きされる | 採用 / audit trail 保持が必要 | `needs_source_update` 済み item も source 修正後に自動 dismiss できる。ただし上書き前の `resolution` は `resolution.previous_resolution` に保持し、人間が「source 修正が必要」と判断したログを消さない |
+| C-12 | 人間 decision の `decision_origin="human"` を設定する実装箇所が曖昧 | 採用 / 実装方針へ追加 | `spec_anchor/conflict_review.py::apply_conflict_decision()` で、decision payload に `decision_origin` が無い場合は `resolution.decision_origin="human"` を補完する |
+| C-13 | `auto_dismiss_reason` の値集合が固定か拡張可能か曖昧 | 採用 / schema 方針を明記 | 現在の値は `source_update_recheck_non_pending` と `source_update_recheck_pair_absent` の 2 種に固定するが、外部契約上は将来拡張可能な enum として扱う |
 
 #### 真因 / 対応方針
 
@@ -63,7 +66,10 @@
 - blocker から外した item の `base_source_hashes` は、解除判断に使った現在の source hash に更新する。これにより解除直後に `stale_resolution=true` になることを避ける。
 - 新しい `status` は追加しない。既存の `pending` / `resolved` / `dismissed` だけを使う。ただし `doc/EXTERNAL_DESIGN.ja.md` には、Source Specs / Purpose / Core Concept 修正後の `/spec-core` が既存 pending item を `dismissed` にできる条件を明記する。
 - 人間が `--decision-json` / `--decision-file` で渡した `dismiss` と自動 dismiss は、`resolution.decision_origin` で区別する。人間 decision 由来は `decision_origin="human"` とし、既存 JSON に field が無い resolved / dismissed item は backward compatible に `human` 相当として扱う。
+- `apply_conflict_decision()` は、人間が `--decision-json` / `--decision-file` で渡した decision payload に `decision_origin` が無い場合、保存する `resolution.decision_origin` を `human` で補完する。
 - 自動 dismiss の `resolution` には、`applied_at`、`previous_status="pending"`、`decision_origin="auto_source_update"`、`auto_dismiss_reason`、`referenced_source_refs`、`valid_scope="global"` を入れる。
+- 自動 dismiss が `needs_source_update` など既存 pending decision の `resolution` を置き換える場合、置き換え前の `resolution` を `resolution.previous_resolution` に保存する。これにより、人間が source 修正を必要と判断した audit trail を保持する。`resolution.history[]` は今回の scope では導入しない。
+- `auto_dismiss_reason` は将来拡張可能な enum とする。今回の実装で使う値は `source_update_recheck_non_pending` と `source_update_recheck_pair_absent` の 2 種に限定する。
 - `/spec-core` の CoreResult には `auto_dismissed_conflict_count` と `auto_dismissed_conflict_ids[]` を追加し、Source Specs / Purpose / Core Concept 修正後に何件の pending Conflict Review Item が blocker から外れたかを利用者が確認できるようにする。
 - constraints JSON の意味論的真偽を CLI が完全検証する機能は今回追加しない。今回の guard 強化は、template parity、pending conflict 必須 label、`evidence_origin` enum、support-only evidence 禁止を static test で検出する範囲に固定する。
 
@@ -74,7 +80,7 @@
 Source Specs / Purpose / Core Concept の変更後に `/spec-core` または `spec-anchor-watch` が保持物を更新した場合、SPEC-anchor は既存 pending Conflict Review Item を現在の source hash と conflict evaluation 結果で再評価する。根拠 source の hash が変化した、または根拠 source ref が削除された既存 pending item について、同じ conflict pair が non-pending 判定になるか、現在の conflict candidate から消えた場合、`/spec-core` はその item を `status="dismissed"`、`resolution.decision_origin="auto_source_update"` として blocker から外す。source hash が変わっていない pending item は、LLM judge の再判定だけでは自動解除しない。
 
 §7 decision 表直後に追記:
-`needs_source_update` は、人間が Source Specs / Purpose / Core Concept の修正を必要と判断したことを記録する pending decision である。修正後の `/spec-core` 再評価により conflict が解消された場合、SPEC-anchor は該当 pending item を `dismissed` に遷移できる。この自動遷移は人間 decision の `dismiss` とは区別し、`resolution.decision_origin="auto_source_update"`、`resolution.previous_status="pending"`、`resolution.applied_at=<timestamp>`、`resolution.auto_dismiss_reason=<reason>` を持つ。
+`needs_source_update` は、人間が Source Specs / Purpose / Core Concept の修正を必要と判断したことを記録する pending decision である。修正後の `/spec-core` 再評価により conflict が解消された場合、SPEC-anchor は該当 pending item を `dismissed` に遷移できる。この自動遷移は人間 decision の `dismiss` とは区別し、`resolution.decision_origin="auto_source_update"`、`resolution.previous_status="pending"`、`resolution.applied_at=<timestamp>`、`resolution.auto_dismiss_reason=<reason>` を持つ。自動遷移前に pending decision の `resolution` が存在する場合、SPEC-anchor は置き換え前の値を `resolution.previous_resolution` に保持する。`auto_dismiss_reason` は将来拡張可能な enum であり、現在定義する値は `source_update_recheck_non_pending` と `source_update_recheck_pair_absent` である。
 ```
 
 #### 目的
@@ -96,12 +102,14 @@ Source Specs / Purpose / Core Concept の変更後に `/spec-core` または `sp
 2. `_merge_conflict_items()` またはその前段に、既存 pending item を現在の conflict evaluation 結果で再評価する処理を追加する。
 3. 同じ `conflict_id` の non-pending signal があり、かつ既存 item の `base_source_hashes` に含まれる Source Specs / Purpose / Core Concept の少なくとも 1 つが変わっている場合、既存 pending item を `status="dismissed"` にする。
 4. 同じ pair が今回の candidate から消え、かつ既存 item の `base_source_hashes` に含まれる Source Specs / Purpose / Core Concept の少なくとも 1 つが変わっている場合、既存 pending item を `status="dismissed"` にする。
-5. 自動 dismiss では `resolution.decision="dismiss"`、`resolution.decision_origin="auto_source_update"`、`resolution.previous_status="pending"`、`resolution.applied_at=<timestamp>`、`resolution.auto_dismiss_reason`、`resolution.reason`、`resolution.referenced_source_refs` を記録する。`base_source_hashes` は現在の source hash に更新する。
+5. 自動 dismiss では `resolution.decision="dismiss"`、`resolution.decision_origin="auto_source_update"`、`resolution.previous_status="pending"`、`resolution.applied_at=<timestamp>`、`resolution.auto_dismiss_reason`、`resolution.reason`、`resolution.referenced_source_refs` を記録する。既存 pending decision の `resolution` がある場合は `resolution.previous_resolution` に退避する。`base_source_hashes` は現在の source hash に更新する。
 6. source hash が変わっていない既存 pending item は、non-pending signal があっても pending のまま残す。
-7. `spec_anchor/core.py` の CoreResult に `auto_dismissed_conflict_count` と `auto_dismissed_conflict_ids[]` を追加する。
-8. `doc/EXTERNAL_DESIGN.ja.md` に、上記「外部設計書追記ドラフト」の内容を反映する。
-9. `spec-anchor-watch` は `spec_anchor/watcher.py` で `run_spec_core_for_watcher` を直接 import して呼ぶため、この直接呼び出し経路にも同じ pending 解除処理と CoreResult field が適用されることを test する。watch の長時間実行が必要な場合は unit / integration を分ける。
-10. template / skill drift 防止として、Claude command / Codex skill の installed copy と packaged template の parity、pending conflict の必須 label、constraints 根拠ルールの必須文言を static assertion で確認する test を追加する。
+7. `spec_anchor/conflict_review.py::apply_conflict_decision()` で、人間 decision payload に `decision_origin` が無い場合は `resolution.decision_origin="human"` を補完する。
+8. `auto_dismiss_reason` の validator / document は、現在値を `source_update_recheck_non_pending` / `source_update_recheck_pair_absent` の 2 種とし、将来の理由追加に備えて unknown value を破壊的に落とさない方針にする。
+9. `spec_anchor/core.py` の CoreResult に `auto_dismissed_conflict_count` と `auto_dismissed_conflict_ids[]` を追加する。
+10. `doc/EXTERNAL_DESIGN.ja.md` に、上記「外部設計書追記ドラフト」の内容を反映する。
+11. `spec-anchor-watch` は `spec_anchor/watcher.py` で `run_spec_core_for_watcher` を直接 import して呼ぶため、この直接呼び出し経路にも同じ pending 解除処理と CoreResult field が適用されることを test する。watch の長時間実行が必要な場合は unit / integration を分ける。
+12. template / skill drift 防止として、Claude command / Codex skill の installed copy と packaged template の parity、pending conflict の必須 label、constraints 根拠ルールの必須文言を static assertion で確認する test を追加する。
 
 #### 検証条件
 
@@ -110,6 +118,9 @@ A. **既存 pending item の解除**
 - `tests/test_spec_core.py` に、1 回目 `FakeSpecCoreProvider("unresolved")` で pending item を作り、Source Specs を修正し、2 回目 `FakeSpecCoreProvider("resolved")` または non-pending outcome provider で `spec-anchor core` を実行したとき、該当 `conflict_id` が `pending_conflict_count` に含まれないことを確認する test を追加する。
 - 同じ source hash のまま provider だけが non-pending を返す場合は、既存 pending item が残ることを確認する。
 - 自動 dismiss された item の `resolution.decision_origin`、`resolution.previous_status`、`resolution.applied_at`、`resolution.auto_dismiss_reason`、`resolution.referenced_source_refs`、`base_source_hashes` が期待どおりであることを確認する。
+- `needs_source_update` など既存 pending decision の `resolution` がある item を自動 dismiss した場合、置き換え前の `resolution` が `resolution.previous_resolution` に保持されることを確認する。
+- `apply_conflict_decision()` で人間 decision payload に `decision_origin` が無い場合、保存後の `resolution.decision_origin` が `human` になることを確認する。
+- 自動 dismiss の `resolution.auto_dismiss_reason` が現在定義済みの 2 値を返すこと、将来の reason 値を読むだけの経路が破壊的に失敗しないことを確認する。
 - CoreResult の `auto_dismissed_conflict_count` と `auto_dismissed_conflict_ids[]` が自動 dismiss 件数と id を返すことを確認する。
 
 B. **pair が消えた場合の解除**
