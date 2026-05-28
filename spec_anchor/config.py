@@ -433,6 +433,7 @@ _STAGE_ROUTING_ALLOWED_STAGES = frozenset(
         "chapter_key_anchor",
         "spec_claims",
         "claim_retrieval",
+        "conflict_candidate_triage",
     }
 )
 

@@ -28,6 +28,7 @@ SPEC_CORE_GENERATION_STAGES = {
     "section_summary",
     "section_search_keys",
     "spec_claims",
+    "conflict_candidate_triage",
     "related_sections",
     "related_section_selection",
     "chapter_key_anchor",
@@ -532,6 +533,14 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
             "embedding_text, and conflict_probes. Use an empty claims array when "
             "the section contains no grounded specification claim."
         )
+    elif stage == "conflict_candidate_triage":
+        output_contract = (
+            "The JSON object must include exactly boolean field \"send_to_review\", "
+            "string field \"reason\", and string field \"confidence\". "
+            "\"confidence\" must be one of: \"high\", \"medium\", \"low\". "
+            "Do not include conflict_confirmed, human_review_required, resolution, "
+            "or any other fields."
+        )
     elif is_batch:
         output_contract = (
             "The JSON object must include array field \"sections\". "
@@ -571,6 +580,8 @@ def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
         return _conflict_review_output_schema()
     if request.stage == "spec_claims":
         return _spec_claims_output_schema()
+    if request.stage == "conflict_candidate_triage":
+        return _conflict_candidate_triage_output_schema()
     section_hashes = request.section_hashes
     is_batch = len(section_hashes) > 1
     section_item_schema = {
@@ -704,6 +715,22 @@ def _spec_claims_output_schema() -> dict[str, Any]:
             "claims": {"type": "array", "items": claim_schema},
         },
         "required": ["claims"],
+        "additionalProperties": False,
+    }
+
+
+def _conflict_candidate_triage_output_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "send_to_review": {"type": "boolean"},
+            "reason": {"type": "string"},
+            "confidence": {
+                "type": "string",
+                "enum": ["high", "medium", "low"],
+            },
+        },
+        "required": ["send_to_review", "reason", "confidence"],
         "additionalProperties": False,
     }
 
@@ -1200,6 +1227,12 @@ def classify_generation_status(results: Mapping[str, LlmGenerationResult]) -> st
 def _fake_response_for(request: LlmRequest) -> dict[str, Any]:
     if request.stage == "spec_claims":
         return {"claims": []}
+    if request.stage == "conflict_candidate_triage":
+        return {
+            "send_to_review": False,
+            "reason": "Fake provider does not send this pair to Conflict Review.",
+            "confidence": "low",
+        }
     seed = request.section_id or request.task
     search_key = seed.replace("/", " ").replace("_", " ").strip() or "fake"
     section_ids = list(request.section_hashes) or ([request.section_id] if request.section_id else [])

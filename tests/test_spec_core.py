@@ -71,6 +71,12 @@ class FakeSpecCoreProvider:
 
     def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
         self.calls.append(request)
+        if str(getattr(request, "stage", "")) == "conflict_candidate_triage":
+            return {
+                "send_to_review": False,
+                "reason": "Fixture default keeps the candidate out of review.",
+                "confidence": "low",
+            }
         section_hashes = getattr(request, "section_hashes", None)
         if (
             str(getattr(request, "stage", "")) == "section_metadata"
@@ -2459,6 +2465,111 @@ def test_claim_retrieval_incremental_upserts_changed_and_deletes_removed(
     assert stage["qdrant_search_count"] == 6
 
 
+@dataclass
+class ConflictCandidateTriageProvider(FakeSpecCoreProvider):
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.triage_candidate_uids: list[str] = []
+
+    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+        stage = str(getattr(request, "stage", ""))
+        if stage == "spec_claims":
+            self.calls.append(request)
+            return _shared_target_spec_claim_response_from_request(request)
+        if stage == "conflict_candidate_triage":
+            self.calls.append(request)
+            self.triage_candidate_uids.append(
+                str(getattr(request, "candidate_uid", "") or "")
+            )
+            return {
+                "send_to_review": True,
+                "reason": "Fixture claims share a target and should be reviewed.",
+                "confidence": "medium",
+            }
+        return super().generate(request, timeout_sec=timeout_sec)
+
+
+def test_conflict_candidate_triage_incremental_unchanged_skips_llm_calls(
+    tmp_path: Path,
+) -> None:
+    from spec_anchor.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    first_provider = ConflictCandidateTriageProvider()
+    first = _result_dict(_run_spec_core(project_root, provider=first_provider))
+    second_provider = ConflictCandidateTriageProvider()
+    second = _result_dict(_run_spec_core(project_root, provider=second_provider))
+
+    assert first["conflict_candidate_triage_status"] == "success"
+    assert first_provider.triage_candidate_uids
+    assert second["conflict_candidate_triage_status"] == "skipped_unchanged"
+    assert second_provider.triage_candidate_uids == []
+    progress = read_progress(project_root)
+    assert progress is not None
+    stage = progress["stages"]["conflict_candidate_triage"]
+    assert stage["status"] == "skipped_unchanged"
+    assert stage["llm_calls"] == 0
+
+
+def test_conflict_candidate_triage_incremental_reuses_unchanged_pair_cache(
+    tmp_path: Path,
+) -> None:
+    from spec_anchor.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    _run_spec_core(project_root, provider=ConflictCandidateTriageProvider())
+    first_claims = _read_spec_claim_records(project_root)
+    previous_alpha_uids = {
+        str(claim["claim_uid"])
+        for claim in first_claims
+        if str(claim["source_section_id"]).endswith("#0002-alpha")
+    }
+    assert previous_alpha_uids
+
+    paths["main"].write_text(
+        paths["main"].read_text().replace("standard requests", "enterprise requests")
+    )
+    second_provider = ConflictCandidateTriageProvider()
+    result = _result_dict(_run_spec_core(project_root, provider=second_provider))
+    second_claims = _read_spec_claim_records(project_root)
+    current_alpha_uids = {
+        str(claim["claim_uid"])
+        for claim in second_claims
+        if str(claim["source_section_id"]).endswith("#0002-alpha")
+    }
+    assert current_alpha_uids
+    assert current_alpha_uids.isdisjoint(previous_alpha_uids)
+
+    records = _read_conflict_candidate_records(project_root)
+    changed_candidate_uids = {
+        str(record["candidate_uid"])
+        for record in records
+        if str(record.get("left_claim_uid")) in current_alpha_uids
+        or str(record.get("right_claim_uid")) in current_alpha_uids
+    }
+    unchanged_candidate_uids = {
+        str(record["candidate_uid"])
+        for record in records
+        if str(record.get("left_claim_uid")) not in current_alpha_uids
+        and str(record.get("right_claim_uid")) not in current_alpha_uids
+    }
+
+    assert result["conflict_candidate_triage_status"] == "success"
+    assert second_provider.triage_candidate_uids
+    assert set(second_provider.triage_candidate_uids) <= changed_candidate_uids
+    assert unchanged_candidate_uids
+    assert unchanged_candidate_uids.isdisjoint(second_provider.triage_candidate_uids)
+    progress = read_progress(project_root)
+    assert progress is not None
+    stage = progress["stages"]["conflict_candidate_triage"]
+    assert stage["status"] == "success"
+    assert stage["llm_calls"] == len(second_provider.triage_candidate_uids)
+    assert stage["cache_hits"] >= len(unchanged_candidate_uids)
+
+
 def _configure_claim_retrieval_qdrant(project_root: Path) -> None:
     config_path = project_root / ".spec-anchor/config.toml"
     config_path.write_text(
@@ -2599,6 +2710,15 @@ def _read_spec_claim_records(project_root: Path) -> list[dict[str, Any]]:
     ]
 
 
+def _read_conflict_candidate_records(project_root: Path) -> list[dict[str, Any]]:
+    path = project_root / ".spec-anchor/context/conflict_candidate_pairs.jsonl"
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
 def _spec_claim_response_from_request(request: Any) -> dict[str, Any]:
     payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
     source_section = payload.get("source_section") if isinstance(payload, dict) else {}
@@ -2627,6 +2747,41 @@ def _spec_claim_response_from_request(request: Any) -> dict[str, Any]:
                     "sparse_keys": [section_id, normalized],
                     "embedding_text": normalized,
                     "conflict_probes": [normalized],
+                },
+            }
+        ]
+    }
+
+
+def _shared_target_spec_claim_response_from_request(request: Any) -> dict[str, Any]:
+    payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
+    source_section = payload.get("source_section") if isinstance(payload, dict) else {}
+    text = str(source_section.get("text") if isinstance(source_section, dict) else "")
+    section_id = str(getattr(request, "section_id", "") or "")
+    evidence = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    if not evidence:
+        return {"claims": []}
+    start = text.index(evidence)
+    normalized = " ".join(evidence.strip().split())
+    digest = __import__("hashlib").sha256(normalized.encode("utf-8")).hexdigest()
+    evidence_hash = "sha256:" + digest
+    target = "shared-conflict-target"
+    return {
+        "claims": [
+            {
+                "claim_text": f"{section_id} states {normalized}",
+                "target": target,
+                "target_aliases": [target, section_id.rsplit("#", 1)[-1]],
+                "claim_kind": "requirement",
+                "evidence_span": evidence,
+                "evidence_start": start,
+                "evidence_end": start + len(evidence),
+                "evidence_hash": evidence_hash,
+                "confidence": "high",
+                "retrieval": {
+                    "sparse_keys": [target, normalized],
+                    "embedding_text": f"{target} {normalized}",
+                    "conflict_probes": [target, normalized],
                 },
             }
         ]

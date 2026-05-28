@@ -605,6 +605,7 @@ def test_trace_audit_stage_order(core_fake_fresh: dict[str, Any]) -> None:
         "related_sections",
         "spec_claims",
         "claim_retrieval",
+        "conflict_candidate_triage",
         "conflict_evaluation",
         "chapter_anchors",
         "artifact_write",

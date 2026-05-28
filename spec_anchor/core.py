@@ -14,6 +14,7 @@ from typing import Any
 
 import spec_anchor.config as config_api
 import spec_anchor.claim_retrieval as claim_retrieval_api
+import spec_anchor.conflict_candidates as conflict_candidates_api
 import spec_anchor.related_sections as related_sections_api
 import spec_anchor.retrieval_index as retrieval_index_api
 import spec_anchor.section_metadata as section_metadata_api
@@ -286,7 +287,11 @@ def _run_spec_core_unlocked(
             related_pair_cache_file.unlink()
         except FileNotFoundError:
             pass
-        for subdir_name in ("section_metadata", "chapter_anchors"):
+        for subdir_name in (
+            "section_metadata",
+            "chapter_anchors",
+            conflict_candidates_api.CONFLICT_CANDIDATE_TRIAGE_CACHE_DIRNAME,
+        ):
             subdir = cache_dir / subdir_name
             if subdir.is_dir():
                 for cache_file in subdir.glob("*.json"):
@@ -323,6 +328,11 @@ def _run_spec_core_unlocked(
         provider_id=llm_provider_id,
         stage="spec_claims",
     )
+    conflict_candidate_triage_llm_config = _config_with_selected_llm(
+        config,
+        provider_id=llm_provider_id,
+        stage="conflict_candidate_triage",
+    )
     metadata_provider = _resolve_spec_core_llm_provider(
         metadata_llm_config,
         provider=provider,
@@ -357,6 +367,13 @@ def _run_spec_core_unlocked(
         llm_provider=llm_provider,
         llm_provider_id=llm_provider_id,
         stage="spec_claims",
+    )
+    conflict_candidate_triage_provider = _resolve_spec_core_llm_provider(
+        conflict_candidate_triage_llm_config,
+        provider=provider,
+        llm_provider=llm_provider,
+        llm_provider_id=llm_provider_id,
+        stage="conflict_candidate_triage",
     )
     # Backward-compat aliases for code paths that read these names.
     llm_generation_config = metadata_llm_config
@@ -575,6 +592,28 @@ def _run_spec_core_unlocked(
     claim_retrieval_diagnostics = dict(
         claim_retrieval_generation.get("diagnostics") or {}
     )
+    emit("core_conflict_candidate_triage_start")
+    conflict_candidate_triage_generation = (
+        _generate_conflict_candidate_triage_if_enabled(
+            root=root,
+            config=conflict_candidate_triage_llm_config,
+            spec_claims_status=spec_claims_status,
+            claim_retrieval_status=claim_retrieval_status,
+            generated_at=generated_at,
+            context_dir=context_dir,
+            cache_dir=cache_dir,
+            provider=conflict_candidate_triage_provider,
+            run_full=run_full,
+            progress_tracker=progress_tracker,
+        )
+    )
+    emit("core_conflict_candidate_triage_done")
+    conflict_candidate_triage_status = str(
+        conflict_candidate_triage_generation.get("status") or "failed"
+    )
+    conflict_candidate_triage_diagnostics = dict(
+        conflict_candidate_triage_generation.get("diagnostics") or {}
+    )
     metadata_entries = [
         dict(entry)
         for entry in section_metadata.get("sections", [])
@@ -744,6 +783,10 @@ def _run_spec_core_unlocked(
             "status": claim_retrieval_status,
             "diagnostics": claim_retrieval_diagnostics,
         },
+        "conflict_candidate_triage": {
+            "status": conflict_candidate_triage_status,
+            "diagnostics": conflict_candidate_triage_diagnostics,
+        },
     }
     if conflict_selection_diagnostics:
         generation_diagnostics["conflict_review"] = {
@@ -874,6 +917,8 @@ def _run_spec_core_unlocked(
         "spec_claims_diagnostics": spec_claims_diagnostics,
         "claim_retrieval_status": claim_retrieval_status,
         "claim_retrieval_diagnostics": claim_retrieval_diagnostics,
+        "conflict_candidate_triage_status": conflict_candidate_triage_status,
+        "conflict_candidate_triage_diagnostics": conflict_candidate_triage_diagnostics,
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
@@ -1106,6 +1151,8 @@ def _blocked_core_result(
         "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
         "claim_retrieval_status": "blocked",
         "claim_retrieval_diagnostics": _empty_claim_retrieval_diagnostics(),
+        "conflict_candidate_triage_status": "blocked",
+        "conflict_candidate_triage_diagnostics": _empty_conflict_candidate_triage_diagnostics(),
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1156,6 +1203,8 @@ def _config_error_core_result(
         "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
         "claim_retrieval_status": "failed",
         "claim_retrieval_diagnostics": _empty_claim_retrieval_diagnostics(),
+        "conflict_candidate_triage_status": "failed",
+        "conflict_candidate_triage_diagnostics": _empty_conflict_candidate_triage_diagnostics(),
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -2091,6 +2140,171 @@ def _generate_claim_retrieval_if_enabled(
         return {"status": status, "diagnostics": diagnostics}
 
 
+def _generate_conflict_candidate_triage_if_enabled(
+    *,
+    root: Path,
+    config: Mapping[str, Any],
+    spec_claims_status: str,
+    claim_retrieval_status: str,
+    generated_at: str,
+    context_dir: Path,
+    cache_dir: Path,
+    provider: Any,
+    run_full: bool,
+    progress_tracker: CoreProgressTracker | None = None,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    diagnostics = _empty_conflict_candidate_triage_diagnostics()
+    if not _claim_retrieval_enabled(config):
+        status = "success_no_triage"
+        _record_conflict_candidate_triage_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            started=started,
+            action="skipped_disabled",
+            reason="conflict_candidate_detection_disabled_by_config",
+            llm_calls=0,
+            cache_hits=0,
+            input_tokens=0,
+            output_tokens=0,
+        )
+        return {"status": status, "diagnostics": diagnostics}
+
+    state_path = (
+        root
+        / ".spec-anchor"
+        / "state"
+        / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_STATE_FILENAME
+    )
+    candidate_path = context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
+    spec_claims_path = context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
+    model = str(_config_get(config, ("llm", "model"), "fake"))
+    effort_value = _config_get(config, ("llm", "effort"), None)
+    effort = str(effort_value) if effort_value is not None else None
+    timeout_sec = _spec_claims_timeout_sec(config)
+    triage_max_pairs = _conflict_candidate_triage_max_pairs(config)
+
+    try:
+        previous_state = conflict_candidates_api.read_conflict_candidate_pairs_state(
+            state_path
+        )
+        triage_state = _conflict_candidate_triage_state(previous_state)
+        if claim_retrieval_status == "failed":
+            status = "failed"
+            diagnostics = {
+                **diagnostics,
+                "failure": {
+                    "reason_code": "claim_retrieval_failed",
+                    "message": "Claim Retrieval failed; conflict candidate triage was not run.",
+                },
+            }
+            _record_conflict_candidate_triage_progress(
+                progress_tracker,
+                status=status,
+                diagnostics=diagnostics,
+                started=started,
+                action="blocked_by_claim_retrieval",
+                reason="claim_retrieval_failed",
+                llm_calls=0,
+                cache_hits=0,
+                input_tokens=0,
+                output_tokens=0,
+            )
+            return {"status": status, "diagnostics": diagnostics}
+
+        if _conflict_candidate_triage_state_matches(
+            triage_state,
+            spec_claims_status=spec_claims_status,
+            claim_retrieval_status=claim_retrieval_status,
+            model=model,
+            effort=effort,
+            triage_max_pairs=triage_max_pairs,
+            run_full=run_full,
+            candidate_path=candidate_path,
+        ):
+            diagnostics = _conflict_candidate_triage_diagnostics_from_state(
+                triage_state
+            )
+            status = "skipped_unchanged"
+            _record_conflict_candidate_triage_progress(
+                progress_tracker,
+                status=status,
+                diagnostics=diagnostics,
+                started=started,
+                action="skipped_unchanged",
+                reason="input_and_config_fingerprint_match",
+                llm_calls=0,
+                cache_hits=int(triage_state.get("cache_hits") or 0),
+                input_tokens=0,
+                output_tokens=0,
+            )
+            return {"status": status, "diagnostics": diagnostics}
+
+        candidates = conflict_candidates_api.read_conflict_candidate_pairs_jsonl(
+            candidate_path
+        )
+        claims = _read_jsonl_records(spec_claims_path)
+        usage_provider = _SpecClaimUsageTrackingProvider(provider)
+        result = conflict_candidates_api.generate_conflict_candidate_triage_result(
+            candidates,
+            claims,
+            provider=usage_provider,
+            model=model,
+            effort=effort,
+            triage_max_pairs=triage_max_pairs,
+            cache_dir=cache_dir,
+            output_path=candidate_path,
+            state_path=state_path,
+            previous_state=previous_state,
+            generated_at=generated_at,
+            timeout_sec=timeout_sec,
+        )
+        diagnostics = _conflict_candidate_triage_diagnostics(result.diagnostics)
+        status = (
+            "success_no_triage"
+            if not candidates and result.status == "success"
+            else str(result.status)
+        )
+        usage = usage_provider.usage_totals
+        _record_conflict_candidate_triage_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            started=started,
+            action="skipped_no_candidates" if not candidates else "generated",
+            reason="no_candidate_pairs" if not candidates else "candidate_pairs_available",
+            llm_calls=result.llm_calls,
+            cache_hits=result.cache_hits,
+            input_tokens=int(usage.get("input_tokens") or 0),
+            output_tokens=int(usage.get("output_tokens") or 0),
+        )
+        return {"status": status, "diagnostics": diagnostics}
+    except Exception as exc:  # noqa: BLE001
+        status = "failed"
+        diagnostics = {
+            **diagnostics,
+            "failure": {
+                "reason_code": "conflict_candidate_triage_generation_failed",
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+        _record_conflict_candidate_triage_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            started=started,
+            action="failed",
+            reason="conflict_candidate_triage_generation_failed",
+            llm_calls=0,
+            cache_hits=0,
+            input_tokens=0,
+            output_tokens=0,
+        )
+        return {"status": status, "diagnostics": diagnostics}
+
+
 def _claim_retrieval_config(
     config: Mapping[str, Any],
 ) -> claim_retrieval_api.ClaimRetrievalConfig:
@@ -2318,6 +2532,147 @@ def _record_claim_retrieval_progress(
         qdrant_upsert_count=int(qdrant_upsert_count),
         qdrant_search_count=int(qdrant_search_count),
         qdrant_delete_count=int(qdrant_delete_count),
+    )
+
+
+def _conflict_candidate_triage_max_pairs(config: Mapping[str, Any]) -> int:
+    return _config_int(config, ("conflict_candidate_detection", "triage_max_pairs"), 30)
+
+
+def _conflict_candidate_triage_state(
+    state: Mapping[str, Any],
+) -> dict[str, Any]:
+    triage = state.get("triage") if isinstance(state, Mapping) else None
+    return dict(triage or {})
+
+
+def _conflict_candidate_triage_state_matches(
+    triage_state: Mapping[str, Any],
+    *,
+    spec_claims_status: str,
+    claim_retrieval_status: str,
+    model: str,
+    effort: str | None,
+    triage_max_pairs: int,
+    run_full: bool,
+    candidate_path: Path,
+) -> bool:
+    if (
+        run_full
+        or not candidate_path.is_file()
+        or spec_claims_status != "skipped_unchanged"
+        or claim_retrieval_status != "skipped_unchanged"
+    ):
+        return False
+    settings = {
+        "prompt_version": conflict_candidates_api.CONFLICT_TRIAGE_PROMPT_VERSION,
+        "schema_version": conflict_candidates_api.CONFLICT_CANDIDATE_SCHEMA_VERSION,
+        "model": model,
+        "effort": effort,
+        "triage_max_pairs": max(0, int(triage_max_pairs)),
+    }
+    expected_fingerprint = "sha256:" + hashlib.sha256(
+        json.dumps(settings, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+    return (
+        str(triage_state.get("schema_version") or "")
+        == conflict_candidates_api.CONFLICT_CANDIDATE_SCHEMA_VERSION
+        and str(triage_state.get("prompt_version") or "")
+        == conflict_candidates_api.CONFLICT_TRIAGE_PROMPT_VERSION
+        and str(triage_state.get("model") or "") == model
+        and triage_state.get("effort") == effort
+        and int(triage_state.get("triage_max_pairs") or 0)
+        == max(0, int(triage_max_pairs))
+        and str(triage_state.get("triage_settings_fingerprint") or "")
+        == expected_fingerprint
+    )
+
+
+def _empty_conflict_candidate_triage_diagnostics() -> dict[str, Any]:
+    return {
+        "send_to_review_count": 0,
+        "send_to_review_false_count": 0,
+        "triage_truncated_pairs": 0,
+    }
+
+
+def _conflict_candidate_triage_diagnostics(
+    raw_diagnostics: Mapping[str, Any],
+) -> dict[str, Any]:
+    diagnostics = _empty_conflict_candidate_triage_diagnostics()
+    diagnostics["send_to_review_count"] = int(
+        raw_diagnostics.get("send_to_review_count") or 0
+    )
+    diagnostics["send_to_review_false_count"] = int(
+        raw_diagnostics.get("send_to_review_false_count") or 0
+    )
+    diagnostics["triage_truncated_pairs"] = int(
+        raw_diagnostics.get("triage_truncated_pairs") or 0
+    )
+    for key in (
+        "candidate_count",
+        "processed_candidate_count",
+        "failed_candidate_count",
+        "failed_candidate_uids",
+        "cache_hits",
+        "llm_calls",
+        "diagnostics",
+        "failure",
+    ):
+        if key in raw_diagnostics:
+            diagnostics[key] = raw_diagnostics[key]
+    return diagnostics
+
+
+def _conflict_candidate_triage_diagnostics_from_state(
+    triage_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    diagnostics = _empty_conflict_candidate_triage_diagnostics()
+    diagnostics["send_to_review_count"] = int(
+        triage_state.get("send_to_review_count") or 0
+    )
+    diagnostics["send_to_review_false_count"] = int(
+        triage_state.get("send_to_review_false_count") or 0
+    )
+    diagnostics["triage_truncated_pairs"] = int(
+        triage_state.get("triage_truncated_pairs") or 0
+    )
+    diagnostics["cache_hits"] = int(triage_state.get("cache_hits") or 0)
+    diagnostics["llm_calls"] = 0
+    return diagnostics
+
+
+def _record_conflict_candidate_triage_progress(
+    progress_tracker: CoreProgressTracker | None,
+    *,
+    status: str,
+    diagnostics: Mapping[str, Any],
+    started: float,
+    action: str,
+    reason: str,
+    llm_calls: int,
+    cache_hits: int,
+    input_tokens: int,
+    output_tokens: int,
+) -> None:
+    if progress_tracker is None:
+        return
+    progress_tracker.update(
+        "conflict_candidate_triage",
+        action=action,
+        reason=reason,
+        status=status,
+        diagnostics=dict(diagnostics),
+        wall=round(time.monotonic() - started, 3),
+        llm_calls=int(llm_calls),
+        cache_hits=int(cache_hits),
+        token_count=int(input_tokens) + int(output_tokens),
+        usage={
+            "input_tokens": int(input_tokens),
+            "output_tokens": int(output_tokens),
+        },
     )
 
 
