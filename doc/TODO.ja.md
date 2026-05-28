@@ -25,6 +25,7 @@
 4. **T-spec-claim-phase-3**: LLM triage stage の新規実装 (SCD-032 Phase 3)
 5. **T-spec-claim-phase-4**: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
 6. **T-spec-claim-phase-5**: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界を SpecClaim pair に固定 (SCD-032 / SCD-033 Phase 5)
+7. **T-flaky-spec-core-responsibility-boundary**: `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (再発時の真因特定)
 
 依存関係:
 
@@ -689,3 +690,76 @@ E. **既存 pytest**: `pytest --skip-external` が pass する。
   - SpecClaim 経路の retrieval / triage の改善 (recall regression が Phase 4 で検出された場合の改善は別 task)。
   - Conflict Review pipeline の prompt 改善や judge ロジック変更は今回の scope 外 (本 Phase は入力境界変更のみ)。
   - `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` 自体を archive へ移す判断は別 task (本 Phase 完了後の整理 task として切り出してよい)。
+
+### T-flaky-spec-core-responsibility-boundary: `test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (再発時の真因特定)
+
+#### 背景
+
+2026-05-29 の Phase 2 Part A commit `dd3c674` 直後の `python3 -m pytest -q --skip-external` で `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` が 1 件 fail を観測。その後、Claude main が次を実施して再現を試みた:
+
+- 同 test 単独実行 10 回連続: 全 pass
+- full pytest 4 回連続実行: 全 pass (合計 597 passed × 4)
+- 新規 file (`tests/test_claim_retrieval.py`) を退避した状態の full pytest: 589 passed, 0 failed
+
+つまり全 15 回追加実行で 0 failed。**1/16 = 約 6% の偶発的失敗率**で、真因を特定できる再現サンプルが得られなかった。
+
+#### 真因 / 対応方針
+
+真因 (未確定):
+
+- 失敗 test は `subprocess.run([sys.executable, "-m", "spec_anchor", "core"], timeout=30)` で `spec-anchor core` を起動し、実行前後の `docs/core/purpose.md` / `docs/core/concept.md` の byte 一致を確認する。
+- `/spec-core` は通常これらのファイルを変更しない契約 (`doc/EXTERNAL_DESIGN.ja.md` §5.3 L416)。
+- 失敗時のスクリーンキャプチャを取らなかったため、subprocess の returncode / stdout / stderr / 実行後の purpose.md / concept.md の内容は不明。
+
+仮説 (実証不可):
+
+- `subprocess.run(..., timeout=30)` 中に Codex / Claude CLI の起動 latency や connection 待ちが 30 秒を超えると subprocess が kill され、`spec-anchor core` の atomic write (`spec_anchor/core.py` 経路) が中途半端な状態で終わり purpose.md / concept.md に何かが書き込まれる可能性。
+- ただし、`/spec-core` は purpose / concept を write target にしない設計なので、atomic write 経路に purpose / concept が含まれているなら設計違反であり別の問題。
+
+対応方針:
+
+- 本 task は再発時に着手する。再発時には `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` の assertion message に embedded された `_diag()` 出力 (subprocess returncode / stdout[:3000] / stderr[:3000] / purpose_before[:500] / purpose_after[:500] / concept_before[:500] / concept_after[:500]) を読んで以下を確認する:
+  1. subprocess returncode (0 / 非 0)
+  2. subprocess kill されたか (timeout)
+  3. purpose / concept の何 byte 目から差分が出たか
+  4. stderr に LLM provider error や atomic write 例外が出ているか
+- 上記から真因が特定できたら、本 task の `#### 真因 / 対応方針` を確定 disposition に書き換え、修正方針を `#### 実装方針` に記録する。
+
+#### 目的
+
+- 再発時に真因を特定し、production-critical な「`/spec-core` は purpose / concept を変更しない」契約 (`doc/EXTERNAL_DESIGN.ja.md` §5.3 L416) を信頼できる test で守る。
+- `_diag()` 改善は本 task の準備として既に commit 済み (本 commit)。
+
+#### 実装方針
+
+再発時:
+
+1. 失敗時の assertion message (`_diag()` 出力) を pytest log から抽出する。
+2. 上記から真因を切り分ける。
+3. 真因が `subprocess.run` の timeout = 30 秒不足なら、timeout を 60 秒に伸ばす。
+4. 真因が `/spec-core` の atomic write 設計違反なら、対象 atomic write 経路を修正する。
+5. 真因が test setup の状態漏れなら、原因 test を二分探索 (5-7 回反復) で特定し、原因 test 側の teardown を強化する。
+
+#### 検証条件
+
+- 再現時の `_diag()` 出力から真因が確定する。
+- 修正後、連続 100 回 full pytest で `test_spec_core_does_not_modify_purpose_or_concept_files` が 100/100 pass する。
+
+#### 触れる主なファイル
+
+- `tests/test_responsibility_boundary.py`: 失敗時の `_diag()` 出力経路は既に commit 済み。timeout や setup 修正が必要なら本ファイル。
+- `spec_anchor/core.py`: atomic write 設計違反が真因なら本ファイルを修正。
+- 原因 test (二分探索で特定): 状態漏れが真因なら teardown 強化。
+
+#### 完了条件
+
+- 真因が確定し、修正が入る。
+- 連続 100 回 full pytest で 100/100 pass する。
+- 本 task entry に確定真因と修正経路を記録する。
+
+#### 依存 / scope 外
+
+- **依存**: なし (独立 task)。
+- **scope 外**:
+  - 他の flaky test の追跡 (本 task は本 1 件に限定)。
+  - 予防的な subprocess timeout 一律延長 (真因確定前の予防修正は scope 外)。

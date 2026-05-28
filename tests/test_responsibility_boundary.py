@@ -294,11 +294,25 @@ def test_spec_core_does_not_modify_purpose_or_concept_files(tmp_path: Path) -> N
     purpose_before = purpose.read_bytes()
     concept_before = concept.read_bytes()
 
-    _run_spec_anchor("core", cwd=project)
+    result = _run_spec_anchor("core", cwd=project)
 
-    assert purpose.read_bytes() == purpose_before, (
-        f"`spec-anchor core` mutated Purpose file {purpose}; §5.3 L416 forbids this."
+    purpose_after = purpose.read_bytes()
+    concept_after = concept.read_bytes()
+
+    def _diag() -> str:
+        return (
+            f"\nsubprocess returncode={result.returncode}\n"
+            f"subprocess stdout[:3000]={result.stdout[:3000]!r}\n"
+            f"subprocess stderr[:3000]={result.stderr[:3000]!r}\n"
+            f"purpose_before[:500]={purpose_before[:500]!r}\n"
+            f"purpose_after[:500]={purpose_after[:500]!r}\n"
+            f"concept_before[:500]={concept_before[:500]!r}\n"
+            f"concept_after[:500]={concept_after[:500]!r}\n"
+        )
+
+    assert purpose_after == purpose_before, (
+        f"`spec-anchor core` mutated Purpose file {purpose}; §5.3 L416 forbids this." + _diag()
     )
-    assert concept.read_bytes() == concept_before, (
-        f"`spec-anchor core` mutated Core Concept file {concept}; §5.3 L416 forbids this."
+    assert concept_after == concept_before, (
+        f"`spec-anchor core` mutated Core Concept file {concept}; §5.3 L416 forbids this." + _diag()
     )
