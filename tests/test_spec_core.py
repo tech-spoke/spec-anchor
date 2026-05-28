@@ -2295,3 +2295,108 @@ def test_t_i17_watcher_internal_update_api_is_distinct_from_external_command() -
 
     assert internal is not external
     assert callable(internal)
+
+
+def test_spec_claims_incremental_unchanged_skips_llm_calls(tmp_path: Path) -> None:
+    class SpecClaimProvider(FakeSpecCoreProvider):
+        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            if str(getattr(request, "stage", "")) == "spec_claims":
+                self.calls.append(request)
+                return _spec_claim_response_from_request(request)
+            return super().generate(request, timeout_sec=timeout_sec)
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    first = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
+    second_provider = SpecClaimProvider()
+    second = _result_dict(_run_spec_core(project_root, provider=second_provider))
+
+    assert first["spec_claims_status"] == "success"
+    assert second["spec_claims_status"] == "skipped_unchanged"
+    assert [
+        call
+        for call in second_provider.calls
+        if str(getattr(call, "stage", "")) == "spec_claims"
+    ] == []
+
+
+def test_spec_claims_incremental_reextracts_changed_and_excludes_deleted(
+    tmp_path: Path,
+) -> None:
+    class SpecClaimProvider(FakeSpecCoreProvider):
+        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            if str(getattr(request, "stage", "")) == "spec_claims":
+                self.calls.append(request)
+                return _spec_claim_response_from_request(request)
+            return super().generate(request, timeout_sec=timeout_sec)
+
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    _run_spec_core(project_root, provider=SpecClaimProvider())
+
+    paths["other"].unlink()
+    paths["main"].write_text(
+        paths["main"].read_text().replace("standard requests", "enterprise requests")
+    )
+    (project_root / "docs/spec/new.md").write_text(
+        "# Epsilon\nEpsilon requires TOKEN_Y for added coverage.\n"
+    )
+    second_provider = SpecClaimProvider()
+    result = _result_dict(_run_spec_core(project_root, provider=second_provider))
+
+    spec_claim_call_ids = {
+        str(getattr(call, "section_id", ""))
+        for call in second_provider.calls
+        if str(getattr(call, "stage", "")) == "spec_claims"
+    }
+    assert result["spec_claims_status"] == "success"
+    assert spec_claim_call_ids == {
+        "docs/spec/main.md#0002-alpha",
+        "docs/spec/new.md#0001-epsilon",
+    }
+
+    jsonl_path = project_root / ".spec-anchor/context/spec_claims.jsonl"
+    records = [
+        json.loads(line)
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    source_ids = {str(record["source_section_id"]) for record in records}
+    assert "docs/spec/main.md#0002-alpha" in source_ids
+    assert "docs/spec/new.md#0001-epsilon" in source_ids
+    assert not any(source_id.startswith("docs/spec/other.md#") for source_id in source_ids)
+
+
+def _spec_claim_response_from_request(request: Any) -> dict[str, Any]:
+    payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
+    source_section = payload.get("source_section") if isinstance(payload, dict) else {}
+    text = str(source_section.get("text") if isinstance(source_section, dict) else "")
+    section_id = str(getattr(request, "section_id", "") or "")
+    evidence = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    if not evidence:
+        return {"claims": []}
+    start = text.index(evidence)
+    normalized = " ".join(evidence.strip().split())
+    digest = __import__("hashlib").sha256(normalized.encode("utf-8")).hexdigest()
+    evidence_hash = "sha256:" + digest
+    return {
+        "claims": [
+            {
+                "claim_text": f"{section_id} states {normalized}",
+                "target": section_id,
+                "target_aliases": [section_id.rsplit("#", 1)[-1]],
+                "claim_kind": "requirement",
+                "evidence_span": evidence,
+                "evidence_start": start,
+                "evidence_end": start + len(evidence),
+                "evidence_hash": evidence_hash,
+                "confidence": "high",
+                "retrieval": {
+                    "sparse_keys": [section_id, normalized],
+                    "embedding_text": normalized,
+                    "conflict_probes": [normalized],
+                },
+            }
+        ]
+    }

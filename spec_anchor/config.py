@@ -85,7 +85,7 @@ class LlmConfig:
     providers: dict[str, LlmProviderConfig]
     # Per-stage provider routing. Maps SPEC-anchor pipeline stages to provider
     # names (keys of `providers`). Allowed stages: section_metadata,
-    # related_sections, conflict_review, chapter_key_anchor.
+    # related_sections, conflict_review, chapter_key_anchor, spec_claims.
     stage_routing: dict[str, str] = field(default_factory=dict)
 
 
@@ -405,7 +405,13 @@ def _load_llm_provider(name: str, table: dict[str, Any]) -> LlmProviderConfig:
 
 
 _STAGE_ROUTING_ALLOWED_STAGES = frozenset(
-    {"section_metadata", "related_sections", "conflict_review", "chapter_key_anchor"}
+    {
+        "section_metadata",
+        "related_sections",
+        "conflict_review",
+        "chapter_key_anchor",
+        "spec_claims",
+    }
 )
 
 
@@ -543,5 +549,4 @@ def _load_watcher(root: Path, raw_value: Any) -> WatcherConfig:
         if queue_file
         else None,
     )
-
 

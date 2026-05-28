@@ -27,6 +27,7 @@ SPEC_CORE_GENERATION_STAGES = {
     "section_metadata",
     "section_summary",
     "section_search_keys",
+    "spec_claims",
     "related_sections",
     "related_section_selection",
     "chapter_key_anchor",
@@ -522,6 +523,15 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
             "phrases describing the chapter's themes), array field \"important_sections\" (section_ids "
             "to read first, max 5), and array field \"notes\" (0-3 cautions for the Agent)."
         )
+    elif stage == "spec_claims":
+        output_contract = (
+            "The JSON object must include exactly one top-level array field \"claims\". "
+            "Each item must include claim_text, target, target_aliases, claim_kind, "
+            "evidence_span, evidence_start, evidence_end, evidence_hash, confidence, "
+            "and retrieval. The retrieval object must include sparse_keys, "
+            "embedding_text, and conflict_probes. Use an empty claims array when "
+            "the section contains no grounded specification claim."
+        )
     elif is_batch:
         output_contract = (
             "The JSON object must include array field \"sections\". "
@@ -559,6 +569,8 @@ def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
         return _chapter_key_anchor_output_schema()
     if request.stage == "conflict_review":
         return _conflict_review_output_schema()
+    if request.stage == "spec_claims":
+        return _spec_claims_output_schema()
     section_hashes = request.section_hashes
     is_batch = len(section_hashes) > 1
     section_item_schema = {
@@ -636,6 +648,58 @@ def _conflict_review_output_schema() -> dict[str, Any]:
             "why_not_pending": {"type": "string"},
         },
         "required": ["outcome", "severity"],
+        "additionalProperties": False,
+    }
+
+
+def _spec_claims_output_schema() -> dict[str, Any]:
+    claim_schema = {
+        "type": "object",
+        "properties": {
+            "claim_text": {"type": "string"},
+            "target": {"type": "string"},
+            "target_aliases": {"type": "array", "items": {"type": "string"}},
+            "scope": {"type": "string"},
+            "condition": {"type": "string"},
+            "value": {"type": "string"},
+            "claim_kind": {"type": "string"},
+            "claim_kind_confidence": {"type": "string"},
+            "evidence_span": {"type": "string"},
+            "evidence_start": {"type": "integer"},
+            "evidence_end": {"type": "integer"},
+            "evidence_hash": {"type": "string"},
+            "confidence": {"type": "string"},
+            "retrieval": {
+                "type": "object",
+                "properties": {
+                    "sparse_keys": {"type": "array", "items": {"type": "string"}},
+                    "embedding_text": {"type": "string"},
+                    "conflict_probes": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["sparse_keys", "embedding_text", "conflict_probes"],
+                "additionalProperties": False,
+            },
+        },
+        "required": [
+            "claim_text",
+            "target",
+            "target_aliases",
+            "claim_kind",
+            "evidence_span",
+            "evidence_start",
+            "evidence_end",
+            "evidence_hash",
+            "confidence",
+            "retrieval",
+        ],
+        "additionalProperties": False,
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "claims": {"type": "array", "items": claim_schema},
+        },
+        "required": ["claims"],
         "additionalProperties": False,
     }
 
@@ -1130,6 +1194,8 @@ def classify_generation_status(results: Mapping[str, LlmGenerationResult]) -> st
 
 
 def _fake_response_for(request: LlmRequest) -> dict[str, Any]:
+    if request.stage == "spec_claims":
+        return {"claims": []}
     seed = request.section_id or request.task
     search_key = seed.replace("/", " ").replace("_", " ").strip() or "fake"
     section_ids = list(request.section_hashes) or ([request.section_id] if request.section_id else [])

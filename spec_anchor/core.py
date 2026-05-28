@@ -17,6 +17,7 @@ import spec_anchor.related_sections as related_sections_api
 import spec_anchor.retrieval_index as retrieval_index_api
 import spec_anchor.section_metadata as section_metadata_api
 import spec_anchor.section_parser as section_parser_api
+import spec_anchor.spec_claims as spec_claims_api
 import spec_anchor.llm_provider as llm_provider_api
 from spec_anchor.artifacts import ArtifactError, ContextArtifactStore, build_empty_chapter_anchors
 from spec_anchor.conflict_review import (
@@ -316,6 +317,11 @@ def _run_spec_core_unlocked(
         provider_id=llm_provider_id,
         stage="chapter_key_anchor",
     )
+    spec_claims_llm_config = _config_with_selected_llm(
+        config,
+        provider_id=llm_provider_id,
+        stage="spec_claims",
+    )
     metadata_provider = _resolve_spec_core_llm_provider(
         metadata_llm_config,
         provider=provider,
@@ -343,6 +349,13 @@ def _run_spec_core_unlocked(
         llm_provider=llm_provider,
         llm_provider_id=llm_provider_id,
         stage="chapter_key_anchor",
+    )
+    spec_claims_provider = _resolve_spec_core_llm_provider(
+        spec_claims_llm_config,
+        provider=provider,
+        llm_provider=llm_provider,
+        llm_provider_id=llm_provider_id,
+        stage="spec_claims",
     )
     # Backward-compat aliases for code paths that read these names.
     llm_generation_config = metadata_llm_config
@@ -529,6 +542,20 @@ def _run_spec_core_unlocked(
             related_llm_results,
         )
     emit("core_related_sections_done")
+    emit("core_spec_claims_start")
+    spec_claims_generation = _generate_spec_claims_if_enabled(
+        root=root,
+        config=spec_claims_llm_config,
+        sections=sections,
+        provider=spec_claims_provider,
+        generated_at=generated_at,
+        context_dir=context_dir,
+        run_full=run_full,
+        progress_tracker=progress_tracker,
+    )
+    emit("core_spec_claims_done")
+    spec_claims_status = str(spec_claims_generation.get("status") or "failed")
+    spec_claims_diagnostics = dict(spec_claims_generation.get("diagnostics") or {})
     metadata_entries = [
         dict(entry)
         for entry in section_metadata.get("sections", [])
@@ -690,6 +717,10 @@ def _run_spec_core_unlocked(
             "diagnostics": _related_generation_diagnostics(related_generation),
             "qdrant_backend_failure": related_sections_qdrant_backend_failure,
         },
+        "spec_claims": {
+            "status": spec_claims_status,
+            "diagnostics": spec_claims_diagnostics,
+        },
     }
     if conflict_selection_diagnostics:
         generation_diagnostics["conflict_review"] = {
@@ -816,6 +847,8 @@ def _run_spec_core_unlocked(
         "regenerated_chapter_anchors": sorted({section["chapter_id"] for section in sections if section["section_id"] in changed_ids}),
         "retrieval_index_status": retrieval_index_status,
         "related_sections_status": related_sections_status,
+        "spec_claims_status": spec_claims_status,
+        "spec_claims_diagnostics": spec_claims_diagnostics,
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
@@ -1044,6 +1077,8 @@ def _blocked_core_result(
         "regenerated_chapter_anchors": [],
         "retrieval_index_status": "blocked",
         "related_sections_status": "blocked",
+        "spec_claims_status": "blocked",
+        "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1090,6 +1125,8 @@ def _config_error_core_result(
         "regenerated_chapter_anchors": [],
         "retrieval_index_status": "failed",
         "related_sections_status": "blocked",
+        "spec_claims_status": "failed",
+        "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1647,6 +1684,356 @@ def _progress_action(
     if progress_tracker is None:
         return
     progress_tracker.update(stage, action=action, reason=reason, **fields)
+
+
+def _generate_spec_claims_if_enabled(
+    *,
+    root: Path,
+    config: Mapping[str, Any],
+    sections: Sequence[Mapping[str, Any]],
+    provider: Any,
+    generated_at: str,
+    context_dir: Path,
+    run_full: bool,
+    progress_tracker: CoreProgressTracker | None = None,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    diagnostics = _empty_spec_claims_diagnostics()
+    if not _spec_claims_enabled(config):
+        status = "success_no_claims"
+        _record_spec_claims_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            calls=0,
+            input_tokens=0,
+            output_tokens=0,
+            started=started,
+            action="skipped_disabled",
+            reason="spec_claims_disabled_by_config",
+        )
+        return {"status": status, "diagnostics": diagnostics}
+
+    state_path = root / ".spec-anchor" / "state" / spec_claims_api.SPEC_CLAIMS_STATE_FILENAME
+    jsonl_path = context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
+    model = str(_config_get(config, ("llm", "model"), "fake"))
+    effort_value = _config_get(config, ("llm", "effort"), None)
+    effort = str(effort_value) if effort_value is not None else None
+    timeout_sec = _spec_claims_timeout_sec(config)
+    max_claims_per_section = _spec_claims_max_claims_per_section(config)
+    active_ids = [_spec_claim_section_id(section) for section in sections]
+    active_id_set = set(active_ids)
+
+    try:
+        previous_state = spec_claims_api.read_spec_claims_state(state_path)
+        previous_sections = previous_state.get("sections")
+        if not isinstance(previous_sections, Mapping):
+            previous_sections = {}
+        changed_sections = [
+            section
+            for section in sections
+            if run_full
+            or not _spec_claim_state_entry_matches(
+                previous_sections.get(_spec_claim_section_id(section)),
+                section=section,
+                model=model,
+                effort=effort,
+                max_claims_per_section=max_claims_per_section,
+            )
+        ]
+        previous_active_ids = {
+            str(section_id)
+            for section_id in previous_sections
+            if isinstance(section_id, str) and section_id
+        }
+        if not run_full and not changed_sections and previous_active_ids == active_id_set:
+            diagnostics = _spec_claims_diagnostics_from_state(
+                previous_sections,
+                active_ids=active_ids,
+            )
+            status = "skipped_unchanged"
+            _record_spec_claims_progress(
+                progress_tracker,
+                status=status,
+                diagnostics=diagnostics,
+                calls=0,
+                input_tokens=0,
+                output_tokens=0,
+                started=started,
+                action="skipped_unchanged",
+                reason="input_and_config_fingerprint_match",
+            )
+            return {"status": status, "diagnostics": diagnostics}
+
+        usage_provider = _SpecClaimUsageTrackingProvider(provider)
+        generation = spec_claims_api.generate_spec_claims_result(
+            changed_sections,
+            provider=usage_provider,
+            model=model,
+            effort=effort,
+            max_claims_per_section=max_claims_per_section,
+            previous_state=previous_state,
+            generated_at=generated_at,
+            timeout_sec=timeout_sec,
+        )
+        generated_state_sections = generation.state.get("sections")
+        if not isinstance(generated_state_sections, Mapping):
+            generated_state_sections = {}
+        merged_sections: dict[str, Any] = {}
+        changed_ids = {_spec_claim_section_id(section) for section in changed_sections}
+        for section in sections:
+            section_id = _spec_claim_section_id(section)
+            if section_id in changed_ids:
+                entry = generated_state_sections.get(section_id)
+            else:
+                entry = previous_sections.get(section_id)
+            if isinstance(entry, Mapping):
+                merged_sections[section_id] = dict(entry)
+
+        merged_state = {
+            "schema_version": spec_claims_api.SPEC_CLAIM_SCHEMA_VERSION,
+            "generated_at": generated_at,
+            "sections": merged_sections,
+        }
+        all_claims = _spec_claims_from_state_sections(merged_sections, active_ids=active_ids)
+        spec_claims_api.write_spec_claims_state(state_path, merged_state)
+        spec_claims_api.write_spec_claims_jsonl(
+            jsonl_path,
+            all_claims,
+            active_source_section_ids=active_ids,
+        )
+        diagnostics = _spec_claims_diagnostics_from_state(
+            merged_sections,
+            active_ids=active_ids,
+        )
+        status = _spec_claims_status_from_diagnostics(diagnostics, active_ids=active_ids)
+        usage = usage_provider.usage_totals
+        _record_spec_claims_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            calls=generation.llm_calls,
+            input_tokens=int(usage.get("input_tokens") or 0),
+            output_tokens=int(usage.get("output_tokens") or 0),
+            started=started,
+            action="generated" if run_full else "regenerated_partial",
+            reason="full_rebuild" if run_full else "section_changed",
+            changed_source_section_ids=sorted(changed_ids),
+        )
+        return {"status": status, "diagnostics": diagnostics}
+    except Exception as exc:  # noqa: BLE001
+        status = "failed"
+        diagnostics = {
+            **diagnostics,
+            "failed_spec_claim_sections": sorted(active_id_set),
+            "failure": {
+                "reason_code": "spec_claims_generation_failed",
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+        _record_spec_claims_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            calls=0,
+            input_tokens=0,
+            output_tokens=0,
+            started=started,
+            action="failed",
+            reason="spec_claims_generation_failed",
+        )
+        return {"status": status, "diagnostics": diagnostics}
+
+
+class _SpecClaimUsageTrackingProvider:
+    def __init__(self, delegate: Any) -> None:
+        self.delegate = delegate
+        self.usage_totals: dict[str, int] = {"input_tokens": 0, "output_tokens": 0}
+
+    @property
+    def provider_id(self) -> str:
+        return str(getattr(self.delegate, "provider_id", "spec-claim-provider"))
+
+    def generate(self, request: Any, *, timeout_sec: int) -> Any:
+        output = self.delegate.generate(request, timeout_sec=timeout_sec)
+        if isinstance(output, dict):
+            clean = dict(output)
+            usage = clean.pop(llm_provider_api.USAGE_META_KEY, {}) or {}
+            if isinstance(usage, Mapping):
+                self.usage_totals["input_tokens"] += int(usage.get("input_tokens") or 0)
+                self.usage_totals["output_tokens"] += int(usage.get("output_tokens") or 0)
+            return clean
+        return output
+
+
+def _spec_claims_enabled(config: Mapping[str, Any]) -> bool:
+    return bool(
+        _config_bool(config, ("section_metadata", "enabled"), True)
+        or _config_bool(config, ("conflict_candidate_detection", "enabled"), True)
+    )
+
+
+def _spec_claims_timeout_sec(config: Mapping[str, Any]) -> int:
+    value = _config_get(config, ("llm", "timeout_sec"), 120)
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return 120
+
+
+def _spec_claims_max_claims_per_section(config: Mapping[str, Any]) -> int:
+    value = _config_get(
+        config,
+        ("spec_claims", "max_claims_per_section"),
+        _config_get(config, ("limits", "spec_claims_max_per_section"), 20),
+    )
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 20
+
+
+def _spec_claim_section_id(section: Mapping[str, Any]) -> str:
+    return str(section.get("source_section_id") or section.get("section_id") or "")
+
+
+def _spec_claim_state_entry_matches(
+    entry: Any,
+    *,
+    section: Mapping[str, Any],
+    model: str,
+    effort: str | None,
+    max_claims_per_section: int,
+) -> bool:
+    if not isinstance(entry, Mapping):
+        return False
+    section_id = _spec_claim_section_id(section)
+    source_hash = str(section.get("source_hash") or "")
+    semantic_hash = str(section.get("semantic_hash") or source_hash)
+    expected_cache_key = spec_claims_api.compute_spec_claim_cache_key(
+        source_section_id=section_id,
+        source_hash=source_hash,
+        semantic_hash=semantic_hash,
+        model=model,
+        effort=effort,
+    )
+    return (
+        entry.get("source_hash") == source_hash
+        and entry.get("semantic_hash") == semantic_hash
+        and entry.get("prompt_version") == spec_claims_api.SPEC_CLAIM_PROMPT_VERSION
+        and entry.get("schema_version") == spec_claims_api.SPEC_CLAIM_SCHEMA_VERSION
+        and entry.get("cache_key") == expected_cache_key
+        and entry.get("model") == model
+        and entry.get("effort") == effort
+        and entry.get("max_claims_per_section") == max_claims_per_section
+        and isinstance(entry.get("claims"), list)
+        and entry.get("status")
+        in {spec_claims_api.SUCCESS_WITH_CLAIMS, spec_claims_api.SUCCESS_NO_CLAIMS}
+    )
+
+
+def _empty_spec_claims_diagnostics() -> dict[str, Any]:
+    return {
+        "success_with_claims_count": 0,
+        "success_no_claims_count": 0,
+        "failed_spec_claim_sections": [],
+        "claim_limit_reached_sections": [],
+    }
+
+
+def _spec_claims_diagnostics_from_state(
+    state_sections: Mapping[str, Any],
+    *,
+    active_ids: Sequence[str],
+) -> dict[str, Any]:
+    diagnostics = _empty_spec_claims_diagnostics()
+    failed: list[str] = []
+    limited: list[str] = []
+    for section_id in active_ids:
+        entry = state_sections.get(section_id)
+        if not isinstance(entry, Mapping):
+            failed.append(section_id)
+            continue
+        status = str(entry.get("status") or "")
+        if status == spec_claims_api.SUCCESS_WITH_CLAIMS:
+            diagnostics["success_with_claims_count"] += 1
+        elif status == spec_claims_api.SUCCESS_NO_CLAIMS:
+            diagnostics["success_no_claims_count"] += 1
+        else:
+            failed.append(section_id)
+        if entry.get("limit_reached"):
+            limited.append(section_id)
+    diagnostics["failed_spec_claim_sections"] = sorted(failed)
+    diagnostics["claim_limit_reached_sections"] = sorted(limited)
+    return diagnostics
+
+
+def _spec_claims_status_from_diagnostics(
+    diagnostics: Mapping[str, Any],
+    *,
+    active_ids: Sequence[str],
+) -> str:
+    failed = list(diagnostics.get("failed_spec_claim_sections") or [])
+    if active_ids and len(failed) == len(active_ids):
+        return "failed"
+    if failed:
+        return "partial_success"
+    if int(diagnostics.get("success_with_claims_count") or 0) > 0:
+        return "success"
+    return "success_no_claims"
+
+
+def _spec_claims_from_state_sections(
+    state_sections: Mapping[str, Any],
+    *,
+    active_ids: Sequence[str],
+) -> list[dict[str, Any]]:
+    claims: list[dict[str, Any]] = []
+    for section_id in active_ids:
+        entry = state_sections.get(section_id)
+        if not isinstance(entry, Mapping):
+            continue
+        entry_claims = entry.get("claims")
+        if not isinstance(entry_claims, Sequence) or isinstance(entry_claims, (str, bytes)):
+            continue
+        claims.extend(dict(claim) for claim in entry_claims if isinstance(claim, Mapping))
+    return claims
+
+
+def _record_spec_claims_progress(
+    progress_tracker: CoreProgressTracker | None,
+    *,
+    status: str,
+    diagnostics: Mapping[str, Any],
+    calls: int,
+    input_tokens: int,
+    output_tokens: int,
+    started: float,
+    action: str,
+    reason: str,
+    changed_source_section_ids: Sequence[str] | None = None,
+) -> None:
+    if progress_tracker is None:
+        return
+    progress_tracker.increment(
+        "spec_claims",
+        llm_calls=calls,
+        token_count=input_tokens + output_tokens,
+    )
+    fields: dict[str, Any] = {
+        "action": action,
+        "reason": reason,
+        "status": status,
+        "diagnostics": dict(diagnostics),
+        "calls": int(calls),
+        "input_tokens": int(input_tokens),
+        "output_tokens": int(output_tokens),
+        "wall_sec": round(time.monotonic() - started, 3),
+    }
+    if changed_source_section_ids is not None:
+        fields["changed_source_section_ids"] = list(changed_source_section_ids)
+    progress_tracker.update("spec_claims", **fields)
 
 
 _VERIFY_INDEX_FIELDS = (
