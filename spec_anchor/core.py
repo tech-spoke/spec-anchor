@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import spec_anchor.config as config_api
+import spec_anchor.claim_retrieval as claim_retrieval_api
 import spec_anchor.related_sections as related_sections_api
 import spec_anchor.retrieval_index as retrieval_index_api
 import spec_anchor.section_metadata as section_metadata_api
@@ -556,6 +557,24 @@ def _run_spec_core_unlocked(
     emit("core_spec_claims_done")
     spec_claims_status = str(spec_claims_generation.get("status") or "failed")
     spec_claims_diagnostics = dict(spec_claims_generation.get("diagnostics") or {})
+    emit("core_claim_retrieval_start")
+    claim_retrieval_generation = _generate_claim_retrieval_if_enabled(
+        root=root,
+        config=config,
+        spec_claims_status=spec_claims_status,
+        spec_claims_diagnostics=spec_claims_diagnostics,
+        generated_at=generated_at,
+        context_dir=context_dir,
+        run_full=run_full,
+        progress_tracker=progress_tracker,
+    )
+    emit("core_claim_retrieval_done")
+    claim_retrieval_status = str(
+        claim_retrieval_generation.get("status") or "failed"
+    )
+    claim_retrieval_diagnostics = dict(
+        claim_retrieval_generation.get("diagnostics") or {}
+    )
     metadata_entries = [
         dict(entry)
         for entry in section_metadata.get("sections", [])
@@ -721,6 +740,10 @@ def _run_spec_core_unlocked(
             "status": spec_claims_status,
             "diagnostics": spec_claims_diagnostics,
         },
+        "claim_retrieval": {
+            "status": claim_retrieval_status,
+            "diagnostics": claim_retrieval_diagnostics,
+        },
     }
     if conflict_selection_diagnostics:
         generation_diagnostics["conflict_review"] = {
@@ -849,6 +872,8 @@ def _run_spec_core_unlocked(
         "related_sections_status": related_sections_status,
         "spec_claims_status": spec_claims_status,
         "spec_claims_diagnostics": spec_claims_diagnostics,
+        "claim_retrieval_status": claim_retrieval_status,
+        "claim_retrieval_diagnostics": claim_retrieval_diagnostics,
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
@@ -1079,6 +1104,8 @@ def _blocked_core_result(
         "related_sections_status": "blocked",
         "spec_claims_status": "blocked",
         "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
+        "claim_retrieval_status": "blocked",
+        "claim_retrieval_diagnostics": _empty_claim_retrieval_diagnostics(),
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1127,6 +1154,8 @@ def _config_error_core_result(
         "related_sections_status": "blocked",
         "spec_claims_status": "failed",
         "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
+        "claim_retrieval_status": "failed",
+        "claim_retrieval_diagnostics": _empty_claim_retrieval_diagnostics(),
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1844,6 +1873,485 @@ def _generate_spec_claims_if_enabled(
             reason="spec_claims_generation_failed",
         )
         return {"status": status, "diagnostics": diagnostics}
+
+
+class _CountingClaimRetrievalBackend:
+    def __init__(self, delegate: Any) -> None:
+        self.delegate = delegate
+        self.search_count = 0
+
+    def dense_search(self, query: str, top_k: int) -> Sequence[Any]:
+        self.search_count += 1
+        return self.delegate.dense_search(query, top_k)
+
+    def sparse_search(self, query: str, top_k: int) -> Sequence[Any]:
+        self.search_count += 1
+        return self.delegate.sparse_search(query, top_k)
+
+
+class _NoopClaimRetrievalBackend:
+    def dense_search(self, query: str, top_k: int) -> Sequence[Any]:
+        return []
+
+    def sparse_search(self, query: str, top_k: int) -> Sequence[Any]:
+        return []
+
+
+def _generate_claim_retrieval_if_enabled(
+    *,
+    root: Path,
+    config: Mapping[str, Any],
+    spec_claims_status: str,
+    spec_claims_diagnostics: Mapping[str, Any],
+    generated_at: str,
+    context_dir: Path,
+    run_full: bool,
+    progress_tracker: CoreProgressTracker | None = None,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    diagnostics = _empty_claim_retrieval_diagnostics()
+    if not _claim_retrieval_enabled(config):
+        status = "success_no_candidates"
+        _record_claim_retrieval_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            started=started,
+            action="skipped_disabled",
+            reason="conflict_candidate_detection_disabled_by_config",
+            qdrant_upsert_count=0,
+            qdrant_search_count=0,
+        )
+        return {"status": status, "diagnostics": diagnostics}
+
+    state_path = (
+        root
+        / ".spec-anchor"
+        / "state"
+        / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_STATE_FILENAME
+    )
+    candidate_path = context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
+    spec_claims_path = context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
+    retrieval_config = _claim_retrieval_config(config)
+
+    try:
+        claims = _read_jsonl_records(spec_claims_path)
+        previous_state = claim_retrieval_api.read_conflict_candidate_pairs_state(
+            state_path
+        )
+        previous_retrieval_state = _claim_retrieval_state(previous_state)
+        if _claim_retrieval_state_matches(
+            previous_retrieval_state,
+            claims=claims,
+            config=retrieval_config,
+            run_full=run_full,
+            candidate_path=candidate_path,
+        ):
+            previous_candidates = claim_retrieval_api.read_conflict_candidate_pairs_jsonl(
+                candidate_path
+            )
+            diagnostics = _claim_retrieval_diagnostics(
+                {
+                    "candidate_count": len(
+                        previous_retrieval_state.get("candidate_uids") or []
+                    ),
+                    "truncated_candidate_sources": previous_retrieval_state.get(
+                        "truncated_candidate_sources"
+                    )
+                    or [],
+                    "truncated_pair_count": previous_retrieval_state.get(
+                        "truncated_pair_count"
+                    )
+                    or 0,
+                },
+                previous_candidates,
+            )
+            status = "skipped_unchanged"
+            _record_claim_retrieval_progress(
+                progress_tracker,
+                status=status,
+                diagnostics=diagnostics,
+                started=started,
+                action="skipped_unchanged",
+                reason="input_and_config_fingerprint_match",
+                qdrant_upsert_count=0,
+                qdrant_search_count=0,
+            )
+            return {"status": status, "diagnostics": diagnostics}
+
+        plan = _claim_retrieval_incremental_plan(
+            claims,
+            previous_retrieval_state=previous_retrieval_state,
+            config=retrieval_config,
+            run_full=run_full,
+        )
+        qdrant_upsert_count = 0
+        qdrant_delete_count = 0
+        qdrant_search_count = 0
+        qdrant_enabled = _claim_retrieval_qdrant_enabled(config)
+        backend: Any
+        if qdrant_enabled and (
+            claims or plan["deleted_claim_uids"] or plan["claims_to_upsert"]
+        ):
+            upsert_info = claim_retrieval_api.upsert_qdrant_claim_collection(
+                claims,
+                url=str(
+                    _config_get(
+                        config,
+                        ("vector_store", "url"),
+                        "http://localhost:6333",
+                    )
+                    or "http://localhost:6333"
+                ),
+                collection=retrieval_config.claim_collection,
+                recreate=bool(plan["recreate"]),
+                claims_to_upsert=plan["claims_to_upsert"],
+                claims_to_delete=plan["deleted_claim_uids"],
+            )
+            qdrant_upsert_count = int(upsert_info.get("claims_upserted_count") or 0)
+            qdrant_delete_count = int(upsert_info.get("claims_deleted_count") or 0)
+        if qdrant_enabled and plan["seed_claim_uids"]:
+            backend = _CountingClaimRetrievalBackend(
+                claim_retrieval_api.QdrantClaimRetriever(
+                    url=str(
+                        _config_get(
+                            config,
+                            ("vector_store", "url"),
+                            "http://localhost:6333",
+                        )
+                        or "http://localhost:6333"
+                    ),
+                    collection=retrieval_config.claim_collection,
+                )
+            )
+        elif qdrant_enabled:
+            backend = _CountingClaimRetrievalBackend(_NoopClaimRetrievalBackend())
+        else:
+            backend = claim_retrieval_api.InMemoryClaimRetrievalBackend(
+                claims,
+                dense_enabled=_config_bool(config, ("embedding", "dense_enabled"), True),
+                sparse_enabled=_config_bool(config, ("embedding", "sparse_enabled"), True),
+            )
+        result = claim_retrieval_api.generate_claim_retrieval_result(
+            claims,
+            seed_claim_uids=plan["seed_claim_uids"],
+            backend=backend,
+            config=retrieval_config,
+            previous_state=previous_state,
+            output_path=candidate_path,
+            state_path=state_path,
+            generated_at=generated_at,
+        )
+        if isinstance(backend, _CountingClaimRetrievalBackend):
+            qdrant_search_count = backend.search_count
+        diagnostics = _claim_retrieval_diagnostics(
+            result.diagnostics,
+            result.candidates,
+        )
+        diagnostics["qdrant_delete_count"] = qdrant_delete_count
+        diagnostics["changed_or_added_claim_count"] = len(plan["seed_claim_uids"])
+        diagnostics["deleted_claim_count"] = len(plan["deleted_claim_uids"])
+        status = _claim_retrieval_status_from_diagnostics(
+            diagnostics,
+            spec_claims_status=spec_claims_status,
+            spec_claims_diagnostics=spec_claims_diagnostics,
+        )
+        _record_claim_retrieval_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            started=started,
+            action="generated" if run_full else "regenerated_partial",
+            reason="full_rebuild" if run_full else str(plan["reason"]),
+            qdrant_upsert_count=qdrant_upsert_count,
+            qdrant_search_count=qdrant_search_count,
+            qdrant_delete_count=qdrant_delete_count,
+        )
+        return {"status": status, "diagnostics": diagnostics}
+    except Exception as exc:  # noqa: BLE001
+        status = "failed"
+        diagnostics = {
+            **diagnostics,
+            "failure": {
+                "reason_code": "claim_retrieval_generation_failed",
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+            },
+        }
+        _record_claim_retrieval_progress(
+            progress_tracker,
+            status=status,
+            diagnostics=diagnostics,
+            started=started,
+            action="failed",
+            reason="claim_retrieval_generation_failed",
+            qdrant_upsert_count=0,
+            qdrant_search_count=0,
+        )
+        return {"status": status, "diagnostics": diagnostics}
+
+
+def _claim_retrieval_config(
+    config: Mapping[str, Any],
+) -> claim_retrieval_api.ClaimRetrievalConfig:
+    return claim_retrieval_api.ClaimRetrievalConfig(
+        claim_collection=str(
+            _config_get(
+                config,
+                ("retrieval", "claim_collection"),
+                claim_retrieval_api.DEFAULT_CLAIM_COLLECTION,
+            )
+            or claim_retrieval_api.DEFAULT_CLAIM_COLLECTION
+        ),
+        dense_top_k=_config_int(config, ("retrieval", "dense_top_k"), 12),
+        sparse_top_k=_config_int(config, ("retrieval", "sparse_top_k"), 20),
+        per_claim_top_k=_config_int(
+            config,
+            ("conflict_candidate_detection", "per_claim_top_k"),
+            10,
+        ),
+        per_section_top_k=_config_int(
+            config,
+            ("conflict_candidate_detection", "per_section_top_k"),
+            20,
+        ),
+        per_target_top_k=_config_int(
+            config,
+            ("conflict_candidate_detection", "per_target_top_k"),
+            20,
+        ),
+        global_candidate_top_k=_config_int(
+            config,
+            ("conflict_candidate_detection", "global_candidate_top_k"),
+            100,
+        ),
+        min_dense_score=_config_float(
+            config,
+            ("conflict_candidate_detection", "min_dense_score"),
+            0.55,
+        ),
+        min_sparse_score=_config_float(
+            config,
+            ("conflict_candidate_detection", "min_sparse_score"),
+            0.0,
+        ),
+        rank_fusion=str(
+            _config_get(
+                config,
+                ("conflict_candidate_detection", "rank_fusion"),
+                "rrf",
+            )
+            or "rrf"
+        ),
+        allow_same_section_claim_pair=_config_bool(
+            config,
+            ("conflict_candidate_detection", "allow_same_section_claim_pair"),
+            True,
+        ),
+        allow_same_source_file_claim_pair=_config_bool(
+            config,
+            ("conflict_candidate_detection", "allow_same_source_file_claim_pair"),
+            True,
+        ),
+    )
+
+
+def _claim_retrieval_enabled(config: Mapping[str, Any]) -> bool:
+    return _config_bool(config, ("conflict_candidate_detection", "enabled"), True)
+
+
+def _claim_retrieval_qdrant_enabled(config: Mapping[str, Any]) -> bool:
+    return (
+        str(_config_get(config, ("embedding", "provider"), "")) == "flagembedding"
+        and str(_config_get(config, ("vector_store", "provider"), "")) == "qdrant"
+    )
+
+
+def _claim_retrieval_state(
+    state: Mapping[str, Any],
+) -> dict[str, Any]:
+    retrieval = state.get("retrieval") if isinstance(state, Mapping) else None
+    return dict(retrieval or {})
+
+
+def _claim_retrieval_state_matches(
+    retrieval_state: Mapping[str, Any],
+    *,
+    claims: Sequence[Mapping[str, Any]],
+    config: claim_retrieval_api.ClaimRetrievalConfig,
+    run_full: bool,
+    candidate_path: Path,
+) -> bool:
+    if run_full or not candidate_path.is_file():
+        return False
+    return (
+        str(retrieval_state.get("schema_version") or "")
+        == claim_retrieval_api.CLAIM_RETRIEVAL_SCHEMA_VERSION
+        and str(retrieval_state.get("spec_claims_fingerprint") or "")
+        == claim_retrieval_api.spec_claims_fingerprint(claims)
+        and str(retrieval_state.get("claim_retrieval_config_fingerprint") or "")
+        == config.fingerprint()
+    )
+
+
+def _claim_retrieval_incremental_plan(
+    claims: Sequence[Mapping[str, Any]],
+    *,
+    previous_retrieval_state: Mapping[str, Any],
+    config: claim_retrieval_api.ClaimRetrievalConfig,
+    run_full: bool,
+) -> dict[str, Any]:
+    current_by_uid = {
+        str(claim.get("claim_uid") or ""): dict(claim)
+        for claim in claims
+        if str(claim.get("claim_uid") or "")
+    }
+    previous_claim_hash_by_uid = dict(
+        previous_retrieval_state.get("claim_hash_by_uid") or {}
+    )
+    previous_retrieval_hash_by_uid = dict(
+        previous_retrieval_state.get("retrieval_hash_by_uid") or {}
+    )
+    previous_uids = set(previous_claim_hash_by_uid) | set(previous_retrieval_hash_by_uid)
+    current_uids = set(current_by_uid)
+    deleted_uids = sorted(previous_uids - current_uids)
+    config_mismatch = (
+        str(previous_retrieval_state.get("schema_version") or "")
+        != claim_retrieval_api.CLAIM_RETRIEVAL_SCHEMA_VERSION
+        or str(previous_retrieval_state.get("claim_retrieval_config_fingerprint") or "")
+        != config.fingerprint()
+    )
+    force_all = run_full or not previous_retrieval_state or config_mismatch
+    if force_all:
+        seed_uids = sorted(current_uids)
+        claims_to_upsert = [current_by_uid[uid] for uid in seed_uids]
+        reason = "full_rebuild" if run_full else "fingerprint_mismatch"
+    else:
+        seed_uids = sorted(
+            uid
+            for uid, claim in current_by_uid.items()
+            if previous_claim_hash_by_uid.get(uid) != str(claim.get("claim_hash") or "")
+            or previous_retrieval_hash_by_uid.get(uid)
+            != str(claim.get("retrieval_hash") or "")
+        )
+        claims_to_upsert = [current_by_uid[uid] for uid in seed_uids]
+        reason = "claim_changed" if seed_uids else "claim_deleted"
+    return {
+        "seed_claim_uids": seed_uids,
+        "claims_to_upsert": claims_to_upsert,
+        "deleted_claim_uids": deleted_uids,
+        "recreate": bool(force_all and current_uids),
+        "reason": reason,
+    }
+
+
+def _empty_claim_retrieval_diagnostics() -> dict[str, Any]:
+    return {
+        "candidate_count": 0,
+        "truncated_candidate_sources": [],
+        "truncated_pair_count": 0,
+        "same_section_pair_count": 0,
+    }
+
+
+def _claim_retrieval_diagnostics(
+    raw_diagnostics: Mapping[str, Any],
+    candidates: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    diagnostics = _empty_claim_retrieval_diagnostics()
+    diagnostics["candidate_count"] = int(raw_diagnostics.get("candidate_count") or 0)
+    diagnostics["truncated_candidate_sources"] = _list_of_strings(
+        raw_diagnostics.get("truncated_candidate_sources")
+    )
+    diagnostics["truncated_pair_count"] = int(
+        raw_diagnostics.get("truncated_pair_count") or 0
+    )
+    diagnostics["same_section_pair_count"] = sum(
+        1
+        for candidate in candidates
+        if str(candidate.get("left_section_uid") or "")
+        and str(candidate.get("left_section_uid") or "")
+        == str(candidate.get("right_section_uid") or "")
+    )
+    return diagnostics
+
+
+def _claim_retrieval_status_from_diagnostics(
+    diagnostics: Mapping[str, Any],
+    *,
+    spec_claims_status: str,
+    spec_claims_diagnostics: Mapping[str, Any],
+) -> str:
+    failed_sections = list(
+        spec_claims_diagnostics.get("failed_spec_claim_sections") or []
+    )
+    if spec_claims_status == "failed" and failed_sections:
+        return "failed"
+    if failed_sections:
+        return "partial_success"
+    if int(diagnostics.get("candidate_count") or 0) > 0:
+        return "success"
+    return "success_no_candidates"
+
+
+def _record_claim_retrieval_progress(
+    progress_tracker: CoreProgressTracker | None,
+    *,
+    status: str,
+    diagnostics: Mapping[str, Any],
+    started: float,
+    action: str,
+    reason: str,
+    qdrant_upsert_count: int,
+    qdrant_search_count: int,
+    qdrant_delete_count: int = 0,
+) -> None:
+    if progress_tracker is None:
+        return
+    progress_tracker.update(
+        "claim_retrieval",
+        action=action,
+        reason=reason,
+        status=status,
+        diagnostics=dict(diagnostics),
+        wall=round(time.monotonic() - started, 3),
+        qdrant_upsert_count=int(qdrant_upsert_count),
+        qdrant_search_count=int(qdrant_search_count),
+        qdrant_delete_count=int(qdrant_delete_count),
+    )
+
+
+def _read_jsonl_records(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        return []
+    records: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        value = json.loads(line)
+        if isinstance(value, Mapping):
+            records.append(dict(value))
+    return records
+
+
+def _config_int(config: Mapping[str, Any], path: tuple[str, ...], default: int) -> int:
+    value = _config_get(config, path, default)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _config_float(
+    config: Mapping[str, Any],
+    path: tuple[str, ...],
+    default: float,
+) -> float:
+    value = _config_get(config, path, default)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 class _SpecClaimUsageTrackingProvider:

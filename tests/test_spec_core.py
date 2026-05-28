@@ -1223,6 +1223,11 @@ def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
         "_section_collection_exists",
         lambda *_args, **_kwargs: True,
     )
+    monkeypatch.setattr(
+        core_module,
+        "_scroll_section_payloads_from_qdrant",
+        lambda *_args, **_kwargs: [],
+    )
 
     upsert_calls: list[dict[str, Any]] = []
 
@@ -2366,6 +2371,232 @@ def test_spec_claims_incremental_reextracts_changed_and_excludes_deleted(
     assert "docs/spec/main.md#0002-alpha" in source_ids
     assert "docs/spec/new.md#0001-epsilon" in source_ids
     assert not any(source_id.startswith("docs/spec/other.md#") for source_id in source_ids)
+
+
+def test_claim_retrieval_incremental_unchanged_skips_qdrant_calls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_anchor.core_progress import read_progress
+
+    class SpecClaimProvider(FakeSpecCoreProvider):
+        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            if str(getattr(request, "stage", "")) == "spec_claims":
+                self.calls.append(request)
+                return _spec_claim_response_from_request(request)
+            return super().generate(request, timeout_sec=timeout_sec)
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+    _configure_claim_retrieval_qdrant(project_root)
+    core_module = _core_module()
+    _install_claim_retrieval_spies(monkeypatch, core_module)
+
+    first = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
+    second = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
+
+    assert first["claim_retrieval_status"] in {"success", "success_no_candidates"}
+    assert second["claim_retrieval_status"] == "skipped_unchanged"
+    progress = read_progress(project_root)
+    assert progress is not None
+    stage = progress["stages"]["claim_retrieval"]
+    assert stage["status"] == "skipped_unchanged"
+    assert stage["qdrant_upsert_count"] == 0
+    assert stage["qdrant_search_count"] == 0
+
+
+def test_claim_retrieval_incremental_upserts_changed_and_deletes_removed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from spec_anchor.core_progress import read_progress
+
+    class SpecClaimProvider(FakeSpecCoreProvider):
+        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            if str(getattr(request, "stage", "")) == "spec_claims":
+                self.calls.append(request)
+                return _spec_claim_response_from_request(request)
+            return super().generate(request, timeout_sec=timeout_sec)
+
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    _configure_claim_retrieval_qdrant(project_root)
+    core_module = _core_module()
+    spies = _install_claim_retrieval_spies(monkeypatch, core_module)
+    _run_spec_core(project_root, provider=SpecClaimProvider())
+    previous_claims = _read_spec_claim_records(project_root)
+    removed_claim_uids = {
+        claim["claim_uid"]
+        for claim in previous_claims
+        if str(claim["source_section_id"]).startswith("docs/spec/other.md#")
+    }
+
+    paths["other"].unlink()
+    paths["main"].write_text(
+        paths["main"].read_text().replace("standard requests", "enterprise requests")
+    )
+    (project_root / "docs/spec/new.md").write_text(
+        "# Epsilon\nEpsilon requires TOKEN_Y for added coverage.\n"
+    )
+    result = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
+
+    second_claim_upsert = spies["claim_upserts"][-1]
+    upsert_source_ids = {
+        str(claim["source_section_id"])
+        for claim in second_claim_upsert["claims_to_upsert"]
+    }
+    assert result["claim_retrieval_status"] in {"success", "success_no_candidates"}
+    assert upsert_source_ids == {
+        "docs/spec/main.md#0002-alpha",
+        "docs/spec/new.md#0001-epsilon",
+    }
+    assert removed_claim_uids <= set(second_claim_upsert["claims_to_delete"])
+    progress = read_progress(project_root)
+    assert progress is not None
+    stage = progress["stages"]["claim_retrieval"]
+    assert stage["qdrant_upsert_count"] == 2
+    assert stage["qdrant_delete_count"] >= len(removed_claim_uids)
+    assert stage["qdrant_search_count"] == 6
+
+
+def _configure_claim_retrieval_qdrant(project_root: Path) -> None:
+    config_path = project_root / ".spec-anchor/config.toml"
+    config_path.write_text(
+        config_path.read_text().replace(
+            """\
+[embedding]
+provider = "fake"
+model = "fake-embedding"
+
+    [vector_store]
+    provider = "memory"
+    """,
+            """\
+[embedding]
+provider = "flagembedding"
+model = "BAAI/bge-m3"
+dense_enabled = true
+sparse_enabled = true
+
+[vector_store]
+provider = "qdrant"
+url = "http://fake-qdrant:6333"
+
+[retrieval]
+section_collection = "spec_anchor_section_test"
+claim_collection = "spec_anchor_claim_test"
+""",
+        )
+    )
+
+
+def _install_claim_retrieval_spies(
+    monkeypatch: pytest.MonkeyPatch,
+    core_module: Any,
+) -> dict[str, Any]:
+    spies: dict[str, Any] = {"claim_upserts": []}
+    _install_core_fake_qdrant(monkeypatch, _CoreFakeQdrantClient())
+
+    def fake_section_upsert(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        sections_to_upsert = list(kwargs.get("sections_to_upsert") or [])
+        sections_to_delete = list(kwargs.get("sections_to_delete") or [])
+        return {
+            "status": "success",
+            "diagnostics": {
+                "recreate": bool(kwargs.get("recreate")),
+                "sections_upserted_count": len(sections_to_upsert),
+                "sections_deleted_count": len(sections_to_delete),
+                "embed_documents_input_size": len(sections_to_upsert),
+                "stale_points_deleted": len(sections_to_delete),
+            },
+        }
+
+    def fake_related(*_args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {
+            "related_section_candidates": [],
+            "related_sections": {},
+            "sections": [],
+            "diagnostics": [],
+            "generated_at": kwargs.get("generated_at"),
+        }
+
+    def fake_claim_upsert(claims: Any, **kwargs: Any) -> dict[str, Any]:
+        claims = list(claims)
+        recreate = bool(kwargs.get("recreate"))
+        claims_to_upsert = (
+            claims
+            if recreate or kwargs.get("claims_to_upsert") is None
+            else list(kwargs.get("claims_to_upsert") or [])
+        )
+        claims_to_delete = list(kwargs.get("claims_to_delete") or [])
+        spies["claim_upserts"].append(
+            {
+                "claims_to_upsert": [dict(claim) for claim in claims_to_upsert],
+                "claims_to_delete": [str(uid) for uid in claims_to_delete],
+                "recreate": recreate,
+            }
+        )
+        return {
+            "status": "success",
+            "claims_upserted_count": len(claims_to_upsert),
+            "claims_deleted_count": len(claims_to_delete),
+        }
+
+    class EmptyClaimRetriever:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+        def dense_search(self, query: str, top_k: int) -> list[Any]:
+            return []
+
+        def sparse_search(self, query: str, top_k: int) -> list[Any]:
+            return []
+
+    monkeypatch.setattr(
+        core_module,
+        "_section_collection_exists",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "upsert_qdrant_section_collection",
+        fake_section_upsert,
+    )
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "update_section_collection_related_sections",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        core_module.related_sections_api,
+        "generate_related_sections_result",
+        fake_related,
+    )
+    monkeypatch.setattr(
+        core_module.related_sections_api,
+        "generate_related_sections_partial_result",
+        fake_related,
+    )
+    monkeypatch.setattr(
+        core_module.claim_retrieval_api,
+        "upsert_qdrant_claim_collection",
+        fake_claim_upsert,
+    )
+    monkeypatch.setattr(
+        core_module.claim_retrieval_api,
+        "QdrantClaimRetriever",
+        EmptyClaimRetriever,
+    )
+    return spies
+
+
+def _read_spec_claim_records(project_root: Path) -> list[dict[str, Any]]:
+    path = project_root / ".spec-anchor/context/spec_claims.jsonl"
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def _spec_claim_response_from_request(request: Any) -> dict[str, Any]:

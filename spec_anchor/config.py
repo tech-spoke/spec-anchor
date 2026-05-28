@@ -84,8 +84,8 @@ class LlmProviderConfig:
 class LlmConfig:
     providers: dict[str, LlmProviderConfig]
     # Per-stage provider routing. Maps SPEC-anchor pipeline stages to provider
-    # names (keys of `providers`). Allowed stages: section_metadata,
-    # related_sections, conflict_review, chapter_key_anchor, spec_claims.
+    # names (keys of `providers`). `claim_retrieval` is accepted for forward
+    # compatibility but is not consumed because it does not call an LLM.
     stage_routing: dict[str, str] = field(default_factory=dict)
 
 
@@ -107,9 +107,25 @@ class RetrievalConfig:
     sparse_top_k: int = 20
     rank_fusion: str = "rrf"
     section_collection: str = "spec_anchor_section"
+    claim_collection: str = "spec_anchor_claim"
     section_dense_threshold: float = 0.55
     section_candidate_top_k: int = 16
     section_final_top_n: int = 8
+
+
+@dataclass(frozen=True)
+class ConflictCandidateDetectionConfig:
+    enabled: bool = True
+    per_claim_top_k: int = 10
+    per_section_top_k: int = 20
+    per_target_top_k: int = 20
+    global_candidate_top_k: int = 100
+    triage_max_pairs: int = 30
+    min_dense_score: float = 0.55
+    min_sparse_score: float = 0.0
+    rank_fusion: str = "rrf"
+    allow_same_section_claim_pair: bool = True
+    allow_same_source_file_claim_pair: bool = True
 
 
 @dataclass(frozen=True)
@@ -149,6 +165,7 @@ class ProjectConfig:
     llm: LlmConfig
     limits: LimitsConfig
     retrieval: RetrievalConfig
+    conflict_candidate_detection: ConflictCandidateDetectionConfig
     embedding: EmbeddingConfig
     vector_store: VectorStoreConfig
     watcher: WatcherConfig
@@ -180,6 +197,9 @@ def load_config(
     llm = _load_llm(_table(raw, "llm"))
     limits = _load_limits(raw.get("limits", {}))
     retrieval = _load_retrieval(raw.get("retrieval", {}))
+    conflict_candidate_detection = _load_conflict_candidate_detection(
+        raw.get("conflict_candidate_detection", {})
+    )
     embedding = _load_embedding(
         _table(raw, "embedding"),
         allow_non_standard_providers=allow_non_standard_providers,
@@ -202,6 +222,7 @@ def load_config(
         llm=llm,
         limits=limits,
         retrieval=retrieval,
+        conflict_candidate_detection=conflict_candidate_detection,
         embedding=embedding,
         vector_store=vector_store,
         watcher=watcher,
@@ -411,6 +432,7 @@ _STAGE_ROUTING_ALLOWED_STAGES = frozenset(
         "conflict_review",
         "chapter_key_anchor",
         "spec_claims",
+        "claim_retrieval",
     }
 )
 
@@ -494,9 +516,51 @@ def _load_retrieval(raw_value: Any) -> RetrievalConfig:
         rank_fusion=rank_fusion,
         section_collection=_optional_str(table, "retrieval", "section_collection")
         or "spec_anchor_section",
+        claim_collection=_optional_str(table, "retrieval", "claim_collection")
+        or "spec_anchor_claim",
         section_dense_threshold=_float(table, "retrieval", "section_dense_threshold", 0.55),
         section_candidate_top_k=_int(table, "retrieval", "section_candidate_top_k", 16),
         section_final_top_n=_int(table, "retrieval", "section_final_top_n", 8),
+    )
+
+
+def _load_conflict_candidate_detection(
+    raw_value: Any,
+) -> ConflictCandidateDetectionConfig:
+    table = _optional_table(raw_value, "conflict_candidate_detection")
+    rank_fusion = (
+        _optional_str(table, "conflict_candidate_detection", "rank_fusion")
+        or STANDARD_RANK_FUSION
+    )
+    if rank_fusion != STANDARD_RANK_FUSION:
+        raise ConfigError("conflict_candidate_detection.rank_fusion must be rrf")
+    return ConflictCandidateDetectionConfig(
+        enabled=_bool(table, "conflict_candidate_detection", "enabled", True),
+        per_claim_top_k=_int(table, "conflict_candidate_detection", "per_claim_top_k", 10),
+        per_section_top_k=_int(table, "conflict_candidate_detection", "per_section_top_k", 20),
+        per_target_top_k=_int(table, "conflict_candidate_detection", "per_target_top_k", 20),
+        global_candidate_top_k=_int(
+            table,
+            "conflict_candidate_detection",
+            "global_candidate_top_k",
+            100,
+        ),
+        triage_max_pairs=_int(table, "conflict_candidate_detection", "triage_max_pairs", 30),
+        min_dense_score=_float(table, "conflict_candidate_detection", "min_dense_score", 0.55),
+        min_sparse_score=_float(table, "conflict_candidate_detection", "min_sparse_score", 0.0),
+        rank_fusion=rank_fusion,
+        allow_same_section_claim_pair=_bool(
+            table,
+            "conflict_candidate_detection",
+            "allow_same_section_claim_pair",
+            True,
+        ),
+        allow_same_source_file_claim_pair=_bool(
+            table,
+            "conflict_candidate_detection",
+            "allow_same_source_file_claim_pair",
+            True,
+        ),
     )
 
 
@@ -549,4 +613,3 @@ def _load_watcher(root: Path, raw_value: Any) -> WatcherConfig:
         if queue_file
         else None,
     )
-
