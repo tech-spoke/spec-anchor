@@ -26,6 +26,7 @@
 5. **T-spec-claim-phase-4**: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
 6. **T-spec-claim-phase-5**: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界を SpecClaim pair に固定 (SCD-032 / SCD-033 Phase 5)
 7. **T-flaky-spec-core-responsibility-boundary**: `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (再発時の真因特定)
+8. **T-spec-inject-pending-conflict-fixture-update**: `PendingConflictSpecCoreProvider` を SpecClaim 経路に追従させる (Phase 5 完了後の fake fixture 追従、`test_review_pending_conflict_items_are_loaded_from_real_context_artifact` の skip 解除)
 
 依存関係:
 
@@ -763,3 +764,80 @@ E. **既存 pytest**: `pytest --skip-external` が pass する。
 - **scope 外**:
   - 他の flaky test の追跡 (本 task は本 1 件に限定)。
   - 予防的な subprocess timeout 一律延長 (真因確定前の予防修正は scope 外)。
+
+### T-spec-inject-pending-conflict-fixture-update: PendingConflictSpecCoreProvider を SpecClaim 経路に追従させる
+
+#### 背景
+
+Phase 5 (T-spec-claim-phase-5, commit シリーズ) で Related Sections の `relation_hint = "conflicts_with"` 経路と `possible_conflict` field 由来の Conflict Review routing を完全廃止した (SCD-032 / SCD-033)。
+
+これにより `tests/test_spec_inject.py::PendingConflictSpecCoreProvider` (line 112-155) が依存する経路が消えた:
+
+```python
+return {
+    "related_sections": [{
+        "target_section_id": target,
+        "relation_hint": "conflicts_with",  # ← Phase 5 で出力 enum から削除
+        ...
+    }],
+}
+```
+
+結果として `tests/test_spec_inject.py::test_review_pending_conflict_items_are_loaded_from_real_context_artifact` が `pending_conflict_count == 0` で失敗し、`@pytest.mark.skip` で一時 skip した (commit 後の HEAD で確認できる)。
+
+#### 真因 / 対応方針
+
+真因 (確定):
+
+- `PendingConflictSpecCoreProvider.generate(request)` は `request.stage == "related_section_selection"` のときに `relation_hint = "conflicts_with"` を含む応答を返している。これが旧 Conflict Review pipeline の入力源だった。
+- Phase 5 で `evaluate_conflicts` の入力境界が SpecClaim pair + evidence + triage result に変更されたので、Related Sections 由来の応答では Conflict Review に届かなくなった。
+
+対応方針 (確定):
+
+- `PendingConflictSpecCoreProvider` を SpecClaim 経路に追従させる。次の stage に fake 応答を追加する:
+  - `request.stage == "spec_claims"`: 2 つの section から conflict する SpecClaim を抽出する応答 (各 section 1 件以上、矛盾する `claim_text` + `evidence_span`)
+  - `request.stage == "conflict_candidate_triage"`: 2 つの SpecClaim pair について `send_to_review = true`, `confidence = "high"` を返す応答
+  - `judge_conflict()` は現状維持 (`needs_human_review` を返す既存実装で OK)
+- `_write_conflicting_project` の Source Specs (`docs/spec/security.md` の Authentication / Session 2 section) はそのまま使う。`PendingConflictSpecCoreProvider` だけを書き換えれば test は SpecClaim 経路で pending item を作れる。
+- 書き換え後、`@pytest.mark.skip` を外して test pass を確認する。
+- 必要なら `spec_claims_state.json` / `conflict_candidate_pairs_state.json` の atomic write 経路に fake fixture が触れるかも確認 (Phase 1/2/3 の test_spec_core.py の incremental test を参考にする)。
+
+#### 目的
+
+`/spec-inject` の pending conflict 表示経路が、Phase 5 後の SpecClaim 経路でも end-to-end で動くことを fake fixture で保証する。
+
+合格基準:
+
+- `tests/test_spec_inject.py::test_review_pending_conflict_items_are_loaded_from_real_context_artifact` が `@pytest.mark.skip` を外した状態で pass する。
+- `pending_conflict_count >= 1`、`freshness.status == "blocked"`、`blocking_reasons == ["pending_conflict"]`、`pending_items` に Phase 5 後の Conflict Review pipeline が生成した item が含まれる。
+- `/spec-inject` の出力に Phase 5 後の test 構造で `conflict-from-spec-core-artifact` (または書き換え後の対応する conflict_id) と `why_llm_cannot_decide` が含まれる。
+
+#### 実装方針
+
+1. `tests/test_spec_inject.py::PendingConflictSpecCoreProvider` の `generate(request)` で `request.stage` 分岐を追加:
+   - `"spec_claims"`: 各 section から conflicting claim を返す
+   - `"conflict_candidate_triage"`: pair を `send_to_review=true` で返す
+2. `@pytest.mark.skip` を外す
+3. `python3 -m pytest -q tests/test_spec_inject.py::test_review_pending_conflict_items_are_loaded_from_real_context_artifact` が pass することを確認
+
+#### 検証条件
+
+- 上記 test が pass する。
+- `python3 -m pytest -q --skip-external` の合計 passed が +1 (skip 解除分)。
+
+#### 触れる主なファイル
+
+- `tests/test_spec_inject.py`: `PendingConflictSpecCoreProvider` の書き換え + skip 解除
+
+#### 完了条件
+
+- 該当 test が pass する。
+- `@pytest.mark.skip` が消えている。
+- `pytest --skip-external` が pass する。
+
+#### 依存 / scope 外
+
+- **依存**: T-spec-claim-phase-5 完了 (Phase 5 後の Conflict Review 入力境界が SpecClaim pair に固定されていることが前提)。
+- **scope 外**:
+  - `PendingConflictSpecCoreProvider` 以外の fake fixture (本 task は本 fixture 1 件の追従に限定)。
+  - 実 Codex / Claude CLI 経路は別 task (本 task は fake fixture の追従のみ)。

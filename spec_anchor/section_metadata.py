@@ -647,10 +647,6 @@ def _limits(value: Any | None) -> LimitsConfig:
             0,
             int(_config_value(value, "related_selected_max_per_section", 8)),
         ),
-        conflict_pair_max_per_section=max(
-            0,
-            int(_config_value(value, "conflict_pair_max_per_section", 8)),
-        ),
         llm_batch_max_sections=max(
             1,
             int(_config_value(value, "llm_batch_max_sections", 8)),

@@ -61,7 +61,6 @@ section_summary_max_chars = 480
 search_keys_max = 32
 related_candidate_max_per_section = 32
 related_selected_max_per_section = 8
-conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 
@@ -234,7 +233,6 @@ def test_t_u05_defaults_are_applied_when_optional_tables_are_omitted(
     assert _get(config, "limits", "search_keys_max") == 32
     assert _get(config, "limits", "related_candidate_max_per_section") == 32
     assert _get(config, "limits", "related_selected_max_per_section") == 8
-    assert _get(config, "limits", "conflict_pair_max_per_section") == 8
     assert _get(config, "limits", "llm_batch_max_sections") == 8
     assert _get(config, "limits", "llm_batch_max_chars") == 12000
 

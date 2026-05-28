@@ -40,22 +40,6 @@ _DEFAULT_DECISION_OPTIONS = [
     {"id": "task_scope_resolution", "label": "Resolve for this task only"},
 ]
 
-_CONFLICT_WORDS = {
-    "must",
-    "must not",
-    "required",
-    "forbidden",
-    "prohibited",
-    "optional",
-    "cannot",
-    "should not",
-    "禁止",
-    "必須",
-    "任意",
-    "例外",
-}
-
-
 @dataclass
 class ConflictReviewResult:
     conflict_review_items: list[dict[str, Any]]
@@ -90,49 +74,28 @@ def _copy_items(items: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None)
     return [deepcopy(item) for item in (items or [])]
 
 
-def _coerce_candidate_items(candidates: Any) -> list[dict[str, Any]]:
-    if candidates is None:
+def _coerce_conflict_candidate_pairs(value: Any) -> list[dict[str, Any]]:
+    if value is None:
         return []
-    if hasattr(candidates, "to_dict"):
-        return _coerce_candidate_items(candidates.to_dict())
-    if hasattr(candidates, "related_section_candidates"):
-        value = getattr(candidates, "related_section_candidates")
-        if value is not candidates:
-            return _coerce_candidate_items(value)
-    if hasattr(candidates, "candidates"):
-        value = getattr(candidates, "candidates")
-        if value is not candidates:
-            return _coerce_candidate_items(value)
-    if isinstance(candidates, Mapping):
-        if "source_section_id" in candidates and "target_section_id" in candidates:
-            return [deepcopy(dict(candidates))]
+    if hasattr(value, "to_dict"):
+        return _coerce_conflict_candidate_pairs(value.to_dict())
+    if hasattr(value, "conflict_candidate_pairs"):
+        nested = getattr(value, "conflict_candidate_pairs")
+        if nested is not value:
+            return _coerce_conflict_candidate_pairs(nested)
+    if isinstance(value, Mapping):
+        if "left_claim_uid" in value and "right_claim_uid" in value:
+            return [deepcopy(dict(value))]
         items: list[dict[str, Any]] = []
-        for key in ("related_section_candidates", "candidates"):
-            items.extend(_coerce_candidate_items(candidates.get(key)))
+        for key in ("conflict_candidate_pairs", "candidate_pairs", "pairs"):
+            items.extend(_coerce_conflict_candidate_pairs(value.get(key)))
         return items
-    if isinstance(candidates, Sequence) and not isinstance(candidates, (str, bytes)):
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         items = []
-        for item in candidates:
-            items.extend(_coerce_candidate_items(item))
+        for item in value:
+            items.extend(_coerce_conflict_candidate_pairs(item))
         return items
     return []
-
-
-def _metadata_value(metadata: Any, key: str) -> Any:
-    if metadata is None:
-        return None
-    if hasattr(metadata, "to_dict"):
-        return _metadata_value(metadata.to_dict(), key)
-    if isinstance(metadata, Mapping):
-        return metadata.get(key)
-    return getattr(metadata, key, None)
-
-
-def _candidate_items_from_metadata(metadata: Any) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = []
-    for key in ("related_section_candidates", "candidates"):
-        items.extend(_coerce_candidate_items(_metadata_value(metadata, key)))
-    return items
 
 
 def _section_id(section: dict[str, Any]) -> str:
@@ -212,28 +175,6 @@ def _pair_key(source_id: str, target_id: str) -> tuple[str, str]:
     return tuple(sorted((source_id, target_id)))
 
 
-def _get_limit(config: Any = None, limits: Any = None, default: int = 8) -> int:
-    if limits is not None:
-        limit_source = limits
-    elif isinstance(config, Mapping):
-        limit_source = config.get("limits")
-    else:
-        limit_source = getattr(config, "limits", None)
-
-    if isinstance(limit_source, Mapping):
-        value = limit_source.get("conflict_pair_max_per_section", default)
-    elif limit_source is not None:
-        value = getattr(limit_source, "conflict_pair_max_per_section", default)
-    elif isinstance(config, Mapping):
-        value = config.get("conflict_pair_max_per_section", default)
-    else:
-        value = getattr(config, "conflict_pair_max_per_section", default)
-    try:
-        return max(0, int(value))
-    except (TypeError, ValueError):
-        return default
-
-
 def _get_llm_batch_concurrency(
     config: Any = None,
     limits: Any = None,
@@ -266,179 +207,191 @@ def _get_llm_batch_concurrency(
         return default
 
 
-def _looks_high_risk(candidate: dict[str, Any]) -> bool:
-    channels = {str(channel) for channel in candidate.get("channels", [])}
-    terms = " ".join(str(term).lower() for term in candidate.get("evidence_terms", []))
-    text = " ".join(
-        str(candidate.get(key, "")).lower()
-        for key in ("reason", "relation_hint", "summary", "text")
+def _claims_by_uid(claims: Any) -> dict[str, dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    if claims is None:
+        return {}
+    if hasattr(claims, "to_dict"):
+        return _claims_by_uid(claims.to_dict())
+    if isinstance(claims, Mapping):
+        if "claim_uid" in claims:
+            records = [dict(claims)]
+        else:
+            for key in ("claims", "spec_claims"):
+                nested = claims.get(key)
+                if nested is not None:
+                    return _claims_by_uid(nested)
+    elif isinstance(claims, Sequence) and not isinstance(claims, (str, bytes)):
+        records = [dict(item) for item in claims if isinstance(item, Mapping)]
+    return {
+        str(record.get("claim_uid")): record
+        for record in records
+        if str(record.get("claim_uid") or "")
+    }
+
+
+def _triage_sends_to_review(pair: Mapping[str, Any]) -> bool:
+    triage = pair.get("triage")
+    return isinstance(triage, Mapping) and triage.get("send_to_review") is True
+
+
+def _pair_evidence_by_claim_uid(pair: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    evidence = pair.get("evidence")
+    if not isinstance(evidence, Sequence) or isinstance(evidence, (str, bytes)):
+        return result
+    for item in evidence:
+        if not isinstance(item, Mapping):
+            continue
+        claim_uid = str(item.get("claim_uid") or "")
+        if claim_uid:
+            result[claim_uid] = dict(item)
+    return result
+
+
+def _claim_source_section_id(
+    *,
+    claim_uid: str,
+    claim: Mapping[str, Any] | None,
+    evidence: Mapping[str, Any] | None,
+    pair: Mapping[str, Any],
+    side: str,
+) -> str:
+    if claim is not None:
+        source_id = str(claim.get("source_section_id") or "")
+        if source_id:
+            return source_id
+    if evidence is not None:
+        section_id = str(
+            evidence.get("source_section_id")
+            or evidence.get("section_uid")
+            or evidence.get("section_id")
+            or ""
+        )
+        if section_id:
+            return section_id
+    for key in (
+        f"{side}_source_section_id",
+        f"{side}_section_id",
+        f"{side}_section_uid",
+    ):
+        section_id = str(pair.get(key) or "")
+        if section_id:
+            return section_id
+    return claim_uid
+
+
+def _claim_review_record(
+    *,
+    claim_uid: str,
+    claim: Mapping[str, Any] | None,
+    evidence: Mapping[str, Any] | None,
+    source_section_id: str,
+) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "claim_uid": claim_uid,
+        "source_section_id": source_section_id,
+    }
+    if claim is not None:
+        for key in (
+            "display_id",
+            "claim_text",
+            "target",
+            "target_aliases",
+            "scope",
+            "condition",
+            "value",
+            "claim_kind",
+            "confidence",
+            "evidence_span",
+            "evidence_start",
+            "evidence_end",
+            "evidence_hash",
+            "claim_hash",
+            "source_hash",
+        ):
+            if key in claim:
+                record[key] = deepcopy(claim[key])
+    if evidence is not None:
+        for key in ("evidence_span", "evidence_start", "evidence_end", "evidence_hash"):
+            if key in evidence and key not in record:
+                record[key] = deepcopy(evidence[key])
+    return record
+
+
+def _normalize_spec_claim_pair(
+    pair: Mapping[str, Any],
+    *,
+    claims_by_uid: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any] | None:
+    left_uid = str(pair.get("left_claim_uid") or "")
+    right_uid = str(pair.get("right_claim_uid") or "")
+    if not left_uid or not right_uid or left_uid == right_uid:
+        return None
+    if not _triage_sends_to_review(pair):
+        return None
+
+    evidence_by_uid = _pair_evidence_by_claim_uid(pair)
+    left_claim = claims_by_uid.get(left_uid)
+    right_claim = claims_by_uid.get(right_uid)
+    left_evidence = evidence_by_uid.get(left_uid)
+    right_evidence = evidence_by_uid.get(right_uid)
+    left_section_id = _claim_source_section_id(
+        claim_uid=left_uid,
+        claim=left_claim,
+        evidence=left_evidence,
+        pair=pair,
+        side="left",
     )
-    score = candidate.get("candidate_score", candidate.get("score", 0))
-    try:
-        numeric_score = float(score)
-    except (TypeError, ValueError):
-        numeric_score = 0.0
-
-    has_conflict_terms = any(word in terms or word in text for word in _CONFLICT_WORDS)
-    return (
-        candidate.get("relation_hint") == "conflicts_with"
-        or ("shared_identifier" in channels and has_conflict_terms)
-        or (numeric_score >= 50 and has_conflict_terms)
+    right_section_id = _claim_source_section_id(
+        claim_uid=right_uid,
+        claim=right_claim,
+        evidence=right_evidence,
+        pair=pair,
+        side="right",
     )
-
-
-class _ConflictPairSelection(list[dict[str, Any]]):
-    selection_diagnostics: list[dict[str, Any]]
+    normalized = deepcopy(dict(pair))
+    normalized["left_claim_uid"] = left_uid
+    normalized["right_claim_uid"] = right_uid
+    normalized["source_section_id"] = left_section_id
+    normalized["target_section_id"] = right_section_id
+    normalized["claims"] = [
+        _claim_review_record(
+            claim_uid=left_uid,
+            claim=left_claim,
+            evidence=left_evidence,
+            source_section_id=left_section_id,
+        ),
+        _claim_review_record(
+            claim_uid=right_uid,
+            claim=right_claim,
+            evidence=right_evidence,
+            source_section_id=right_section_id,
+        ),
+    ]
+    return normalized
 
 
 def select_conflict_judging_pairs(
-    sections: list[dict[str, Any]] | None = None,
-    related_sections: dict[str, list[dict[str, Any]]] | list[dict[str, Any]] | None = None,
-    candidates: Any = None,
+    conflict_candidate_pairs: Any = None,
     *,
-    related_section_candidates: Any = None,
-    config: Any = None,
-    limits: Any = None,
+    spec_claims: Any = None,
+    claims: Any = None,
 ) -> list[dict[str, Any]]:
-    """Select explicit conflicts plus bounded high-risk candidate pairs."""
+    """Select triaged SpecClaim candidate pairs for Conflict Review."""
 
-    del sections  # Selection is id-based; section details are used by the judge stage.
-    max_per_section = _get_limit(config=config, limits=limits)
-    selected: _ConflictPairSelection = _ConflictPairSelection()
-    skipped_pairs: list[dict[str, Any]] = []
+    claim_index = _claims_by_uid(claims if claims is not None else spec_claims)
+    selected: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
-    counts: dict[str, int] = {}
-
-    def add_pair(pair: dict[str, Any], *, explicit: bool) -> None:
-        source_id = str(pair.get("source_section_id") or pair.get("section_a_id") or pair.get("a") or "")
-        target_id = str(pair.get("target_section_id") or pair.get("section_b_id") or pair.get("b") or "")
-        if not source_id or not target_id or source_id == target_id:
-            return
-        key = _pair_key(source_id, target_id)
+    for pair in _coerce_conflict_candidate_pairs(conflict_candidate_pairs):
+        normalized = _normalize_spec_claim_pair(pair, claims_by_uid=claim_index)
+        if normalized is None:
+            continue
+        key = tuple(sorted((normalized["left_claim_uid"], normalized["right_claim_uid"])))
         if key in seen:
-            return
-        if not explicit and max_per_section <= 0:
-            skipped_pairs.append(
-                {
-                    "source_section_id": source_id,
-                    "target_section_id": target_id,
-                    "reason_code": "conflict_pair_max_per_section",
-                    "reason": "conflict_pair_max_per_section is 0; high-risk candidate was not sent to conflict review",
-                }
-            )
-            return
-        if not explicit:
-            if counts.get(source_id, 0) >= max_per_section or counts.get(target_id, 0) >= max_per_section:
-                skipped_pairs.append(
-                    {
-                        "source_section_id": source_id,
-                        "target_section_id": target_id,
-                        "reason_code": "conflict_pair_max_per_section",
-                        "reason": "per-section conflict pair cap reached; high-risk candidate was not sent to conflict review",
-                    }
-                )
-                return
-
-        normalized = deepcopy(pair)
-        normalized["source_section_id"] = source_id
-        normalized["target_section_id"] = target_id
-        normalized.setdefault("relation_hint", "conflicts_with" if explicit else "potential_conflict")
-        normalized.setdefault("channels", [])
-        normalized.setdefault("evidence_terms", [])
+            continue
         selected.append(normalized)
         seen.add(key)
-        if not explicit:
-            counts[source_id] = counts.get(source_id, 0) + 1
-            counts[target_id] = counts.get(target_id, 0) + 1
-
-    if isinstance(related_sections, dict):
-        related_iter = [
-            relation
-            for relations in related_sections.values()
-            for relation in (relations or [])
-            if isinstance(relation, dict)
-        ]
-    elif isinstance(related_sections, list):
-        related_iter = [relation for relation in related_sections if isinstance(relation, dict)]
-    else:
-        related_iter = []
-
-    # relation_hint values that do not indicate incompatible requirements even when
-    # possible_conflict=True. These are filtered before evaluation to avoid wasting
-    # LLM calls on dependency/association relations that the related_sections LLM
-    # may over-flag (e.g. "do not directly interact" + possible_conflict=True).
-    _NON_CONFLICT_HINTS: frozenset[str] = frozenset({"see_also", "related", "background"})
-    filtered_possible_conflicts: list[dict[str, Any]] = []
-
-    for relation in related_iter:
-        # Phase E: Related Sections no longer finalizes conflicts_with. The
-        # LLM typing stage now emits possible_conflict=True as a referral
-        # signal, and the Conflict Review pipeline below re-judges with full
-        # Purpose / Core Concept / Source Specs grounding. The legacy
-        # relation_hint=conflicts_with path is kept for backward compat.
-        hint = relation.get("relation_hint")
-        if hint == "conflicts_with":
-            add_pair(relation, explicit=True)
-        elif bool(relation.get("possible_conflict", False)):
-            if hint in _NON_CONFLICT_HINTS:
-                # Deterministic pre-filter: non-conflict-bearing relation_hint
-                # makes possible_conflict semantically void. Record for diagnostics.
-                filtered_possible_conflicts.append(
-                    {
-                        "source_section_id": str(
-                            relation.get("source_section_id") or relation.get("a") or ""
-                        ),
-                        "target_section_id": str(
-                            relation.get("target_section_id") or relation.get("b") or ""
-                        ),
-                        "relation_hint": hint,
-                        "reason_code": "non_conflict_bearing_relation_hint",
-                        "reason": (
-                            f"relation_hint={hint!r} is not conflict-bearing; "
-                            "possible_conflict=True was ignored"
-                        ),
-                    }
-                )
-            else:
-                add_pair(relation, explicit=True)
-
-    candidate_items = _coerce_candidate_items(candidates) + _coerce_candidate_items(related_section_candidates)
-    for candidate in candidate_items:
-        if isinstance(candidate, dict) and _looks_high_risk(candidate):
-            add_pair(candidate, explicit=False)
-
-    diagnostics_entries: list[dict[str, Any]] = []
-    if filtered_possible_conflicts:
-        diagnostics_entries.append(
-            {
-                "kind": "conflict_pair_selection",
-                "level": "info",
-                "stage": "conflict_review",
-                "reason_code": "filtered_possible_conflicts",
-                "filtered_count": len(filtered_possible_conflicts),
-                "filtered_pairs": filtered_possible_conflicts,
-                "message": (
-                    "possible_conflict pairs with non-conflict-bearing relation_hint "
-                    "(see_also/related/background) were excluded before conflict evaluation."
-                ),
-            }
-        )
-    if skipped_pairs:
-        diagnostics_entries.append(
-            {
-                "kind": "conflict_pair_selection",
-                "level": "info",
-                "stage": "conflict_review",
-                "reason_code": "conflict_pair_max_per_section_skipped",
-                "conflict_pair_max_per_section": max_per_section,
-                "skipped_pair_count": len(skipped_pairs),
-                "skipped_pairs_sample": skipped_pairs[:20],
-                "message": "Some high-risk conflict candidate pairs were not sent to Conflict Review because conflict_pair_max_per_section was reached.",
-            }
-        )
-    if diagnostics_entries:
-        setattr(selected, "selection_diagnostics", diagnostics_entries)
-
     return selected
 
 
@@ -459,9 +412,41 @@ def _call_judge(conflict_judge: Any, request: dict[str, Any], timeout_sec: int =
 
 
 def _conflict_id_for_pair(pair: dict[str, Any]) -> str:
-    source_id = str(pair.get("source_section_id", "")).replace("/", "-").replace("#", "-")
-    target_id = str(pair.get("target_section_id", "")).replace("/", "-").replace("#", "-")
-    return f"conflict-{source_id}--{target_id}".strip("-")
+    candidate_uid = str(pair.get("candidate_uid") or "")
+    if candidate_uid:
+        return "conflict-" + candidate_uid.replace(":", "-").replace("/", "-").replace("#", "-")
+    left_uid = str(pair.get("left_claim_uid", "")).replace(":", "-").replace("/", "-").replace("#", "-")
+    right_uid = str(pair.get("right_claim_uid", "")).replace(":", "-").replace("/", "-").replace("#", "-")
+    return f"conflict-{left_uid}--{right_uid}".strip("-")
+
+
+def _source_refs_for_pair(
+    pair: Mapping[str, Any],
+    sections_by_id: Mapping[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    for claim in pair.get("claims") or []:
+        if not isinstance(claim, Mapping):
+            continue
+        section_id = str(claim.get("source_section_id") or "")
+        if not section_id:
+            continue
+        section = sections_by_id.get(section_id, {"source_section_id": section_id})
+        ref = _source_ref(section, section_id)
+        source_hash = claim.get("source_hash")
+        if source_hash and "source_hash" not in ref:
+            ref["source_hash"] = str(source_hash)
+        refs.append(ref)
+    if refs:
+        return refs
+    return [
+        _source_ref(
+            sections_by_id.get(str(pair.get(key)), {"source_section_id": str(pair.get(key) or "")}),
+            str(pair.get(key) or ""),
+        )
+        for key in ("source_section_id", "target_section_id")
+        if str(pair.get(key) or "")
+    ]
 
 
 def _build_conflict_item(
@@ -471,11 +456,7 @@ def _build_conflict_item(
     *,
     generated_at: str | None = None,
 ) -> ConflictReviewResult:
-    source_id = str(pair.get("source_section_id"))
-    target_id = str(pair.get("target_section_id"))
-    source = sections_by_id.get(source_id, {"source_section_id": source_id})
-    target = sections_by_id.get(target_id, {"source_section_id": target_id})
-    source_refs = [_source_ref(source, source_id), _source_ref(target, target_id)]
+    source_refs = _source_refs_for_pair(pair, sections_by_id)
     now = _timestamp(generated_at)
 
     item = {
@@ -483,14 +464,15 @@ def _build_conflict_item(
         "status": "pending",
         "severity": str(judge_payload.get("severity") or "medium"),
         "source_refs": source_refs,
-        "claims": deepcopy(judge_payload.get("claims") or []),
+        "claims": deepcopy(judge_payload.get("claims") or pair.get("claims") or []),
         "why_conflicting": str(judge_payload.get("why_conflicting") or pair.get("reason") or "Potential source specifications conflict."),
         "why_llm_cannot_decide": str(
             judge_payload.get("why_llm_cannot_decide")
             or judge_payload.get("why_unresolved")
             or "Existing evidence does not establish a safe priority."
         ),
-        "related_sections": [deepcopy(pair)],
+        "related_sections": [],
+        "spec_claim_pair": deepcopy(pair),
         "decision_options": _normalize_decision_options(judge_payload.get("decision_options")),
         "recommended_next_action": str(
             judge_payload.get("recommended_next_action") or "Ask a human to decide this conflict."
@@ -507,13 +489,12 @@ def _build_conflict_item(
 
 
 def evaluate_conflicts(
-    sections: list[dict[str, Any]] | None = None,
-    related_sections: dict[str, list[dict[str, Any]]] | list[dict[str, Any]] | None = None,
+    conflict_candidate_pairs: Any = None,
     conflict_judge: Any = None,
     *,
-    section_metadata: dict[str, Any] | None = None,
-    candidates: Any = None,
-    related_section_candidates: Any = None,
+    sections: list[dict[str, Any]] | None = None,
+    spec_claims: Any = None,
+    claims: Any = None,
     provider: Any = None,
     judge: Any = None,
     config: Any = None,
@@ -522,13 +503,6 @@ def evaluate_conflicts(
 ) -> dict[str, Any]:
     """Judge conflict candidates and return pending review items plus diagnostics."""
 
-    if related_sections is None and section_metadata:
-        related_sections = _metadata_value(section_metadata, "related_sections")
-    candidate_items = (
-        _coerce_candidate_items(candidates)
-        + _coerce_candidate_items(related_section_candidates)
-        + _candidate_items_from_metadata(section_metadata)
-    )
     active_judge = conflict_judge or judge or provider
     _llm_cfg = getattr(config, "llm", None)
     if _llm_cfg is None and isinstance(config, dict):
@@ -538,13 +512,10 @@ def evaluate_conflicts(
     ) or 120)
     sections_by_id = _section_map(sections)
     pairs = select_conflict_judging_pairs(
-        sections=sections,
-        related_sections=related_sections,
-        candidates=candidate_items,
-        config=config,
-        limits=limits,
+        conflict_candidate_pairs=conflict_candidate_pairs,
+        spec_claims=spec_claims,
+        claims=claims,
     )
-    selection_diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
 
     items: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
@@ -552,7 +523,9 @@ def evaluate_conflicts(
 
     def _judge_one(pair: Mapping[str, Any]) -> tuple[Mapping[str, Any], dict[str, Any]]:
         request = {
-            "pair": deepcopy(pair),
+            "spec_claim_pair": deepcopy(pair),
+            "claims": deepcopy(pair.get("claims") or []),
+            "source_refs": _source_refs_for_pair(pair, sections_by_id),
             "section_a": deepcopy(sections_by_id.get(str(pair.get("source_section_id")), {})),
             "section_b": deepcopy(sections_by_id.get(str(pair.get("target_section_id")), {})),
         }
@@ -593,7 +566,7 @@ def evaluate_conflicts(
         diagnostics=diagnostics,
         freshness_report=summary["freshness_report"],
         pending_conflict_count=summary["pending_conflict_count"],
-        selection_diagnostics=selection_diagnostics,
+        selection_diagnostics=[],
         usage_list=call_usages,
     )
 

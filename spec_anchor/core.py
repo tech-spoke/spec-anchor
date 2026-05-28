@@ -40,11 +40,6 @@ from spec_anchor.core_progress import CoreProgressTracker
 from spec_anchor.freshness import build_freshness_report
 
 
-MUST_RE = re.compile(r"\bmust\b(?!\s+not\b)")
-REQUIRE_TERMS = ("requires", "required", "requirement", "必須")
-FORBID_TERMS = ("forbids", "forbidden", "must not", "cannot", "prohibited", "should not", "禁止")
-OPTIONAL_TERMS = ("optional", "任意")
-CONFLICT_CANDIDATE_CHANNELS = {"markdown_link", "shared_identifier", "search_key_match"}
 RETRIEVAL_INDEX_STATE_SCHEMA_VERSION = 1
 RELATED_SECTIONS_STATE_SCHEMA_VERSION = 1
 RELATED_SECTIONS_ARTIFACT_SCHEMA_VERSION = 1
@@ -646,16 +641,17 @@ def _run_spec_core_unlocked(
         )
         emit("core_conflict_decision_done")
 
-    conflict_candidates = _conflict_candidates_from_related_output(
-        related_section_candidates,
-        sections=sections,
-        selected_related_sections=selected_related_sections,
+    conflict_candidate_pairs = conflict_candidates_api.read_conflict_candidate_pairs_jsonl(
+        context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
+    )
+    spec_claim_records = _read_jsonl_records(
+        context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
     )
     emit("core_conflict_evaluation_start")
     conflict_result = evaluate_conflicts(
+        conflict_candidate_pairs=conflict_candidate_pairs,
+        spec_claims=spec_claim_records,
         sections=sections,
-        related_sections=selected_related_sections,
-        related_section_candidates=conflict_candidates,
         conflict_judge=_EvidenceGroundedConflictJudge(
             active_judge,
             purpose_ref=purpose_ref,
@@ -4128,149 +4124,6 @@ def _merge_related_sections_by_source(
         if items and not merged.get(str(source_id)):
             merged[str(source_id)] = _mapping_list(items)
     return merged
-
-
-def _conflict_candidates_from_related_output(
-    candidates: Sequence[Mapping[str, Any]],
-    *,
-    sections: Sequence[Mapping[str, Any]],
-    selected_related_sections: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
-) -> list[dict[str, Any]]:
-    """Build Conflict Review judge inputs.
-
-    Phase E primary route: section pairs where LLM relation typing flagged
-    `possible_conflict: True` in `selected_related_sections`. Legacy route
-    (kept as safety net): pre-LLM candidates with conflict-signaling channels
-    and tension between FORBID / REQUIRE / OPTIONAL terms in section text.
-    """
-
-    sections_by_id = {
-        str(section.get("source_section_id") or section.get("section_id")): section
-        for section in sections
-    }
-    conflict_candidates: list[dict[str, Any]] = []
-    seen: set[tuple[str, str]] = set()
-    candidate_lookup: dict[tuple[str, str], Mapping[str, Any]] = {}
-    for candidate in candidates:
-        sid = str(candidate.get("source_section_id") or "")
-        tid = str(candidate.get("target_section_id") or "")
-        if sid and tid:
-            candidate_lookup.setdefault((sid, tid), candidate)
-
-    if selected_related_sections:
-        for source_id, items in selected_related_sections.items():
-            sid = str(source_id)
-            for entry in items or ():
-                if not isinstance(entry, Mapping):
-                    continue
-                if not bool(entry.get("possible_conflict")):
-                    continue
-                tid = str(entry.get("target_section_id") or "")
-                if not sid or not tid or sid == tid:
-                    continue
-                key = tuple(sorted((sid, tid)))
-                if key in seen:
-                    continue
-                source = sections_by_id.get(sid)
-                target = sections_by_id.get(tid)
-                if source is None or target is None:
-                    continue
-                base = dict(candidate_lookup.get((sid, tid)) or {})
-                base.update(
-                    {
-                        "source_section_id": sid,
-                        "target_section_id": tid,
-                        "relation_hint": "conflicts_with",
-                        "reason": "LLM relation typing flagged possible_conflict=true.",
-                        "evidence_terms": _dedupe_strings(
-                            [
-                                *_list_of_strings(base.get("evidence_terms")),
-                                *_list_of_strings(entry.get("evidence_terms")),
-                            ]
-                        ),
-                        "channels": _list_of_strings(
-                            base.get("channels") or entry.get("channels")
-                        ),
-                        "possible_conflict": True,
-                        "conflict_route": "possible_conflict_flag",
-                    }
-                )
-                conflict_candidates.append(base)
-                seen.add(key)
-
-    for candidate in candidates:
-        source_id = str(candidate.get("source_section_id") or "")
-        target_id = str(candidate.get("target_section_id") or "")
-        if not source_id or not target_id or source_id == target_id:
-            continue
-        key = tuple(sorted((source_id, target_id)))
-        if key in seen:
-            continue
-        source = sections_by_id.get(source_id)
-        target = sections_by_id.get(target_id)
-        if source is None or target is None:
-            continue
-        channels = set(_list_of_strings(candidate.get("channels")))
-        if not (channels & CONFLICT_CANDIDATE_CHANNELS):
-            continue
-        source_signal = _conflict_signal(str(source.get("text", "")))
-        target_signal = _conflict_signal(str(target.get("text", "")))
-        if not _has_conflict_tension(source_signal, target_signal):
-            continue
-        item = dict(candidate)
-        item["source_section_id"] = source_id
-        item["target_section_id"] = target_id
-        item["relation_hint"] = "conflicts_with"
-        item["reason"] = (
-            "Related Sections candidate has conflicting requirement, prohibition, "
-            "or optionality language in the linked Source Specs."
-        )
-        item["evidence_terms"] = _dedupe_strings(
-            [
-                *_list_of_strings(candidate.get("evidence_terms")),
-                *source_signal["terms"],
-                *target_signal["terms"],
-            ]
-        )
-        item["channels"] = _list_of_strings(candidate.get("channels"))
-        item["conflict_route"] = "pattern_signal_legacy"
-        conflict_candidates.append(item)
-        seen.add(key)
-    return conflict_candidates
-
-
-def _conflict_signal(text: str) -> dict[str, Any]:
-    lowered = text.lower()
-    categories: set[str] = set()
-    terms: list[str] = []
-    for term in FORBID_TERMS:
-        if term in lowered:
-            categories.add("forbid")
-            terms.append(term)
-    for term in REQUIRE_TERMS:
-        if term in lowered:
-            categories.add("require")
-            terms.append(term)
-    if MUST_RE.search(lowered):
-        categories.add("require")
-        terms.append("must")
-    for term in OPTIONAL_TERMS:
-        if term in lowered:
-            categories.add("optional")
-            terms.append(term)
-    return {"categories": categories, "terms": _dedupe_strings(terms)}
-
-
-def _has_conflict_tension(source: Mapping[str, Any], target: Mapping[str, Any]) -> bool:
-    source_categories = set(source.get("categories", set()))
-    target_categories = set(target.get("categories", set()))
-    if "require" in source_categories and "forbid" in target_categories:
-        return True
-    if "forbid" in source_categories and "require" in target_categories:
-        return True
-    if "require" in source_categories and "optional" in target_categories:
-        return True
-    return "optional" in source_categories and "require" in target_categories
 
 
 CONFLICT_REVIEW_PROMPT_VERSION = "conflict-review-v1"

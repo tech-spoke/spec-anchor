@@ -505,7 +505,7 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
             "Each section item must include \"source_section_id\" and array field "
             "\"related_sections\". Each related_sections item must include "
             "\"target_section_id\", \"relation_hint\", \"confidence\", "
-            "\"possible_conflict\", and \"evidence_terms\"."
+            "and \"evidence_terms\"."
         )
     elif stage == "conflict_review":
         output_contract = (
@@ -736,14 +736,7 @@ def _conflict_candidate_triage_output_schema() -> dict[str, Any]:
 
 
 def _related_section_selection_output_schema() -> dict[str, Any]:
-    """JSON schema for the related_section_selection batch output (Phase D).
-
-    The output is a dict keyed by ``source_section_id``, where each value is
-    a list of related-section items. ``relation_hint`` no longer accepts
-    ``conflicts_with``: matches that look like conflicts must set
-    ``possible_conflict: true`` so the Conflict Review pipeline (Phase E) can
-    re-judge them with full grounding.
-    """
+    """JSON schema for the related_section_selection batch output (Phase D)."""
 
     related_item_schema = {
         "type": "object",
@@ -761,14 +754,12 @@ def _related_section_selection_output_schema() -> dict[str, Any]:
             },
             "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
             "evidence_terms": {"type": "array", "items": {"type": "string"}},
-            "possible_conflict": {"type": "boolean"},
         },
         "required": [
             "target_section_id",
             "relation_hint",
             "confidence",
             "evidence_terms",
-            "possible_conflict",
         ],
         "additionalProperties": False,
     }

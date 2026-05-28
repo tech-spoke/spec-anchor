@@ -992,7 +992,6 @@ def validate_related_sections_result(
                 ),
             )
             continue
-        possible_conflict = bool(item.get("possible_conflict", False))
         evidence_terms = item.get("evidence_terms")
         if not isinstance(evidence_terms, Sequence) or isinstance(
             evidence_terms,
@@ -1050,7 +1049,6 @@ def validate_related_sections_result(
                 channels,
                 key=lambda channel: CHANNEL_ORDER.get(channel, 999),
             ),
-            "possible_conflict": possible_conflict,
             "generated_at": generated_at,
         }
         valid.append(entry)
@@ -1079,7 +1077,6 @@ def validate_related_sections_result(
             continue
         reason_code = str(diag.get("reason_code") or "unknown")
         drop_reasons[reason_code] = drop_reasons.get(reason_code, 0) + 1
-    possible_conflict_count = sum(1 for entry in valid if entry.get("possible_conflict"))
     diagnostics.append(
         _diagnostic(
             "related_selection_counts",
@@ -1089,7 +1086,6 @@ def validate_related_sections_result(
             valid_candidate_count=valid_count,
             validation_dropped_count=raw_count - valid_count,
             validation_drop_reasons=drop_reasons,
-            possible_conflict_true_count=possible_conflict_count,
         ),
     )
     return RelatedSectionValidation(related_sections=valid, diagnostics=diagnostics)
@@ -1972,12 +1968,9 @@ def _build_selection_request(
             "do_not_search_full_text_outside_candidates": True,
         },
         "instructions": [
-            "Classify each candidate's relation_hint, confidence, and possible_conflict.",
-            "Set possible_conflict=true ONLY when: (1) both sections address the same "
-            "concrete subject (the same resource, lifecycle, action, or policy), AND "
-            "(2) their requirements cannot be simultaneously satisfied. "
-            "Do NOT set possible_conflict=true for dependency (impacts), implementation "
-            "order, see_also, shared vocabulary, or general conceptual relationship.",
+            "Classify each candidate's relation_hint and confidence.",
+            "Do not search beyond the supplied candidates. Use only the provided "
+            "section snippets and catalog entries.",
         ],
         "return_shape": {
             "related_sections": [
@@ -1985,7 +1978,6 @@ def _build_selection_request(
                     "target_section_id": "string",
                     "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                     "confidence": sorted(ALLOWED_CONFIDENCE),
-                    "possible_conflict": "boolean — true only if requirements are mutually incompatible",
                     "evidence_terms": ["string"],
                 },
             ],
@@ -2196,15 +2188,8 @@ def _build_batch_selection_request(
             "Each candidate has been pre-scored by deterministic signals "
             "(markdown_link, shared_identifier, search_key_match, qdrant_section_hybrid).",
             "Your task is to classify each candidate's relation_hint, confidence, "
-            "and possible_conflict. Reject only obviously unrelated candidates.",
+            "and evidence_terms. Reject only obviously unrelated candidates.",
             "Do not search beyond the supplied candidates. Use only catalog entries.",
-            "Set possible_conflict=true ONLY when: (1) both sections address the same "
-            "concrete subject (the same resource, lifecycle, action, or policy), AND "
-            "(2) their requirements cannot be simultaneously satisfied. "
-            "Do NOT set possible_conflict=true for dependency (impacts), implementation "
-            "order, see_also, shared vocabulary, or general conceptual relationship. "
-            "The Conflict Review pipeline will independently verify before any conflict "
-            "is finalized; do not output relation_hint=conflicts_with from this stage.",
         ],
         "boundary": {
             "must_choose_from_candidate_target_section_ids_per_source": True,
@@ -2220,7 +2205,6 @@ def _build_batch_selection_request(
                             "target_section_id": "string",
                             "relation_hint": sorted(ALLOWED_RELATION_HINTS),
                             "confidence": sorted(ALLOWED_CONFIDENCE),
-                            "possible_conflict": "boolean",
                             "evidence_terms": ["string"],
                         },
                     ],
@@ -2730,10 +2714,6 @@ def _limits(value: Any | None) -> LimitsConfig:
         related_selected_max_per_section=max(
             0,
             int(_config_value(value, "related_selected_max_per_section", 8)),
-        ),
-        conflict_pair_max_per_section=max(
-            0,
-            int(_config_value(value, "conflict_pair_max_per_section", 8)),
         ),
         llm_batch_max_sections=max(
             1,

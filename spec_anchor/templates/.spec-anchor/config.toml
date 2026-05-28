@@ -75,7 +75,6 @@ section_summary_max_chars = 480
 search_keys_max = 32
 related_candidate_max_per_section = 32
 related_selected_max_per_section = 8
-conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 llm_batch_concurrency = 4   # 1 = 逐次。Pro 5x / Max 5x なら 4-8 推奨

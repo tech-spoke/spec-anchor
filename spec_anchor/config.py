@@ -95,7 +95,6 @@ class LimitsConfig:
     search_keys_max: int = 32
     related_candidate_max_per_section: int = 32
     related_selected_max_per_section: int = 8
-    conflict_pair_max_per_section: int = 8
     llm_batch_max_sections: int = 8
     llm_batch_max_chars: int = 12000
     llm_batch_concurrency: int = 4
@@ -489,12 +488,6 @@ def _load_limits(raw_value: Any) -> LimitsConfig:
             table,
             "limits",
             "related_selected_max_per_section",
-            8,
-        ),
-        conflict_pair_max_per_section=_int(
-            table,
-            "limits",
-            "conflict_pair_max_per_section",
             8,
         ),
         llm_batch_max_sections=_int(table, "limits", "llm_batch_max_sections", 8),

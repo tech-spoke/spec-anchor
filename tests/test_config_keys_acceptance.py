@@ -111,7 +111,6 @@ _OPTIONAL_CASES: list[tuple[int, tuple[str, ...], Any]] = [
     (1050, ("limits", "search_keys_max"), 32),
     (1051, ("limits", "related_candidate_max_per_section"), 32),
     (1052, ("limits", "related_selected_max_per_section"), 8),
-    (1053, ("limits", "conflict_pair_max_per_section"), 8),
     (1054, ("limits", "llm_batch_max_sections"), 8),
     (1055, ("limits", "llm_batch_max_chars"), 12000),
     (1056, ("limits", "llm_batch_concurrency"), 4),

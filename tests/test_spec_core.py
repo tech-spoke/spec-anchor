@@ -200,7 +200,6 @@ class RelatedSectionsSpecCoreProvider(FakeSpecCoreProvider):
                             "reason": "shared-related-key links these fixture sections.",
                             "evidence_terms": [],
                             "channels": list(candidate.get("channels") or []),
-                            "possible_conflict": False,
                         }
                     )
                 if source_id:
@@ -866,6 +865,20 @@ class EvidenceGroundedConflictProvider(FakeSpecCoreProvider):
     def __init__(self) -> None:
         super().__init__("resolved")
         self.conflict_requests: list[Any] = []
+
+    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+        stage = str(getattr(request, "stage", ""))
+        if stage == "spec_claims":
+            self.calls.append(request)
+            return _shared_target_spec_claim_response_from_request(request)
+        if stage == "conflict_candidate_triage":
+            self.calls.append(request)
+            return {
+                "send_to_review": True,
+                "reason": "Fixture claims share a target and should be reviewed.",
+                "confidence": "medium",
+            }
+        return super().generate(request, timeout_sec=timeout_sec)
 
     def judge_conflict(self, pair: Any, **_: Any) -> dict[str, Any]:
         self.conflict_requests.append(pair)
@@ -1784,7 +1797,7 @@ def test_t_i04_conflicts_with_unresolved_blocks_freshness(
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
 
     result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
     )
 
     assert result["conflict_review_items"]
@@ -1802,7 +1815,7 @@ def test_t_i04_resolved_conflicts_with_becomes_potential_conflict_warning(
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
 
     result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("resolved"))
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("resolved"))
     )
 
     assert result["pending_conflict_count"] == 0
@@ -1818,7 +1831,7 @@ def test_t_i14_decision_payload_resolves_pending_item_through_spec_core_api(
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
     )
     pending_count_before = pending["pending_conflict_count"]
     conflict_id = pending["conflict_review_items"][0]["conflict_id"]
@@ -1826,7 +1839,7 @@ def test_t_i14_decision_payload_resolves_pending_item_through_spec_core_api(
     result = _result_dict(
         _run_spec_core(
             project_root,
-            provider=FakeSpecCoreProvider("resolved"),
+            provider=ConflictCandidateTriageProvider("resolved"),
             decision_payload={
                 "conflict_id": conflict_id,
                 "decision": "prefer_a",
@@ -2255,12 +2268,12 @@ def test_g11_resolved_conflict_becomes_stale_when_purpose_or_concept_changes(
         paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X")
     )
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
     )
     conflict_id = pending["conflict_review_items"][0]["conflict_id"]
     _run_spec_core(
         project_root,
-        provider=FakeSpecCoreProvider("resolved"),
+        provider=ConflictCandidateTriageProvider("resolved"),
         decision_payload={
             "conflict_id": conflict_id,
             "decision": "prefer_a",
@@ -2278,7 +2291,7 @@ def test_g11_resolved_conflict_becomes_stale_when_purpose_or_concept_changes(
         "# Core Concept\nHuman decisions must be rechecked after principle changes.\n"
     )
     result = _result_dict(
-        _run_spec_core(project_root, provider=FakeSpecCoreProvider("resolved"))
+        _run_spec_core(project_root, provider=ConflictCandidateTriageProvider("resolved"))
     )
 
     assert result["stale_resolution_count"] >= 1

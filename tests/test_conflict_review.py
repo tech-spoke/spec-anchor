@@ -127,7 +127,6 @@ def _call(func: Any, **kwargs: Any) -> Any:
 
 def _config(
     *,
-    conflict_pair_max_per_section: int = 8,
     llm_batch_concurrency: int = 4,
 ) -> SimpleNamespace:
     return SimpleNamespace(
@@ -137,7 +136,6 @@ def _config(
             search_keys_max=32,
             related_candidate_max_per_section=32,
             related_selected_max_per_section=8,
-            conflict_pair_max_per_section=conflict_pair_max_per_section,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
             llm_batch_concurrency=llm_batch_concurrency,
@@ -192,34 +190,98 @@ def _sections() -> list[dict[str, Any]]:
     ]
 
 
-def _conflicts_with_related() -> dict[str, list[dict[str, Any]]]:
-    return {
-        "docs/spec/conflict.md#alpha": [
-            {
-                "source_section_id": "docs/spec/conflict.md#alpha",
-                "target_section_id": "docs/spec/conflict.md#beta",
-                "relation_hint": "conflicts_with",
-                "confidence": "high",
-                "reason": "Both define FEATURE_X in incompatible language.",
-                "evidence_terms": ["FEATURE_X", "required", "forbidden"],
-                "channels": ["shared_identifier"],
-            }
-        ]
-    }
-
-
-def _high_risk_candidate(
-    source_section_id: str = "docs/spec/conflict.md#gamma",
-    target_section_id: str = "docs/spec/conflict.md#delta",
+def _claim(
+    suffix: str,
+    *,
+    source_section_id: str,
+    claim_text: str,
+    target: str = "FEATURE_X",
 ) -> dict[str, Any]:
     return {
+        "claim_uid": f"claim:sha256:{suffix}",
+        "display_id": f"{source_section_id}:C{suffix}",
+        "claim_hash": f"claim-hash-{suffix}",
+        "retrieval_hash": f"retrieval-hash-{suffix}",
         "source_section_id": source_section_id,
-        "target_section_id": target_section_id,
-        "channels": ["shared_identifier"],
-        "evidence_terms": ["FEATURE_X", "required", "forbidden"],
-        "candidate_score": 90,
-        "reason": "Shared identifier uses required and forbidden language.",
+        "source_document_id": "docs/spec/conflict.md",
+        "source_hash": f"hash-{source_section_id}",
+        "claim_text": claim_text,
+        "target": target,
+        "target_aliases": [target],
+        "claim_kind": "requirement",
+        "scope": "normal operation",
+        "condition": "",
+        "value": claim_text,
+        "confidence": "high",
+        "evidence_span": claim_text,
+        "evidence_start": 0,
+        "evidence_end": len(claim_text),
+        "evidence_hash": f"evidence-hash-{suffix}",
     }
+
+
+def _candidate_pair(
+    left: dict[str, Any],
+    right: dict[str, Any],
+    *,
+    send_to_review: bool = True,
+) -> dict[str, Any]:
+    left_uid, right_uid = sorted([left["claim_uid"], right["claim_uid"]])
+    claims = {left["claim_uid"]: left, right["claim_uid"]: right}
+    left_claim = claims[left_uid]
+    right_claim = claims[right_uid]
+    return {
+        "candidate_uid": f"candidate:sha256:{left_uid.rsplit(':', 1)[-1]}-{right_uid.rsplit(':', 1)[-1]}",
+        "display_id": "CC-00001",
+        "left_claim_uid": left_uid,
+        "right_claim_uid": right_uid,
+        "left_claim_hash": left_claim["claim_hash"],
+        "right_claim_hash": right_claim["claim_hash"],
+        "left_retrieval_hash": left_claim["retrieval_hash"],
+        "right_retrieval_hash": right_claim["retrieval_hash"],
+        "left_section_uid": left_claim["source_section_id"],
+        "right_section_uid": right_claim["source_section_id"],
+        "shared_target": left_claim["target"],
+        "retrieval_sources": ["dense_claim_retrieval"],
+        "signals": ["semantic_same_target"],
+        "triage": {
+            "send_to_review": send_to_review,
+            "reason": "Claims share a target and require Conflict Review evaluation.",
+            "confidence": "medium",
+        },
+        "evidence": [
+            {
+                "claim_uid": left_claim["claim_uid"],
+                "section_uid": left_claim["source_section_id"],
+                "evidence_span": left_claim["evidence_span"],
+                "evidence_start": left_claim["evidence_start"],
+                "evidence_end": left_claim["evidence_end"],
+                "evidence_hash": left_claim["evidence_hash"],
+            },
+            {
+                "claim_uid": right_claim["claim_uid"],
+                "section_uid": right_claim["source_section_id"],
+                "evidence_span": right_claim["evidence_span"],
+                "evidence_start": right_claim["evidence_start"],
+                "evidence_end": right_claim["evidence_end"],
+                "evidence_hash": right_claim["evidence_hash"],
+            },
+        ],
+    }
+
+
+def _spec_claim_fixture() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    left = _claim(
+        "alpha",
+        source_section_id="docs/spec/conflict.md#alpha",
+        claim_text="FEATURE_X is required for all requests.",
+    )
+    right = _claim(
+        "beta",
+        source_section_id="docs/spec/conflict.md#beta",
+        claim_text="FEATURE_X is forbidden for guest requests.",
+    )
+    return [left, right], [_candidate_pair(left, right)]
 
 
 def _items(payload: Any) -> list[dict[str, Any]]:
@@ -351,7 +413,7 @@ def _assert_rejected(func: Any, **kwargs: Any) -> None:
     pytest.fail("invalid conflict decision must be rejected")
 
 
-def test_t_i04_unresolved_conflicts_with_creates_pending_item() -> None:
+def test_t_i04_unresolved_spec_claim_pair_creates_pending_item() -> None:
     """`/spec-core` generates Conflict Review Items as `conflict_review_items.json`.
     """
 
@@ -366,13 +428,14 @@ def test_t_i04_unresolved_conflicts_with_creates_pending_item() -> None:
         ),
     )
     judge = FakeConflictJudge("unresolved")
+    claims, pairs = _spec_claim_fixture()
 
     result = _call(
         evaluate,
-        _positional=(_sections(), _conflicts_with_related(), judge),
+        _positional=(pairs, judge),
+        conflict_candidate_pairs=pairs,
+        spec_claims=claims,
         sections=_sections(),
-        section_metadata={"related_sections": _conflicts_with_related()},
-        related_sections=_conflicts_with_related(),
         provider=judge,
         judge=judge,
         conflict_judge=judge,
@@ -381,14 +444,14 @@ def test_t_i04_unresolved_conflicts_with_creates_pending_item() -> None:
     )
     items = _items(result)
 
-    assert judge.calls, "conflicts_with pair must be sent to the injected fake judge"
+    assert judge.calls, "triaged SpecClaim pair must be sent to the injected fake judge"
     assert len(items) == 1
     assert items[0]["status"] == "pending"
     assert items[0]["source_refs"]
     assert items[0]["why_llm_cannot_decide"]
 
 
-def test_t_i04_resolvable_conflict_is_warning_not_pending() -> None:
+def test_t_i04_resolvable_spec_claim_pair_is_warning_not_pending() -> None:
     module = _module()
     evaluate = _required_function(
         module,
@@ -400,13 +463,14 @@ def test_t_i04_resolvable_conflict_is_warning_not_pending() -> None:
         ),
     )
     judge = FakeConflictJudge("resolved")
+    claims, pairs = _spec_claim_fixture()
 
     result = _call(
         evaluate,
-        _positional=(_sections(), _conflicts_with_related(), judge),
+        _positional=(pairs, judge),
+        conflict_candidate_pairs=pairs,
+        spec_claims=claims,
         sections=_sections(),
-        section_metadata={"related_sections": _conflicts_with_related()},
-        related_sections=_conflicts_with_related(),
         provider=judge,
         judge=judge,
         conflict_judge=judge,
@@ -414,7 +478,7 @@ def test_t_i04_resolvable_conflict_is_warning_not_pending() -> None:
         generated_at="2026-05-06T00:00:00Z",
     )
 
-    assert judge.calls, "conflicts_with pair must still be judged"
+    assert judge.calls, "triaged SpecClaim pair must still be judged"
     assert _items(result) == []
     diagnostics = _diagnostics(result)
     assert diagnostics
@@ -710,7 +774,7 @@ def test_t_u16_stale_resolution_and_scope_control_evidence_use() -> None:
     assert "task-scope-conflict" not in evidence_ids
 
 
-def test_t_u20_conflict_pair_selection_uses_conflicts_with_and_bounded_high_risk_pairs() -> None:
+def test_t_u20_conflict_pair_selection_uses_triaged_spec_claim_pairs() -> None:
     module = _module()
     select_pairs = _required_function(
         module,
@@ -720,73 +784,31 @@ def test_t_u20_conflict_pair_selection_uses_conflicts_with_and_bounded_high_risk
             "candidate_conflict_pairs",
         ),
     )
-    sections = [
-        _section("docs/spec/conflict.md#alpha", text="FEATURE_X must be enabled.", identifiers=["FEATURE_X"], ordinal=1),
-        _section("docs/spec/conflict.md#beta", text="FEATURE_X must not be enabled.", identifiers=["FEATURE_X"], ordinal=2),
-        _section("docs/spec/conflict.md#gamma", text="PAYMENT_STATUS is required.", identifiers=["PAYMENT_STATUS"], ordinal=3),
-        _section("docs/spec/conflict.md#delta", text="PAYMENT_STATUS is optional.", identifiers=["PAYMENT_STATUS"], ordinal=4),
-        _section("docs/spec/conflict.md#epsilon", text="Unrelated prose.", identifiers=["EPSILON"], ordinal=5),
-    ]
-    related_sections = {
-        "docs/spec/conflict.md#alpha": [
-            {
-                "source_section_id": "docs/spec/conflict.md#alpha",
-                "target_section_id": "docs/spec/conflict.md#beta",
-                "relation_hint": "conflicts_with",
-                "confidence": "high",
-                "reason": "Explicit conflict hint.",
-                "evidence_terms": ["FEATURE_X"],
-                "channels": ["shared_identifier"],
-            }
-        ]
-    }
-    candidates = [
-        {
-            "source_section_id": "docs/spec/conflict.md#gamma",
-            "target_section_id": "docs/spec/conflict.md#delta",
-            "channels": ["shared_identifier"],
-            "evidence_terms": ["PAYMENT_STATUS", "required", "optional"],
-            "candidate_score": 90,
-        },
-        {
-            "source_section_id": "docs/spec/conflict.md#alpha",
-            "target_section_id": "docs/spec/conflict.md#epsilon",
-            "channels": ["same_chapter"],
-            "evidence_terms": ["unrelated"],
-            "candidate_score": 1,
-        },
-    ]
+    claims, pairs = _spec_claim_fixture()
+    skipped_pair = _candidate_pair(claims[0], claims[1], send_to_review=False)
+    duplicate_pair = dict(pairs[0])
 
     result = _call(
         select_pairs,
-        _positional=(sections, related_sections, candidates),
-        sections=sections,
-        related_sections=related_sections,
-        candidates=candidates,
-        related_section_candidates=candidates,
-        config=_config(conflict_pair_max_per_section=1),
-        limits=_config(conflict_pair_max_per_section=1).limits,
+        _positional=([pairs[0], skipped_pair, duplicate_pair],),
+        conflict_candidate_pairs=[pairs[0], skipped_pair, duplicate_pair],
+        spec_claims=claims,
     )
     pairs = result.get("pairs", result.get("conflict_pairs", result)) if isinstance(result, dict) else result
     assert isinstance(pairs, list), "conflict pair selection must return list-like pairs"
 
-    pair_ids = {
-        frozenset(
-            (
-                pair.get("source_section_id", pair.get("section_a_id", pair.get("a"))),
-                pair.get("target_section_id", pair.get("section_b_id", pair.get("b"))),
-            )
-        )
-        for pair in pairs
-    }
-    assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"}) in pair_ids
-    assert frozenset({"docs/spec/conflict.md#gamma", "docs/spec/conflict.md#delta"}) in pair_ids
-    assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#epsilon"}) not in pair_ids
-    assert len(pairs) < (len(sections) * (len(sections) - 1) // 2)
+    assert len(pairs) == 1
+    assert pairs[0]["left_claim_uid"] == claims[0]["claim_uid"]
+    assert pairs[0]["right_claim_uid"] == claims[1]["claim_uid"]
+    assert pairs[0]["source_section_id"] == "docs/spec/conflict.md#alpha"
+    assert pairs[0]["target_section_id"] == "docs/spec/conflict.md#beta"
+    assert [claim["claim_uid"] for claim in pairs[0]["claims"]] == [
+        claims[0]["claim_uid"],
+        claims[1]["claim_uid"],
+    ]
 
 
-@pytest.mark.parametrize("candidate_kw", ("candidates", "related_section_candidates"))
-def test_t_u20_evaluate_conflicts_accepts_high_risk_candidate_arguments(candidate_kw: str) -> None:
+def test_conflict_review_accepts_only_spec_claim_pair_input() -> None:
     module = _module()
     evaluate = _required_function(
         module,
@@ -798,71 +820,36 @@ def test_t_u20_evaluate_conflicts_accepts_high_risk_candidate_arguments(candidat
         ),
     )
     judge = FakeConflictJudge("unresolved")
-    sections = _sections() + [
-        _section(
-            "docs/spec/conflict.md#delta",
-            text="Delta: FEATURE_X is forbidden for background jobs.",
-            identifiers=["FEATURE_X"],
-            ordinal=4,
-        )
-    ]
-    candidate = _high_risk_candidate()
+    claims, pairs = _spec_claim_fixture()
+    retired_flag = "possible" + "_conflict"
+    previous_shape = {
+        "docs/spec/conflict.md#alpha": [
+            {
+                "source_section_id": "docs/spec/conflict.md#alpha",
+                "target_section_id": "docs/spec/conflict.md#beta",
+                "relation_hint": "depends_on",
+                retired_flag: True,
+            }
+        ]
+    }
+
+    with pytest.raises(TypeError):
+        evaluate(related_sections=previous_shape, conflict_judge=judge)
 
     result = _call(
         evaluate,
-        sections=sections,
-        related_sections={},
-        section_metadata={"related_sections": {}},
+        conflict_candidate_pairs=pairs,
+        spec_claims=claims,
+        sections=_sections(),
         conflict_judge=judge,
         config=_config(),
         generated_at="2026-05-06T00:00:00Z",
-        **{candidate_kw: [candidate]},
     )
     items = _items(result)
 
-    assert judge.calls, "high-risk candidates passed to evaluate_conflicts must be judged"
+    assert judge.calls, "triaged SpecClaim pair input must be judged"
     assert len(items) == 1
-    assert {
-        ref["source_section_id"]
-        for ref in items[0]["source_refs"]
-    } == {"docs/spec/conflict.md#gamma", "docs/spec/conflict.md#delta"}
-
-
-def test_t_u20_evaluate_conflicts_extracts_related_section_candidates_from_metadata() -> None:
-    module = _module()
-    evaluate = _required_function(
-        module,
-        (
-            "evaluate_conflicts",
-            "evaluate_conflict_review_items",
-            "run_conflict_review",
-            "generate_conflict_review_items",
-        ),
-    )
-    judge = FakeConflictJudge("unresolved")
-    sections = _sections() + [
-        _section(
-            "docs/spec/conflict.md#delta",
-            text="Delta: FEATURE_X is forbidden for background jobs.",
-            identifiers=["FEATURE_X"],
-            ordinal=4,
-        )
-    ]
-
-    result = _call(
-        evaluate,
-        sections=sections,
-        section_metadata={
-            "related_sections": {},
-            "related_section_candidates": [_high_risk_candidate()],
-        },
-        conflict_judge=judge,
-        config=_config(),
-        generated_at="2026-05-06T00:00:00Z",
-    )
-
-    assert judge.calls, "section_metadata related_section_candidates must be judged"
-    assert len(_items(result)) == 1
+    assert items[0]["spec_claim_pair"]["triage"]["send_to_review"] is True
 
 
 def test_conflict_review_concurrency_uses_config_limits() -> None:
@@ -892,27 +879,28 @@ def test_conflict_review_concurrency_uses_config_limits() -> None:
                 active -= 1
             return {"outcome": "not_a_conflict", "severity": "low"}
 
-    sections = [
-        _section(
-            f"docs/spec/conflict.md#s{index}",
-            text="FEATURE_X is required.",
-            ordinal=index + 1,
+    claims = [
+        _claim(
+            f"s{index}",
+            source_section_id=f"docs/spec/conflict.md#s{index}",
+            claim_text=f"FEATURE_X rule {index}.",
         )
         for index in range(5)
     ]
-    related_sections = [
-        {
-            "source_section_id": "docs/spec/conflict.md#s0",
-            "target_section_id": f"docs/spec/conflict.md#s{index}",
-            "relation_hint": "conflicts_with",
-        }
-        for index in range(1, 5)
-    ]
+    pairs = [_candidate_pair(claims[0], claims[index]) for index in range(1, 5)]
 
     _call(
         evaluate,
-        sections=sections,
-        related_sections=related_sections,
+        conflict_candidate_pairs=pairs,
+        spec_claims=claims,
+        sections=[
+            _section(
+                f"docs/spec/conflict.md#s{index}",
+                text=f"FEATURE_X rule {index}.",
+                ordinal=index + 1,
+            )
+            for index in range(5)
+        ],
         conflict_judge=TrackingJudge(),
         config=_config(llm_batch_concurrency=1),
     )
@@ -928,130 +916,9 @@ def test_conflict_review_concurrency_uses_mapping_config_limits() -> None:
     assert get_concurrency(limits={"llm_batch_concurrency": 3}) == 3
 
 
-def test_t_u20_conflict_pair_zero_limit_keeps_explicit_and_skips_high_risk_candidates() -> None:
-    module = _module()
-    select_pairs = _required_function(
-        module,
-        (
-            "select_conflict_judging_pairs",
-            "build_conflict_judging_pairs",
-            "candidate_conflict_pairs",
-        ),
-    )
+def test_core_does_not_route_related_sections_to_conflict_review() -> None:
+    core = importlib.import_module("spec_anchor.core")
+    source = inspect.getsource(core._run_spec_core_unlocked)
 
-    result = _call(
-        select_pairs,
-        sections=_sections(),
-        related_sections=_conflicts_with_related(),
-        candidates=[_high_risk_candidate()],
-        config=_config(conflict_pair_max_per_section=0),
-    )
-    pairs = result.get("pairs", result.get("conflict_pairs", result)) if isinstance(result, dict) else result
-    pair_ids = {
-        frozenset((pair["source_section_id"], pair["target_section_id"]))
-        for pair in pairs
-    }
-
-    assert pair_ids == {
-        frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"})
-    }
-
-
-def test_t_u20_conflict_pair_limit_counts_only_high_risk_candidate_additions() -> None:
-    module = _module()
-    select_pairs = _required_function(
-        module,
-        (
-            "select_conflict_judging_pairs",
-            "build_conflict_judging_pairs",
-            "candidate_conflict_pairs",
-        ),
-    )
-    candidates = [
-        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#gamma"),
-        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#delta"),
-    ]
-
-    result = _call(
-        select_pairs,
-        sections=_sections(),
-        related_sections=_conflicts_with_related(),
-        candidates=candidates,
-        config=_config(conflict_pair_max_per_section=1),
-    )
-    pairs = result.get("pairs", result.get("conflict_pairs", result)) if isinstance(result, dict) else result
-    pair_ids = {
-        frozenset((pair["source_section_id"], pair["target_section_id"]))
-        for pair in pairs
-    }
-
-    assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"}) in pair_ids
-    assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#gamma"}) in pair_ids
-    assert frozenset({"docs/spec/conflict.md#alpha", "docs/spec/conflict.md#delta"}) not in pair_ids
-    diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
-    assert diagnostics
-    assert diagnostics[0]["reason_code"] == "conflict_pair_max_per_section_skipped"
-
-
-def test_t_u20_conflict_pair_limit_reads_mapping_config() -> None:
-    module = _module()
-    select_pairs = _required_function(
-        module,
-        (
-            "select_conflict_judging_pairs",
-            "build_conflict_judging_pairs",
-            "candidate_conflict_pairs",
-        ),
-    )
-    candidates = [
-        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#gamma"),
-        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#delta"),
-        _high_risk_candidate("docs/spec/conflict.md#alpha", "docs/spec/conflict.md#epsilon"),
-    ]
-
-    result = _call(
-        select_pairs,
-        sections=_sections(),
-        related_sections={},
-        candidates=candidates,
-        config={"limits": {"conflict_pair_max_per_section": 1}},
-    )
-    pairs = result.get("pairs", result.get("conflict_pairs", result)) if isinstance(result, dict) else result
-    assert len(pairs) == 1
-    assert pairs[0]["target_section_id"] == "docs/spec/conflict.md#gamma"
-    diagnostics = list(getattr(pairs, "selection_diagnostics", []) or [])
-    assert diagnostics[0]["conflict_pair_max_per_section"] == 1
-    assert diagnostics[0]["skipped_pair_count"] == 2
-
-
-def test_phase_e_possible_conflict_flag_routes_to_conflict_review() -> None:
-    """Phase E: related_sections with possible_conflict=True must be picked up
-    as an explicit pair by select_conflict_judging_pairs, even though
-    relation_hint != "conflicts_with".
-    """
-    import importlib
-
-    module = importlib.import_module("spec_anchor.conflict_review")
-    select = module.select_conflict_judging_pairs
-    related_sections = {
-        "spec.md#alpha": [
-            {
-                "source_section_id": "spec.md#alpha",
-                "target_section_id": "spec.md#beta",
-                "relation_hint": "depends_on",
-                "confidence": "high",
-                "reason": "Alpha depends on beta auth policy.",
-                "evidence_terms": ["AUTH_TOKEN"],
-                "channels": ["shared_identifier"],
-                "possible_conflict": True,
-            }
-        ]
-    }
-
-    pairs = select(related_sections=related_sections)
-    assert len(pairs) == 1
-    assert pairs[0]["source_section_id"] == "spec.md#alpha"
-    assert pairs[0]["target_section_id"] == "spec.md#beta"
-    # Either the original relation_hint preserved or normalized to conflicts_with
-    # — the key thing is the pair routed to the judge.
-    assert pairs[0].get("relation_hint") in {"depends_on", "conflicts_with"}
+    assert "related_sections=selected_related_sections" not in source
+    assert "conflict_candidate_pairs=" in source

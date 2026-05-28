@@ -106,7 +106,6 @@ def _config(
             search_keys_max=search_keys_max,
             related_candidate_max_per_section=32,
             related_selected_max_per_section=8,
-            conflict_pair_max_per_section=8,
             llm_batch_max_sections=batch_max_sections,
             llm_batch_max_chars=batch_max_chars,
         ),

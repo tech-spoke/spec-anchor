@@ -29,7 +29,6 @@ from spec_anchor.llm_provider import LlmRequest
 ALLOWED_RELATION_HINTS = {
     "depends_on",
     "impacts",
-    "conflicts_with",
     "same_policy",
     "prerequisite",
     "see_also",
@@ -197,7 +196,6 @@ def _config(*, candidate_max: int = 32, selected_max: int = 8) -> SimpleNamespac
             search_keys_max=32,
             related_candidate_max_per_section=candidate_max,
             related_selected_max_per_section=selected_max,
-            conflict_pair_max_per_section=8,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
         ),
@@ -418,6 +416,125 @@ def test_t_u10_related_sections_validation_filters_invalid_items_and_applies_lim
     assert item["confidence"] in ALLOWED_CONFIDENCE
     assert "evidence" not in item
     assert "evidence_origin" not in item
+
+
+def test_related_sections_output_has_no_retired_conflict_flag_field() -> None:
+    module = _related_module()
+    validate = _required_function(
+        module,
+        (
+            "validate_related_sections",
+            "validate_related_section_selection",
+            "filter_valid_related_sections",
+        ),
+    )
+    sections = _fixture_sections()
+    candidates = [
+        {
+            "source_section_id": "docs/spec/main.md#alpha",
+            "target_section_id": "docs/spec/main.md#beta",
+            "channels": ["shared_identifier"],
+            "candidate_score": 10,
+            "evidence_terms": ["AUTH_TOKEN"],
+            "evidence_snippets": ["Alpha and Beta mention AUTH_TOKEN."],
+            "source": "candidate_generation",
+            "generated_at": "2026-05-06T00:00:00Z",
+        }
+    ]
+    flag_name = "possible" + "_conflict"
+    llm_output = {
+        "related_sections": [
+            {
+                "target_section_id": "docs/spec/main.md#beta",
+                "relation_hint": "depends_on",
+                "confidence": "high",
+                "reason": "Alpha depends on Beta's auth policy.",
+                "evidence_terms": ["AUTH_TOKEN"],
+                "channels": ["shared_identifier"],
+                flag_name: True,
+            }
+        ],
+    }
+
+    payload = _call(
+        validate,
+        source_section_id="docs/spec/main.md#alpha",
+        items=llm_output,
+        llm_output=llm_output,
+        output=llm_output,
+        candidates=candidates,
+        related_section_candidates=candidates,
+        sections=sections,
+        section_by_id={section["section_id"]: section for section in sections},
+        config=_config(),
+        limits=_config().limits,
+        generated_at="2026-05-06T00:00:00Z",
+    )
+    selected = _related_sections(payload, "docs/spec/main.md#alpha")
+
+    assert selected
+    assert flag_name not in selected[0]
+
+
+def test_related_sections_prompt_does_not_request_conflict_judgment() -> None:
+    module = _related_module()
+    select = _required_function(
+        module,
+        (
+            "select_related_sections",
+            "select_related_sections_for_section",
+            "generate_related_sections",
+        ),
+    )
+    sections = _fixture_sections()
+    candidates = [
+        {
+            "source_section_id": "docs/spec/main.md#alpha",
+            "target_section_id": "docs/spec/main.md#beta",
+            "heading_path": ["Chapter One", "Beta"],
+            "summary": "Beta defines the freshness gate for auth token.",
+            "search_keys": ["freshness gate"],
+            "channels": ["shared_identifier"],
+            "candidate_score": 10,
+            "evidence_terms": ["AUTH_TOKEN"],
+            "evidence_snippets": ["Alpha and Beta mention AUTH_TOKEN."],
+            "source": "candidate_generation",
+            "generated_at": "2026-05-06T00:00:00Z",
+        }
+    ]
+    provider = RelatedSelectionProvider(
+        {
+            "related_sections": [
+                {
+                    "target_section_id": "docs/spec/main.md#beta",
+                    "relation_hint": "depends_on",
+                    "confidence": "high",
+                    "reason": "Alpha depends on the target auth policy.",
+                    "evidence_terms": ["AUTH_TOKEN"],
+                    "channels": ["shared_identifier"],
+                }
+            ]
+        }
+    )
+
+    _call(
+        select,
+        source_section_id="docs/spec/main.md#alpha",
+        source_section=sections[0],
+        candidates=candidates,
+        related_section_candidates=candidates,
+        sections=sections,
+        section_by_id={section["section_id"]: section for section in sections},
+        provider=provider,
+        llm_provider=provider,
+        config=_config(),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+    prompt = provider.calls[0].prompt.lower()
+
+    assert "conflict" not in prompt
+    assert ("possible" + "_conflict") not in prompt
+    assert "cannot be simultaneously satisfied" not in prompt
 
 
 def test_t_i06_fake_llm_selection_uses_only_candidates_and_builds_related_sections() -> None:
@@ -932,7 +1049,6 @@ def test_llm_batch_concurrency_runs_batches_in_parallel() -> None:
             search_keys_max=32,
             related_candidate_max_per_section=32,
             related_selected_max_per_section=8,
-            conflict_pair_max_per_section=8,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
             llm_batch_concurrency=4,
@@ -987,7 +1103,6 @@ def test_llm_batch_concurrency_default_is_parallel() -> None:
             search_keys_max=32,
             related_candidate_max_per_section=32,
             related_selected_max_per_section=8,
-            conflict_pair_max_per_section=8,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
             # No llm_batch_concurrency override: getattr default = 4
@@ -1092,7 +1207,6 @@ def test_pair_level_typing_cache_skips_unchanged_pairs(tmp_path: Path) -> None:
                                 "reason": "A depends on B for TOKEN policy.",
                                 "evidence_terms": ["TOKEN"],
                                 "channels": ["shared_identifier"],
-                                "possible_conflict": False,
                             }
                         ],
                     }
@@ -1106,7 +1220,6 @@ def test_pair_level_typing_cache_skips_unchanged_pairs(tmp_path: Path) -> None:
             search_keys_max=32,
             related_candidate_max_per_section=32,
             related_selected_max_per_section=8,
-            conflict_pair_max_per_section=8,
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
         ),
