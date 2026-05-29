@@ -14,19 +14,140 @@ project root で `spec-anchor core` を実行する。`--all` または `-a` は
 
 `/spec-core` は SPEC-anchor の保持 artifact を生成または更新する: Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor、Source Retrieval Index、Conflict Review Items。
 
-実行後は、後続作業に必要な CoreResult field を確認して報告する: `updated_sources`, `failed_sources`, `failed_sections`, `retrieval_index_status`, `freshness_report`, `pending_conflict_count`, `conflict_review_items`, `unreflected_conflict_resolutions`, `stale_resolution_count`。
+実行後は、CLI が返す CoreResult JSON を読み、後述「正常完了時のユーザー向け出力フォーマット」に従って整形して報告する。CoreResult の内部 field 名 (`updated_sources` / `failed_sources` / `retrieval_index_status` / `pending_conflict_count` / `stale_resolution_count` / `freshness_report` 等) はそのまま本文に貼らない。
 
-pending Conflict Review Items が残る場合、`conflict_id`, `severity`, `source_refs`, `claims`, `why_conflicting`, `why_llm_cannot_decide`, `decision_options`, `recommended_next_action` を人間判断用に提示する。pending conflict を Agent が決めない。
+pending Conflict Review Items が残る場合、件数だけでなく後述「pending conflict の本文展開フォーマット」で各衝突を本文展開する。pending conflict を Agent が決めない。
 
 Purpose と Core Concept は人間が維持する read-only input である。この command から `/spec-inject` や `/spec-realign` を自動実行しない。CLI result と、人間判断が必要な pending Conflict Review Items を返す。
 
-## エラー時の復旧手順を明示する規約
+## 正常完了時のユーザー向け出力フォーマット
 
-CLI が失敗を返した場合、ユーザー向けの復旧手順は具体的な command 名で提示する。略称や類似 command を提案しない。
+CLI が正常完了 (`status` が `fresh`) を返したとき、CoreResult JSON の内部 field 名 (`updated_sources` / `failed_sources` / `retrieval_index_status` / `pending_conflict_count` / `stale_resolution_count` / `unreflected_conflict_resolutions` 等) や enum 値 (`status="dismissed"` 等) をそのまま貼らず、次の固定フォーマットへ整形する。英語混じり日本語 (「freshness は通った」「stale な resolution」等) を使わない。
 
-- `.spec-anchor/config.toml not found under {root}` のとき → `spec-anchor-setup-project --target <project_root>` を提案する (例: `spec-anchor-setup-project --target /path/to/project`)。`spec-anchor init` のような存在しない command を提案しない。
-- `core.purpose_file not found: ...` / `core.concept_file not found: ...` のとき → 該当ファイル (`docs/core/purpose.md` 等) を人間が作成して再実行することを提案する。Agent は Purpose / Core Concept を書かない。
-- `sources.include did not match any Source Specs` のとき → `.spec-anchor/config.toml` の `[sources].include` glob を修正するか、Source Specs を該当 path に配置することを提案する。
-- `Chapter Anchors LLM generation failed for {N} chapter(s); ...` のとき → `spec-anchor core --all` (または `/spec-core --all`) で再試行を提案する。
-- `Related Sections retrieval backend failure: ...` のとき → Qdrant service の起動状態を確認し、`spec-anchor core --rebuild` (または `/spec-core --rebuild`) で再構築を提案する。
-- `Source Retrieval Index update failed` / `Source Retrieval Index verification detected inconsistency; run /spec-core --rebuild` のとき → `spec-anchor core --rebuild` (または `/spec-core --rebuild`) を提案する。
+```text
+■ 保持物の更新が完了しました
+
+  更新があった仕様:
+    - <変更があった仕様ファイルのパスと section の見出し>
+    (変更が無かった場合は「変更ありませんでした」とだけ書く)
+
+  人間判断が必要な仕様の衝突:
+    なし
+    (1 件以上ある場合は「pending conflict の本文展開フォーマット」で各衝突を展開する)
+
+  再確認の候補 (過去の衝突解消判断が、現在の仕様変更で見直し余地あり): <件数> 件
+    1. <衝突 ID と簡潔な見出し>
+       過去の判断: <採用 / 却下 / 修正 のいずれかへ翻訳>
+       なぜ再確認が必要か: 関係する仕様が変更されたため
+       (衝突 ID: <値>)
+    (0 件のときはこのセクション自体を省略する)
+
+  次の操作:
+    /spec-inject "<課題>" を実行してください。
+```
+
+「過去の判断」は内部値を人間語へ翻訳する (採用 = 過去に採択、却下 = 過去に棄却、修正 = 過去に修正採択)。`status="dismissed"` / `severity="high"` などの生の enum 値は出さず、「却下」「重要度: 高」へ翻訳する。「再確認の候補」は、過去に解消した衝突判断が、その後の仕様変更で根拠が古くなった (= 制約の根拠には使えない) ものを、人間が再確認できるよう提示するもの。即時の作業ブロッカーではない。
+
+## 停止時のユーザー向け出力フォーマット
+
+CLI が失敗を返したとき (返却 JSON の `status` が `failed` / `error`)、その JSON を次の **利用者視点カテゴリ** へ写像し、該当カテゴリの固定フォーマットだけを出力する。利用者は CLI の内部構造を知らない前提なので、内部 field 名・enum 値・パイプライン段階名は本文に出さない (後述「ユーザー向け本文に貼ってはいけない内部用語」)。`/spec-core` は保持物の更新コマンドなので ③ (保持物の更新が必要) ④ (更新中) ✕ (答案待ち) は通常発生せず、主に ① ② ⑤ ⑥ が該当する。
+
+### 停止カテゴリ写像 (6 + ◇ + ✕)
+
+左 2 列は判定のための内部状態であり **本文には出さない**。
+
+| | 利用者向けの状況 | 内部状態 (本文に出さない) | 利用者が取る行動 |
+|---|---|---|---|
+| ① | 初期設定が完了していない | config.toml 不在 / `docs/core/purpose.md`・`core_concept.md` 不在 / `sources.include` 不一致 | `spec-anchor-setup-project` 実行、purpose / concept 作成、`[sources].include` 修正 |
+| ② | 外部サービスへの接続が必要 | Qdrant 接続失敗 / Chapter Anchors の LLM 生成失敗 / Related Sections の retrieval backend 失敗 | サービス起動 / 接続情報の確認、`/spec-core --all` または `/spec-core --rebuild` で再試行 |
+| ⑤ | 人間判断が必要な仕様の衝突 | pending conflict | 衝突を読んで採用案を決定 |
+| ⑥ | ツール側のエラー | 想定外例外 / ①②⑤ に当てはまらない error (例: Source Retrieval Index の更新・検証失敗) | `/spec-core --rebuild` を試し、解消しなければ開発元へ報告 |
+| ◇ | 情報通知 (続行可能) | 補助的保持物のみ劣化 (単独) | 認知のみ、無視可 |
+
+### カテゴリ別フォーマット
+
+該当カテゴリの固定見出しで出す。略称や存在しない command (`spec-anchor init` 等) は提案しない。
+
+```text
+① ■ 初期設定が完了していません
+
+     プロジェクトの設定ファイル、Purpose / Core Concept ファイル、または Source Specs が見つかりません。
+
+     次の操作:
+       - 設定ファイルが無い場合: spec-anchor-setup-project --target <プロジェクトのパス> を実行してください。
+       - Purpose / Core Concept ファイル (docs/core/purpose.md 等) が無い場合: 人間が作成して再実行してください。
+         (Agent は Purpose / Core Concept を書きません)
+       - Source Specs が見つからない場合: 設定の [sources].include を修正するか、Source Specs を該当パスに置いてください。
+
+② ■ 外部サービスへの接続が必要です
+
+     検索やモデル呼び出しに必要な外部サービスへ接続できませんでした (例: Qdrant / Chapter Anchors 生成 / Related Sections 検索)。
+
+     次の操作:
+       必要なサービスが起動しているか、接続情報が正しいかを確認し、/spec-core --all または /spec-core --rebuild で再試行してください。
+
+⑤ ■ 人間判断が必要な仕様の衝突があります (本フォーマットは「pending conflict の本文展開フォーマット」を参照)
+
+⑥ ■ ツール側でエラーが発生しました
+
+     処理中に想定外のエラーが発生しました (例: Source Retrieval Index の更新・検証の失敗)。
+
+     エラー内容: <利用者に見せてよい範囲のエラーメッセージ>
+
+     次の操作:
+       /spec-core --rebuild で再構築を試してください。解消しない場合は、本ツールの開発元へ上記エラー内容と実行したコマンドを添えて報告してください。
+
+◇ (停止しない。通常の完了報告を出したうえで、末尾に 1 行)
+
+     参考情報: 一部の補助的な保持物が最新ではありませんが、更新自体は完了しています。
+```
+
+### pending conflict の本文展開フォーマット (⑤)
+
+pending conflict があるとき、件数だけを伝えてはいけない。各衝突を次の人間向けフォーマットで本文展開する。`conflict_id` / `claims` / `why_conflicting` などの内部 field 名は **見出しに使わず、値だけ** を出す。
+
+```text
+■ 人間判断が必要な仕様の衝突があります (N 件)
+
+  1. <短い見出し: 衝突の論点を 1 行で>
+
+     主張 A: <claims[0] の主張本文>
+        出典: <claims[0] の出典>
+     主張 B: <claims[1] の主張本文>
+        出典: <claims[1] の出典>
+
+     論点: <なぜ衝突しているか>
+     人間判断が必要な理由: <なぜ LLM が決められないか>
+     重要度: <high → 高 / medium → 中 / low → 低 へ翻訳>
+
+     関係する仕様:
+       - <関係する仕様の参照>
+
+     選択肢:
+       - <採用候補 1>
+       - <採用候補 2>
+
+     次の操作: <CLI の item recommended_next_action の値そのまま (例: Ask a human to decide this conflict.)>
+
+     (衝突 ID: <conflict_id の値>  ← 再参照用)
+```
+
+`claims` が 3 件以上なら「主張 A / B / C / ...」と続ける。複数衝突なら見出しを `1.` `2.` と連番にする。各 item の `recommended_next_action` の **値** は省略せず必ず本文に含める。Agent は衝突を決めない。
+
+## ユーザー向け本文に貼ってはいけない内部用語
+
+次の内部 field 名・enum 値・パイプライン段階名は、利用者宛の本文に出さない (`tests/e2e/forbidden_terms.py` が単一の真実)。利用者は CLI の内部構造を知らない前提で読む。
+
+- 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"` / `="degraded"`
+- freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `pending_conflict` / `failed_required_artifact` / `degraded_optional_artifact`
+- 正常完了系の field 名: `updated_sources` / `failed_sources` / `failed_sections` / `retrieval_index_status` / `pending_conflict_count` / `stale_resolution_count` / `unreflected_conflict_resolutions` / `auto_dismissed_conflict_count` / `auto_dismissed_conflict_ids` / `regenerated_chapter_anchors`
+- パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `claim_retrieval_status` / `conflict_candidate_triage_status` / `spec_claims_status`
+- 内部 path / 答案 field 名: `inject_result.<...>` / `freshness_report` / `evidence_origin` / `support_refs`
+- conflict の raw field 名: `conflict_id` / `why_conflicting` / `why_llm_cannot_decide` / `decision_options` / `source_refs` (= 上記の人間向け見出しへ置換する)
+
+許可される文字列:
+
+- CLI が出力する `recommended_next_action` の **値文字列** (例: `run /spec-core --all` / `Ask a human to decide this conflict.`)
+- スラッシュコマンド名 (`/spec-core` / `/spec-core --all` / `/spec-core --rebuild` 等)、実 CLI command 名 (`spec-anchor-setup-project` 等)、ファイルパス + section ID
+
+CLI が出力する `recommended_next_action` の値は CLI 自身が出力する文字列をそのまま使う。Agent が再構成して別 command を提案しない。CLI 出力に無い復旧 command を追加提案しない。特に `spec-anchor status` は本 contract の command ではないため提案しない。

@@ -201,6 +201,45 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("今回守る制約",),
     ),
 
+    # --- #7 external design §8.7 display contract (doc lint) -----------------
+    Scenario(
+        "#7-s01", "#7", "§8.7 本文に内部 field 名 / enum 値が含まれない",
+        "#7-s01_design_no_internal_field_names.md", kind="note",
+        required=("§8.7", "ルール 14"),
+    ),
+    Scenario(
+        "#7-s02", "#7", "§8.7 のカテゴリマップ (6 + ◇ + ✕) が #1 と一致",
+        "#7-s02_design_category_map_consistency.md", kind="note",
+        required=("6 カテゴリ", "◇", "✕"),
+    ),
+    Scenario(
+        "#7-s03", "#7", "§8.7 のリトライポリシーが #6 と整合",
+        "#7-s03_design_retry_policy_consistency.md", kind="note",
+        required=("1 回だけ再実行",),
+    ),
+
+    # --- #10 templates mirror (file diff) ------------------------------------
+    Scenario(
+        "#10-s01", "#10", "setup-project 直後の spec-inject.md がテンプレ版と一致",
+        "#10-s01_template_spec_inject_matches_project.md", kind="note",
+        required=("test_template_command_matches_project",),
+    ),
+    Scenario(
+        "#10-s02", "#10", "setup-project 直後の spec-realign.md がテンプレ版と一致",
+        "#10-s02_template_spec_realign_matches_project.md", kind="note",
+        required=("test_template_command_matches_project",),
+    ),
+    Scenario(
+        "#10-s03", "#10", "setup-project 直後の spec-core.md がテンプレ版と一致",
+        "#10-s03_template_spec_core_matches_project.md", kind="note",
+        required=("test_template_command_matches_project",),
+    ),
+    Scenario(
+        "#10-s04", "#10", "SKILL.md の語彙整理が最新と一致 (file diff のみ)",
+        "#10-s04_codex_skill_vocabulary_aligned.md", kind="note",
+        required=("test_codex_skill_has_user_facing_output_contract",),
+    ),
+
     # --- #9 CLI stdout = single JSON object (raw CLI evidence) ----------------
     Scenario(
         "#9-s01", "#9", "spec-anchor core stdout が valid JSON 単体",

@@ -175,3 +175,81 @@ def test_library_stdout_noise_is_redirected(tmp_path, monkeypatch, capsys) -> No
     assert "unauthenticated requests" not in captured.out
     # The noise was redirected to stderr, proving the channel separation.
     assert "Fetching 30 files" in captured.err
+
+
+# --- #10 templates mirror ----------------------------------------------------
+
+import pytest as _pytest
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_MIRRORED_COMMANDS = ("spec-inject.md", "spec-realign.md", "spec-core.md")
+
+
+@_pytest.mark.parametrize("name", _MIRRORED_COMMANDS)
+def test_template_command_matches_project(name: str) -> None:
+    """#10-s01..s03: the install skeleton template equals the project command file."""
+
+    project = (_REPO_ROOT / ".claude" / "commands" / name).read_text(encoding="utf-8")
+    template = (
+        _REPO_ROOT / "spec_anchor" / "templates" / ".claude" / "commands" / name
+    ).read_text(encoding="utf-8")
+    assert project == template, (
+        f"{name} differs between .claude/commands/ and spec_anchor/templates/"
+    )
+
+
+def test_codex_skill_has_user_facing_output_contract() -> None:
+    """#10-s04: the Codex SKILL.md mirrors the user-facing output vocabulary."""
+
+    skill = (
+        _REPO_ROOT
+        / "spec_anchor" / "templates" / ".codex" / "skills" / "spec-anchor" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+    for needle in (
+        "停止時のユーザー向け出力フォーマット",
+        "pending conflict の本文展開フォーマット",
+        "答案なし呼び出しの自動再実行",
+        "ユーザー向け本文に貼ってはいけない内部用語",
+        "正常完了時のユーザー向け出力フォーマット",
+    ):
+        assert needle in skill, f"SKILL.md is missing the section: {needle}"
+
+
+# --- #7 external design §8.7 human-facing display contract -------------------
+
+_EXTERNAL_DESIGN = _REPO_ROOT / "doc" / "EXTERNAL_DESIGN.ja.md"
+
+
+def _section_8_7() -> str:
+    text = _EXTERNAL_DESIGN.read_text(encoding="utf-8")
+    start = text.index("### 8.7 人間向け表示契約")
+    end = text.index("## 9. `/spec-realign`", start)
+    return text[start:end]
+
+
+def test_external_design_8_7_has_no_internal_field_names() -> None:
+    """#7-s01: the §8.7 display contract uses user-experience language only.
+
+    Per CLAUDE.md ルール 14 the external design must read for someone who never
+    saw the source; the §8.7 contract text must not contain CLI-internal field
+    names / enum values.
+    """
+
+    hits = find_forbidden_terms(_section_8_7())
+    assert not hits, f"§8.7 leaks CLI-internal vocabulary: {hits}"
+
+
+def test_external_design_8_7_covers_all_stop_categories() -> None:
+    """#7-s02: §8.7 enumerates the same 6 + ◇ + ✕ categories as the templates (#1)."""
+
+    body = _section_8_7()
+    for marker in ("①", "②", "③", "④", "⑤", "⑥", "◇", "✕"):
+        assert marker in body, f"§8.7 is missing stop category {marker}"
+
+
+def test_external_design_8_7_describes_retry_policy() -> None:
+    """#7-s03: §8.7 states the 1-retry-then-⑥ policy consistent with #6."""
+
+    body = _section_8_7()
+    assert "1 回だけ再実行" in body
+    assert "差分" in body
