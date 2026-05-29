@@ -123,6 +123,8 @@ Source Specs の章 (Markdown 最上位見出しの範囲) ごとに、章全体
 
 Agent / LLM が検索結果を見ながら追加検索・関連先参照・根拠確認を繰り返す行動。shell CLI は探索方針を自律的に決めず、Agent / LLM が判断する。
 
+§6.2 の 4 path は探索の起点であり上限ではない。Agent は根拠が不十分と判断した場合、別の検索キー生成・別 path への切り替え・上位章への hop・関連 Conflict Review Item の再確認を能動的に行う。探索の十分性 (もう追加探索は不要で答案構成へ進めるか) は Agent が判断し、CLI は path 数・hop 数の上限を強制しない。ただし根拠は Purpose / Core Concept / Source Specs / stale でない resolved Conflict Review Item に縛られ、CLI 道具 (`spec-anchor inject-*`) を介さずに Source Specs を直接 grep する経路は禁止する (検索の起点は必ず CLI 経由)。Source Specs 本文の `Read` は CLI で section_id を特定した後の補助確認としてのみ許可される。
+
 ## 3. 共通実行規約
 
 ### 3.1 配置と作業ディレクトリ
@@ -765,6 +767,8 @@ spec-anchor inject-section "<id>" [<id>...]
 - **path ④** (過去判断の継続): `inject-conflicts`。利用時は各 item の `valid_scope` (`global` / `task_scope`) と `resolution.referenced_source_refs` を確認する
 
 Agent は path を組み合わせて使い分ける。CLI は探索方針を自律的に決めない。
+
+**4 path は探索の起点であり上限ではない。** Agent は 4 path 通過後でも、課題への根拠が不十分と判断した場合、別の検索キー生成・別 path への切り替え・上位章への hop・関連 Conflict Review Item の再確認を能動的に行う。探索の十分性 (これ以上の追加探索は不要で答案構成へ進めるか) は Agent が判断する。CLI は path 数・hop 数の上限を強制せず、`spec-anchor inject-*` には自動探索 / 多段 traversal を行うコマンドも含まれない (CLI は単発の retrieval / payload lookup / 章 anchor 取得 / Purpose 取得 / Conflict Review Item 取得のみを提供し、Section 間の再帰的 lookup は Agent が行う)。「4 path 通過 = 終了」を機械的に解釈しない。ただし根拠は引き続き Purpose / Core Concept / Source Specs / stale でない resolved Conflict Review Item に縛られ、CLI 道具を介さずに Source Specs を直接 grep する経路は禁止する。
 
 #### 根拠と入力の区別
 
