@@ -750,7 +750,13 @@ E. **既存 pytest**: `pytest --skip-external` が pass する。
 - 修正後の targeted test は pass 済み:
   - `python3 -m pytest -q tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files --tb=short` → `1 passed in 0.23s`
   - `python3 -m pytest -q tests/test_responsibility_boundary.py --tb=short` → `6 passed in 0.76s`
+  - `python3 -m pytest -q tests/test_responsibility_boundary.py tests/test_spec_core.py::test_spec_core_does_not_modify_human_owned_purpose_or_concept --tb=short` → `7 passed in 0.92s`
   - `python3 -m py_compile tests/test_responsibility_boundary.py` → pass
+  - `.venv/bin/python -m pytest -q tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files --tb=short` を 100 回連続実行 → `100/100 pass`
+- 全体確認:
+  - `python3 -m pytest -q --skip-external` → system python に `python-dotenv` / `qdrant_client` がなく、別 test 群で `12 failed, 592 passed, 23 skipped`
+  - `.venv/bin/python -m pytest -q --skip-external` → `tests/test_spec_core_acceptance.py::test_verify_index_does_not_self_repair` の session fixture で 1 error、`604 passed, 22 skipped`
+  - `.venv/bin/python -m pytest -q --skip-external tests/test_spec_core_acceptance.py::test_verify_index_does_not_self_repair --tb=short` → 単独再実行で `1 passed in 23.05s`
 - 未実行: 連続 100 回 full pytest。これは長時間安定性確認として残す。
 
 #### 触れる主なファイル
@@ -772,7 +778,7 @@ E. **既存 pytest**: `pytest --skip-external` が pass する。
   - 他の flaky test の追跡 (本 task は本 1 件に限定)。
   - 予防的な subprocess timeout 一律延長 (真因確定前の予防修正は scope 外)。
 
-### [完了 2026-05-29, commit 3150cc6] T-spec-inject-pending-conflict-fixture-update: PendingConflictSpecCoreProvider を SpecClaim 経路に追従させる
+### [完了 2026-05-29, commit 2ff711b] T-spec-inject-pending-conflict-fixture-update: PendingConflictSpecCoreProvider を SpecClaim 経路に追従させる
 
 #### 背景
 
