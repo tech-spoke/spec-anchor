@@ -21,12 +21,9 @@
 
 優先順位:
 
-1. **T-conflict-source-update-flow**: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正 — **コア実装 + regression test 完了、real/local-service 検証未実行**。
+(現在、開放中の task はありません。)
 
-依存関係:
-
-- T-conflict-source-update-flow は SpecClaim 移行と独立。Phase 5 (commit da692ba) で Conflict Review 入力境界が SpecClaim pair に変更されたが、T-conflict の auto-dismiss ロジックは `conflict_review_items.json` 側で完結するため SpecClaim pair 入力でも直交する。Phase 5 で Related Sections 由来 pair 依存の test fixture (T-conflict B 区分) は SpecClaim retrieval 由来 fixture に更新する必要がある。
-- T-conflict-source-update-flow の C-6 / C-3 / C-11 regression test は現在の未コミット差分で追加済み。残範囲は実 Qdrant / BGE-M3 / real provider / `local-service` / `real-smoke` と、長時間 watcher の filesystem event integration。
+依存関係: なし。
 
 完了済み task (履歴は本ファイル各章と git log を参照):
 
@@ -37,8 +34,9 @@
 - T-spec-claim-phase-5 (Phase 5: `possible_conflict` 完全削除 + Conflict Review 入力境界変更) — 完了 2026-05-29
 - T-spec-inject-pending-conflict-fixture-update (PendingConflictSpecCoreProvider を SpecClaim 経路に追従) — 完了 2026-05-29
 - T-flaky-spec-core-responsibility-boundary (subprocess 経路の env / timeout / retrieval 固定で偶発的失敗を真因解消、対象 test 100 回連続 pass) — 完了 2026-05-29
+- T-conflict-source-update-flow (Source Specs 修正後の pending Conflict Review Item 自動 dismiss + 実 watcher / filesystem event 検証) — 完了 2026-05-29
 
-### T-conflict-source-update-flow: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
+### [完了 2026-05-29, commits 9e77cf0 / 5f4bb1e / 706de59 / ca01454] T-conflict-source-update-flow: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
 
 #### 背景
 
