@@ -3,14 +3,66 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
 import signal
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from spec_anchor import __version__
+
+
+# Library progress bars / advisory warnings (HuggingFace Hub, FlagEmbedding,
+# transformers weight loaders, tokenizers) otherwise contaminate stdout. The
+# external contract (EXTERNAL_DESIGN.ja.md §8.5) requires `spec-anchor` CLI
+# commands to print a single JSON object to stdout so an Agent can read the
+# result with `json.loads` without writing a parser. We (1) disable the known
+# stdout-writing noise sources via env vars before the heavy imports run, and
+# (2) redirect any residual library stdout to stderr while a command body runs,
+# emitting only the result JSON to the real stdout afterwards.
+_LIBRARY_NOISE_ENV_DEFAULTS = {
+    "HF_HUB_DISABLE_PROGRESS_BARS": "1",
+    "HF_HUB_DISABLE_TELEMETRY": "1",
+    "TRANSFORMERS_NO_ADVISORY_WARNINGS": "1",
+    "TOKENIZERS_PARALLELISM": "false",
+}
+
+# The real stdout reserved for the single result JSON object, set by ``main``
+# (and other entry points) while ``sys.stdout`` is redirected to stderr.
+_RESULT_STDOUT: Any = None
+
+
+def _silence_library_stdout_noise() -> None:
+    """Disable known library progress bars / advisory warnings on stdout.
+
+    Uses ``setdefault`` so an operator who deliberately exported one of these
+    variables keeps their value. Called once at every CLI entry point before
+    the embedding / retrieval stack is imported.
+    """
+
+    for name, value in _LIBRARY_NOISE_ENV_DEFAULTS.items():
+        os.environ.setdefault(name, value)
+
+
+@contextlib.contextmanager
+def _stdout_reserved_for_result() -> Iterator[Any]:
+    """Redirect library stdout to stderr; yield the real stdout for the result.
+
+    Anything a third-party library prints to stdout while the command body runs
+    (HuggingFace download progress, FlagEmbedding weight-loading bars, etc.) is
+    routed to stderr. The caller prints the result JSON to the yielded real
+    stdout, guaranteeing stdout holds exactly one JSON object.
+    """
+
+    real_stdout = sys.stdout
+    try:
+        sys.stdout = sys.stderr
+        yield real_stdout
+    finally:
+        sys.stdout = real_stdout
 
 
 def _install_termination_handler() -> None:
@@ -216,11 +268,22 @@ def build_setup_system_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     _install_termination_handler()
+    _silence_library_stdout_noise()
     parser = build_main_parser()
     args = parser.parse_args(argv)
     if getattr(args, "command", None) is None:
         parser.print_help()
         return 0
+    global _RESULT_STDOUT
+    with _stdout_reserved_for_result() as result_stdout:
+        _RESULT_STDOUT = result_stdout
+        try:
+            return _dispatch_command(args, parser)
+        finally:
+            _RESULT_STDOUT = None
+
+
+def _dispatch_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     if args.command == "core":
         return _run_core_from_args(args)
     if args.command == "inject-search":
@@ -254,8 +317,15 @@ def slash_main(argv: Sequence[str] | None = None) -> int:
 
 def watch_main(argv: Sequence[str] | None = None) -> int:
     _install_termination_handler()
+    _silence_library_stdout_noise()
     args = build_watch_parser().parse_args(argv)
-    return _run_watch_from_args(args)
+    global _RESULT_STDOUT
+    with _stdout_reserved_for_result() as result_stdout:
+        _RESULT_STDOUT = result_stdout
+        try:
+            return _run_watch_from_args(args)
+        finally:
+            _RESULT_STDOUT = None
 
 
 def _run_watch_from_args(args: argparse.Namespace) -> int:
@@ -285,7 +355,7 @@ def _run_watch_from_args(args: argparse.Namespace) -> int:
                 "message": str(exc),
             },
         }
-    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    _emit_result_json(result)
     return 0
 
 
@@ -313,7 +383,7 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
         )
     except Exception as exc:
         result = _exception_result("/spec-core", project_root=project_root, exc=exc)
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return _command_exit_code(result)
 
 
@@ -333,7 +403,7 @@ def _run_inject_search_from_args(args: argparse.Namespace) -> int:
         result = _exception_result(
             "/spec-inject inject-search", project_root=project_root, exc=exc
         )
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return 0
 
 
@@ -352,7 +422,7 @@ def _run_inject_section_from_args(args: argparse.Namespace) -> int:
         result = _exception_result(
             "/spec-inject inject-section", project_root=project_root, exc=exc
         )
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return 0
 
 
@@ -368,7 +438,7 @@ def _run_inject_chapters_from_args(args: argparse.Namespace) -> int:
         result = _exception_result(
             "/spec-inject inject-chapters", project_root=project_root, exc=exc
         )
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return 0
 
 
@@ -384,7 +454,7 @@ def _run_inject_purpose_from_args(args: argparse.Namespace) -> int:
         result = _exception_result(
             "/spec-inject inject-purpose", project_root=project_root, exc=exc
         )
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return 0
 
 
@@ -400,7 +470,7 @@ def _run_inject_conflicts_from_args(args: argparse.Namespace) -> int:
         result = _exception_result(
             "/spec-inject inject-conflicts", project_root=project_root, exc=exc
         )
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return 0
 
 
@@ -424,7 +494,7 @@ def _run_realign_from_args(args: argparse.Namespace) -> int:
         )
     except Exception as exc:
         result = _exception_result("/spec-realign", project_root=project_root, exc=exc)
-    print(_dumps_json(result))
+    _emit_result_json(result)
     return _realign_exit_code(result)
 
 
@@ -550,6 +620,20 @@ def _command_exit_code(result: Mapping[str, Any]) -> int:
 
 def _dumps_json(result: Mapping[str, Any]) -> str:
     return json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _emit_result_json(result: Mapping[str, Any]) -> None:
+    """Print the single result JSON object to the stdout reserved for results.
+
+    While a command runs, ``main`` redirects ``sys.stdout`` to stderr so that
+    library progress bars / warnings never reach stdout. The real stdout is
+    captured in ``_RESULT_STDOUT``; the result JSON is written there. When a
+    command runner is invoked outside ``main`` (e.g. directly in a test), the
+    reservation is absent and we fall back to the current ``sys.stdout``.
+    """
+
+    stream = _RESULT_STDOUT if _RESULT_STDOUT is not None else sys.stdout
+    print(_dumps_json(result), file=stream)
 
 
 def setup_project_main(argv: Sequence[str] | None = None) -> int:
