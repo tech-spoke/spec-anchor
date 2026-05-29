@@ -20,6 +20,34 @@ pending Conflict Review Items が残る場合、件数だけでなく後述「pe
 
 Purpose と Core Concept は人間が維持する read-only input である。この command から `/spec-inject` や `/spec-realign` を自動実行しない。CLI result と、人間判断が必要な pending Conflict Review Items を返す。
 
+## 正常完了時のユーザー向け出力フォーマット
+
+CLI が正常完了 (`status` が `fresh`) を返したとき、CoreResult JSON の内部 field 名 (`updated_sources` / `failed_sources` / `retrieval_index_status` / `pending_conflict_count` / `stale_resolution_count` / `unreflected_conflict_resolutions` 等) や enum 値 (`status="dismissed"` 等) をそのまま貼らず、次の固定フォーマットへ整形する。英語混じり日本語 (「freshness は通った」「stale な resolution」等) を使わない。
+
+```text
+■ 保持物の更新が完了しました
+
+  更新があった仕様:
+    - <変更があった仕様ファイルのパスと section の見出し>
+    (変更が無かった場合は「変更ありませんでした」とだけ書く)
+
+  人間判断が必要な仕様の衝突:
+    なし
+    (1 件以上ある場合は「pending conflict の本文展開フォーマット」で各衝突を展開する)
+
+  再確認の候補 (過去の衝突解消判断が、現在の仕様変更で見直し余地あり): <件数> 件
+    1. <衝突 ID と簡潔な見出し>
+       過去の判断: <採用 / 却下 / 修正 のいずれかへ翻訳>
+       なぜ再確認が必要か: 関係する仕様が変更されたため
+       (衝突 ID: <値>)
+    (0 件のときはこのセクション自体を省略する)
+
+  次の操作:
+    /spec-inject "<課題>" を実行してください。
+```
+
+「過去の判断」は内部値を人間語へ翻訳する (採用 = 過去に採択、却下 = 過去に棄却、修正 = 過去に修正採択)。`status="dismissed"` / `severity="high"` などの生の enum 値は出さず、「却下」「重要度: 高」へ翻訳する。「再確認の候補」は、過去に解消した衝突判断が、その後の仕様変更で根拠が古くなった (= 制約の根拠には使えない) ものを、人間が再確認できるよう提示するもの。即時の作業ブロッカーではない。
+
 ## 停止時のユーザー向け出力フォーマット
 
 CLI が失敗を返したとき (返却 JSON の `status` が `failed` / `error`)、その JSON を次の **利用者視点カテゴリ** へ写像し、該当カテゴリの固定フォーマットだけを出力する。利用者は CLI の内部構造を知らない前提なので、内部 field 名・enum 値・パイプライン段階名は本文に出さない (後述「ユーザー向け本文に貼ってはいけない内部用語」)。`/spec-core` は保持物の更新コマンドなので ③ (保持物の更新が必要) ④ (更新中) ✕ (答案待ち) は通常発生せず、主に ① ② ⑤ ⑥ が該当する。

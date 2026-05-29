@@ -137,6 +137,48 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("ツール側", "開発元", "期待された形式との差分", "最後に送った回答候補"),
     ),
 
+    # --- #8 normal completion templates --------------------------------------
+    Scenario(
+        "#8-s01", "#8", "/spec-core 正常完了 (変更なし)",
+        "#8-s01_core_complete_no_change.md",
+        required=("保持物の更新が完了しました", "変更ありませんでした"),
+    ),
+    Scenario(
+        "#8-s02", "#8", "/spec-core 正常完了 (更新あり → section 見出し表示)",
+        "#8-s02_core_complete_updated_sources.md",
+        required=("保持物の更新が完了しました", "更新があった仕様", "docs/spec/auth.md"),
+    ),
+    Scenario(
+        "#8-s03", "#8", "/spec-core 正常完了 (再確認の候補 N 件)",
+        "#8-s03_core_complete_stale_resolution.md",
+        required=("再確認の候補", "過去の判断", "却下"),
+    ),
+    Scenario(
+        "#8-s04", "#8", "/spec-core 正常完了 (pending conflict → #3 本文展開)",
+        "#8-s04_core_complete_with_pending_conflict.md",
+        required=("保持物の更新が完了しました", "人間判断が必要な仕様の衝突", "主張 A"),
+    ),
+    Scenario(
+        "#8-s05", "#8", "/spec-inject 正常完了 (内部 label を人間語へ翻訳)",
+        "#8-s05_inject_complete_translated_labels.md",
+        required=("今回守る制約", "根拠の種類", "適用範囲"),
+    ),
+    Scenario(
+        "#8-s06", "#8", "/spec-realign 正常完了 (4 区分、内部 label 漏出なし)",
+        "#8-s06_realign_complete_four_sections.md",
+        required=(
+            "今回守る制約",
+            "今回扱う修正候補または検討対象",
+            "競合 / 不確実性 / 人間レビューが必要な点",
+            "課題プロンプトへの回答または修正案",
+        ),
+    ),
+    Scenario(
+        "#8-s07", "#8", "正常完了系の禁止用語チェック",
+        "#8-s07_normal_completion_forbidden_check.md", kind="note",
+        required=("禁止用語",),
+    ),
+
     # --- #5 realign CLI error detail (raw CLI error block) -------------------
     Scenario(
         "#5-s01", "#5", "不正答案 (final 区分なし) → error.code=missing_final_section",

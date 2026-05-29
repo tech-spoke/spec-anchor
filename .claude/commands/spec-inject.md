@@ -66,9 +66,11 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 
 ```text
 今回守る制約
-  - <statement>
-    根拠: <evidence_origin> / <evidence_ref>
-    参照補助: <support_refs (origin/ref) の要約>
+  - <制約の文 (statement の値)>
+    根拠の種類: <Purpose / Core Concept / Source Specs / Conflict Review Item>
+    参照: <文書 path + section ID など (evidence_ref の値)>
+    参照補助: <探索補助に使った Section Summary / Related Sections / Chapter Key Anchor の要約>
+    適用範囲: <この制約が効く作業範囲 (applicability の値)>
 
 今回見るべき対象
   - <Section または topic>
@@ -76,17 +78,17 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 
 関連先として確認したもの
   - <related Section>
-    理由: <depends / impacts / related / conflicts など>
+    理由: <依存 / 影響 / 関連 / 衝突 など>
 
 採用しなかったもの
   - <候補>
     理由: <今回の課題には遠い / 根拠不足 / 別論点>
 
-不確実性 / 人間確認
+不確実性 / 確認すべき点
   - <確認すべき点>
 ```
 
-各セクションは、該当 0 件のときも「該当なし」を明示する。セクション自体の省略は許可しない。CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
+内部 field 名 (`evidence_origin` / `support_refs` / `applicability` / `uncertainty`) を label として貼らず、上記の人間語見出し (根拠の種類 / 参照 / 参照補助 / 適用範囲 / 確認すべき点) へ翻訳する。各セクションは、該当 0 件のときも「該当なし」を明示する。セクション自体の省略は許可しない。CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
 
 ### constraints JSON の作り方
 

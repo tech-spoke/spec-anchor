@@ -40,9 +40,27 @@ def test_every_snapshot_file_is_registered() -> None:
     assert not orphans, f"unregistered snapshot files: {orphans}"
 
 
+def _reply_body(text: str) -> str:
+    """Return the user-facing reply portion of a snapshot.
+
+    A user_facing snapshot starts with a meta header (what the scenario proves)
+    followed by a ``---`` separator and then the actual Agent reply. The header
+    may legitimately name internal vocabulary while *describing* the contract
+    (e.g. "evidence_origin を「根拠の種類」へ翻訳"); only the reply below ``---``
+    is the user-facing text the forbidden-term contract applies to. If there is
+    no separator, the whole file is treated as the reply.
+    """
+
+    for sep in ("\n---\n", "\n---"):
+        idx = text.find(sep)
+        if idx != -1:
+            return text[idx + len(sep):]
+    return text
+
+
 @pytest.mark.parametrize("scenario", _USER_FACING, ids=lambda s: s.scenario_id)
 def test_snapshot_has_no_forbidden_terms(scenario) -> None:
-    text = (SNAPSHOTS_DIR / scenario.snapshot).read_text(encoding="utf-8")
+    text = _reply_body((SNAPSHOTS_DIR / scenario.snapshot).read_text(encoding="utf-8"))
     hits = find_forbidden_terms(text, allow=scenario.allow)
     assert not hits, (
         f"{scenario.scenario_id} ({scenario.snapshot}) leaks CLI-internal "

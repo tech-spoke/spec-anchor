@@ -45,7 +45,7 @@
 | 5 | T-realign-cli-error-detail | `structure_realign_answer` のエラーを field 単位に詳細化 | LLM コンプリート | 外部設計書 §8.5 の error schema 反映は #7 で実施 | 2026-05-29 | (Phase3) |
 | 6 | T-realign-retry-with-feedback | 構造化失敗時の 1 回リトライ + feedback 経路を契約化 | LLM コンプリート | #6-s03 (#5 未完了時の盲目リトライ無し) は #5 完了済みのため削除 | 2026-05-29 | (Phase3) |
 | 7 | T-external-design-stop-output-contract | 外部設計書 §8.5 に停止時表示契約を反映 | 未着手 | カテゴリマップとテンプレを契約として記述 | 2026-05-29 | — |
-| 8 | T-normal-completion-output-template | 3 コマンドの正常完了時レポートを利用者視点フォーマットへ整理 | 未着手 | spec-core / spec-inject / spec-realign 正常完了テンプレ + テスト | 2026-05-29 | — |
+| 8 | T-normal-completion-output-template | 3 コマンドの正常完了時レポートを利用者視点フォーマットへ整理 | LLM コンプリート | — | 2026-05-29 | (Phase4) |
 | 9 | T-cli-stdout-noise-cleanup | CLI 出力から HF / FlagEmbedding / weights loader 等の進捗ログを stderr へ分離 | LLM コンプリート (s10 のみ実機待ち) | s10 (FlagEmbedding 単一 load 化) は実 model + Qdrant 起動が必要 = 外部ブロッカー | 2026-05-29 | (Phase1) |
 | 10 | T-templates-mirror | `spec_anchor/templates/.claude/commands/` と `.codex/skills/spec-anchor/SKILL.md` に同期反映 | 未着手 | テンプレ反映、install 後挙動の確認 | 2026-05-29 | — |
 | 11 | T-e2e-user-facing-output-verification | E2E 検証基盤の整備 + 全 sub task のシナリオ集約 + 人間レビュー protocol の運用 | 基盤構築 LLM コンプリート | 各 sub task 完了時にシナリオ追記される (集約表を継続更新) | 2026-05-29 | (Phase1) |
@@ -597,10 +597,10 @@ scope 外: §8.5 以外の章は今回触らない
 
 ### #8 T-normal-completion-output-template: 3 コマンドの正常完了時レポートを利用者視点フォーマットへ整理
 
-**状態**: 未着手
+**状態**: LLM コンプリート
 **担当**: Claude main
 **最終更新**: 2026-05-29
-**直近 commit**: —
+**直近 commit**: Phase4
 
 #### 背景
 
@@ -696,13 +696,13 @@ T-2 の禁止用語リストへ追加:
 
 | シナリオ ID | 概要 | エビデンス | pytest | LLM 自己確認 | 完了 | 人間レビュー |
 |---|---|---|---|---|---|---|
-| #8-s01 | /spec-core 正常完了 (updated_sources 無し、pending 0、stale 0、failed 0) → 「変更ありませんでした」表示 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8-s02 | /spec-core 正常完了 (updated_sources 数件) → 変更があった section の見出しが表示される |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8-s03 | /spec-core 正常完了 (stale_resolution N 件) → 「過去判断再確認の候補」セクション + 人間向け展開 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8-s04 | /spec-core 正常完了 (pending_conflict_count > 0) → #3 の本文展開フォーマットで表示 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8-s05 | /spec-inject 正常完了 (制約 N 件、4 区分整形、`evidence_origin` 等の内部 label が「根拠の種類」へ翻訳) |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8-s06 | /spec-realign 正常完了 (4 区分 RealignResult、内部 label 漏出なし) |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8-s07 | 正常完了系の禁止用語チェック: `updated_sources` / `failed_sources` / `retrieval_index_status` / `stale_resolution_count` / `status="dismissed"` / `severity` が本文に含まれない |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
+| #8-s01 | /spec-core 正常完了 (updated_sources 無し、pending 0、stale 0、failed 0) → 「変更ありませんでした」表示 | snapshots/#8-s01_core_complete_no_change.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8-s02 | /spec-core 正常完了 (updated_sources 数件) → 変更があった section の見出しが表示される | snapshots/#8-s02_core_complete_updated_sources.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8-s03 | /spec-core 正常完了 (stale_resolution N 件) → 「過去判断再確認の候補」セクション + 人間向け展開 | snapshots/#8-s03_core_complete_stale_resolution.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8-s04 | /spec-core 正常完了 (pending_conflict_count > 0) → #3 の本文展開フォーマットで表示 | snapshots/#8-s04_core_complete_with_pending_conflict.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8-s05 | /spec-inject 正常完了 (制約 N 件、4 区分整形、`evidence_origin` 等の内部 label が「根拠の種類」へ翻訳) | snapshots/#8-s05_inject_complete_translated_labels.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8-s06 | /spec-realign 正常完了 (4 区分 RealignResult、内部 label 漏出なし) | snapshots/#8-s06_realign_complete_four_sections.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8-s07 | 正常完了系の禁止用語チェック: `updated_sources` / `failed_sources` / `retrieval_index_status` / `stale_resolution_count` / `status="dismissed"` / `severity` が本文に含まれない | snapshots/#8-s07_normal_completion_forbidden_check.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | (sub task 実装中に判明したら追記) |  |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
 
 #### 依存 / scope 外
@@ -961,13 +961,13 @@ scope 外: テンプレ install 自体の仕組み（`project_setup.py`）は触
 | #7 | #7-s01 | doc lint: §8.5 本文に内部 field 名 / enum 値が含まれない (grep) |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
 | #7 | #7-s02 | doc lint: §8.5 のカテゴリマップ表が #1 最終マップと一致、#2/#3/#4 テンプレ語彙と §8.5 整合 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
 | #7 | #7-s03 | doc lint: §8.5 のリトライポリシー記述と #6 のテンプレ手順が整合 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s01 | /spec-core 正常完了 (変更なし) → 「変更ありませんでした」表示 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s02 | /spec-core 正常完了 (updated_sources 数件) → 変更があった section の見出しを表示 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s03 | /spec-core 正常完了 (stale_resolution N 件) → 「過去判断再確認の候補」+ 人間向け展開 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s04 | /spec-core 正常完了 (pending_conflict_count > 0) → #3 本文展開フォーマット表示 |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s05 | /spec-inject 正常完了 (制約 N 件、4 区分、`evidence_origin` 等が「根拠の種類」へ翻訳) |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s06 | /spec-realign 正常完了 (4 区分 RealignResult、内部 label 漏出なし) |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
-| #8 | #8-s07 | 正常完了系の禁止用語チェック: `updated_sources` / `failed_sources` / `retrieval_index_status` / `stale_resolution_count` / `status="dismissed"` / `severity` が本文に含まれない |  | `[ ]` | `[ ]` | `[ ]` | 未確認 |
+| #8 | #8-s01 | /spec-core 正常完了 (変更なし) → 「変更ありませんでした」表示 | snapshots/#8-s01_core_complete_no_change.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8 | #8-s02 | /spec-core 正常完了 (updated_sources 数件) → 変更があった section の見出しを表示 | snapshots/#8-s02_core_complete_updated_sources.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8 | #8-s03 | /spec-core 正常完了 (stale_resolution N 件) → 「過去判断再確認の候補」+ 人間向け展開 | snapshots/#8-s03_core_complete_stale_resolution.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8 | #8-s04 | /spec-core 正常完了 (pending_conflict_count > 0) → #3 本文展開フォーマット表示 | snapshots/#8-s04_core_complete_with_pending_conflict.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8 | #8-s05 | /spec-inject 正常完了 (制約 N 件、4 区分、`evidence_origin` 等が「根拠の種類」へ翻訳) | snapshots/#8-s05_inject_complete_translated_labels.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8 | #8-s06 | /spec-realign 正常完了 (4 区分 RealignResult、内部 label 漏出なし) | snapshots/#8-s06_realign_complete_four_sections.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
+| #8 | #8-s07 | 正常完了系の禁止用語チェック: `updated_sources` / `failed_sources` / `retrieval_index_status` / `stale_resolution_count` / `status="dismissed"` / `severity` が本文に含まれない | snapshots/#8-s07_normal_completion_forbidden_check.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9 | #9-s01 | `spec-anchor core` stdout が valid JSON 単体 | snapshots/#9-s01_core_stdout_single_json.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9 | #9-s02 | `spec-anchor inject-search "query"` stdout が valid JSON 単体 | snapshots/#9-s02_inject_search_stdout_single_json.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9 | #9-s03 | `spec-anchor inject-section <id>` stdout が valid JSON 単体 | snapshots/#9-s03_inject_section_stdout_single_json.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
