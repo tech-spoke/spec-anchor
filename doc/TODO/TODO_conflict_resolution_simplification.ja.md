@@ -222,7 +222,7 @@ spec-anchor core --dismiss-conflict <conflict_id> --reason "..."
 
 #### 残作業
 
-- 再 triage が「もう矛盾でない」と判定した場合は浮上しないことの確認（過剰生成バグ履歴あり: triage 精度は別関心事）
+- 再 triage が「もう矛盾でない」と判定した場合は浮上しないことの確認（triage 精度は本課題と別関心事）
 
 #### 依存 / scope 外
 
@@ -325,7 +325,7 @@ spec-anchor core --dismiss-conflict <conflict_id> --reason "..."
 ## 依存 / scope 外
 
 - **鮮度（freshness）側の議論は本課題の scope 外**。別 TODO として後続で起票・議論する（本セッションでユーザーと合意済み）。ただし `pending_conflict` を `BLOCKED_REASONS` から外す変更（#1）は freshness モジュールに触れるため、鮮度側 TODO と影響範囲が重なる点に注意。
-- conflict triage 自体の精度（過剰生成バグ: 記憶 #204 / #205）は本課題の scope 外。
+- conflict triage 自体の精度は本課題の scope 外。なお過去に possible_conflict の過剰生成事象があったが既に修正・経路廃止済み（現存バグではない）。
 
 ## 未確定事項（実装着手前に人間判断が要る点）
 
