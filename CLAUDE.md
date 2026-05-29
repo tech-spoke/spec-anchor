@@ -606,6 +606,24 @@ GPT (ChatGPT) からの指摘で初めて output file を最後まで読み、Cl
 
 詳細は `feedback_codex_invocation_protocol.md` に保存。
 
+## 実行環境メモ
+
+Agent が頻繁に使うコマンドの実行系について、本リポジトリ作業時の注意。
+
+### Python は `python3` を使う
+
+本リポジトリのターミナルでは `python` ではなく `python3` を使う。`python` は環境によって存在しないか別バージョンを指す可能性がある。Agent が inline で Python スクリプトを実行する場合も次のように書く:
+
+```bash
+python3 -c "..."
+python3 << 'EOF'
+...
+EOF
+python3 path/to/script.py
+```
+
+pytest も venv 経由で `python3 -m pytest` または `.venv/bin/pytest` を呼ぶ。`python` 直呼びは禁止。
+
 ## 退避資料
 
 旧 full GRAG 版は次に退避している。
