@@ -71,7 +71,6 @@ section_summary_max_chars = 480
 search_keys_max = 32
 related_candidate_max_per_section = 32
 related_selected_max_per_section = 8
-conflict_pair_max_per_section = 8
 llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 # Codex Pro 5x + Claude Max 5x 環境で 4 並列。8 でも余裕あり、user 判断で増減可

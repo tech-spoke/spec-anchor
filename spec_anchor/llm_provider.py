@@ -33,8 +33,6 @@ SPEC_CORE_GENERATION_STAGES = {
     "related_section_selection",
     "chapter_key_anchor",
     "conflict_review",
-    "conflict_detection",
-    "conflict_judgement",
 }
 
 
