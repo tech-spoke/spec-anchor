@@ -1,0 +1,31 @@
+# #3-s01 pending conflict 1 件 / 単一 claim pair (/spec-inject)
+
+利用者が `/spec-inject "セッション失効の制約"` を呼び、未解決の仕様衝突が 1 件残っていたときの Agent 整形応答。件数だけでなく本文を展開する。
+
+---
+
+■ 人間判断が必要な仕様の衝突があります (1 件)
+
+  1. セッション失効時間を 24 時間とするか 30 分とするか
+
+     主張 A: セッションは発行から 24 時間で失効する。
+        出典: docs/spec/auth.md#0002-session-management
+     主張 B: セッションは無操作 30 分で失効する。
+        出典: docs/spec/security.md#0005-idle-timeout
+
+     論点: 失効の基準が「発行からの経過時間」と「無操作時間」で食い違っており、両立しない。
+     人間判断が必要な理由: どちらをプロダクトのセキュリティ方針として採るかは仕様判断であり、根拠資料だけでは決められない。
+     重要度: 高
+
+     関係する仕様:
+       - docs/spec/auth.md#0002-session-management
+       - docs/spec/security.md#0005-idle-timeout
+
+     選択肢:
+       - 発行から 24 時間で失効に統一する
+       - 無操作 30 分で失効に統一する
+       - 両者を併用する (どちらか早い方で失効)
+
+     次の操作: Ask a human to decide this conflict.
+
+     (衝突 ID: CONF-0007  ← 再参照用)

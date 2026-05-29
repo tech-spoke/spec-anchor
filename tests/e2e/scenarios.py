@@ -36,8 +36,89 @@ class Scenario:
 
 SCENARIOS: tuple[Scenario, ...] = (
     # Scenarios are registered per-Phase as their evidence snapshots are
-    # authored. #1〜#8 / #10 scenarios join this tuple when their sub task is
-    # implemented (keeps the suite green at every phase commit).
+    # authored. #1 / #5 / #7 / #10 scenarios join this tuple when those sub
+    # tasks are implemented (keeps the suite green at every phase commit).
+
+    # --- #2 stop-time output templates ---------------------------------------
+    Scenario(
+        "#2-s01", "#2", "① 初期設定未完了 (config.toml 不在) を /spec-core で表示",
+        "#2-s01_stop_setup_missing_config_spec_core.md",
+        required=("初期設定が完了していません", "spec-anchor-setup-project"),
+    ),
+    Scenario(
+        "#2-s02", "#2", "② 外部サービス必要 (Qdrant 接続失敗) を /spec-inject で表示",
+        "#2-s02_stop_qdrant_unavailable_spec_inject.md",
+        required=("外部サービス", "Qdrant"),
+    ),
+    Scenario(
+        "#2-s03", "#2", "③ 保持物更新必要 (dirty source) を /spec-inject で表示",
+        "#2-s03_stop_dirty_source_spec_inject.md",
+        required=("保持物の更新が必要", "/spec-core"),
+    ),
+    Scenario(
+        "#2-s04", "#2", "④ 保持物の更新中・待機 を /spec-inject で表示",
+        "#2-s04_stop_watcher_running_spec_inject.md",
+        required=("更新中", "完了を待"),
+    ),
+    Scenario(
+        "#2-s05", "#2", "⑥ ツール側のエラー を /spec-core で表示",
+        "#2-s05_stop_tool_error_spec_core.md",
+        required=("ツール側", "開発元"),
+    ),
+    Scenario(
+        "#2-s06", "#2", "◇ 情報通知 (補助保持物のみ劣化) で続行可能",
+        "#2-s06_info_degraded_optional_continue.md",
+        required=("続行できます", "参考情報"),
+    ),
+    Scenario(
+        "#2-s07", "#2", "3 コマンド一貫性: ③ で 3 コマンド同テンプレ",
+        "#2-s07_stop_dirty_three_commands_consistency.md",
+        required=("/spec-core", "/spec-inject", "/spec-realign", "保持物の更新が必要"),
+    ),
+    Scenario(
+        "#2-s08", "#2", "禁止用語横断チェック (#2-s01〜07)",
+        "#2-s08_forbidden_terms_cross_check.md", kind="note",
+        required=("禁止用語",),
+    ),
+
+    # --- #3 pending conflict body expansion ----------------------------------
+    Scenario(
+        "#3-s01", "#3", "pending conflict 1 件 / 単一 claim pair",
+        "#3-s01_pending_conflict_single_pair.md",
+        required=("人間判断が必要な仕様の衝突", "主張 A", "主張 B", "論点", "選択肢", "次の操作"),
+    ),
+    Scenario(
+        "#3-s02", "#3", "pending conflict 1 件 / 3 件以上の claims",
+        "#3-s02_pending_conflict_three_claims.md",
+        required=("主張 A", "主張 B", "主張 C"),
+    ),
+    Scenario(
+        "#3-s03", "#3", "pending conflict 複数件 (連番 1./2.)",
+        "#3-s03_pending_conflict_multiple.md",
+        required=("人間判断が必要な仕様の衝突", "1.", "2."),
+    ),
+    Scenario(
+        "#3-s04", "#3", "pending conflict + 保持物更新必要 の混在",
+        "#3-s04_pending_conflict_with_dirty_source.md",
+        required=("保持物の更新が必要", "人間判断が必要な仕様の衝突"),
+    ),
+    Scenario(
+        "#3-s05", "#3", "3 コマンド一貫性: pending conflict 同フォーマット",
+        "#3-s05_pending_conflict_three_commands.md",
+        required=("/spec-core", "/spec-inject", "/spec-realign", "人間判断が必要な仕様の衝突"),
+    ),
+
+    # --- #4 needs-agent-answer hide (auto-rerun) ------------------------------
+    Scenario(
+        "#4-s01", "#4", "答案なし → 自動再実行 → 整形済み RealignResult (内部信号なし)",
+        "#4-s01_realign_auto_rerun_clean.md",
+        required=("今回守る制約", "課題プロンプトへの回答または修正案"),
+    ),
+    Scenario(
+        "#4-s02", "#4", "自動再実行が利用者に見えない (メタ説明なし)",
+        "#4-s02_realign_auto_rerun_no_meta.md",
+        required=("今回守る制約",),
+    ),
 
     # --- #9 CLI stdout = single JSON object (raw CLI evidence) ----------------
     Scenario(
