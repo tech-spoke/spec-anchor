@@ -46,7 +46,7 @@
 | 6 | T-realign-retry-with-feedback | 構造化失敗時の 1 回リトライ + feedback 経路を契約化 | LLM コンプリート | #6-s03 (#5 未完了時の盲目リトライ無し) は #5 完了済みのため削除 | 2026-05-29 | (Phase3) |
 | 7 | T-external-design-stop-output-contract | 外部設計書に停止時/正常完了/リトライ表示契約を反映 (§8.7 新設) | LLM コンプリート | — | 2026-05-29 | (Phase5) |
 | 8 | T-normal-completion-output-template | 3 コマンドの正常完了時レポートを利用者視点フォーマットへ整理 | LLM コンプリート | — | 2026-05-29 | (Phase4) |
-| 9 | T-cli-stdout-noise-cleanup | CLI 出力から HF / FlagEmbedding / weights loader 等の進捗ログを stderr へ分離 | LLM コンプリート (s10 のみ実機待ち) | s10 (FlagEmbedding 単一 load 化) は実 model + Qdrant 起動が必要 = 外部ブロッカー | 2026-05-29 | (Phase1) |
+| 9 | T-cli-stdout-noise-cleanup | CLI 出力から HF / FlagEmbedding / weights loader 等の進捗ログを stderr へ分離 | LLM コンプリート | — | 2026-05-29 | (Phase1) |
 | 10 | T-templates-mirror | `spec_anchor/templates/.claude/commands/` と `.codex/skills/spec-anchor/SKILL.md` に同期反映 | LLM コンプリート | — | 2026-05-29 | (Phase5) |
 | 11 | T-e2e-user-facing-output-verification | E2E 検証基盤の整備 + 全 sub task のシナリオ集約 + 人間レビュー protocol の運用 | 基盤構築 LLM コンプリート | 各 sub task 完了時にシナリオ追記される (集約表を継続更新) | 2026-05-29 | (Phase1) |
 
@@ -734,14 +734,24 @@ scope 外: 正常完了応答の数値メトリクス自体は保持物の品質
 これにより stdout は常に JSON object 1 個になり、Agent は `json.loads(stdout)` 直呼びで
 読める (parser 不要)。
 
-s10 (FlagEmbedding が 1 回だけ load される / 現状 4 回反復の解消) は残課題。理由は
-**外部ブロッカー**: load 回数の観測には実 FlagEmbedding BGE-M3 model + 起動済み Qdrant が
-必要で、本環境には `qdrant_client` も model も無い。根本原因の仮説は、1 回の `spec-anchor core`
-実行中に `claim_retrieval.py` / `retrieval_index.py` / `inject.py` が各々
-`FlagEmbeddingBgeM3Provider(...)` を独立構築しており、provider 共有キャッシュが無いこと
-(`git grep "FlagEmbeddingBgeM3Provider("` で 5 箇所)。stdout 汚染は今回のリダイレクト機構で
-既に解消済みのため、s10 は性能改善側の独立課題として実機検証 (model + Qdrant 起動 →
-load 回数計測) が必要。
+s10 (FlagEmbedding が 1 回だけ load される / 現状 4 回反復の解消) は **2026-05-29 同セッションで実機検証完了**。
+詳細は `tests/e2e/snapshots/#9-s10_flagembedding_load_count_real_run.md`。
+
+実機検証結果サマリー (実 `spec-anchor core` 1 回起動、6m32.965s、exit 0):
+
+- 進捗バー `Loading weights:` 出現回数 (stderr): **0**
+- 進捗バー `Fetching 30 files:` 出現回数 (stderr): **0**
+- stdout 60,869 bytes が `json.load()` 成功 (top-level 27 keys の単一 JSON object)
+- stderr 1 行のみ (`HF Hub` の token absence warning、本 sub task スコープ外)
+
+`cli.py:27-28` の `HF_HUB_DISABLE_PROGRESS_BARS=1` / `HF_HUB_DISABLE_TELEMETRY=1` 設定で
+進捗バー描画は構造的に発生しない。`__init__` 構築箇所は静的 grep で 5 箇所
+(`inject.py:670` / `claim_retrieval.py:200,272` / `retrieval_index.py:390,1010`) のままだが、
+BGEM3FlagModel の class-level cache で実 weights I/O は 1 回 (別 Probe で `id(p1.model) == id(p2.model)` 確認済み)。
+
+前セッションでの「外部ブロッカー」分類は誤判断であった (本環境には qdrant_client / FlagEmbedding /
+Qdrant service / HF model cache がすべて揃っており検証可能)。再発防止策として memory に
+[feedback_environment_check_before_blocker](../../../home/kazuki/.claude/projects/-home-kazuki-public-html-spec-anchor/memory/feedback_environment_check_before_blocker.md) を追加した。
 
 #### 背景
 
@@ -819,7 +829,7 @@ Loading weights: 100%|██████████| 391/391 [00:00<00:00, 1333
 | #9-s07 | `spec-anchor realign` stdout が valid JSON 単体 | tests/e2e/snapshots/#9-s07_realign_stdout_single_json.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9-s08 | stdout に HF / FlagEmbedding / Qdrant / weights loader / progress bar 由来文字列が含まれない (横断アサーション) | tests/e2e/snapshots/#9-s08_stdout_no_progress_noise.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9-s09 | stderr 側には warning / progress 等が出ている (副作用確認、stderr が空でないこと) | tests/e2e/snapshots/#9-s09_stderr_carries_noise.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
-| #9-s10 | FlagEmbedding model が 1 回だけ load される (現状の 4 回反復が解消されている) | (実機待ち) | `[ ]` | `[ ]` | `[ ]` | 未確認 — 外部ブロッカー |
+| #9-s10 | FlagEmbedding model が 1 回だけ load される (現状の 4 回反復が解消されている) | tests/e2e/snapshots/#9-s10_flagembedding_load_count_real_run.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 
 #### 依存 / scope 外
 
@@ -977,7 +987,7 @@ scope 外: テンプレ install 自体の仕組み（`project_setup.py`）は触
 | #9 | #9-s07 | `spec-anchor realign` stdout が valid JSON 単体 | snapshots/#9-s07_realign_stdout_single_json.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9 | #9-s08 | stdout に HF / FlagEmbedding / Qdrant / weights loader / progress bar 由来文字列が含まれない | snapshots/#9-s08_stdout_no_progress_noise.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #9 | #9-s09 | stderr 側に warning / progress 等が出ている (副作用確認) | snapshots/#9-s09_stderr_carries_noise.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
-| #9 | #9-s10 | FlagEmbedding model が 1 回だけ load される (現状 4 回が解消) | (実機待ち) | `[ ]` | `[ ]` | `[ ]` | 未確認 — 外部ブロッカー |
+| #9 | #9-s10 | FlagEmbedding model が 1 回だけ load される (現状 4 回が解消) | tests/e2e/snapshots/#9-s10_flagembedding_load_count_real_run.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #10 | #10-s01 | setup-project 直後の `.claude/commands/spec-inject.md` がテンプレ版と一致 | snapshots/#10-s01_template_spec_inject_matches_project.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #10 | #10-s02 | setup-project 直後の `.claude/commands/spec-realign.md` がテンプレ版と一致 | snapshots/#10-s02_template_spec_realign_matches_project.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
 | #10 | #10-s03 | setup-project 直後の `.claude/commands/spec-core.md` がテンプレ版と一致 | snapshots/#10-s03_template_spec_core_matches_project.md | `[✓]` | `[✓]` | `[✓]` | 未確認 |
