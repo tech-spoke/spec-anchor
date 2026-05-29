@@ -571,12 +571,26 @@ def _agent_input_error_result(
         "stop_reason": stop_reason,
         "reasons": [stop_reason],
         "recommended_next_action": recommended_next_action,
-        "error": {
-            "code": stop_reason,
-            "type": exc.__class__.__name__,
-            "message": str(exc),
-        },
+        "error": _error_block_for(exc, default_code=stop_reason),
     }
+
+
+def _error_block_for(exc: Exception, *, default_code: str) -> dict[str, Any]:
+    """Build the JSON error block, preserving field-level realign error detail.
+
+    A :class:`SpecRealignError` carries ``code`` / ``field`` / ``expected`` /
+    ``actual`` (課題 #5); those are surfaced so the Agent can repair the named
+    field and retry. Other exceptions fall back to the caller's default code.
+    """
+
+    block: dict[str, Any] = {"type": exc.__class__.__name__}
+    to_block = getattr(exc, "to_error_block", None)
+    if callable(to_block):
+        block.update(to_block())
+    else:
+        block["code"] = default_code
+        block["message"] = str(exc)
+    return block
 
 
 def _exception_result(command: str, *, project_root: Path, exc: Exception) -> dict[str, Any]:

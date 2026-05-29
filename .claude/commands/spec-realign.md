@@ -177,6 +177,21 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 
 この再実行の途中段階 (「次は答案を作ります」等のメタ説明、内部信号の語) を利用者へ出さない。`needs_agent_answer` / `answer candidate` / `stop_reason` の語は本文に出さない。
 
+### 構造化失敗時のリトライ (1 回まで)
+
+答案を渡して `spec-anchor realign --answer-json '<json>'` を実行した結果、CLI が答案の形式不備を `error` block (`code` / `field` / `expected` / `actual`) で返した場合のリトライポリシー:
+
+1. CLI が返した `error.code` / `error.field` / `error.expected` を読む。代表的な `code`:
+   - `missing_final_section`: 回答/修正案セクションが空。`課題プロンプトへの回答または修正案` を埋める。
+   - `invalid_evidence_origin`: ある制約の根拠種別が許可外。`field` が指す制約の根拠を Purpose / Core Concept / Source Specs / Conflict Review Item のいずれかへ直す。
+   - `invalid_support_refs_type`: ある制約の参照補助がリストでない。`field` が指す制約の参照補助をリストへ直す。
+   - `empty_applicability`: ある制約の適用範囲が空。`field` が指す制約の適用範囲を埋める。
+2. 同じ Agentic Search 結果を使い、`error.field` が指す箇所だけを修正して答案を再構成する。盲目的に作り直さない。
+3. `spec-anchor realign --answer-json '<json>'` を **1 回だけ** 再実行する。
+4. それでも形式不備が返る場合は、⑥ ツール側のエラーへ落とし、**最後に送った答案 (4 区分)** と **CLI が返した error 詳細 (どの field が期待とどう違ったか)** を利用者に併記して表示する。
+
+このリトライ過程 (`error.code` 等の内部 field 名、再構成中の独り言) は利用者本文に出さない。利用者に見せるのは、成功時は整形済み RealignResult、2 回失敗時は ⑥ の体裁に整えた「最後の答案」と「期待された形式との差分」だけ。
+
 ## ユーザー向け本文に貼ってはいけない内部用語
 
 次の内部 field 名・enum 値・パイプライン段階名は、利用者宛の本文に出さない (`tests/e2e/forbidden_terms.py` が単一の真実)。利用者は CLI の内部構造を知らない前提で読む。

@@ -44,8 +44,55 @@ CONFLICT_DECLARATION_KEYS = (
     "constraint_violations",
     "violates_constraints",
 )
+VALID_EVIDENCE_ORIGINS = (
+    "Purpose",
+    "Core Concept",
+    "Source Specs",
+    "Conflict Review Item",
+)
+
+
 class SpecRealignError(ValueError):
-    """Raised when `/spec-realign` inputs are invalid."""
+    """Raised when `/spec-realign` inputs are invalid.
+
+    Carries a machine-readable ``code`` plus the offending ``field`` and the
+    ``expected`` / ``actual`` shape so the Agent can repair exactly the field
+    that failed and retry (課題 #5 / #6). ``code`` values currently produced:
+
+    * ``missing_answer`` — no answer candidate was supplied at all.
+    * ``missing_final_section`` — the answer has no non-empty answer/proposal.
+    * ``invalid_evidence_origin`` — a constraint's evidence origin is not one of
+      Purpose / Core Concept / Source Specs / Conflict Review Item.
+    * ``invalid_support_refs_type`` — a constraint's ``support_refs`` is not a list.
+    * ``empty_applicability`` — a constraint's ``applicability`` is blank.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "invalid_agent_answer",
+        field: str | None = None,
+        expected: Any = None,
+        actual: Any = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.field = field
+        self.expected = expected
+        self.actual = actual
+
+    def to_error_block(self) -> dict[str, Any]:
+        """Return the JSON ``error`` block surfaced in the CLI realign output."""
+
+        block: dict[str, Any] = {"code": self.code, "message": str(self)}
+        if self.field is not None:
+            block["field"] = self.field
+        if self.expected is not None:
+            block["expected"] = self.expected
+        if self.actual is not None:
+            block["actual"] = self.actual
+        return block
 
 
 def run_spec_realign(
@@ -135,11 +182,15 @@ def run_spec_realign(
             selected_answer,
             inject_result=inject_payload,
         )
-    except SpecRealignError:
-        return _needs_answer_result(
+    except SpecRealignError as exc:
+        # An answer WAS supplied but its structure is invalid. Surface the
+        # field-level error so the Agent can repair exactly that field and
+        # retry (課題 #5 / #6) instead of masking it as "needs an answer".
+        return _structured_error_result(
             project_root=project,
             generated_at=generated_at,
             inject_result=inject_payload,
+            error=exc,
         )
 
     return {
@@ -181,7 +232,13 @@ def structure_realign_answer(
     """
 
     if answer_candidate is None:
-        raise SpecRealignError("agent_answer is required for /spec-realign")
+        raise SpecRealignError(
+            "agent_answer is required for /spec-realign",
+            code="missing_answer",
+            field="agent_answer",
+            expected="a 4-section answer candidate object or text",
+            actual=None,
+        )
 
     raw_candidate = _jsonable(answer_candidate)
     sections = _section_source(raw_candidate)
@@ -234,8 +291,14 @@ def structure_realign_answer(
 
     if _is_blank(final_section):
         raise SpecRealignError(
-            "agent_answer must include a non-empty answer or proposal section"
+            "agent_answer must include a non-empty answer or proposal section",
+            code="missing_final_section",
+            field=f"answer.{ANSWER_FINAL_LABEL}",
+            expected="non-empty answer or proposal section",
+            actual=None,
         )
+
+    _validate_constraints_shape(constraints_section)
 
     declared_review = _declared_review_items(raw_candidate)
     inferred_review = (
@@ -259,6 +322,52 @@ def structure_realign_answer(
         ANSWER_REVIEW_LABEL: _normalize_review_section(review_items),
         ANSWER_FINAL_LABEL: _normalize_section(final_section),
     }
+
+
+def _validate_constraints_shape(constraints_section: Any) -> None:
+    """Form-check structured constraints inside the answer's constraints section.
+
+    This is形式検証 only (課題 #5 scope): when the constraints section is a list
+    of constraint objects, each ``evidence_origin`` must be one of the four
+    allowed origins, ``support_refs`` must be a list, and ``applicability`` must
+    be non-empty. The truth of a constraint (its semantic correctness) is the
+    Agent's responsibility and is deliberately not checked here. Free-text or
+    absent constraint sections are accepted unchanged.
+    """
+
+    if not _is_sequence(constraints_section):
+        return
+    for index, constraint in enumerate(constraints_section):
+        if not isinstance(constraint, Mapping):
+            continue
+        if "evidence_origin" in constraint:
+            origin = constraint.get("evidence_origin")
+            if origin not in VALID_EVIDENCE_ORIGINS:
+                raise SpecRealignError(
+                    "constraint evidence origin is not one of the allowed origins",
+                    code="invalid_evidence_origin",
+                    field=f"constraints[{index}].evidence_origin",
+                    expected=f"one of {' | '.join(VALID_EVIDENCE_ORIGINS)}",
+                    actual=origin,
+                )
+        if "support_refs" in constraint and not isinstance(
+            constraint.get("support_refs"), list
+        ):
+            raise SpecRealignError(
+                "constraint support_refs must be a list",
+                code="invalid_support_refs_type",
+                field=f"constraints[{index}].support_refs",
+                expected="list",
+                actual=type(constraint.get("support_refs")).__name__,
+            )
+        if "applicability" in constraint and _is_blank(constraint.get("applicability")):
+            raise SpecRealignError(
+                "constraint applicability must be a non-empty value",
+                code="empty_applicability",
+                field=f"constraints[{index}].applicability",
+                expected="non-empty applicability",
+                actual=constraint.get("applicability"),
+            )
 
 
 def _stopped_from_inject(
@@ -289,6 +398,42 @@ def _stopped_from_inject(
     result.pop("answer", None)
     result.pop("realign_answer", None)
     return result
+
+
+def _structured_error_result(
+    *,
+    project_root: Path,
+    generated_at: str | None,
+    inject_result: Mapping[str, Any],
+    error: SpecRealignError,
+) -> dict[str, Any]:
+    """Return a realign result carrying a field-level structuring error.
+
+    Used when the gate passed and an answer candidate was supplied, but the
+    candidate failed form validation. The ``error`` block holds ``code`` /
+    ``field`` / ``expected`` / ``actual`` so the Agent can repair the named
+    field and re-run ``spec-anchor realign`` once (課題 #6 retry policy).
+    """
+
+    return {
+        "command": "/spec-realign",
+        "project_root": project_root.as_posix(),
+        "status": "error",
+        "freshness_report": deepcopy(inject_result.get("freshness_report") or {}),
+        "blocking_reasons": list(inject_result.get("blocking_reasons") or []),
+        "warnings": list(inject_result.get("warnings") or []),
+        "recommended_next_action": (
+            "repair the reported answer field and re-run spec-anchor realign"
+        ),
+        "generated_at": generated_at,
+        "should_stop": True,
+        "stops": True,
+        "blocked": True,
+        "can_continue": False,
+        "constraints": [],
+        "error": error.to_error_block(),
+        "inject_result": deepcopy(dict(inject_result)),
+    }
 
 
 def _needs_answer_result(

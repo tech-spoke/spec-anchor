@@ -120,6 +120,45 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("今回守る制約",),
     ),
 
+    # --- #6 retry policy (depends on #5) -------------------------------------
+    Scenario(
+        "#6-s01", "#6", "構造化失敗 → CLI error で修正 → 2 回目成功 → 整形済み RealignResult",
+        "#6-s01_retry_success_after_fix.md",
+        required=(
+            "今回守る制約",
+            "今回扱う修正候補または検討対象",
+            "競合 / 不確実性 / 人間レビューが必要な点",
+            "課題プロンプトへの回答または修正案",
+        ),
+    ),
+    Scenario(
+        "#6-s02", "#6", "構造化失敗 → リトライ → 再失敗 → ⑥ 表示 (最後の答案 + 差分併記)",
+        "#6-s02_retry_exhausted_tool_error.md",
+        required=("ツール側", "開発元", "期待された形式との差分", "最後に送った回答候補"),
+    ),
+
+    # --- #5 realign CLI error detail (raw CLI error block) -------------------
+    Scenario(
+        "#5-s01", "#5", "不正答案 (final 区分なし) → error.code=missing_final_section",
+        "#5-s01_realign_error_missing_final_section.md", kind="cli_json",
+        required=("missing_final_section", "課題プロンプトへの回答または修正案"),
+    ),
+    Scenario(
+        "#5-s02", "#5", "不正答案 (evidence_origin 不正値) → invalid_evidence_origin",
+        "#5-s02_realign_error_invalid_evidence_origin.md", kind="cli_json",
+        required=("invalid_evidence_origin", "constraints[0].evidence_origin"),
+    ),
+    Scenario(
+        "#5-s03", "#5", "不正答案 (support_refs 型違反) → invalid_support_refs_type",
+        "#5-s03_realign_error_invalid_support_refs_type.md", kind="cli_json",
+        required=("invalid_support_refs_type", "constraints[0].support_refs"),
+    ),
+    Scenario(
+        "#5-s04", "#5", "正常答案 → error block なし RealignResult",
+        "#5-s04_realign_valid_no_error_block.md", kind="cli_json",
+        required=("今回守る制約",),
+    ),
+
     # --- #9 CLI stdout = single JSON object (raw CLI evidence) ----------------
     Scenario(
         "#9-s01", "#9", "spec-anchor core stdout が valid JSON 単体",

@@ -315,3 +315,114 @@ def test_t_e04_answer_conflict_is_surfaced_for_human_review(tmp_path: Path) -> N
     assert "conflict" in text.lower() or "矛盾" in text or "競合" in text
     assert "human" in text.lower() or "人間レビュー" in text
     assert "active-session" in text or "session-validation" in text or "session" in text
+
+
+# --- #5 T-realign-cli-error-detail: field-level structuring errors ---
+
+def _answer_with_constraints(constraints: list, *, final: str = "active session を検証する。") -> dict:
+    """A 4-section answer whose constraints section holds structured objects."""
+
+    return {
+        "今回守る制約": constraints,
+        "今回扱う修正候補または検討対象": ["active-session guard を追加する。"],
+        "競合 / 不確実性 / 人間レビューが必要な点": [],
+        "課題プロンプトへの回答または修正案": final,
+    }
+
+
+def _valid_constraint() -> dict:
+    return {
+        "statement": "Privileged actions must validate an active session first.",
+        "evidence_origin": "Source Specs",
+        "evidence_ref": "docs/spec/security.md#authentication",
+        "support_refs": [],
+        "applicability": "privileged action のガード実装",
+        "uncertainty": [],
+    }
+
+
+def test_t_5_s01_missing_final_section_returns_field_level_error(tmp_path: Path) -> None:
+    """#5-s01: answer without a final answer/proposal section -> structured error."""
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    bad = _answer_with_constraints([_valid_constraint()], final="")
+    result = _result_dict(_run_spec_realign(project_root, agent_answer=bad))
+
+    assert _stopped(result) is True
+    error = result.get("error") or {}
+    assert error.get("code") == "missing_final_section"
+    assert "課題プロンプトへの回答または修正案" in str(error.get("field"))
+    assert error.get("expected")
+
+
+def test_t_5_s02_invalid_evidence_origin_returns_field_and_code(tmp_path: Path) -> None:
+    """#5-s02: a constraint with a non-allowed evidence origin -> invalid_evidence_origin."""
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    constraint = _valid_constraint()
+    constraint["evidence_origin"] = "Section Summary"  # navigation aid, not allowed
+    result = _result_dict(
+        _run_spec_realign(project_root, agent_answer=_answer_with_constraints([constraint]))
+    )
+
+    error = result.get("error") or {}
+    assert error.get("code") == "invalid_evidence_origin"
+    assert error.get("field") == "constraints[0].evidence_origin"
+    assert "Source Specs" in str(error.get("expected"))
+    assert error.get("actual") == "Section Summary"
+
+
+def test_t_5_s03_invalid_support_refs_type_returns_code(tmp_path: Path) -> None:
+    """#5-s03: support_refs that is not a list -> invalid_support_refs_type."""
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    constraint = _valid_constraint()
+    constraint["support_refs"] = "docs/spec/security.md#authentication"  # should be a list
+    result = _result_dict(
+        _run_spec_realign(project_root, agent_answer=_answer_with_constraints([constraint]))
+    )
+
+    error = result.get("error") or {}
+    assert error.get("code") == "invalid_support_refs_type"
+    assert error.get("field") == "constraints[0].support_refs"
+    assert error.get("expected") == "list"
+
+
+def test_t_5_s04_valid_answer_has_no_error_block(tmp_path: Path) -> None:
+    """#5-s04: a well-formed answer (structured constraints) -> no error block."""
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    result = _result_dict(
+        _run_spec_realign(project_root, agent_answer=_answer_with_constraints([_valid_constraint()]))
+    )
+
+    assert _stopped(result) is False
+    assert not result.get("error")
+    text = _text_blob(result)
+    for expected in ANSWER_SECTION_LABELS:
+        assert expected in text
+
+
+def test_t_5_empty_applicability_returns_code(tmp_path: Path) -> None:
+    """A constraint with a blank applicability -> empty_applicability."""
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    constraint = _valid_constraint()
+    constraint["applicability"] = "   "
+    result = _result_dict(
+        _run_spec_realign(project_root, agent_answer=_answer_with_constraints([constraint]))
+    )
+
+    error = result.get("error") or {}
+    assert error.get("code") == "empty_applicability"
+    assert error.get("field") == "constraints[0].applicability"
