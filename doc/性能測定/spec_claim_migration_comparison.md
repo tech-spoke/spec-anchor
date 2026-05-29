@@ -2,7 +2,7 @@
 
 ## 目的
 
-`doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` で確定した SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage) が、旧 `possible_conflict` 経路で検出されていた conflict を **欠落なく拾えることを実機で確認**し、Phase 5 (`possible_conflict` 経路の完全削除) 着手判断の根拠データを残す。
+`doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` で確定した SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage) が、旧 `possible_conflict` 経路で検出されていた conflict を **欠落なく拾えることを実機で確認**し、Phase 5 (`possible_conflict` 経路の完全削除) 着手判断の根拠データを残す。
 
 本ファイルは `doc/TODO.ja.md` T-spec-claim-phase-4 (検証条件 B / C) の成果物。
 

@@ -42,7 +42,7 @@
   - 実装: Phase R-6 で spec_anchor/inject.py に `run_inject_search` / `run_inject_section` / `run_inject_chapters` / `run_inject_purpose` / `run_inject_conflicts` を追加、spec_anchor/cli.py に対応する subparser + dispatcher を追加。Qdrant / FlagEmbedding 不可時は structured warning fallback。F-C 採用後、各 inject-* の冒頭に freshness gate を組み込み、gate probe 専用 subcommand (`spec-anchor inject`) は撤去
   - 検証: tests/test_inject_cli_extension.py
 - [ ] §5.10 SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage) を新規実装する (SCD-032)
-  - 詳細: `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` の §1-§17 を参照
+  - 詳細: `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` の §1-§17 を参照
   - 実装範囲: spec_anchor/spec_claims.py (SpecClaim 抽出 stage)、spec_anchor/claim_retrieval.py (Claim Retrieval stage)、spec_anchor/conflict_candidates.py (LLM triage stage)、spec_anchor/core.py のフロー組み込み
   - 検証: 実 Codex / Claude CLI、Qdrant、FlagEmbedding BGE-M3 を使う `/spec-core` 実行で `.spec-anchor/context/spec_claims.jsonl` と `.spec-anchor/context/conflict_candidate_pairs.jsonl` が生成されることを確認
   - **Phase 1 (SpecClaim 抽出 stage 単独) 完了 (2026-05-28, commits `eb8c1cf` Part A + `cbe13c0` Part B + Part C 修正)**: `spec_anchor/spec_claims.py` を新設 (version 定数 / prompt / schema validation / `claim_uid` 生成 / evidence offset 4 段階補正 / cache key / state file / jsonl atomic write)、`spec_anchor/core.py` に `_generate_spec_claims_if_enabled` を結線し CoreResult に `spec_claims_status` と `spec_claims_diagnostics` を追加、`spec_anchor/llm_provider.py` に `spec_claims` stage の prompt / OpenAI structured output schema (strict mode 対応で全 properties を required 化) を追加、`spec_anchor/config.py` の `[llm.stage_routing]` 許可 stage に `spec_claims` を追加。fake テストは `tests/test_spec_claims.py` (8 件) と `tests/test_spec_core.py` の incremental (skipped_unchanged + 部分再抽出 + 削除 section 除外) で確認。実機検証: 実 Codex CLI (`gpt-5.4-mini`) を使う `/spec-core` で `.spec-anchor/context/spec_claims.jsonl` に 5 section から 14 claim が JSON Lines で生成され、設計書 §5 の必須 field をすべて含むこと、変更なし incremental で `stages.spec_claims.status = "skipped_unchanged"` + `llm_calls = 0` になることを確認。
@@ -228,7 +228,7 @@ Codex 用 skill と Claude 用 command は `--llm-provider` を明示せず、`[
 
 Section Summary と Section Search Keys は同一 section に対して同じ LLM 呼び出しで生成してよい。Related Sections の LLM Selection は、CLI が作った `related_section_candidates` を入力にし、候補外の全文探索を LLM に任せない。
 
-SpecClaim 抽出は Source Specs の section から仕様主張を抽出する LLM stage であり、Related Sections の生成と独立に実行される。Claim Retrieval は claim-level の dense / sparse / conflict probe retrieval で候補 SpecClaim pair を絞る LLM を呼ばない stage、Conflict Candidate Triage は絞った少数 pair に対する LLM triage stage、Conflict Review は LLM が既存根拠で解消できない conflict を Conflict Review Item として記録する LLM stage である。全 SpecClaim pair の総当たり LLM 判定は行わない。詳細は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` を参照。
+SpecClaim 抽出は Source Specs の section から仕様主張を抽出する LLM stage であり、Related Sections の生成と独立に実行される。Claim Retrieval は claim-level の dense / sparse / conflict probe retrieval で候補 SpecClaim pair を絞る LLM を呼ばない stage、Conflict Candidate Triage は絞った少数 pair に対する LLM triage stage、Conflict Review は LLM が既存根拠で解消できない conflict を Conflict Review Item として記録する LLM stage である。全 SpecClaim pair の総当たり LLM 判定は行わない。詳細は `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` を参照。
 
 stage 単位での model / effort 切替は `[llm.stage_routing]` で指定する。許可される stage key は `section_metadata` / `related_sections` / `spec_claims` / `conflict_candidate_triage` / `conflict_review` / `chapter_key_anchor` の 6 つ。`claim_retrieval` stage は LLM を呼ばないため stage_routing 対象外。stage_routing で指定された provider が `[llm.providers.<id>]` に存在しない場合、または stage key が許可外の場合は `ConfigError` で reject する。stage_routing 未指定の stage は `[llm.providers.<id>]` の先頭定義へフォールバックする。`select_llm_provider_config(stage=...)` の解決優先順は `provider_id (CLI 引数 / env)` → `stage_routing[stage]` → `[llm.providers.<id>]` の先頭定義の順である。
 
@@ -251,7 +251,7 @@ llm_batch_max_sections = 8
 llm_batch_max_chars = 12000
 ```
 
-Conflict Candidate Detection 専用の上限は `[conflict_candidate_detection]` で管理する (`per_claim_top_k = 10` / `per_section_top_k = 20` / `per_target_top_k = 20` / `global_candidate_top_k = 100` / `triage_max_pairs = 30` 等)。詳細は `doc/EXTERNAL_DESIGN.ja.md` §10.2 と `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §16 を参照。
+Conflict Candidate Detection 専用の上限は `[conflict_candidate_detection]` で管理する (`per_claim_top_k = 10` / `per_section_top_k = 20` / `per_target_top_k = 20` / `global_candidate_top_k = 100` / `triage_max_pairs = 30` 等)。詳細は `doc/EXTERNAL_DESIGN.ja.md` §10.2 と `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §16 を参照。
 
 ### 3.6 Section Metadata Cache の entry 単位再構築
 
@@ -672,7 +672,7 @@ prerequisite
 see_also
 ```
 
-`conflicts_with` は本 stage の出力 enum から **削除** されている。Related Sections は conflict 判定を持たない。仕様上の矛盾候補抽出は SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage、詳細は §5.10 と `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md`) が独立して扱う。これにより Related Sections の軽量な分類タスクと厳密な矛盾判定の evidence 厳密度を分離し、Related Sections のモデル選択が conflict recall を左右しない構造にする。
+`conflicts_with` は本 stage の出力 enum から **削除** されている。Related Sections は conflict 判定を持たない。仕様上の矛盾候補抽出は SpecClaim 経路 (SpecClaim 抽出 + Claim Retrieval + LLM triage、詳細は §5.10 と `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md`) が独立して扱う。これにより Related Sections の軽量な分類タスクと厳密な矛盾判定の evidence 厳密度を分離し、Related Sections のモデル選択が conflict recall を左右しない構造にする。
 
 最初に重視する relation:
 
@@ -935,7 +935,7 @@ B-5 計測 (`doc/監査/B-5_cache_measurement_2026-05-14.md`) で 50 section fix
 
 ### 5.10 SpecClaim と Conflict Candidate Detection (内部設計参照)
 
-SpecClaim、Claim Retrieval、LLM triage、conflict_candidate_pairs の内部設計詳細は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` に集約する。実装はその文書の §1-§17 を一次資料として参照する。
+SpecClaim、Claim Retrieval、LLM triage、conflict_candidate_pairs の内部設計詳細は `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` に集約する。実装はその文書の §1-§17 を一次資料として参照する。
 
 DESIGN.ja.md と SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md の整合:
 
@@ -948,9 +948,9 @@ DESIGN.ja.md と SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md の整合:
 - §7 `/spec-core` フロー: SpecClaim 抽出 → Claim Retrieval → LLM triage → Conflict Review の 4 stage で構成する。
 - §5.10 (本節): SpecClaim / Claim Retrieval / LLM triage の詳細 schema と prompt contract は参照先文書を正本にし、本ファイルでは他節との境界だけを固定する。
 
-SpecClaim 経路の version 定数 (`SPEC_CLAIM_SCHEMA_VERSION` / `SPEC_CLAIM_PROMPT_VERSION` / `SPEC_CLAIM_IDENTITY_VERSION` / `SPEC_CLAIM_RETRIEVAL_SCHEMA_VERSION` / `CONFLICT_CANDIDATE_SCHEMA_VERSION` / `CONFLICT_TRIAGE_PROMPT_VERSION`) は、実装 module (`spec_anchor/spec_claims.py` / `spec_anchor/conflict_candidates.py`) に置く。bump 条件は `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §9.1 を参照。
+SpecClaim 経路の version 定数 (`SPEC_CLAIM_SCHEMA_VERSION` / `SPEC_CLAIM_PROMPT_VERSION` / `SPEC_CLAIM_IDENTITY_VERSION` / `SPEC_CLAIM_RETRIEVAL_SCHEMA_VERSION` / `CONFLICT_CANDIDATE_SCHEMA_VERSION` / `CONFLICT_TRIAGE_PROMPT_VERSION`) は、実装 module (`spec_anchor/spec_claims.py` / `spec_anchor/conflict_candidates.py`) に置く。bump 条件は `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §9.1 を参照。
 
-保持ファイルと cache の物理配置 (`.spec-anchor/context/spec_claims.jsonl` / `.spec-anchor/context/conflict_candidate_pairs.jsonl` / `.spec-anchor/state/spec_claims_state.json` / `.spec-anchor/state/conflict_candidate_pairs_state.json`、claim-level Qdrant collection `[retrieval].claim_collection`) は `doc/EXTERNAL_DESIGN.ja.md` §4.1 と `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §4 を参照する。
+保持ファイルと cache の物理配置 (`.spec-anchor/context/spec_claims.jsonl` / `.spec-anchor/context/conflict_candidate_pairs.jsonl` / `.spec-anchor/state/spec_claims_state.json` / `.spec-anchor/state/conflict_candidate_pairs_state.json`、claim-level Qdrant collection `[retrieval].claim_collection`) は `doc/EXTERNAL_DESIGN.ja.md` §4.1 と `doc/OLD/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` §4 を参照する。
 
 ## 6. Chapter Key Anchor
 
