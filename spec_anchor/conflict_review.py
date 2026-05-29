@@ -47,6 +47,7 @@ class ConflictReviewResult:
     freshness_report: dict[str, Any]
     pending_conflict_count: int = 0
     selection_diagnostics: list[dict[str, Any]] = field(default_factory=list)
+    non_pending_conflict_signals: list[dict[str, Any]] = field(default_factory=list)
     # Token usage collected from each _call_judge invocation.
     # Each entry is the __spec_anchor_usage dict returned by the LLM provider.
     usage_list: list[dict[str, Any]] = field(default_factory=list)
@@ -57,6 +58,7 @@ class ConflictReviewResult:
             "diagnostics": self.diagnostics,
             "potential_conflicts": self.diagnostics,
             "selection_diagnostics": self.selection_diagnostics,
+            "non_pending_conflict_signals": self.non_pending_conflict_signals,
             "freshness_report": self.freshness_report,
             "pending_conflict_count": self.pending_conflict_count,
         }
@@ -488,6 +490,31 @@ def _build_conflict_item(
     return validate_conflict_review_item(item=item, generated_at=generated_at)
 
 
+def _build_non_pending_signal(
+    pair: Mapping[str, Any],
+    sections_by_id: Mapping[str, dict[str, Any]],
+    judge_payload: Mapping[str, Any],
+    *,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    source_refs = _source_refs_for_pair(pair, sections_by_id)
+    return {
+        "conflict_id": str(judge_payload.get("conflict_id") or _conflict_id_for_pair(dict(pair))),
+        "source_section_id": pair.get("source_section_id"),
+        "target_section_id": pair.get("target_section_id"),
+        "source_refs": source_refs,
+        "base_source_hashes": _base_source_hash(source_refs),
+        "outcome": str(judge_payload.get("outcome") or ""),
+        "reason": str(
+            judge_payload.get("why_not_pending")
+            or judge_payload.get("warning")
+            or "Potential conflict resolved by existing evidence."
+        ),
+        "spec_claim_pair": deepcopy(dict(pair)),
+        "generated_at": _timestamp(generated_at),
+    }
+
+
 def evaluate_conflicts(
     conflict_candidate_pairs: Any = None,
     conflict_judge: Any = None,
@@ -519,6 +546,7 @@ def evaluate_conflicts(
 
     items: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
+    non_pending_signals: list[dict[str, Any]] = []
     call_usages: list[dict[str, Any]] = []
 
     def _judge_one(pair: Mapping[str, Any]) -> tuple[Mapping[str, Any], dict[str, Any]]:
@@ -549,6 +577,14 @@ def evaluate_conflicts(
         if outcome in {"needs_human_review", "unresolved", "pending"}:
             items.append(_build_conflict_item(pair, sections_by_id, payload, generated_at=generated_at))
         else:
+            non_pending_signals.append(
+                _build_non_pending_signal(
+                    pair,
+                    sections_by_id,
+                    payload,
+                    generated_at=generated_at,
+                )
+            )
             diagnostics.append(
                 {
                     "kind": "potential_conflict",
@@ -567,6 +603,7 @@ def evaluate_conflicts(
         freshness_report=summary["freshness_report"],
         pending_conflict_count=summary["pending_conflict_count"],
         selection_diagnostics=[],
+        non_pending_conflict_signals=non_pending_signals,
         usage_list=call_usages,
     )
 
@@ -701,6 +738,7 @@ def _resolution_from_payload(decision_payload: dict[str, Any], *, selected_optio
         "selected_option": selected_option,
         "valid_scope": str(decision_payload.get("valid_scope") or "global"),
         "referenced_source_refs": list(referenced_source_refs),
+        "decision_origin": str(decision_payload.get("decision_origin") or "human"),
     }
 
 

@@ -766,6 +766,18 @@ def _ids(items: Any) -> set[str]:
     return ids
 
 
+def _conflict_item_touching_source(items: list[dict[str, Any]], suffix: str) -> dict[str, Any]:
+    for item in items:
+        refs = [
+            str(base.get("source_ref") or base.get("source_section_id") or base.get("ref") or "")
+            for base in item.get("base_source_hashes", [])
+            if isinstance(base, dict)
+        ]
+        if any(ref.endswith(suffix) for ref in refs):
+            return item
+    pytest.fail(f"conflict item touching source suffix {suffix!r} was not found")
+
+
 def _has_id(ids: set[str], expected: str) -> bool:
     return any(
         value == expected
@@ -1127,6 +1139,8 @@ def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
         "potential_conflicts",
         "conflict_review_items",
         "pending_conflict_count",
+        "auto_dismissed_conflict_count",
+        "auto_dismissed_conflict_ids",
         "unreflected_conflict_resolutions",
         "stale_resolution_count",
         "freshness_report",
@@ -1134,6 +1148,8 @@ def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
     }.issubset(result)
     assert result["mode"] in {"incremental", "full"}
     assert isinstance(result["pending_conflict_count"], int)
+    assert isinstance(result["auto_dismissed_conflict_count"], int)
+    assert isinstance(result["auto_dismissed_conflict_ids"], list)
     assert isinstance(result["stale_resolution_count"], int)
 
 
@@ -1854,10 +1870,167 @@ def test_t_i14_decision_payload_resolves_pending_item_through_spec_core_api(
     item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
     assert item["status"] == "resolved"
     assert item["resolution"]["reason"]
+    assert item["resolution"]["decision_origin"] == "human"
     assert result["pending_conflict_count"] == pending_count_before - 1
     assert _freshness(result)["status"] == (
         "fresh" if result["pending_conflict_count"] == 0 else "blocked"
     )
+
+
+def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
+    pending = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+    )
+    pending_count_before = pending["pending_conflict_count"]
+    conflict_id = _conflict_item_touching_source(
+        pending["conflict_review_items"],
+        "#0003-beta",
+    )["conflict_id"]
+
+    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
+        def _conflict_payload(self) -> dict[str, Any]:
+            payload = super()._conflict_payload()
+            payload["conflict_id"] = conflict_id
+            return payload
+
+    paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
+    result = _result_dict(
+        _run_spec_core(project_root, provider=FixedConflictIdResolvedProvider("resolved"))
+    )
+
+    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
+    assert item["status"] == "dismissed"
+    assert item["resolution"]["decision_origin"] == "auto_source_update"
+    assert item["resolution"]["previous_status"] == "pending"
+    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_non_pending"
+    assert item["resolution"]["applied_at"]
+    assert item["resolution"]["referenced_source_refs"]
+    assert result["pending_conflict_count"] == (
+        pending_count_before - result["auto_dismissed_conflict_count"]
+    )
+    assert result["auto_dismissed_conflict_count"] >= 1
+    assert conflict_id in result["auto_dismissed_conflict_ids"]
+
+
+def test_t_conflict_recheck_without_source_change_keeps_pending(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
+    pending = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+    )
+    pending_count_before = pending["pending_conflict_count"]
+    conflict_id = _conflict_item_touching_source(
+        pending["conflict_review_items"],
+        "#0003-beta",
+    )["conflict_id"]
+
+    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
+        def _conflict_payload(self) -> dict[str, Any]:
+            payload = super()._conflict_payload()
+            payload["conflict_id"] = conflict_id
+            return payload
+
+    result = _result_dict(
+        _run_spec_core(project_root, provider=FixedConflictIdResolvedProvider("resolved"))
+    )
+
+    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
+    assert item["status"] == "pending"
+    assert result["pending_conflict_count"] == pending_count_before
+    assert result["auto_dismissed_conflict_count"] == 0
+    assert result["auto_dismissed_conflict_ids"] == []
+    assert _freshness(result)["status"] == "blocked"
+
+
+def test_t_conflict_source_update_auto_dismisses_absent_pair(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
+    pending = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+    )
+    conflict_id = _conflict_item_touching_source(
+        pending["conflict_review_items"],
+        "#0003-beta",
+    )["conflict_id"]
+
+    class NoReviewTriageProvider(ConflictCandidateTriageProvider):
+        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            if str(getattr(request, "stage", "")) == "conflict_candidate_triage":
+                self.calls.append(request)
+                return {
+                    "send_to_review": False,
+                    "reason": "Source update removed the conflict candidate from review.",
+                    "confidence": "medium",
+                }
+            return super().generate(request, timeout_sec=timeout_sec)
+
+    paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
+    result = _result_dict(
+        _run_spec_core(project_root, provider=NoReviewTriageProvider())
+    )
+
+    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
+    assert item["status"] == "dismissed"
+    assert item["resolution"]["decision_origin"] == "auto_source_update"
+    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_pair_absent"
+    assert result["auto_dismissed_conflict_count"] >= 1
+    assert conflict_id in result["auto_dismissed_conflict_ids"]
+
+
+def test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    watcher_core = _required_function(
+        _core_module(),
+        ("run_spec_core_for_watcher",),
+    )
+    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
+    pending = _result_dict(
+        watcher_core(
+            project_root,
+            all_mode=True,
+            provider=ConflictCandidateTriageProvider("unresolved"),
+            generated_at="2026-05-06T00:00:00Z",
+        )
+    )
+    conflict_id = _conflict_item_touching_source(
+        pending["conflict_review_items"],
+        "#0003-beta",
+    )["conflict_id"]
+
+    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
+        def _conflict_payload(self) -> dict[str, Any]:
+            payload = super()._conflict_payload()
+            payload["conflict_id"] = conflict_id
+            return payload
+
+    paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
+    result = _result_dict(
+        watcher_core(
+            project_root,
+            provider=FixedConflictIdResolvedProvider("resolved"),
+            generated_at="2026-05-06T00:00:00Z",
+        )
+    )
+
+    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
+    assert item["status"] == "dismissed"
+    assert item["resolution"]["decision_origin"] == "auto_source_update"
+    assert result["auto_dismissed_conflict_count"] >= 1
+    assert conflict_id in result["auto_dismissed_conflict_ids"]
 
 
 def test_t_i15_spec_core_uses_atomic_context_update_and_writes_freshness_last(

@@ -127,6 +127,36 @@ Source Specs / Purpose / Core Concept の変更後に `/spec-core` または `sp
 11. `spec-anchor-watch` は `spec_anchor/watcher.py` で `run_spec_core_for_watcher` を直接 import して呼ぶため、この直接呼び出し経路にも同じ pending 解除処理と CoreResult field が適用されることを test する。watch の長時間実行が必要な場合は unit / integration を分ける。
 12. template / skill drift 防止として、Claude command / Codex skill の installed copy と packaged template の parity、pending conflict の必須 label、constraints 根拠ルールの必須文言を static assertion で確認する test を追加する。
 
+#### 2026-05-29 進捗
+
+実装済み:
+
+- `evaluate_conflicts()` が non-pending outcome の `conflict_id` / source pair / outcome / reason / base source hash を machine-readable signal として返すようにした。
+- `spec_anchor/core.py` の pending Conflict Review Item merge で、source hash 変化または source ref 削除を条件に `source_update_recheck_non_pending` / `source_update_recheck_pair_absent` の自動 dismiss を行うようにした。
+- source hash が変わっていない場合は、同じ `conflict_id` の non-pending signal があっても pending を維持する test を追加した。
+- pair absent による自動 dismiss は、Conflict Candidate Detection が有効で、SpecClaims / Claim Retrieval / LLM triage が成功または候補なしとして完了した場合だけ許可するようにした。partial / failed / disabled 経路では解除しない。
+- `resolution.decision_origin="human"` を人間 decision payload の既定値として保存し、自動 dismiss では `resolution.decision_origin="auto_source_update"`、`previous_status`、`applied_at`、`auto_dismiss_reason`、`referenced_source_refs` を保存するようにした。
+- CoreResult に `auto_dismissed_conflict_count` / `auto_dismissed_conflict_ids[]` を追加した。
+- `run_spec_core_for_watcher` 直接呼び出し経路でも同じ自動 dismiss と CoreResult field が得られる unit test を追加した。
+- Claude command / Codex skill の installed copy と packaged template の parity、pending conflict 必須 label、constraints 根拠ルールの static test を追加した。
+- `doc/EXTERNAL_DESIGN.ja.md` §3.3 / §7.4 に、Source Specs / Purpose / Core Concept 修正後の自動 dismiss 条件、human dismiss との区別、CoreResult 観測 field を追記した。
+
+`none` / `fake` profile で passing:
+
+- `.venv/bin/python -m pytest -q tests/test_spec_core.py tests/test_conflict_review.py tests/test_setup_scripts.py::test_t_conflict_source_update_flow_agent_templates_are_in_sync tests/test_setup_scripts.py::test_t_c01_spec_inject_template_matches_agent_cli_boundary tests/test_setup_scripts.py::test_t_c01_inject_templates_define_agent_generated_constraints_workflow tests/test_setup_scripts.py::test_t_c01_realign_templates_define_answer_generation_and_validation_workflow tests/test_setup_scripts.py::test_t_c01_constraints_json_block_is_shared_across_agent_templates --tb=short` -> 68 passed
+- `.venv/bin/python -m pytest --skip-external -q --tb=short` -> 610 passed, 22 skipped, 2 warnings
+
+skipped / 未実行:
+
+- 実 Qdrant / BGE-M3 / real provider / `local-service` / `real-smoke` は未実行。
+- `spec-anchor-watch` の長時間 process と filesystem event を含む実機 integration は未実行。現時点では `run_spec_core_for_watcher` 直接呼び出し unit test で同一 core 経路を確認した。
+
+残 TODO:
+
+- heading slug 変更 / section 削除により source ref が dangling になる fixture の明示 test は未追加。現在の実装は source ref が現在の source hash map に無い場合を source 変化として扱うが、fixture 固定は残る。
+- `spec-anchor inject-*` / `spec-anchor realign` の freshness gate で、自動 dismiss 済み item が `pending_conflict_items` に出ないことを直接叩く regression test は未追加。CoreResult の `pending_conflict_count` と既存 freshness 集計経路では確認済みだが、inject / realign CLI 表示の直接 test は残る。
+- `needs_source_update` など pending decision 後の自動 dismiss で、既存 pending decision の audit trail をどう表現するかは追加 test が必要。現在の自動 dismiss は既存 `resolution` があれば `previous_resolution` に保持する。
+
 #### 検証条件
 
 A. **既存 pending item の解除**

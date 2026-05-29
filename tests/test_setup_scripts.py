@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 COMMAND_NAMES = ("spec-core.md", "spec-inject.md", "spec-realign.md")
 
 
@@ -540,6 +541,40 @@ def test_t_c01_constraints_json_block_is_shared_across_agent_templates(
 
     assert inject_block == skill_block
     assert realign_block == skill_block
+
+
+def test_t_conflict_source_update_flow_agent_templates_are_in_sync() -> None:
+    template_pairs = (
+        (
+            REPO_ROOT / ".claude" / "commands" / "spec-inject.md",
+            REPO_ROOT / "spec_anchor" / "templates" / ".claude" / "commands" / "spec-inject.md",
+        ),
+        (
+            REPO_ROOT / ".claude" / "commands" / "spec-realign.md",
+            REPO_ROOT / "spec_anchor" / "templates" / ".claude" / "commands" / "spec-realign.md",
+        ),
+        (
+            REPO_ROOT / ".codex" / "skills" / "spec-anchor" / "SKILL.md",
+            REPO_ROOT / "spec_anchor" / "templates" / ".codex" / "skills" / "spec-anchor" / "SKILL.md",
+        ),
+    )
+    for installed_path, template_path in template_pairs:
+        installed_text = installed_path.read_text()
+        assert installed_text == template_path.read_text()
+        lower = installed_text.lower()
+        for expected in (
+            "conflict_id",
+            "severity",
+            "claims",
+            "why_conflicting",
+            "why_llm_cannot_decide",
+            "decision_options",
+            "source_refs",
+            "recommended_next_action",
+            "evidence_origin",
+            "sole evidence",
+        ):
+            assert expected in lower, f"missing {expected} in {installed_path}"
 
 
 def test_t_c01_claude_command_templates_have_command_frontmatter(

@@ -8,6 +8,7 @@ import re
 import time
 import uuid
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
+from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
@@ -683,7 +684,27 @@ def _run_spec_core_unlocked(
         for item in conflict_payload.get("conflict_review_items", [])
         if isinstance(item, Mapping)
     ]
-    conflict_review_items = _merge_conflict_items(existing_conflict_items, new_items)
+    current_hashes = {section["section_id"]: section["source_hash"] for section in sections}
+    current_hashes[purpose_ref] = purpose_hash
+    current_hashes[concept_ref] = concept_hash
+    non_pending_conflict_signals = [
+        dict(item)
+        for item in conflict_payload.get("non_pending_conflict_signals", [])
+        if isinstance(item, Mapping)
+    ]
+    conflict_review_items, auto_dismissed_conflict_ids = _merge_conflict_items(
+        existing_conflict_items,
+        new_items,
+        non_pending_signals=non_pending_conflict_signals,
+        current_source_hashes=current_hashes,
+        generated_at=generated_at,
+        allow_pair_absent_auto_dismiss=_conflict_pair_absence_is_reliable(
+            spec_claims_status=spec_claims_status,
+            claim_retrieval_status=claim_retrieval_status,
+            conflict_candidate_triage_status=conflict_candidate_triage_status,
+            conflict_candidate_detection_enabled=_claim_retrieval_enabled(config),
+        ),
+    )
     conflict_review_items = _ensure_context_base_hashes(
         conflict_review_items,
         purpose_ref=purpose_ref,
@@ -691,9 +712,6 @@ def _run_spec_core_unlocked(
         concept_ref=concept_ref,
         concept_hash=concept_hash,
     )
-    current_hashes = {section["section_id"]: section["source_hash"] for section in sections}
-    current_hashes[purpose_ref] = purpose_hash
-    current_hashes[concept_ref] = concept_hash
     conflict_review_items = refresh_conflict_resolution_staleness(
         conflict_review_items=conflict_review_items,
         current_source_hashes=current_hashes,
@@ -918,6 +936,8 @@ def _run_spec_core_unlocked(
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
+        "auto_dismissed_conflict_count": len(auto_dismissed_conflict_ids),
+        "auto_dismissed_conflict_ids": auto_dismissed_conflict_ids,
         "unreflected_conflict_resolutions": unreflected_conflicts,
         "stale_resolution_count": stale_resolution_count,
         "freshness_report": freshness_report,
@@ -1152,6 +1172,8 @@ def _blocked_core_result(
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
+        "auto_dismissed_conflict_count": 0,
+        "auto_dismissed_conflict_ids": [],
         "unreflected_conflict_resolutions": [],
         "stale_resolution_count": 0,
         "freshness_report": report,
@@ -1204,6 +1226,8 @@ def _config_error_core_result(
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
+        "auto_dismissed_conflict_count": 0,
+        "auto_dismissed_conflict_ids": [],
         "unreflected_conflict_resolutions": [],
         "stale_resolution_count": 0,
         "freshness_report": report,
@@ -4327,9 +4351,31 @@ def _ensure_context_base_hashes(
     return updated_items
 
 
-def _merge_conflict_items(existing: Sequence[Mapping[str, Any]], new: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def _merge_conflict_items(
+    existing: Sequence[Mapping[str, Any]],
+    new: Sequence[Mapping[str, Any]],
+    *,
+    non_pending_signals: Sequence[Mapping[str, Any]] | None = None,
+    current_source_hashes: Mapping[str, str] | None = None,
+    generated_at: str | None = None,
+    allow_pair_absent_auto_dismiss: bool = False,
+) -> tuple[list[dict[str, Any]], list[str]]:
     merged: dict[str, dict[str, Any]] = {}
     resolved_pair_keys: set[tuple[str, str]] = set()
+    current_hashes = {
+        str(key): str(value)
+        for key, value in (current_source_hashes or {}).items()
+    }
+    signals = [
+        dict(signal)
+        for signal in (non_pending_signals or [])
+        if isinstance(signal, Mapping)
+    ]
+    signal_ids = {str(signal.get("conflict_id") or "") for signal in signals}
+    active_ids = {conflict_id for conflict_id in signal_ids if conflict_id}
+    new_ids = {str(item.get("conflict_id") or "") for item in new if isinstance(item, Mapping)}
+    auto_dismissed_conflict_ids: list[str] = []
+
     for item in existing:
         current = dict(item)
         merged[str(item.get("conflict_id"))] = current
@@ -4339,13 +4385,159 @@ def _merge_conflict_items(existing: Sequence[Mapping[str, Any]], new: Sequence[M
                 resolved_pair_keys.add(pair_key)
     for item in new:
         conflict_id = str(item.get("conflict_id"))
+        active_ids.add(conflict_id)
         pair_key = _conflict_pair_key_from_item(item)
         if pair_key in resolved_pair_keys:
             continue
         if merged.get(conflict_id, {}).get("status") in {"resolved", "dismissed"}:
             continue
         merged[conflict_id] = dict(item)
-    return list(merged.values())
+    for conflict_id, item in list(merged.items()):
+        if item.get("status") != "pending":
+            continue
+        if conflict_id in new_ids:
+            continue
+        if not _pending_conflict_sources_changed(item, current_hashes):
+            continue
+        if conflict_id in signal_ids:
+            reason = "source_update_recheck_non_pending"
+        elif allow_pair_absent_auto_dismiss and conflict_id not in active_ids:
+            reason = "source_update_recheck_pair_absent"
+        else:
+            continue
+        merged[conflict_id] = _auto_dismiss_pending_conflict(
+            item,
+            current_source_hashes=current_hashes,
+            reason=reason,
+            generated_at=generated_at,
+        )
+        auto_dismissed_conflict_ids.append(conflict_id)
+    return list(merged.values()), auto_dismissed_conflict_ids
+
+
+def _conflict_pair_absence_is_reliable(
+    *,
+    spec_claims_status: str,
+    claim_retrieval_status: str,
+    conflict_candidate_triage_status: str,
+    conflict_candidate_detection_enabled: bool,
+) -> bool:
+    if not conflict_candidate_detection_enabled:
+        return False
+    return (
+        spec_claims_status in {"success", "success_no_claims", "skipped_unchanged"}
+        and claim_retrieval_status
+        in {"success", "success_no_candidates", "skipped_unchanged"}
+        and conflict_candidate_triage_status
+        in {"success", "success_no_triage", "skipped_unchanged"}
+    )
+
+
+def _pending_conflict_sources_changed(
+    item: Mapping[str, Any],
+    current_source_hashes: Mapping[str, str],
+) -> bool:
+    changed = False
+    for base in item.get("base_source_hashes", []):
+        if not isinstance(base, Mapping):
+            continue
+        source_ref = str(
+            base.get("source_ref")
+            or base.get("source_section_id")
+            or base.get("ref")
+            or ""
+        )
+        expected_hash = base.get("hash") or base.get("source_hash")
+        if not source_ref or expected_hash is None:
+            continue
+        current_hash = current_source_hashes.get(source_ref)
+        if current_hash is None or str(current_hash) != str(expected_hash):
+            changed = True
+            break
+    return changed
+
+
+def _auto_dismiss_pending_conflict(
+    item: Mapping[str, Any],
+    *,
+    current_source_hashes: Mapping[str, str],
+    reason: str,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    updated = deepcopy(dict(item))
+    now = generated_at or _nowish()
+    previous_resolution = (
+        deepcopy(updated.get("resolution"))
+        if isinstance(updated.get("resolution"), Mapping)
+        else None
+    )
+    source_refs = [
+        deepcopy(ref)
+        for ref in updated.get("source_refs", [])
+        if isinstance(ref, Mapping)
+    ]
+    resolution: dict[str, Any] = {
+        "decision": "dismiss",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "selected_option": "dismiss",
+        "valid_scope": "global",
+        "referenced_source_refs": source_refs,
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "applied_at": now,
+        "auto_dismiss_reason": reason,
+    }
+    if previous_resolution is not None:
+        resolution["previous_resolution"] = previous_resolution
+    updated["status"] = "dismissed"
+    updated["valid_scope"] = "global"
+    updated["resolution"] = resolution
+    updated["reflection_status"] = "not_required"
+    updated["stale_resolution"] = False
+    updated["updated_at"] = now
+    updated["base_source_hashes"] = _current_base_source_hashes(
+        updated,
+        current_source_hashes=current_source_hashes,
+    )
+    return updated
+
+
+def _current_base_source_hashes(
+    item: Mapping[str, Any],
+    *,
+    current_source_hashes: Mapping[str, str],
+) -> list[dict[str, str]]:
+    refs: list[str] = []
+    for base in item.get("base_source_hashes", []):
+        if isinstance(base, Mapping):
+            source_ref = str(
+                base.get("source_ref")
+                or base.get("source_section_id")
+                or base.get("ref")
+                or ""
+            )
+            if source_ref:
+                refs.append(source_ref)
+    for ref in item.get("source_refs", []):
+        if isinstance(ref, Mapping):
+            source_ref = str(
+                ref.get("source_section_id")
+                or ref.get("source_ref")
+                or ref.get("ref")
+                or ""
+            )
+            if source_ref:
+                refs.append(source_ref)
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for source_ref in refs:
+        if source_ref in seen:
+            continue
+        seen.add(source_ref)
+        current_hash = current_source_hashes.get(source_ref)
+        if current_hash is not None:
+            result.append({"source_ref": source_ref, "hash": str(current_hash)})
+    return result
 
 
 def _conflict_pair_key_from_item(item: Mapping[str, Any]) -> tuple[str, str] | None:
