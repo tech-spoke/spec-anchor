@@ -22,12 +22,10 @@
 優先順位:
 
 1. **T-conflict-source-update-flow**: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
-2. **T-flaky-spec-core-responsibility-boundary**: `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (真因特定・test 修正済み、長時間検証待ち)
 
 依存関係:
 
 - T-conflict-source-update-flow は SpecClaim 移行と独立。Phase 5 (commit da692ba) で Conflict Review 入力境界が SpecClaim pair に変更されたが、T-conflict の auto-dismiss ロジックは `conflict_review_items.json` 側で完結するため SpecClaim pair 入力でも直交する。Phase 5 で Related Sections 由来 pair 依存の test fixture (T-conflict B 区分) は SpecClaim retrieval 由来 fixture に更新する必要がある。
-- T-flaky-spec-core-responsibility-boundary は独立。2026-05-29 に真因特定と test 修正は実施済み。残作業は full pytest 100 回相当の長時間安定性確認。
 
 完了済み task (履歴は本ファイル各章と git log を参照):
 
@@ -37,6 +35,7 @@
 - T-spec-claim-phase-4 (Phase 4: 実機 recall 検証 = Phase 5 着手 gate) — 完了 2026-05-29
 - T-spec-claim-phase-5 (Phase 5: `possible_conflict` 完全削除 + Conflict Review 入力境界変更) — 完了 2026-05-29
 - T-spec-inject-pending-conflict-fixture-update (PendingConflictSpecCoreProvider を SpecClaim 経路に追従) — 完了 2026-05-29
+- T-flaky-spec-core-responsibility-boundary (subprocess 経路の env / timeout / retrieval 固定で偶発的失敗を真因解消、対象 test 100 回連続 pass) — 完了 2026-05-29
 
 ### T-conflict-source-update-flow: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
 
@@ -697,7 +696,25 @@ E. **既存 pytest**: `pytest --skip-external` が pass する。
   - Conflict Review pipeline の prompt 改善や judge ロジック変更は今回の scope 外 (本 Phase は入力境界変更のみ)。
   - `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` 自体を archive へ移す判断は別 task (本 Phase 完了後の整理 task として切り出してよい)。
 
-### T-flaky-spec-core-responsibility-boundary: `test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (真因特定・test 修正済み、長時間検証待ち)
+### [完了 2026-05-29, 本日中の commit] T-flaky-spec-core-responsibility-boundary: `test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (真因特定・test 修正済み)
+
+#### 真因と修正 (2026-05-29, CODEX 調査)
+
+**真因**: `/spec-core` が Purpose / Core Concept を書き換えたのではなく、**test 側の subprocess 条件**が不安定だった。
+- subprocess に `PYTHONPATH` と `SPEC_ANCHOR_FAKE_LLM=1` を渡しておらず、実 Codex / Claude CLI 経路が走って `outer timeout 30s` の境界 (実測 29.844s) で偶発 timeout
+- 一時 project の retrieval が `flagembedding` / `qdrant` のままで local-service 依存
+- `timeout` 例外時に `result.returncode` が確定せず、`_diag()` も出力されず切り分け不能
+
+**修正** (`tests/test_responsibility_boundary.py:59-111`):
+- `_subprocess_env()` で `SPEC_ANCHOR_FAKE_LLM=1` / `SPEC_ANCHOR_FAKE_RETRIEVAL=1` / `PYTHONPATH=REPO_ROOT` を明示
+- `_run_spec_anchor()` で `subprocess.TimeoutExpired` を catch して `returncode=124` の診断付き `CompletedProcess` を返す
+- `_disable_external_retrieval()` で一時 project の config の `flagembedding` / `qdrant` を `none` に置換 (Qdrant / BGE-M3 に依存しない正常 `/spec-core` 経路に固定)
+- `test_spec_core_does_not_modify_purpose_or_concept_files` で `result.returncode == 0` を確認してから Purpose / Core Concept の byte 一致を検証
+
+**検証**:
+- `python -m pytest -q tests/test_responsibility_boundary.py`: 6 passed (0.70s)
+- 対象 test 100 回連続: 100/100 pass
+- `python -m py_compile tests/test_responsibility_boundary.py`: pass
 
 #### 背景
 

@@ -11,6 +11,7 @@ those files.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tomllib
@@ -55,16 +56,59 @@ def _setup_project(target: Path) -> None:
     assert code == 0, f"setup-project exited {code}"
 
 
-def _run_spec_anchor(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def _subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env["SPEC_ANCHOR_FAKE_LLM"] = "1"
+    env["SPEC_ANCHOR_FAKE_RETRIEVAL"] = "1"
+    pythonpath = env.get("PYTHONPATH", "")
+    parts = [str(REPO_ROOT)]
+    if pythonpath:
+        parts.extend(part for part in pythonpath.split(os.pathsep) if part)
+    env["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(parts))
+    return env
+
+
+def _coerce_timeout_output(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def _run_spec_anchor(
+    *args: str,
+    cwd: Path | None = None,
+    timeout: int = 30,
+) -> subprocess.CompletedProcess[str]:
     """Run ``spec-anchor`` (the main CLI) as a subprocess."""
 
-    return subprocess.run(
-        [sys.executable, "-m", "spec_anchor", *args],
-        cwd=cwd if cwd is not None else REPO_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
+    command = [sys.executable, "-m", "spec_anchor", *args]
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd if cwd is not None else REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=_subprocess_env(),
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = _coerce_timeout_output(exc.stdout)
+        stderr = _coerce_timeout_output(exc.stderr)
+        if stderr:
+            stderr += "\n"
+        stderr += f"Timed out after {timeout}s"
+        return subprocess.CompletedProcess(command, 124, stdout=stdout, stderr=stderr)
+
+
+def _disable_external_retrieval(config_path: Path) -> None:
+    """Keep this boundary test on a deterministic non-Qdrant core path."""
+
+    text = config_path.read_text(encoding="utf-8")
+    text = text.replace('provider = "flagembedding"', 'provider = "none"', 1)
+    text = text.replace('provider = "qdrant"', 'provider = "none"', 1)
+    config_path.write_text(text, encoding="utf-8")
 
 
 def _cli_help_text(*args: str) -> str:
@@ -283,6 +327,7 @@ def test_spec_core_does_not_modify_purpose_or_concept_files(tmp_path: Path) -> N
         "# Main\n\n## Overview\n\nOverview body.\n",
         encoding="utf-8",
     )
+    _disable_external_retrieval(project / ".spec-anchor" / "config.toml")
 
     config_text = (project / ".spec-anchor" / "config.toml").read_text(encoding="utf-8")
     config = tomllib.loads(config_text)
@@ -310,6 +355,9 @@ def test_spec_core_does_not_modify_purpose_or_concept_files(tmp_path: Path) -> N
             f"concept_after[:500]={concept_after[:500]!r}\n"
         )
 
+    assert result.returncode == 0, (
+        f"`spec-anchor core` failed before read-only check." + _diag()
+    )
     assert purpose_after == purpose_before, (
         f"`spec-anchor core` mutated Purpose file {purpose}; §5.3 L416 forbids this." + _diag()
     )
