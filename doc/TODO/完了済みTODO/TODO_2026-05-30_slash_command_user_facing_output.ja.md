@@ -2,8 +2,8 @@
 
 **起票日**: 2026-05-29
 **起票者**: Human
-**最終更新**: 2026-05-29
-**ステータス**: 計画中
+**最終更新**: 2026-05-30
+**ステータス**: 完了 (2026-05-30。全 13 sub task が LLM コンプリート + 人間レビュー OK の 3 段ゲートを通過。Human により完了承認済み)
 **関連設計書**: `doc/EXTERNAL_DESIGN.ja.md §8.5`、`.claude/commands/spec-inject.md` / `spec-realign.md` / `spec-core.md`、`spec_anchor/templates/.claude/commands/` 配下
 
 ## 全体目的
