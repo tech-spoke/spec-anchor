@@ -699,6 +699,10 @@ def apply_conflict_decision(
         now = _timestamp(generated_at)
         if selected_decision in PENDING_DECISIONS:
             updated["status"] = "pending"
+            updated["valid_scope"] = str(decision_payload.get("valid_scope") or updated.get("valid_scope") or "global")
+            if updated["valid_scope"] not in SCOPES:
+                raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
+            updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
             updated["updated_at"] = now
             updated["last_decision"] = {
                 "decision": selected_decision,

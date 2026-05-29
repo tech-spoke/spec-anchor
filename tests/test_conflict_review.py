@@ -587,6 +587,9 @@ def test_t_u15_decision_payload_transitions(
         assert updated["resolution"]["referenced_source_refs"]
     else:
         assert updated["status"] == "pending"
+        assert updated["resolution"]["decision"] == decision
+        assert updated["resolution"]["decision_origin"] == "human"
+        assert updated["resolution"]["referenced_source_refs"]
 
 
 def test_t_u15_invalid_decisions_and_overwrites_are_rejected() -> None:

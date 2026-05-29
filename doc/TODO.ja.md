@@ -21,15 +21,12 @@
 
 優先順位:
 
-1. **T-conflict-source-update-flow**: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正 — **コア実装完了 (commit 9e77cf0)、残 test 3 件**:
-   - C-6 関連: heading slug 変更 / section 削除で dangling になる fixture の明示 test (実装は source ref が現在の source hash map に無い場合を source 変化として扱う形で対応済み、fixture 固定のみ残)
-   - C-3 / freshness gate 関連: `spec-anchor inject-*` / `spec-anchor realign` の freshness gate で、自動 dismiss 済み item が `pending_conflict_items` に出ないことを直接叩く regression test (CoreResult `pending_conflict_count` と既存 freshness 集計経路では確認済みだが、CLI 表示の直接 test は残)
-   - C-11 関連: `needs_source_update` など pending decision 後の自動 dismiss で、既存 pending decision の audit trail をどう表現するかの追加 test (自動 dismiss 実装は既存 `resolution` を `previous_resolution` に保持する形で対応済み)
+1. **T-conflict-source-update-flow**: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正 — **コア実装 + regression test 完了、real/local-service 検証未実行**。
 
 依存関係:
 
 - T-conflict-source-update-flow は SpecClaim 移行と独立。Phase 5 (commit da692ba) で Conflict Review 入力境界が SpecClaim pair に変更されたが、T-conflict の auto-dismiss ロジックは `conflict_review_items.json` 側で完結するため SpecClaim pair 入力でも直交する。Phase 5 で Related Sections 由来 pair 依存の test fixture (T-conflict B 区分) は SpecClaim retrieval 由来 fixture に更新する必要がある。
-- T-conflict-source-update-flow の残 test 3 件は CODEX が commit 9e77cf0 で TODO.ja.md「2026-05-29 進捗」末尾に残 TODO として記録済み。本優先順位リスト側の小項目と同じ内容を指す。
+- T-conflict-source-update-flow の C-6 / C-3 / C-11 regression test は現在の未コミット差分で追加済み。残範囲は実 Qdrant / BGE-M3 / real provider / `local-service` / `real-smoke` と、長時間 watcher の filesystem event integration。
 
 完了済み task (履歴は本ファイル各章と git log を参照):
 
@@ -146,22 +143,26 @@ Source Specs / Purpose / Core Concept の変更後に `/spec-core` または `sp
 - `doc/EXTERNAL_DESIGN.ja.md` §3.3 / §7.4 に、Source Specs / Purpose / Core Concept 修正後の自動 dismiss 条件、human dismiss との区別、CoreResult 観測 field を追記した。
 - heading slug 変更と section 削除で旧 source ref が dangling になる fixture を追加し、`source_update_recheck_pair_absent` で自動 dismiss され、旧 source ref が更新後の `base_source_hashes` から落ちることを確認した。
 - `spec-anchor inject` / `spec-anchor inject-*` / `spec-anchor realign` の表示経路を直接叩き、自動 dismiss 済み item が `pending_conflict_items` に出ないことを確認した。
+- `needs_source_update` など pending decision を `resolution.decision_origin="human"` として保存し、同じ conflict が再生成された場合も pending decision の audit を保持し、その後の自動 dismiss で `resolution.previous_resolution` に退避されることを確認した。
 
 `none` / `fake` profile で passing:
 
 - `.venv/bin/python -m pytest -q tests/test_spec_core.py tests/test_conflict_review.py tests/test_setup_scripts.py::test_t_conflict_source_update_flow_agent_templates_are_in_sync tests/test_setup_scripts.py::test_t_c01_spec_inject_template_matches_agent_cli_boundary tests/test_setup_scripts.py::test_t_c01_inject_templates_define_agent_generated_constraints_workflow tests/test_setup_scripts.py::test_t_c01_realign_templates_define_answer_generation_and_validation_workflow tests/test_setup_scripts.py::test_t_c01_constraints_json_block_is_shared_across_agent_templates --tb=short` -> 68 passed
 - `.venv/bin/python -m pytest -q tests/test_spec_core.py::test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_ref tests/test_spec_core.py::test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref tests/test_spec_inject.py::test_auto_dismissed_conflict_is_not_displayed_by_inject_or_realign_paths --tb=short` -> 3 passed
 - `.venv/bin/python -m pytest -q tests/test_spec_core.py tests/test_spec_inject.py tests/test_spec_realign.py --tb=short` -> 69 passed
-- `.venv/bin/python -m pytest --skip-external -q --tb=short` -> 610 passed, 22 skipped, 2 warnings
+- `.venv/bin/python -m pytest -q tests/test_conflict_review.py::test_t_u15_decision_payload_transitions tests/test_spec_core.py::test_t_conflict_source_update_auto_dismiss_preserves_pending_decision_audit tests/test_spec_core.py::test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_ref tests/test_spec_core.py::test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref tests/test_spec_inject.py::test_auto_dismissed_conflict_is_not_displayed_by_inject_or_realign_paths --tb=short` -> 11 passed
+- `.venv/bin/python -m pytest -q tests/test_conflict_review.py tests/test_spec_core.py tests/test_spec_inject.py tests/test_spec_realign.py --tb=short` -> 88 passed
 
 skipped / 未実行:
 
+- C-11 追加後の `.venv/bin/python -m pytest --skip-external -q --tb=short` は WSL 負荷のため途中停止。C-11 追加前の直近実行では 613 passed, 22 skipped, 2 warnings。
 - 実 Qdrant / BGE-M3 / real provider / `local-service` / `real-smoke` は未実行。
 - `spec-anchor-watch` の長時間 process と filesystem event を含む実機 integration は未実行。現時点では `run_spec_core_for_watcher` 直接呼び出し unit test で同一 core 経路を確認した。
 
 残 TODO:
 
-- `needs_source_update` など pending decision 後の自動 dismiss で、既存 pending decision の audit trail をどう表現するかは追加 test が必要。現在の自動 dismiss は既存 `resolution` があれば `previous_resolution` に保持する。
+- 実 Qdrant / BGE-M3 / real provider / `local-service` / `real-smoke` の検証。
+- `spec-anchor-watch` の長時間 process と filesystem event を含む integration 検証。
 
 #### 検証条件
 

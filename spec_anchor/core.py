@@ -4391,7 +4391,14 @@ def _merge_conflict_items(
             continue
         if merged.get(conflict_id, {}).get("status") in {"resolved", "dismissed"}:
             continue
-        merged[conflict_id] = dict(item)
+        existing_item = merged.get(conflict_id)
+        merged_item = dict(item)
+        if isinstance(existing_item, Mapping) and existing_item.get("status") == "pending":
+            for audit_key in ("resolution", "last_decision"):
+                audit_value = existing_item.get(audit_key)
+                if audit_key not in merged_item and isinstance(audit_value, Mapping):
+                    merged_item[audit_key] = deepcopy(audit_value)
+        merged[conflict_id] = merged_item
     for conflict_id, item in list(merged.items()):
         if item.get("status") != "pending":
             continue

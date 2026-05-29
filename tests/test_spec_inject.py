@@ -302,6 +302,38 @@ def _pending_conflict(conflict_id: str = "conflict-auth-session") -> dict[str, A
     }
 
 
+def _auto_dismissed_conflict(conflict_id: str = "auto-dismissed-conflict") -> dict[str, Any]:
+    item = _pending_conflict(conflict_id)
+    item["status"] = "dismissed"
+    item["resolution"] = {
+        "decision": "dismiss",
+        "selected_option": "dismiss",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "valid_scope": "global",
+        "referenced_source_refs": list(item["source_refs"]),
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "applied_at": "2026-05-06T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+    }
+    return item
+
+
+def _write_conflict_review_state(project_root: Path, items: list[dict[str, Any]]) -> None:
+    from spec_anchor.freshness import build_freshness_report
+
+    context_dir = project_root / ".spec-anchor" / "context"
+    state_dir = project_root / ".spec-anchor" / "state"
+    context_dir.mkdir(parents=True, exist_ok=True)
+    state_dir.mkdir(parents=True, exist_ok=True)
+    (context_dir / "conflict_review_items.json").write_text(
+        json.dumps({"conflict_review_items": items})
+    )
+    (state_dir / "freshness.json").write_text(
+        json.dumps(build_freshness_report(conflict_review_items=items))
+    )
+
+
 def _value(value: Any, *path: str, default: Any = None) -> Any:
     current = value
     for key in path:
@@ -500,6 +532,49 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
     text = _text_blob(result)
     assert "conflict-from-spec-core-artifact" in text
     assert "why_llm_cannot_decide" in text
+
+
+def test_auto_dismissed_conflict_is_not_displayed_by_inject_or_realign_paths(
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+    dismissed = _auto_dismissed_conflict()
+    pending = _pending_conflict("still-pending-conflict")
+    _write_conflict_review_state(project_root, [dismissed, pending])
+
+    from spec_anchor.inject import run_inject_chapters, run_inject_conflicts
+    from spec_anchor.realign import run_spec_realign
+
+    results = [
+        _run_spec_inject(project_root),
+        run_inject_chapters(project_root=project_root),
+        run_inject_conflicts(project_root=project_root),
+        run_spec_realign(
+            project_root=project_root,
+            agent_answer={
+                "今回守る制約": [],
+                "今回扱う修正候補または検討対象": [],
+                "競合 / 不確実性 / 人間レビューが必要な点": [],
+                "課題プロンプトへの回答または修正案": "blocked before answer shaping",
+            },
+            generated_at="2026-05-06T00:00:00Z",
+        ),
+    ]
+
+    for result in results:
+        data = _result_dict(result)
+        text = _text_blob(data)
+        pending_items = data.get("pending_conflict_items") or []
+        assert _stopped(data) is True
+        assert "pending_conflict" in text
+        assert "still-pending-conflict" in text
+        assert "auto-dismissed-conflict" not in text
+        assert all(
+            item.get("conflict_id") != "auto-dismissed-conflict"
+            for item in pending_items
+            if isinstance(item, dict)
+        )
 
 
 @pytest.mark.parametrize(
