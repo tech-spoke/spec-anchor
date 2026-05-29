@@ -141,3 +141,43 @@ Phase 5 で `evaluate_conflicts` の入力境界を SpecClaim pair + evidence + 
 **recall regression なし**。さらに Phase 5 で初めて新方式の Conflict Review pipeline 全体 (SpecClaim 抽出 → Claim Retrieval → LLM triage → Conflict Review) の end-to-end 実機動作を確認できた。`display_id` の採番が変動するのは Phase 5 後の Claim Retrieval candidate 順序の整理 (`conflict_pair_max_per_section` 削除等) によるもので、`candidate_uid` (sorted claim_uid pair の sha256) と claim pair 自体は維持されている (SCD-013 通り `display_id` を primary key にしない設計のため許容)。
 
 Phase 5 移行は完全に成功した。本セクションをもって T-spec-claim-phase-5 の合格基準 D (実機経路 recall 維持) を達成 (`doc/TODO.ja.md` T-spec-claim-phase-5 完了条件 D)。
+
+## T-conflict-source-update-flow 実機 auto-dismiss 検証 (2026-05-29)
+
+### 環境
+
+- HEAD: `5f4bb1e test(conflict-review): add C-6 / C-3 / C-11 regression tests (T-conflict-source-update-flow 完全完了)` (T-conflict コア実装 + regression test 完了状態)
+- LLM provider: Phase 4 / Phase 5 と同じ (Codex CLI `gpt-5.4-mini` / `low`、Claude `claude-sonnet-4-6` / `low` for conflict_review)
+- Qdrant + FlagEmbedding BGE-M3: 同上
+- Source Specs: `docs/spec/sample.md` (Phase 4 と同じ、§0004 Session Termination と §0005 Session Retention Policy の意図的 conflict を含む状態から開始)
+
+### 手順
+
+1. `.spec-anchor/state/spec_claims_state.json` / `conflict_candidate_pairs_state.json` および `.spec-anchor/context/spec_claims.jsonl` / `conflict_candidate_pairs.jsonl` / `conflict_review_items.json` を削除して fresh 状態にする (`/tmp/spec-anchor.bak.real-verify` にバックアップ)
+2. 初回 `python3 -m spec_anchor core` 実行 (= 「人間が初めて Source Specs を /spec-core に通した状況」を再現)
+3. `docs/spec/sample.md` の §Session Retention Policy を、§Session Termination と整合する内容に書き換える (active session 終了は §Session Termination に従い、本 section は post-termination の log retention のみを規定する形に変更)
+4. 2 回目 `python3 -m spec_anchor core` 実行 (= 「人間が source 修正後に再度 /spec-core を走らせた状況」を再現)
+5. `conflict_review_items.json` で前回 pending だった item が `status="dismissed"` + `resolution.decision_origin="auto_source_update"` に遷移していることを確認
+
+### 結果
+
+| 観点 | 初回 (修正前) | 2 回目 (§0005 修正後) | 判定 |
+|---|---|---|---|
+| `spec_claims` | success, llm_calls=6 (全 6 section) | success, llm_calls=1, action=`regenerated_partial` (§0005 のみ再抽出) | incremental 経路で意図通り |
+| `claim_retrieval` | success, candidate_count=45 | success, action=`regenerated_partial` (変更 claim 起点で再候補) | incremental 経路で意図通り |
+| `conflict_candidate_triage` | partial_success, llm_calls=30 (上限) | success, llm_calls=19 (cache hit + 新規評価) | cache 再利用 + 新規 triage 動作 |
+| `conflict_evaluation` | llm_calls=6 | llm_calls=4 | pending item 再評価 |
+| `conflict_review_items.json` 件数 | 3 件 (`status=pending`) | 3 件 (**`status=dismissed`**) | 全件 auto-dismiss |
+| 自動 dismiss の `resolution.decision_origin` | — | **`auto_source_update`** (`human` ではない) | C-5 / C-12 達成 |
+| 自動 dismiss の `resolution.auto_dismiss_reason` | — | **`source_update_recheck_pair_absent`** | C-6 / C-13 達成 |
+
+### 判定
+
+実機経路で T-conflict-source-update-flow の主要合格基準 (`doc/TODO.ja.md` T-conflict 完了条件) が動作確認できた:
+
+- 合格基準 A (既存 pending item の解除): **達成**。3 件すべてが pending → dismissed に遷移。
+- 合格基準 B (pair が消えた場合の解除): **達成**。`auto_dismiss_reason = source_update_recheck_pair_absent` で全件解除。
+- 合格基準 D (人間 decision と auto dismiss の区別): **達成**。`decision_origin = auto_source_update` で自動 dismiss であることが明示される。
+- 合格基準 E (`pytest --skip-external`): 別経路で達成済み (commit `5f4bb1e` 時 614 passed, 0 failed)。
+
+本セクションをもって T-conflict-source-update-flow の実機経路合格基準を達成した。残範囲は `spec-anchor-watch` の長時間 process + filesystem event integration のみ。
