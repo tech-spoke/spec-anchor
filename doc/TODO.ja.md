@@ -696,7 +696,7 @@ E. **既存 pytest**: `pytest --skip-external` が pass する。
   - Conflict Review pipeline の prompt 改善や judge ロジック変更は今回の scope 外 (本 Phase は入力境界変更のみ)。
   - `doc/SPEC_CLAIM_CONFLICT_CANDIDATE_DESIGN.ja.md` 自体を archive へ移す判断は別 task (本 Phase 完了後の整理 task として切り出してよい)。
 
-### [完了 2026-05-29, 本日中の commit] T-flaky-spec-core-responsibility-boundary: `test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (真因特定・test 修正済み)
+### [完了 2026-05-29, commit d590c1f] T-flaky-spec-core-responsibility-boundary: `test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (真因特定・test 修正済み)
 
 #### 真因と修正 (2026-05-29, CODEX 調査)
 
