@@ -116,27 +116,85 @@ class PendingConflictSpecCoreProvider(FakeSpecCoreProvider):
 
     def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
         self.calls.append(request)
-        if (
-            not isinstance(request, dict)
-            and getattr(request, "stage", "") == "related_section_selection"
-        ):
-            target = (
-                "docs/spec/security.md#session"
-                if getattr(request, "section_id", "") == "docs/spec/security.md#authentication"
-                else "docs/spec/security.md#authentication"
-            )
-            return {
-                "related_sections": [
-                    {
-                        "target_section_id": target,
-                        "relation_hint": "conflicts_with",
-                        "confidence": "high",
-                        "reason": "The sections disagree on whether session validation is mandatory.",
-                        "evidence_terms": ["session", "must", "optional"],
+        if not isinstance(request, dict):
+            stage = getattr(request, "stage", "") or getattr(request, "task", "")
+            section_id = getattr(request, "section_id", "") or ""
+            if stage == "spec_claims":
+                if section_id.endswith("#authentication") or "authentication" in section_id:
+                    return {
+                        "claims": [
+                            {
+                                "claim_text": "Sessions must be validated before privileged actions.",
+                                "target": "session validation",
+                                "target_aliases": ["session check", "session verification"],
+                                "scope": "",
+                                "condition": "",
+                                "value": "",
+                                "claim_kind": "requirement",
+                                "claim_kind_confidence": "high",
+                                "evidence_span": (
+                                    "Authentication must validate active sessions before privileged actions."
+                                ),
+                                "evidence_start": 0,
+                                "evidence_end": 0,
+                                "evidence_hash": "",
+                                "confidence": "high",
+                                "retrieval": {
+                                    "sparse_keys": ["session", "validation", "authentication"],
+                                    "embedding_text": (
+                                        "Session validation is required before privileged actions."
+                                    ),
+                                    "conflict_probes": [
+                                        "Session validation is optional",
+                                        "Sessions may not require validation",
+                                    ],
+                                },
+                            }
+                        ]
                     }
-                ],
-                "sections": [],
-            }
+                if section_id.endswith("#session") or section_id.endswith("session"):
+                    return {
+                        "claims": [
+                            {
+                                "claim_text": "Session validation is optional in this flow.",
+                                "target": "session validation",
+                                "target_aliases": ["session check", "session verification"],
+                                "scope": "",
+                                "condition": "",
+                                "value": "",
+                                "claim_kind": "behavior",
+                                "claim_kind_confidence": "high",
+                                "evidence_span": (
+                                    "For the same privileged actions, session validation is optional during migration."
+                                ),
+                                "evidence_start": 0,
+                                "evidence_end": 0,
+                                "evidence_hash": "",
+                                "confidence": "high",
+                                "retrieval": {
+                                    "sparse_keys": ["session", "expire", "refresh"],
+                                    "embedding_text": (
+                                        "Sessions only need to be refreshed when expired, not validated."
+                                    ),
+                                    "conflict_probes": [
+                                        "Sessions must be validated",
+                                        "Validation is mandatory",
+                                    ],
+                                },
+                            }
+                        ]
+                    }
+                return {"claims": []}
+            if stage == "conflict_candidate_triage":
+                return {
+                    "send_to_review": True,
+                    "reason": (
+                        "The two SpecClaim entries govern the same target (session validation) "
+                        "and impose conflicting requirements: one mandates validation, the other "
+                        "treats it as optional."
+                    ),
+                    "confidence": "high",
+                }
         return super().generate(request, timeout_sec=timeout_sec)
 
     def judge_conflict(self, request: Any, **_: Any) -> dict[str, Any]:
@@ -394,12 +452,6 @@ def test_review_dirty_plus_pending_conflict_does_not_surface_stale_conflict_targ
     assert "why_llm_cannot_decide" not in text
 
 
-@pytest.mark.skip(
-    reason="T-spec-inject-pending-conflict-fixture-update: PendingConflictSpecCoreProvider "
-    "が Related Sections の relation_hint='conflicts_with' 経路に依存しているが、Phase 5 で "
-    "本経路を完全廃止 (SCD-032 / SCD-033) したため fixture を SpecClaim pair + triage "
-    "経路で pending を生成する形に書き換える必要がある。doc/TODO.ja.md 参照。"
-)
 def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     _write_conflicting_project(project_root)
