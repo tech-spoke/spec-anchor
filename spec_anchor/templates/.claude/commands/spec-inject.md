@@ -56,6 +56,17 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 | Purpose / Core Concept 直接質問 | ③ | ①、② |
 | 過去判断の継続 | ④ | ①、③ |
 
+**4 path は探索の起点であり上限ではない**。Agent は 4 path を通過した後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索を能動的に行う:
+
+- 別の search key を生成して `spec-anchor inject-search` を再実行する
+- 別 path へ切り替える (例: ① で根拠不足なら ② 章単位エントリへ)
+- 上位章や横断 section へ hop する (`spec-anchor inject-section` の関連辿りを拡張)
+- 関連 Conflict Review Item を再確認する (`spec-anchor inject-conflicts`)
+
+**探索の十分性は Agent が判断**し、制約に必要な根拠が揃うまで継続する。CLI は path 数や hop 数の上限を強制しない。
+
+ただし根拠は引き続き `evidence_origin` ∈ {Purpose / Core Concept / Source Specs / Conflict Review Item} に縛られる。**CLI 道具 (`spec-anchor inject-*`) を介さずにいきなり Source Specs を grep する経路は禁止** (ドリフト防止: 検索の起点は必ず CLI の hybrid retrieval / 章 anchor / Purpose / Conflict Review Item のいずれか)。Source Specs ファイル本文の `Read` は、CLI で section_id を特定した後の補助確認としてのみ許可される。
+
 4. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
 5. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空文字列であること、`evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` / `Conflict Review Item` のいずれかであること、`Section Summary` / `Search Keys` / `Related Sections` / `Chapter Key Anchor` を `evidence_origin` に置かないこと、`support_refs` が list であること。`evidence_origin = "Conflict Review Item"` の場合、`spec-anchor inject-conflicts` の返却に含まれる items (resolved + stale でない) だけを参照する。CLI は構造検証を行わないため、Agent 自身が確認する。
 6. constraint set、evidence list、Agentic Search summary だけを出力する。`/spec-inject` では task への回答や最終案を出さない。

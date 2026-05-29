@@ -285,6 +285,26 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("HF_HUB_DISABLE_PROGRESS_BARS", "id(p1.model)"),
     ),
 
+    # --- #12 explicit active Agentic Search (doc lint) -----------------------
+    Scenario(
+        "#12-s01", "#12",
+        "「能動的追加探索」「探索の十分性は Agent が判断」「4 path は起点 (上限ではない)」が grep でヒット (3 ファイル)",
+        "#12-s01_design_active_search_phrasing.md", kind="note",
+        required=("4 path は探索の起点であり上限ではない", "探索の十分性は Agent が判断", "自らの気づきに基づく追加探索"),
+    ),
+    Scenario(
+        "#12-s02", "#12",
+        "既存記述 (path は必須ではなく許可 / evidence_origin 縛り) と新規追加が矛盾しない両立記述",
+        "#12-s02_design_active_search_consistency.md", kind="note",
+        required=("path は必須ではなく許可", "evidence_origin", "ドリフト防止"),
+    ),
+    Scenario(
+        "#12-s03", "#12",
+        "spec_anchor/templates/.claude/commands/ がプロジェクト直下版と一致 (file diff、#10 連動)",
+        "#12-s03_template_active_search_synced.md", kind="note",
+        required=("diff -q", "完全一致", "#10 templates-mirror"),
+    ),
+
     # --- #13 user-facing reply is Japanese-only (Agent translates CLI English) ---
     Scenario(
         "#13-s01", "#13",

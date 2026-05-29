@@ -861,6 +861,8 @@ decision payload は少なくとも次を持つ (`spec-anchor core --decision-js
 
 Agent / LLM は、課題の性質に応じて次の 4 path を組み合わせて使う。`evidence_origin` の enum (`Purpose` / `Core Concept` / `Source Specs` / `Conflict Review Item`) を 4 path がそれぞれカバーする。各 path は必須ではなく許可で、Agent が選んで使い分ける。
 
+**4 path は探索の起点であり上限ではない**。Agent は 4 path 通過後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索 (別 search key の生成、別 path への切り替え、上位章への hop、関連 Conflict Review Item の再確認) を能動的に行う。探索の十分性は Agent が判断し、制約に必要な根拠が揃うまで継続する。CLI は path 数や hop 数の上限を強制しない。ただし根拠は引き続き `evidence_origin` ∈ {Purpose / Core Concept / Source Specs / Conflict Review Item} に縛られ、CLI 道具 (`spec-anchor inject-*`) を介さずにいきなり Source Specs を grep する経路は引き続き禁止する (ドリフト防止: 検索の起点は必ず CLI 経由)。Source Specs ファイル本文の `Read` は、CLI で section_id を特定した後の補助確認としてのみ許可される。
+
 #### path ① Qdrant section-level retrieval
 
 ステップ個別チェック (LLM 手順遵守の可視化):
@@ -919,6 +921,8 @@ evidence_origin: `Conflict Review Item`
 | [ ] | 過去判断の継続 | ④ | ①、③ |
 
 Agentic Search は Agent / LLM の責務である。CLI は検索結果、payload、章 anchor、Purpose / Core Concept、Conflict Review Items を返すだけであり、探索方針を自律的に決めない。
+
+**探索の十分性** (= Agent が「もう追加探索は不要、答案構成に進める」と判断するタイミング) は Agent / LLM が判断する。CLI は path 数や hop 数の上限を強制しない。Agent は課題への根拠が揃うまで、4 path 内での追加探索 (別 search key 生成、別 path 切り替え、上位章 hop、関連 Conflict Review Item 再確認) を能動的に継続できる。「4 path 通過 = 終了」を機械的に解釈してはいけない。
 
 - [ ] `spec-anchor inject-*` には自動探索 / 多段 traversal を実行する CLI コマンドは含まれない (CLI は単発の retrieval / payload lookup / 章 anchor 取得 / Purpose 取得 / Conflict Review Item 取得のみ提供し、Section 間の再帰的 lookup は Agent 側が行う)。
 

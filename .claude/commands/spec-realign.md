@@ -19,6 +19,8 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 3. answer candidate が会話にも argument にも無い場合、project root で `spec-anchor realign` を実行して CLI の `stop_reason="needs_agent_answer"` / `recommended_next_action` を確認する。`.spec-anchor/config.toml` 不在や freshness blocker など `should_stop=true` の場合は、その JSON を利用者に伝達して停止する。
 4. task と会話区間から search keys を生成する。
 5. `/spec-inject` と同じ 4 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose、path ④ inject-conflicts)。各 path の手順は `/spec-inject` template を参照。各 `spec-anchor inject-*` コマンドは freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示を返す。`should_stop=true` または `status="error"` を返した時点で他 path へ進まず停止する。`inject-search` は positional query を使い、存在しない `--keys` option を使わない。
+
+   **4 path は探索の起点であり上限ではない**。Agent は 4 path 通過後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索 (別 search key の生成、別 path への切り替え、上位章 hop、関連 Conflict Review Item 再確認) を能動的に行う。探索の十分性は Agent が判断し、制約に必要な根拠が揃うまで継続する。ただし `evidence_origin` 縛りと「CLI 道具経由でしか Source Specs に到達しない」制約は維持する (ドリフト防止)。詳細は `/spec-inject` template の「path 選択の指針」と外部設計書 §8.3 を参照。
 6. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
 7. constraints の構造を自己点検する (spec-inject template §5 と同じ手順)。CLI は構造検証を行わないため、Agent 自身が確認する。
 8. constraints に従う answer candidate を作る。answer が constraint と衝突する場合、隠さず human review として明示する。
