@@ -1,12 +1,12 @@
 # TODO テンプレート
 
-このファイルは spec-anchor の **大きな課題ごとの TODO ファイル** の雛形である。新しい課題が発生したら、本ファイルを `doc/TODO_<topic>.ja.md` (例: `doc/TODO_specclaim_migration.ja.md`) としてコピーし、各セクションを埋めて運用する。完了済みの課題 TODO ファイルは `doc/OLD/TODO_<YYYY-MM-DD>_<topic>.ja.md` に move する。
+このファイルは spec-anchor の **大きな課題ごとの TODO ファイル** の雛形である。新しい課題が発生したら、本ファイルを `doc/TODO/<topic>.ja.md` (例: `doc/TODO/specclaim_migration.ja.md`) としてコピーし、各セクションを埋めて運用する。完了済みの課題 TODO ファイルは `doc/TODO/完了済みTODO/<YYYY-MM-DD>_<topic>.ja.md` に move する。
 
-本テンプレート自体はリポジトリに常駐し、課題追加時の参照基準となる。CLAUDE.md / AGENTS.md からは `doc/TODO_*.ja.md` (進行中の課題 TODO ファイル群) と `doc/TODO_template.ja.md` (本ファイル) の両方を参照する。
+本テンプレート自体はリポジトリに常駐し、課題追加時の参照基準となる。CLAUDE.md / AGENTS.md からは `doc/TODO/*.ja.md` (進行中の課題 TODO ファイル群) と `doc/TODO_template.ja.md` (本ファイル) の両方を参照する。
 
 ---
 
-以下、`doc/TODO_<topic>.ja.md` を新規作成する時にコピーする雛形。
+以下、`doc/TODO/<topic>.ja.md` を新規作成する時にコピーする雛形。
 
 ---
 
@@ -32,11 +32,6 @@
 | 2 | T-... | ... | ... | ... | YYYY-MM-DD | — |
 
 本表の `状態` と `残作業` を見るだけで「次に何をすべきか」が分かるように維持する。
-
-## 直近の進捗ハイライト
-
-- YYYY-MM-DD: ...
-- YYYY-MM-DD: ...
 
 ## sub task 詳細
 
@@ -90,5 +85,4 @@
 ## archive 手順
 
 1. すべての sub task と「課題全体の完了条件」が達成されていることを確認する
-2. 本ファイル全体を `doc/OLD/TODO_<YYYY-MM-DD>_<topic>.ja.md` に `git mv` する
-3. リポジトリ root (もしくは `doc/INDEX.ja.md` 等) に「過去 archive 一覧」のエントリを追加する (運用に応じて)
+2. 本ファイル全体を `doc/TODO/完了済みTODO/<YYYY-MM-DD>_<topic>.ja.md` に `git mv` する

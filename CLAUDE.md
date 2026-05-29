@@ -9,7 +9,7 @@
 1. `doc/EXTERNAL_DESIGN.ja.md` - 軽量版 SPEC-anchor の外部契約
 2. 本ファイル `CLAUDE.md` - Agent 共通の不変ルール
 3. `AGENTS.md` - 報告ルール、設計書の記述ルール (`agent_doc/` 配下の記述ルールへの入口)
-4. `doc/TODO_*.ja.md` - 進行中の課題 TODO ファイル群 (各課題は「全体目的 + sub task」の構造)。新規課題は `doc/TODO_template.ja.md` を雛形として `doc/TODO_<topic>.ja.md` を作成する。実装着手前に該当 sub task の検証条件・scope・依存を確認する。完了済み課題 TODO は `doc/OLD/TODO_<YYYY-MM-DD>_<topic>.ja.md` を参照
+4. `doc/TODO/*.ja.md` - 進行中の課題 TODO ファイル群 (各課題は「全体目的 + sub task」の構造)。新規課題は `doc/TODO_template.ja.md` を雛形として `doc/TODO/<topic>.ja.md` を作成する。実装着手前に該当 sub task の検証条件・scope・依存を確認する。完了済み課題 TODO は `doc/TODO/完了済みTODO/<YYYY-MM-DD>_<topic>.ja.md` を参照
 5. 必要な場合のみ `archive/full-grag-2026-05-05/` - 旧 full GRAG 版の退避資料
 
 root の `BAK/` は削除済みであり、参照先にしない。
