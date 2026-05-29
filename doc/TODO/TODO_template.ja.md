@@ -1,12 +1,12 @@
 # TODO テンプレート
 
-このファイルは spec-anchor の **大きな課題ごとの TODO ファイル** の雛形である。新しい課題が発生したら、本ファイルを `doc/TODO/<topic>.ja.md` (例: `doc/TODO/specclaim_migration.ja.md`) としてコピーし、各セクションを埋めて運用する。完了済みの課題 TODO ファイルは `doc/TODO/完了済みTODO/<YYYY-MM-DD>_<topic>.ja.md` に move する。
+このファイルは spec-anchor の **大きな課題ごとの TODO ファイル** の雛形である。新しい課題が発生したら、本ファイルを `doc/TODO/TODO_<topic>.ja.md` (例: `doc/TODO/TODO_specclaim_migration.ja.md`) としてコピーし、各セクションを埋めて運用する。完了済みの課題 TODO ファイルは `doc/TODO/完了済みTODO/TODO_<YYYY-MM-DD>_<topic>.ja.md` に move する。
 
 本テンプレート自体はリポジトリに常駐し、課題追加時の参照基準となる。CLAUDE.md / AGENTS.md からは `doc/TODO/*.ja.md` (進行中の課題 TODO ファイル群 + 本テンプレート) を参照する。
 
 ---
 
-以下、`doc/TODO/<topic>.ja.md` を新規作成する時にコピーする雛形。
+以下、`doc/TODO/TODO_<topic>.ja.md` を新規作成する時にコピーする雛形。
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## sub task 詳細
 
-### T-task-1: 1 行概要
+### #1 T-task-1: 1 行概要
 
 **状態**: 未着手 | 着手中 | コア実装完了 | regression test 待ち | 完了
 **担当**: Claude main | CODEX | Human
@@ -67,7 +67,7 @@
 
 依存 task / 本 sub task の scope 外として明示すべき事項。
 
-### T-task-2: 1 行概要
+### #2 T-task-2: 1 行概要
 
 (同じ構造で続ける)
 
@@ -98,7 +98,7 @@ sub task が完了したら、次の 2 箇所をセットで更新する (片方
    - `**直近 commit**` に完了 commit hash を記入
    - **章タイトル末尾に完了マークを付ける**。例:
      ```markdown
-     ### [完了 2026-05-29, commit abc1234] T-task-1: 1 行概要
+     ### [完了 2026-05-29, commit abc1234] #1 T-task-1: 1 行概要
      ```
    - 「#### 残作業」セクションは空にするか、「(完了)」と書く
 
@@ -116,4 +116,4 @@ sub task が完了したら、次の 2 箇所をセットで更新する (片方
 ## archive 手順
 
 1. すべての sub task と「課題全体の完了条件」が達成されていることを確認する
-2. 本ファイル全体を `doc/TODO/完了済みTODO/<YYYY-MM-DD>_<topic>.ja.md` に `git mv` する
+2. 本ファイル全体を `doc/TODO/完了済みTODO/TODO_<YYYY-MM-DD>_<topic>.ja.md` に `git mv` する
