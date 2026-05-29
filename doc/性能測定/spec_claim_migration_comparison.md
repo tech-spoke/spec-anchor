@@ -113,3 +113,31 @@ Phase 5 着手前に旧 `possible_conflict` 経路と新 SpecClaim 経路の rec
 recall 比較 (検証条件 C) は任意項目で、上記手順に従って実施できる。本記録時点で recall 比較は未実施だが、合格基準 B は単独で Phase 5 着手の必要条件を満たす (TODO.ja.md T-spec-claim-phase-4 完了条件)。
 
 Phase 5 (T-spec-claim-phase-5) に進む。Phase 5 完了後、recall 比較を実施する場合は本ファイルの「比較結果」セクションに追記する。
+
+## Phase 5 完了後の recall 維持確認 (2026-05-29)
+
+### 環境
+
+- 実行 revision: HEAD = `c8f3a48 chore(spec-claims): remove stale conflict_detection / conflict_judgement stages and project config conflict_pair_max_per_section (Phase 5 cleanup)` (Phase 5 削除 + cleanup 完了状態)
+- LLM provider: Phase 4 と同じ (Codex CLI `gpt-5.4-mini` / `low` for spec_claims / claim_triage、Claude `claude-sonnet-4-6` / `low` for conflict_review)
+- Qdrant + FlagEmbedding BGE-M3: 同上
+- Source Specs: `docs/spec/sample.md` (Phase 4 と同じ、§0004 と §0005 の意図的 conflict を含む)
+- state は fresh (Phase 4 後の state file を削除して再生成)
+
+### Phase 4 (commit 285a6db) vs Phase 5 (commit c8f3a48) の比較
+
+| 観点 | Phase 4 | Phase 5 | 判定 |
+|---|---|---|---|
+| `spec_claims` SpecClaim 件数 | 14 | 14 | recall 維持 |
+| `claim_retrieval` candidate pair 件数 | 45 | 45 | recall 維持 |
+| `triage.send_to_review = true` 件数 | 7 | 7 | recall 維持 |
+| §0004 (Session Termination) ↔ §0005 (Session Retention Policy) の SpecClaim pair 検出 | CC-00013 + CC-00015 (両方 confidence = "high") | CC-00013 + CC-00012 (両方 confidence = "high") | **検出維持** (display_id 採番は cache key ではないため SCD-013 通り許容) |
+| `conflict_review_items.json` (Conflict Review pipeline 到達) | — (Phase 4 時点では Phase 5 前経路で別 fixture / 別件数) | **3 件 (status = "pending")** | **新方式で end-to-end 動作** |
+
+Phase 5 で `evaluate_conflicts` の入力境界を SpecClaim pair + evidence + `triage.send_to_review = true` に固定 (SCD-033) した結果、`conflict_evaluation` stage が `llm_calls = 7` (= send_to_review pair 7 件) を消化し、うち 3 件が pending Conflict Review Item として `.spec-anchor/context/conflict_review_items.json` に保存された。残り 4 件は LLM judge が non-pending (false_positive / not_a_conflict) と判定した結果として `potential_conflicts` warning へ振り分けられた経路。
+
+### 判定
+
+**recall regression なし**。さらに Phase 5 で初めて新方式の Conflict Review pipeline 全体 (SpecClaim 抽出 → Claim Retrieval → LLM triage → Conflict Review) の end-to-end 実機動作を確認できた。`display_id` の採番が変動するのは Phase 5 後の Claim Retrieval candidate 順序の整理 (`conflict_pair_max_per_section` 削除等) によるもので、`candidate_uid` (sorted claim_uid pair の sha256) と claim pair 自体は維持されている (SCD-013 通り `display_id` を primary key にしない設計のため許容)。
+
+Phase 5 移行は完全に成功した。本セクションをもって T-spec-claim-phase-5 の合格基準 D (実機経路 recall 維持) を達成 (`doc/TODO.ja.md` T-spec-claim-phase-5 完了条件 D)。
