@@ -1,8 +1,10 @@
-# 開放 TODO 一覧
+# TODO 一覧
 
-このファイルは、次のセッション以降で実装する未解決 task だけを置く。
+このファイルは、次のセッション以降で実装する **開放中 task** と、完了した task の本文 (履歴) を同じファイル内に並べる。
 
-過去に完了済みの TODO block はこのファイルへ戻さない。完了済み履歴を参照する必要がある場合は、`doc/OLD/TODO.ja.md` または該当 commit を確認する。
+- 「## 開放中」配下の優先順位リストには **開放中の task のみ** を載せる
+- 完了した task は章タイトルに `[完了 YYYY-MM-DD, commit(s) ...]` マークを付けて本文をそのまま残す (章本体の構造は変えない)
+- 完了 task は優先順位リストから外し、開放中リスト直後の「完了済み task」一覧で見出しと完了日のみ参照する
 
 各 task は次の構造で書く:
 
@@ -20,18 +22,22 @@
 優先順位:
 
 1. **T-conflict-source-update-flow**: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
-2. **T-spec-claim-phase-1**: SpecClaim 抽出 stage の新規実装 (SCD-032 Phase 1)
-3. **T-spec-claim-phase-2**: Claim Retrieval stage の新規実装 (SCD-032 Phase 2)
-4. **T-spec-claim-phase-3**: LLM triage stage の新規実装 (SCD-032 Phase 3)
-5. **T-spec-claim-phase-4**: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
-6. **T-spec-claim-phase-5**: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界を SpecClaim pair に固定 (SCD-032 / SCD-033 Phase 5)
-7. **T-flaky-spec-core-responsibility-boundary**: `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (再発時の真因特定)
-8. **T-spec-inject-pending-conflict-fixture-update**: `PendingConflictSpecCoreProvider` を SpecClaim 経路に追従させる (Phase 5 完了後の fake fixture 追従、`test_review_pending_conflict_items_are_loaded_from_real_context_artifact` の skip 解除)
+2. **T-spec-inject-pending-conflict-fixture-update**: `PendingConflictSpecCoreProvider` を SpecClaim 経路に追従させる (Phase 5 完了後の fake fixture 追従、`test_review_pending_conflict_items_are_loaded_from_real_context_artifact` の skip 解除)
+3. **T-flaky-spec-core-responsibility-boundary**: `tests/test_responsibility_boundary.py::test_spec_core_does_not_modify_purpose_or_concept_files` の偶発的失敗 (再発時の真因特定)
 
 依存関係:
 
-- T-spec-claim-phase-1 → T-spec-claim-phase-2 → T-spec-claim-phase-3 → T-spec-claim-phase-4 → T-spec-claim-phase-5 の順で実装する。各 Phase は前 Phase の完了を前提とする。
-- T-conflict-source-update-flow は SpecClaim 移行と独立。先に解消する。Phase 5 が Conflict Review 入力境界を変更する際、T-conflict の auto-dismiss ロジックは `conflict_review_items.json` 側で完結しているため、SpecClaim pair 入力に変更しても直交する。Phase 5 で Related Sections 由来 pair 依存の test fixture (T-conflict B 区分) は SpecClaim retrieval 由来 fixture に更新する。
+- T-conflict-source-update-flow は SpecClaim 移行と独立。Phase 5 (commit da692ba) で Conflict Review 入力境界が SpecClaim pair に変更されたが、T-conflict の auto-dismiss ロジックは `conflict_review_items.json` 側で完結するため SpecClaim pair 入力でも直交する。Phase 5 で Related Sections 由来 pair 依存の test fixture (T-conflict B 区分) は SpecClaim retrieval 由来 fixture に更新する必要がある。
+- T-spec-inject-pending-conflict-fixture-update は T-spec-claim-phase-5 完了 (commit da692ba) を前提とする。
+- T-flaky-spec-core-responsibility-boundary は独立。再発時のみ着手。
+
+完了済み task (履歴は本ファイル「## 完了済み (履歴)」配下と git log を参照):
+
+- T-spec-claim-phase-1 (Phase 1: SpecClaim 抽出 stage) — 完了 2026-05-28
+- T-spec-claim-phase-2 (Phase 2: Claim Retrieval stage) — 完了 2026-05-29
+- T-spec-claim-phase-3 (Phase 3: LLM triage stage) — 完了 2026-05-29
+- T-spec-claim-phase-4 (Phase 4: 実機 recall 検証 = Phase 5 着手 gate) — 完了 2026-05-29
+- T-spec-claim-phase-5 (Phase 5: `possible_conflict` 完全削除 + Conflict Review 入力境界変更) — 完了 2026-05-29
 
 ### T-conflict-source-update-flow: Source Specs 修正後に pending Conflict Review Item が残り続ける user-facing workflow 不整合の修正
 
@@ -195,7 +201,7 @@ F. **watch 経路**
   - Purpose / Core Concept の自動更新。両ファイルは引き続き人間管理対象。
   - constraints の意味論的真偽を CLI が完全検証する機能。今回の scope は template / skill の必須文言と、機械的に検査できる根拠ルールの regression 防止まで。
 
-### T-spec-claim-phase-1: SpecClaim 抽出 stage の新規実装 (SCD-032 Phase 1)
+### [完了 2026-05-28, commits eb8c1cf / cbe13c0 / 3ca9536] T-spec-claim-phase-1: SpecClaim 抽出 stage の新規実装 (SCD-032 Phase 1)
 
 #### 背景
 
@@ -296,7 +302,7 @@ D. **既存 pytest**: `pytest --skip-external` が pass する。
   - LLM triage は T-spec-claim-phase-3 で実装する。
   - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。本 Phase では既存 `possible_conflict` 経路を変更しない。
 
-### T-spec-claim-phase-2: Claim Retrieval stage の新規実装 (SCD-032 Phase 2)
+### [完了 2026-05-29, commits dd3c674 / 94c25c7 / 1e0a7ec] T-spec-claim-phase-2: Claim Retrieval stage の新規実装 (SCD-032 Phase 2)
 
 #### 背景
 
@@ -396,7 +402,7 @@ D. **既存 pytest**: `pytest --skip-external` が pass する。
   - LLM triage は T-spec-claim-phase-3 で実装する。本 Phase では `triage = null` の retrieval-only candidate までで止める。
   - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。
 
-### T-spec-claim-phase-3: LLM triage stage の新規実装 (SCD-032 Phase 3)
+### [完了 2026-05-29, commits 5204323 / fa2def0 / 9529e07] T-spec-claim-phase-3: LLM triage stage の新規実装 (SCD-032 Phase 3)
 
 #### 背景
 
@@ -496,7 +502,7 @@ D. **既存 pytest**: `pytest --skip-external` が pass する。
   - Conflict Review pipeline 自体 (Purpose / Core Concept grounding 付き judge) の責務変更は T-spec-claim-phase-5 で行う。本 Phase では既存 Conflict Review pipeline をそのまま使う (入力経路に SpecClaim pair が増えるだけ)。
   - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。
 
-### T-spec-claim-phase-4: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
+### [完了 2026-05-29, commit 285a6db] T-spec-claim-phase-4: 既知 conflict fixture が SpecClaim 経路で Conflict Review に届くことの検証 + 任意 recall 比較 (SCD-032 Phase 4)
 
 #### 背景
 
@@ -581,7 +587,7 @@ D. **既存 pytest**: `pytest --skip-external` が pass する。
   - `possible_conflict` 経路の削除は T-spec-claim-phase-5 で実装する。本 Phase では既存 `possible_conflict` 経路を変更しない (recall 比較で旧経路を実行する必要があるため)。
   - Conflict Review 入力境界の SpecClaim pair 固定 (SCD-033) は T-spec-claim-phase-5 で実装する。
 
-### T-spec-claim-phase-5: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界変更 (SCD-032 / SCD-033 Phase 5)
+### [完了 2026-05-29, commit da692ba] T-spec-claim-phase-5: `possible_conflict` 経路の完全削除 + Conflict Review 入力境界変更 (SCD-032 / SCD-033 Phase 5)
 
 #### 背景
 
