@@ -2,7 +2,7 @@
 
 このファイルは spec-anchor の **大きな課題ごとの TODO ファイル** の雛形である。新しい課題が発生したら、本ファイルを `doc/TODO/<topic>.ja.md` (例: `doc/TODO/specclaim_migration.ja.md`) としてコピーし、各セクションを埋めて運用する。完了済みの課題 TODO ファイルは `doc/TODO/完了済みTODO/<YYYY-MM-DD>_<topic>.ja.md` に move する。
 
-本テンプレート自体はリポジトリに常駐し、課題追加時の参照基準となる。CLAUDE.md / AGENTS.md からは `doc/TODO/*.ja.md` (進行中の課題 TODO ファイル群) と `doc/TODO_template.ja.md` (本ファイル) の両方を参照する。
+本テンプレート自体はリポジトリに常駐し、課題追加時の参照基準となる。CLAUDE.md / AGENTS.md からは `doc/TODO/*.ja.md` (進行中の課題 TODO ファイル群 + 本テンプレート) を参照する。
 
 ---
 
