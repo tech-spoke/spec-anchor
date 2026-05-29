@@ -181,3 +181,42 @@ Phase 5 移行は完全に成功した。本セクションをもって T-spec-c
 - 合格基準 E (`pytest --skip-external`): 別経路で達成済み (commit `5f4bb1e` 時 614 passed, 0 failed)。
 
 本セクションをもって T-conflict-source-update-flow の実機経路合格基準を達成した。残範囲は `spec-anchor-watch` の長時間 process + filesystem event integration のみ。
+
+## T-conflict-source-update-flow 実機 watcher / filesystem event 検証 (2026-05-29)
+
+### 環境
+
+- HEAD: `706de59 docs(perf): record T-conflict-source-update-flow 実機 auto-dismiss 検証 (合格基準 A / B / D 達成)` (上記 auto-dismiss 検証完了状態)
+- watcher コマンド: `python3 -m spec_anchor watch --max-runs 1 --interval-sec 3 --debounce-sec 3`
+- LLM provider / Qdrant / FlagEmbedding BGE-M3: 上記 auto-dismiss 検証と同じ実機環境
+
+### 手順
+
+1. `spec-anchor watch` を background で起動 (`--max-runs 1` で 1 回 update したら exit、`--interval-sec 3` で 3 秒 poll、`--debounce-sec 3` で 3 秒 debounce)
+2. 8 秒待機してから `docs/spec/sample.md` の §Session Retention Policy を `sed` で log retention 限定版に書き換え (上記 auto-dismiss 検証と同じ修正)
+3. watcher が filesystem event を検知して `run_spec_core_for_watcher` 経由で `/spec-core` を起動することを観測
+4. `.spec-anchor/state/watch_state.json` の `last_lock` / `last_result` で watcher 経路の動作を確認
+
+### 結果
+
+| 観点 | 値 |
+|---|---|
+| sed 編集時刻 | `2026-05-29T04:11:41Z` (Monitor タイムスタンプ) |
+| watcher が core lock 取得した時刻 | `2026-05-29T04:11:42.952Z` (`watch_state.json.last_lock.acquired_at`) |
+| 検知遅延 (sed → lock) | **約 1 秒** (filesystem event ベースで即時) |
+| watcher core 実行終了時刻 | `2026-05-29T04:13:43.205Z` (`watch_state.json.finished_at`) |
+| 実行時間 | 約 2 分 (incremental 経路、`spec_claims` 1 section 再抽出 + `conflict_candidate_triage` 19 LLM call) |
+| `last_owner` | `watcher` |
+| `last_queue_count_at_start` | 1 |
+| `last_result.mode` | `incremental` |
+| `last_result.pending_conflict_count` | 0 (修正後の §0005 で conflict 解消、既存 dismissed が維持) |
+| `last_result.related_sections_status` | `success` |
+| watcher exit 状態 | `--max-runs 1` 通り 1 回 update 後 clean exit |
+
+### 判定
+
+`spec-anchor watch` の filesystem event 検知 → `run_spec_core_for_watcher` 経由の `/spec-core` 起動 → `last_result` への結果保存 → `--max-runs 1` 通り exit、を実機で約 1 秒の検知遅延で動作確認した。
+
+これにより T-conflict-source-update-flow の合格基準 F (watcher 経路、`doc/TODO.ja.md` T-conflict 検証条件 F) が達成された。直接 import 経路 (`run_spec_core_for_watcher`) は `tests/test_spec_core.py::test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api` で fake 経路でも確認済みであり、本セクションは長時間 process + filesystem event のレイヤーを実機で補強する。
+
+本セクションをもって T-conflict-source-update-flow の合格基準 A / B / D / F すべてが実機で達成された。残範囲は real Qdrant / BGE-M3 / real provider / `local-service` / `real-smoke` の各 profile での pytest 実行のみ (本ファイル時点では実機 spec-anchor core / watch は実 provider 経路で動いており、pytest profile はカバーしていない別軸の検証)。
