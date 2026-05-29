@@ -94,6 +94,21 @@ _CONFLICT_FIELD_NAMES = (
     "status=dismissed",
 )
 
+# Non-Japanese natural-language strings the CLI emits as defaults but the Agent
+# must translate before rendering them in user-facing replies (課題 #13). The
+# user-facing language is Japanese; English natural sentences that escape into
+# the body indicate the Agent skipped its translation duty.
+#
+# CLI returns these as the raw value of fields such as
+# ``conflict_review_item.recommended_next_action``; the Agent template's
+# "pending conflict の必須出力フォーマット" section requires translating any
+# non-Japanese natural sentence into Japanese before placing it under "次の操作:".
+# Command names, URLs, file paths, and identifiers are exempt — they pass
+# through verbatim and are not listed here.
+_NON_JAPANESE_NATURAL_SENTENCES = (
+    "Ask a human to decide this conflict.",
+)
+
 FORBIDDEN_TERMS: tuple[str, ...] = (
     _CONTROL_FLAGS
     + _ENUM_VALUES
@@ -101,6 +116,7 @@ FORBIDDEN_TERMS: tuple[str, ...] = (
     + _NORMAL_COMPLETION_FIELDS
     + _RESULT_PATH_FIELDS
     + _CONFLICT_FIELD_NAMES
+    + _NON_JAPANESE_NATURAL_SENTENCES
 )
 
 

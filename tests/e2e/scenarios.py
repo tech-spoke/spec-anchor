@@ -279,6 +279,31 @@ SCENARIOS: tuple[Scenario, ...] = (
         "#9-s09_stderr_carries_noise.md", kind="note",
         required=("stderr", "Fetching 30 files"),
     ),
+    Scenario(
+        "#9-s10", "#9", "FlagEmbedding model が 1 回だけ load される (実機検証エビデンス)",
+        "#9-s10_flagembedding_load_count_real_run.md", kind="note",
+        required=("HF_HUB_DISABLE_PROGRESS_BARS", "id(p1.model)"),
+    ),
+
+    # --- #13 user-facing reply is Japanese-only (Agent translates CLI English) ---
+    Scenario(
+        "#13-s01", "#13",
+        "pending conflict snapshot で recommended_next_action が日本語訳されている",
+        "#13-s01_recommended_next_action_translated.md", kind="note",
+        required=("人間判断で衝突を解消してください", "翻訳マッピング"),
+    ),
+    Scenario(
+        "#13-s02", "#13",
+        "3 コマンドテンプレに「日本語訳契約」が明記されている (doc lint)",
+        "#13-s02_template_translation_contract.md", kind="note",
+        required=("日本語訳", "日本語以外の自然文", "翻訳対象外"),
+    ),
+    Scenario(
+        "#13-s03", "#13",
+        "snapshot 全件横断: Agent 整形済み snapshot に日本語以外の自然文が含まれない",
+        "#13-s03_snapshot_no_non_japanese_natural.md", kind="note",
+        required=("_NON_JAPANESE_NATURAL_SENTENCES", "test_snapshot_has_no_forbidden_terms"),
+    ),
 )
 
 

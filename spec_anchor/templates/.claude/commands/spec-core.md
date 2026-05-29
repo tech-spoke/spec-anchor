@@ -127,12 +127,12 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
        - <採用候補 1>
        - <採用候補 2>
 
-     次の操作: <CLI の item recommended_next_action の値そのまま (例: Ask a human to decide this conflict.)>
+     次の操作: <Agent が日本語訳した item recommended_next_action 値。CLI が日本語以外の自然文を返した場合は日本語に置き換える。例: `Ask a human to decide this conflict.` → 「人間判断で衝突を解消してください。」>
 
      (衝突 ID: <conflict_id の値>  ← 再参照用)
 ```
 
-`claims` が 3 件以上なら「主張 A / B / C / ...」と続ける。複数衝突なら見出しを `1.` `2.` と連番にする。各 item の `recommended_next_action` の **値** は省略せず必ず本文に含める。Agent は衝突を決めない。
+`claims` が 3 件以上なら「主張 A / B / C / ...」と続ける。複数衝突なら見出しを `1.` `2.` と連番にする。各 item の `recommended_next_action` の **値** は省略せず必ず本文に含める (日本語以外の自然文は Agent が翻訳して反映)。Agent は衝突を決めない。
 
 ## ユーザー向け本文に貼ってはいけない内部用語
 
@@ -144,10 +144,12 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 - パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `claim_retrieval_status` / `conflict_candidate_triage_status` / `spec_claims_status`
 - 内部 path / 答案 field 名: `inject_result.<...>` / `freshness_report` / `evidence_origin` / `support_refs`
 - conflict の raw field 名: `conflict_id` / `why_conflicting` / `why_llm_cannot_decide` / `decision_options` / `source_refs` (= 上記の人間向け見出しへ置換する)
+- **日本語以外の自然文** (例: CLI の `recommended_next_action` default 値 `Ask a human to decide this conflict.`、LLM judge の英語返答)。本文は日本語で統一する。**翻訳対象外**: コマンド名 / URL / file path / 識別子
 
 許可される文字列:
 
-- CLI が出力する `recommended_next_action` の **値文字列** (例: `run /spec-core --all` / `Ask a human to decide this conflict.`)
+- CLI が出力する `recommended_next_action` の値が **コマンド名指示** (例: `run /spec-core --all`、`spec-anchor-setup-project --target /path/to/project`) の場合は、そのまま使う
+- CLI が出力する `recommended_next_action` の値が **日本語以外の自然文** (例: `Ask a human to decide this conflict.`) の場合、Agent は **利用者向け本文で日本語訳に置き換える** (例: `人間判断で衝突を解消してください。`)。翻訳対象外: コマンド名・URL・file path・識別子
 - スラッシュコマンド名 (`/spec-core` / `/spec-core --all` / `/spec-core --rebuild` 等)、実 CLI command 名 (`spec-anchor-setup-project` 等)、ファイルパス + section ID
 
-CLI が出力する `recommended_next_action` の値は CLI 自身が出力する文字列をそのまま使う。Agent が再構成して別 command を提案しない。CLI 出力に無い復旧 command を追加提案しない。特に `spec-anchor status` は本 contract の command ではないため提案しない。
+CLI が出力する `recommended_next_action` の値 (コマンド名指示) は CLI 自身が出力する文字列をそのまま使う。日本語以外の自然文は Agent が日本語訳に置き換える。Agent が再構成して別 command を提案しない。CLI 出力に無い復旧 command を追加提案しない。特に `spec-anchor status` は本 contract の command ではないため提案しない。
