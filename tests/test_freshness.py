@@ -234,26 +234,6 @@ def _base_state(**overrides: Any) -> dict[str, Any]:
     return state
 
 
-def _pending_conflict(conflict_id: str = "conflict-a") -> dict[str, Any]:
-    return {
-        "conflict_id": conflict_id,
-        "status": "pending",
-        "severity": "high",
-        "source_refs": [
-            {"source_section_id": "docs/spec/main.md#a"},
-            {"source_section_id": "docs/spec/main.md#b"},
-        ],
-        "claims": [
-            {"side": "a", "summary": "A requires FEATURE_X."},
-            {"side": "b", "summary": "B forbids FEATURE_X."},
-        ],
-        "why_conflicting": "FEATURE_X cannot be both required and forbidden.",
-        "why_llm_cannot_decide": "No higher-priority source resolves it.",
-        "decision_options": [{"id": "prefer_a"}, {"id": "prefer_b"}, {"id": "defer"}],
-        "recommended_next_action": "Ask a human to choose the applicable rule.",
-    }
-
-
 def _freshness(state: dict[str, Any]) -> Any:
     return _call(_freshness_function(), state)
 

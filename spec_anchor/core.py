@@ -57,9 +57,6 @@ def run_spec_core(
     mode: str | None = None,
     rebuild_embeddings: bool = False,
     verify_index: bool = False,
-    decision_payload: Mapping[str, Any] | None = None,
-    decision: Mapping[str, Any] | None = None,
-    conflict_decision: Mapping[str, Any] | None = None,
     provider: Any = None,
     llm_provider: Any = None,
     llm_provider_id: str | None = None,
@@ -161,9 +158,6 @@ def run_spec_core(
             mode=mode,
             rebuild_embeddings=rebuild_embeddings,
             verify_index=verify_index,
-            decision_payload=decision_payload,
-            decision=decision,
-            conflict_decision=conflict_decision,
             provider=provider,
             llm_provider=llm_provider,
             llm_provider_id=llm_provider_id,
@@ -197,9 +191,6 @@ def _run_spec_core_unlocked(
     mode: str | None = None,
     rebuild_embeddings: bool = False,
     verify_index: bool = False,
-    decision_payload: Mapping[str, Any] | None = None,
-    decision: Mapping[str, Any] | None = None,
-    conflict_decision: Mapping[str, Any] | None = None,
     provider: Any = None,
     llm_provider: Any = None,
     llm_provider_id: str | None = None,
@@ -632,16 +623,6 @@ def _run_spec_core_unlocked(
         for item in previous_conflicts.get("conflict_review_items", previous_conflicts.get("items", []))
         if isinstance(item, Mapping)
     ]
-    payload = decision_payload or decision or conflict_decision
-    if payload:
-        emit("core_conflict_decision_start")
-        existing_conflict_items = apply_conflict_decision(
-            conflict_review_items=existing_conflict_items,
-            decision_payload=dict(payload),
-            generated_at=generated_at,
-        )
-        emit("core_conflict_decision_done")
-
     conflict_candidate_pairs = conflict_candidates_api.read_conflict_candidate_pairs_jsonl(
         context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
     )
@@ -721,11 +702,6 @@ def _run_spec_core_unlocked(
     conflict_selection_diagnostics = list(conflict_payload.get("selection_diagnostics") or [])
     pending_conflict_count = int(conflict_summary.get("pending_conflict_count", 0))
     stale_dismissal_count = int(conflict_summary.get("stale_dismissal_count", 0))
-    unreflected_conflicts = [
-        item
-        for item in conflict_review_items
-        if item.get("status") == "resolved" and item.get("reflection_status", "unreflected") == "unreflected"
-    ]
     metadata_generation_summary = llm_provider_api.summarize_generation_results(
         metadata_generation_results
     )
@@ -938,7 +914,6 @@ def _run_spec_core_unlocked(
         "pending_conflict_count": pending_conflict_count,
         "auto_dismissed_conflict_count": len(auto_dismissed_conflict_ids),
         "auto_dismissed_conflict_ids": auto_dismissed_conflict_ids,
-        "unreflected_conflict_resolutions": unreflected_conflicts,
         "stale_dismissal_count": stale_dismissal_count,
         "freshness_report": freshness_report,
         "warnings": result_warnings,
@@ -1311,7 +1286,6 @@ def _blocked_core_result(
         "pending_conflict_count": 0,
         "auto_dismissed_conflict_count": 0,
         "auto_dismissed_conflict_ids": [],
-        "unreflected_conflict_resolutions": [],
         "stale_dismissal_count": 0,
         "freshness_report": report,
         "warnings": list(report.get("warnings") or []),
@@ -1365,7 +1339,6 @@ def _config_error_core_result(
         "pending_conflict_count": 0,
         "auto_dismissed_conflict_count": 0,
         "auto_dismissed_conflict_ids": [],
-        "unreflected_conflict_resolutions": [],
         "stale_dismissal_count": 0,
         "freshness_report": report,
         "warnings": list(report.get("warnings") or []),
@@ -4516,7 +4489,7 @@ def _merge_conflict_items(
     for item in existing:
         current = dict(item)
         merged[str(item.get("conflict_id"))] = current
-        if current.get("status") in {"resolved", "dismissed"}:
+        if current.get("status") in {"dismissed"}:
             pair_key = _conflict_pair_key_from_item(current)
             if pair_key is not None:
                 resolved_pair_keys.add(pair_key)
@@ -4526,7 +4499,7 @@ def _merge_conflict_items(
         pair_key = _conflict_pair_key_from_item(item)
         if pair_key in resolved_pair_keys:
             continue
-        if merged.get(conflict_id, {}).get("status") in {"resolved", "dismissed"}:
+        if merged.get(conflict_id, {}).get("status") in {"dismissed"}:
             continue
         existing_item = merged.get(conflict_id)
         merged_item = dict(item)

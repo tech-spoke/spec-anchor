@@ -36,13 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from spec_anchor.inject import (  # noqa: E402
-    run_inject_chapters,
-    run_inject_conflicts,
-    run_inject_purpose,
-    run_inject_search,
-    run_inject_section,
-)
+from spec_anchor.inject import run_inject_chapters, run_inject_purpose, run_inject_search, run_inject_section
 
 
 def _write_project(
@@ -189,38 +183,6 @@ def test_inject_purpose_warns_when_purpose_file_missing(tmp_path: Path) -> None:
     reason_codes = {w["reason_code"] for w in result["warnings"]}
     assert "purpose_file_missing" in reason_codes
     assert "concept_file_missing" in reason_codes
-
-
-def test_inject_conflicts_returns_only_resolved_non_stale(tmp_path: Path) -> None:
-    project = _write_project(
-        tmp_path,
-        conflict_review_items=[
-            {"conflict_id": "c-resolved", "status": "resolved"},
-            {"conflict_id": "c-pending", "status": "pending"},
-            {"conflict_id": "c-dismissed", "status": "dismissed"},
-            {"conflict_id": "c-stale", "status": "resolved", "stale_dismissal": True},
-        ],
-    )
-
-    result = run_inject_conflicts(project_root=project)
-
-    resolved_ids = [item["conflict_id"] for item in result["resolved_conflict_review_items"]]
-    excluded_ids = [item["conflict_id"] for item in result["excluded_conflict_review_items"]]
-    assert resolved_ids == ["c-resolved"]
-    assert "c-pending" in excluded_ids
-    assert "c-dismissed" in excluded_ids
-    assert "c-stale" in excluded_ids
-    assert result["count"] == 1
-
-
-def test_inject_conflicts_returns_empty_for_missing_artifact(tmp_path: Path) -> None:
-    project = _write_project(tmp_path)
-
-    result = run_inject_conflicts(project_root=project)
-
-    assert result["resolved_conflict_review_items"] == []
-    assert result["excluded_conflict_review_items"] == []
-    assert result["count"] == 0
 
 
 def test_inject_section_returns_empty_for_no_ids(tmp_path: Path) -> None:

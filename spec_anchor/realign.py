@@ -48,7 +48,6 @@ VALID_EVIDENCE_ORIGINS = (
     "Purpose",
     "Core Concept",
     "Source Specs",
-    "Conflict Review Item",
 )
 
 
@@ -62,7 +61,7 @@ class SpecRealignError(ValueError):
     * ``missing_answer`` — no answer candidate was supplied at all.
     * ``missing_final_section`` — the answer has no non-empty answer/proposal.
     * ``invalid_evidence_origin`` — a constraint's evidence origin is not one of
-      Purpose / Core Concept / Source Specs / Conflict Review Item.
+      Purpose / Core Concept / Source Specs.
     * ``invalid_support_refs_type`` — a constraint's ``support_refs`` is not a list.
     * ``empty_applicability`` — a constraint's ``applicability`` is blank.
     """

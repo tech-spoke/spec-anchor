@@ -255,34 +255,6 @@ def _call(func: Any, **kwargs: Any) -> Any:
         return func(*kwargs.get("_positional", ()), **supported)
 
 
-def _run_spec_core(project_root: Path, **kwargs: Any) -> Any:
-    func = _run_function()
-    all_mode = bool(kwargs.pop("all_mode", False))
-    decision_payload = kwargs.pop("decision_payload", None)
-    provider = kwargs.pop("provider", None)
-    return _call(
-        func,
-        _positional=(project_root,),
-        project_root=project_root,
-        root=project_root,
-        cwd=project_root,
-        all=all_mode,
-        all_mode=all_mode,
-        full=all_mode,
-        force=all_mode,
-        mode="full" if all_mode else "incremental",
-        decision_payload=decision_payload,
-        decision=decision_payload,
-        conflict_decision=decision_payload,
-        provider=provider,
-        llm_provider=provider,
-        conflict_judge=provider,
-        judge=provider,
-        generated_at="2026-05-06T00:00:00Z",
-        **kwargs,
-    )
-
-
 def _write_project(project_root: Path) -> dict[str, Path]:
     (project_root / ".spec-anchor").mkdir(parents=True)
     (project_root / ".spec-anchor" / "config.toml").write_text(CONFIG)
@@ -1126,41 +1098,6 @@ def test_t_i01_incremental_updates_changed_section_and_skips_unchanged(
     assert unchanged_after["search_keys"] == unchanged_before["search_keys"]
 
 
-def test_t_i03_core_result_has_required_public_fields(tmp_path: Path) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
-    )
-
-    assert {
-        "mode",
-        "updated_sources",
-        "skipped_sources",
-        "failed_sources",
-        "failed_sections",
-        "updated_sections",
-        "regenerated_chapter_anchors",
-        "retrieval_index_status",
-        "related_sections_status",
-        "potential_conflicts",
-        "conflict_review_items",
-        "pending_conflict_count",
-        "auto_dismissed_conflict_count",
-        "auto_dismissed_conflict_ids",
-        "unreflected_conflict_resolutions",
-        "stale_resolution_count",
-        "freshness_report",
-        "warnings",
-    }.issubset(result)
-    assert result["mode"] in {"incremental", "full"}
-    assert isinstance(result["pending_conflict_count"], int)
-    assert isinstance(result["auto_dismissed_conflict_count"], int)
-    assert isinstance(result["auto_dismissed_conflict_ids"], list)
-    assert isinstance(result["stale_resolution_count"], int)
-
-
 def test_b2_incremental_no_change_skips_retrieval_and_related_heavy_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1848,43 +1785,6 @@ def test_t_i04_resolved_conflicts_with_becomes_potential_conflict_warning(
     assert _freshness(result)["status"] in {"fresh", "degraded"}
 
 
-def test_t_i14_decision_payload_resolves_pending_item_through_spec_core_api(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    paths = _write_project(project_root)
-    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
-    pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
-    )
-    pending_count_before = pending["pending_conflict_count"]
-    conflict_id = pending["conflict_review_items"][0]["conflict_id"]
-
-    result = _result_dict(
-        _run_spec_core(
-            project_root,
-            provider=ConflictCandidateTriageProvider("resolved"),
-            decision_payload={
-                "conflict_id": conflict_id,
-                "decision": "prefer_a",
-                "selected_option": "prefer_a",
-                "reason": "Human chose Alpha for this fixture.",
-                "referenced_source_refs": ["docs/spec/main.md#alpha"],
-                "human_acknowledgement": True,
-            },
-        )
-    )
-
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "resolved"
-    assert item["resolution"]["reason"]
-    assert item["resolution"]["decision_origin"] == "human"
-    assert result["pending_conflict_count"] == pending_count_before - 1
-    assert _freshness(result)["status"] == (
-        "fresh" if result["pending_conflict_count"] == 0 else "blocked"
-    )
-
-
 def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
     tmp_path: Path,
 ) -> None:
@@ -2057,64 +1957,6 @@ def test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref(
     assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_pair_absent"
     assert conflict_id in result["auto_dismissed_conflict_ids"]
     assert not any(ref.endswith("#0003-beta") for ref in _base_source_refs(item))
-
-
-def test_t_conflict_source_update_auto_dismiss_preserves_pending_decision_audit(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    paths = _write_project(project_root)
-    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
-    pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
-    )
-    conflict_id = _conflict_item_touching_source(
-        pending["conflict_review_items"],
-        "#0003-beta",
-    )["conflict_id"]
-
-    source_update_decision = _result_dict(
-        _run_spec_core(
-            project_root,
-            provider=ConflictCandidateTriageProvider("unresolved"),
-            decision_payload={
-                "conflict_id": conflict_id,
-                "decision": "needs_source_update",
-                "selected_option": "needs_source_update",
-                "reason": "Human requested a Source Specs correction for Beta.",
-                "valid_scope": "global",
-                "referenced_source_refs": ["docs/spec/main.md#0003-beta"],
-                "human_acknowledgement": True,
-            },
-        )
-    )
-    decided_item = next(
-        item for item in source_update_decision["conflict_review_items"] if item["conflict_id"] == conflict_id
-    )
-    previous_resolution = dict(decided_item["resolution"])
-    assert decided_item["status"] == "pending"
-    assert previous_resolution["decision"] == "needs_source_update"
-    assert previous_resolution["decision_origin"] == "human"
-
-    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
-        def _conflict_payload(self) -> dict[str, Any]:
-            payload = super()._conflict_payload()
-            payload["conflict_id"] = conflict_id
-            return payload
-
-    paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
-    result = _result_dict(
-        _run_spec_core(project_root, provider=FixedConflictIdResolvedProvider("resolved"))
-    )
-
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "dismissed"
-    assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert item["resolution"]["previous_status"] == "pending"
-    assert item["resolution"]["previous_resolution"] == previous_resolution
-    assert item["resolution"]["previous_resolution"]["decision"] == "needs_source_update"
-    assert item["resolution"]["previous_resolution"]["decision_origin"] == "human"
-    assert conflict_id in result["auto_dismissed_conflict_ids"]
 
 
 def test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api(
@@ -2540,8 +2382,6 @@ def test_g11_provider_failure_does_not_use_fixed_metadata_fallback(
     assert all(section["search_keys"] == [] for section in sections)
 
 
-
-
 def test_g11_warning_only_conflict_resolution_receives_purpose_and_concept_evidence(
     tmp_path: Path,
 ) -> None:
@@ -2559,48 +2399,6 @@ def test_g11_warning_only_conflict_resolution_receives_purpose_and_concept_evide
     assert provider.conflict_requests
     assert result["potential_conflicts"]
     assert result["pending_conflict_count"] == 0
-
-
-def test_g11_resolved_conflict_becomes_stale_when_purpose_or_concept_changes(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    paths = _write_project(project_root)
-    paths["main"].write_text(
-        paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X")
-    )
-    pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
-    )
-    conflict_id = pending["conflict_review_items"][0]["conflict_id"]
-    _run_spec_core(
-        project_root,
-        provider=ConflictCandidateTriageProvider("resolved"),
-        decision_payload={
-            "conflict_id": conflict_id,
-            "decision": "prefer_a",
-            "selected_option": "prefer_a",
-            "reason": "Human chose Alpha because the current Core Concept prioritizes sources.",
-            "referenced_source_refs": [
-                "docs/core/concept.md",
-                "docs/spec/main.md#alpha",
-            ],
-            "human_acknowledgement": True,
-        },
-    )
-
-    paths["concept"].write_text(
-        "# Core Concept\nHuman decisions must be rechecked after principle changes.\n"
-    )
-    result = _result_dict(
-        _run_spec_core(project_root, provider=ConflictCandidateTriageProvider("resolved"))
-    )
-
-    assert result["stale_resolution_count"] >= 1
-    assert any(
-        item.get("conflict_id") == conflict_id and item.get("stale_resolution") is True
-        for item in result["conflict_review_items"]
-    )
 
 
 def test_t_i17_watcher_internal_update_api_is_distinct_from_external_command() -> None:

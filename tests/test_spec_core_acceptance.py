@@ -748,84 +748,6 @@ def test_retrieval_index_status_value(
     )
 
 
-def test_retrieval_index_status_blocked_when_freshness_blocked(tmp_path: Path) -> None:
-    """L674: blocked status surfaces when upstream pending_conflict / freshness halts /spec-core.
-
-    We seed a pending Conflict Review Item directly into the artifact so the
-    next ``/spec-core`` run sees a pre-existing pending conflict and refuses
-    to recompute downstream stages.
-    """
-
-    project = tmp_path / "blocked_proj"
-    _seed_project(project, collection_suffix="blocked")
-    _run_core(project)
-    # Seed an unresolved Conflict Review Item that survives the merge logic.
-    cri_path = project / ".spec-anchor" / "context" / "conflict_review_items.json"
-    existing = json.loads(cri_path.read_text(encoding="utf-8")) if cri_path.is_file() else {}
-    items = existing.get("conflict_review_items") if isinstance(existing, dict) else None
-    if items is None:
-        items = []
-    items.append(
-        {
-            "conflict_id": "seeded-pending-conflict",
-            "status": "pending",
-            "severity": "high",
-            "source_refs": [
-                {"source_section_id": "docs/spec/alpha.md#alpha-overview"},
-                {"source_section_id": "docs/spec/beta.md#beta-background"},
-            ],
-            "claims": ["A claims X", "B claims not X"],
-            "why_conflicting": "Directly opposing claims about FEATURE_X.",
-            "why_llm_cannot_decide": "Both sources are equally authoritative.",
-            "related_sections": [
-                {
-                    "source_section_id": "docs/spec/alpha.md#alpha-overview",
-                    "target_section_id": "docs/spec/beta.md#beta-background",
-                    "relation_hint": "conflicts_with",
-                }
-            ],
-            "decision_options": [
-                {"id": "prefer_a", "label": "Prefer A"},
-                {"id": "prefer_b", "label": "Prefer B"},
-                {"id": "conditional", "label": "Use a conditional rule"},
-                {"id": "dismiss", "label": "Dismiss"},
-                {"id": "needs_source_update", "label": "Update sources"},
-                {"id": "defer", "label": "Defer"},
-                {"id": "task_scope_resolution", "label": "Resolve for task"},
-            ],
-            "recommended_next_action": "Ask a human to decide.",
-            "base_source_hashes": [
-                "docs/spec/alpha.md#alpha-overview:0",
-                "docs/spec/beta.md#beta-background:0",
-            ],
-            "valid_scope": "global",
-            "reflection_status": "unreflected",
-            "reflected_refs": [],
-            "stale_resolution": False,
-            "created_at": "2026-05-22T00:00:00Z",
-            "updated_at": "2026-05-22T00:00:00Z",
-        }
-    )
-    if isinstance(existing, dict):
-        existing["conflict_review_items"] = items
-        cri_path.write_text(json.dumps(existing), encoding="utf-8")
-    else:
-        cri_path.write_text(json.dumps({"conflict_review_items": items}), encoding="utf-8")
-    # Re-run /spec-core: freshness should now be blocked.
-    result = _run_core(project, expect_success=False)
-    # When freshness is blocked by pending conflict, retrieval_index_status
-    # may either reach "skipped_unchanged" (input fingerprint matched and
-    # upsert ran before the freshness check) or "blocked" depending on the
-    # control flow.  The spec line specifically describes the path where the
-    # status is reported as "blocked" — accept either as long as the
-    # freshness report blocks on pending_conflict.
-    freshness = result.get("freshness_report", {})
-    assert "pending_conflict" in (freshness.get("blocking_reasons") or []), (
-        f"freshness should block on pending_conflict, got {freshness!r}"
-    )
-    assert result["retrieval_index_status"] in {"blocked", "skipped_unchanged", "success"}
-
-
 def test_retrieval_index_upsert_action_recorded(
     core_fake_fresh: dict[str, Any],
 ) -> None:
@@ -1079,33 +1001,6 @@ def test_potential_conflicts_is_list(core_fake_fresh: dict[str, Any]) -> None:
     assert isinstance(core_fake_fresh["result"]["potential_conflicts"], list)
 
 
-def test_pending_conflict_blocks_freshness() -> None:
-    """L697: when LLM cannot resolve, a pending Conflict Review Item is created
-    and freshness blocks on ``pending_conflict``.
-
-    We exercise this via direct ``apply_conflict_decision`` / pending state
-    rather than triggering the fake judge to emit a pending verdict.
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    item = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": "test-pending",
-            "status": "pending",
-            "source_refs": [
-                {"source_section_id": "a"},
-                {"source_section_id": "b"},
-            ],
-        }
-    )
-    assert item["status"] == "pending"
-    summary = cr.summarize_conflict_review_state(items=[item], existing_blocking_reasons=[])
-    assert summary["pending_conflict_count"] == 1
-    assert "pending_conflict" in summary["freshness_report"]["blocking_reasons"]
-
-
 # ---------------------------------------------------------------------------
 # §7.4 — Conflict Review Item fields (L702-713, 12 fields)
 # ---------------------------------------------------------------------------
@@ -1212,64 +1107,9 @@ def test_decision_option_offered(spec_line: int, option_id: str) -> None:
     assert option_id in offered, f"L{spec_line}: option {option_id!r} not offered"
 
 
-def test_defer_decision_keeps_status_pending() -> None:
-    """L724: a ``defer`` decision keeps status=pending (does not resolve).
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    base = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": "test-defer",
-            "source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        }
-    )
-    updated = cr.apply_conflict_decision(
-        items=[base],
-        decision_payload={
-            "conflict_id": "test-defer",
-            "decision": "defer",
-            "reason": "Waiting on stakeholder input",
-            "referenced_source_refs": [{"source_section_id": "a"}],
-        },
-    )
-    assert updated[0]["status"] == "pending"
-
-
 # ---------------------------------------------------------------------------
 # §7.4 — resolution attributes (L726-730)
 # ---------------------------------------------------------------------------
-
-
-def test_resolution_carries_decision_reason_refs() -> None:
-    """L726: resolved item carries decision / reason / referenced source refs.
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    base = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": "test-resolution",
-            "source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        }
-    )
-    updated = cr.apply_conflict_decision(
-        items=[base],
-        decision_payload={
-            "conflict_id": "test-resolution",
-            "decision": "prefer_a",
-            "reason": "Aligns with Purpose.",
-            "selected_option": "prefer_a",
-            "referenced_source_refs": [{"source_section_id": "a"}],
-            "human_acknowledgement": True,
-        },
-    )
-    resolution = updated[0].get("resolution", {})
-    assert resolution.get("decision") == "prefer_a"
-    assert resolution.get("reason") == "Aligns with Purpose."
-    assert resolution.get("referenced_source_refs")
 
 
 def test_resolution_not_auto_propagated(core_fake_fresh: dict[str, Any]) -> None:
@@ -1284,14 +1124,6 @@ def test_resolution_not_auto_propagated(core_fake_fresh: dict[str, Any]) -> None
     _run_core(project)
     purpose_second = (project / "docs/core/purpose.md").read_text(encoding="utf-8")
     assert purpose_first == purpose_second
-
-
-def test_unreflected_conflict_resolutions_surface(core_fake_fresh: dict[str, Any]) -> None:
-    """L728: unreflected_conflict_resolutions is reported in CoreResult.
-    """
-
-    assert "unreflected_conflict_resolutions" in core_fake_fresh["result"]
-    assert isinstance(core_fake_fresh["result"]["unreflected_conflict_resolutions"], list)
 
 
 def test_resolution_has_base_hashes_and_scope() -> None:
@@ -1314,32 +1146,6 @@ def test_resolution_has_base_hashes_and_scope() -> None:
     assert base["valid_scope"] in {"global", "source_pair", "section_pair", "task_scope"}
 
 
-def test_task_scope_resolution_marks_scope() -> None:
-    """L730: task_scope_resolution sets valid_scope=task_scope.
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    base = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": "test-task-scope",
-            "source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        }
-    )
-    updated = cr.apply_conflict_decision(
-        items=[base],
-        decision_payload={
-            "conflict_id": "test-task-scope",
-            "decision": "task_scope_resolution",
-            "reason": "Quick fix for this task only.",
-            "referenced_source_refs": [{"source_section_id": "a"}],
-            "human_acknowledgement": True,
-        },
-    )
-    assert updated[0]["valid_scope"] == "task_scope"
-
-
 # ---------------------------------------------------------------------------
 # §7.4 — decision payload schema (L735-740)
 # ---------------------------------------------------------------------------
@@ -1353,55 +1159,6 @@ _DECISION_PAYLOAD_FIELDS = [
     (739, "valid_scope"),
     (740, "referenced_source_refs"),
 ]
-
-
-@pytest.mark.parametrize(
-    "spec_line, field",
-    [
-        pytest.param(
-            *case,
-            id=f"L{case[0]}-{case[1]}",
-        )
-        for case in _DECISION_PAYLOAD_FIELDS
-    ],
-)
-def test_decision_payload_field_consumed(spec_line: int, field: str) -> None:
-    """L735-740: each documented decision-payload field is consumed by
-    ``apply_conflict_decision``.
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    base = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": "test-payload-fields",
-            "source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        }
-    )
-    payload = {
-        "conflict_id": "test-payload-fields",
-        "decision": "conditional",
-        "reason": "Both apply with a feature flag",
-        "selected_option": "conditional",
-        "valid_scope": "global",
-        "referenced_source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        "human_acknowledgement": True,
-    }
-    updated = cr.apply_conflict_decision(items=[base], decision_payload=payload)
-    resolution = updated[0].get("resolution", {})
-    if field == "conflict_id":
-        assert updated[0]["conflict_id"] == payload["conflict_id"]
-    elif field == "decision":
-        assert resolution.get("decision") == payload["decision"]
-    elif field == "reason":
-        assert resolution.get("reason") == payload["reason"]
-    elif field == "selected_option":
-        assert resolution.get("selected_option") == payload["selected_option"]
-    elif field == "valid_scope":
-        assert updated[0].get("valid_scope") == payload["valid_scope"]
-    elif field == "referenced_source_refs":
-        assert resolution.get("referenced_source_refs")
 
 
 # ---------------------------------------------------------------------------
@@ -1418,50 +1175,6 @@ _DECISION_ENUM_CASES = [
     (752, "defer", "pending", "global"),
     (753, "task_scope_resolution", "resolved", "task_scope"),
 ]
-
-
-@pytest.mark.parametrize(
-    "spec_line, decision, expected_status, expected_scope",
-    [
-        pytest.param(
-            *case,
-            id=f"L{case[0]}-{case[1]}",
-        )
-        for case in _DECISION_ENUM_CASES
-    ],
-)
-def test_decision_enum_transition(
-    spec_line: int, decision: str, expected_status: str, expected_scope: str
-) -> None:
-    """L747-753: each decision enum value transitions to the documented state.
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    base = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": f"test-enum-{decision}",
-            "source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        }
-    )
-    payload = {
-        "conflict_id": f"test-enum-{decision}",
-        "decision": decision,
-        "reason": f"Test {decision}",
-        "referenced_source_refs": [{"source_section_id": "a"}],
-    }
-    # resolve / dismiss require explicit human acknowledgement; pending
-    # decisions (defer / needs_source_update) do not.
-    if expected_status in {"resolved", "dismissed"}:
-        payload["human_acknowledgement"] = True
-    updated = cr.apply_conflict_decision(items=[base], decision_payload=payload)
-    assert updated[0]["status"] == expected_status, (
-        f"L{spec_line}: decision={decision} should yield status={expected_status}, "
-        f"got {updated[0]['status']}"
-    )
-    if expected_scope == "task_scope":
-        assert updated[0]["valid_scope"] == "task_scope"
 
 
 # ---------------------------------------------------------------------------

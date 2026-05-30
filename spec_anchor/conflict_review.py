@@ -15,29 +15,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-DECISIONS = {
-    "prefer_a",
-    "prefer_b",
-    "conditional",
-    "dismiss",
-    "needs_source_update",
-    "defer",
-    "task_scope_resolution",
-}
-RESOLVED_DECISIONS = {"prefer_a", "prefer_b", "conditional", "task_scope_resolution"}
-PENDING_DECISIONS = {"needs_source_update", "defer"}
-STATUSES = {"pending", "resolved", "dismissed"}
+DECISIONS = {"dismiss"}
+STATUSES = {"pending", "dismissed"}
 SCOPES = {"global", "source_pair", "section_pair", "task_scope"}
 REFLECTION_STATUSES = {"unreflected", "reflected", "not_required"}
 
 _DEFAULT_DECISION_OPTIONS = [
-    {"id": "prefer_a", "label": "Prefer source A"},
-    {"id": "prefer_b", "label": "Prefer source B"},
-    {"id": "conditional", "label": "Use a conditional rule"},
     {"id": "dismiss", "label": "Dismiss as not a conflict"},
-    {"id": "needs_source_update", "label": "Update source specs"},
-    {"id": "defer", "label": "Defer decision"},
-    {"id": "task_scope_resolution", "label": "Resolve for this task only"},
 ]
 
 @dataclass
@@ -661,7 +645,12 @@ def apply_conflict_decision(
     decision: dict[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Apply one human decision payload to a pending conflict item."""
+    """Apply one human dismissal payload to a pending conflict item.
+
+    Only ``dismiss`` is supported: a human marks a surfaced conflict as not a
+    real conflict. The payload must attest ``human_acknowledgement=true`` and
+    supply ``referenced_source_refs``.
+    """
 
     current_items = _copy_items(items if items is not None else conflict_review_items)
     decision_payload = decision_payload or payload or decision
@@ -673,58 +662,36 @@ def apply_conflict_decision(
     selected_option = str(decision_payload.get("selected_option") or selected_decision)
     if selected_decision not in DECISIONS:
         raise ValueError(f"invalid conflict decision: {selected_decision}")
-    # CLAUDE.md ルール 5 / EXTERNAL_DESIGN §2.8: pending Conflict Review Items
-    # are decided by humans, not by LLM/agent. Resolve / dismiss transitions
-    # therefore require the caller to attest a human authorization. Tests and
-    # CLI tools that proxy a human decision must include the field.
-    final_decisions = set(DECISIONS) - set(PENDING_DECISIONS)
-    if selected_decision in final_decisions:
-        ack = decision_payload.get("human_acknowledgement")
-        if not bool(ack):
-            raise ValueError(
-                "human_acknowledgement=true is required for resolve/dismiss "
-                "decisions; agent-only callers must surface this to a human "
-                "operator before invoking apply_conflict_decision"
-            )
+    # A pending Conflict Review Item is dismissed by a human who has judged it
+    # is not a real conflict, never by the LLM/agent autonomously. The caller
+    # must attest a human authorization; CLI tools that proxy a human decision
+    # (`spec-anchor core --dismiss-conflict`) include the field.
+    if not bool(decision_payload.get("human_acknowledgement")):
+        raise ValueError(
+            "human_acknowledgement=true is required to dismiss a conflict; "
+            "agent-only callers must surface this to a human operator before "
+            "invoking apply_conflict_decision"
+        )
 
     for index, item in enumerate(current_items):
         if item.get("conflict_id") != conflict_id:
             continue
-        if item.get("status") in {"resolved", "dismissed"}:
-            raise ValueError("resolved or dismissed conflict decisions cannot be overwritten")
+        if item.get("status") == "dismissed":
+            raise ValueError("dismissed conflict decisions cannot be overwritten")
         if selected_option not in _decision_option_ids(item):
             raise ValueError(f"selected option is not available: {selected_option}")
 
         updated = validate_conflict_review_item(item=item, generated_at=generated_at)
         now = _timestamp(generated_at)
-        if selected_decision in PENDING_DECISIONS:
-            updated["status"] = "pending"
-            updated["valid_scope"] = str(decision_payload.get("valid_scope") or updated.get("valid_scope") or "global")
-            if updated["valid_scope"] not in SCOPES:
-                raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
-            updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
-            updated["updated_at"] = now
-            updated["last_decision"] = {
-                "decision": selected_decision,
-                "reason": str(decision_payload.get("reason") or ""),
-                "selected_option": selected_option,
-            }
-        elif selected_decision == "dismiss":
-            updated["status"] = "dismissed"
-            updated["valid_scope"] = str(decision_payload.get("valid_scope") or updated.get("valid_scope") or "global")
-            updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
-            updated["reflection_status"] = "not_required"
-            updated["updated_at"] = now
-        else:
-            updated["status"] = "resolved"
-            updated["valid_scope"] = "task_scope" if selected_decision == "task_scope_resolution" else str(
-                decision_payload.get("valid_scope") or updated.get("valid_scope") or "global"
-            )
-            if updated["valid_scope"] not in SCOPES:
-                raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
-            updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
-            updated["reflection_status"] = "unreflected"
-            updated["updated_at"] = now
+        updated["status"] = "dismissed"
+        updated["valid_scope"] = str(
+            decision_payload.get("valid_scope") or updated.get("valid_scope") or "global"
+        )
+        if updated["valid_scope"] not in SCOPES:
+            raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
+        updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
+        updated["reflection_status"] = "not_required"
+        updated["updated_at"] = now
         updated.setdefault("reflected_refs", [])
         current_items[index] = updated
         return current_items
@@ -752,30 +719,22 @@ def summarize_conflict_review_state(
     conflict_review_items: list[dict[str, Any]] | None = None,
     existing_blocking_reasons: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Build a freshness summary where pending conflicts are the only blocker here."""
+    """Summarize pending conflicts and stale dismissals for `/spec-core`."""
 
     current_items = items if items is not None else conflict_review_items or []
     pending_count = sum(1 for item in current_items if item.get("status") == "pending")
     stale_count = sum(1 for item in current_items if item.get("stale_dismissal") is True)
-    unreflected_count = sum(
-        1
-        for item in current_items
-        if item.get("status") == "resolved" and item.get("reflection_status", "unreflected") == "unreflected"
-    )
     blocking_reasons = list(existing_blocking_reasons or [])
     if pending_count and "pending_conflict" not in blocking_reasons:
         blocking_reasons.append("pending_conflict")
 
     return {
         "pending_conflict_count": pending_count,
-        "unreflected_conflict_resolution_count": unreflected_count,
-        "unreflected_conflict_resolutions": unreflected_count,
         "stale_dismissal_count": stale_count,
         "freshness_report": {
             "status": "blocked" if blocking_reasons else "fresh",
             "blocking_reasons": blocking_reasons,
             "pending_conflict_count": pending_count,
-            "unreflected_conflict_resolution_count": unreflected_count,
             "stale_dismissal_count": stale_count,
         },
     }
@@ -793,7 +752,7 @@ def refresh_conflict_dismissal_staleness(
     current_items = _copy_items(items if items is not None else conflict_review_items)
     hashes = current_source_hashes or source_hashes or {}
     for item in current_items:
-        if item.get("status") not in {"resolved", "dismissed"}:
+        if item.get("status") != "dismissed":
             item["stale_dismissal"] = False
             continue
         stale = False
@@ -807,33 +766,6 @@ def refresh_conflict_dismissal_staleness(
     return current_items
 
 
-def usable_conflict_resolution_evidence(
-    items: list[dict[str, Any]] | None = None,
-    *,
-    conflict_review_items: list[dict[str, Any]] | None = None,
-    requested_scope: str | None = None,
-    scope: str | None = None,
-    include_task_scope: bool = False,
-) -> list[dict[str, Any]]:
-    """Return resolved, non-stale conflict decisions usable for the requested scope."""
-
-    requested_scope = requested_scope or scope or "global"
-    current_items = items if items is not None else conflict_review_items or []
-    evidence: list[dict[str, Any]] = []
-    for item in current_items:
-        if item.get("status") != "resolved":
-            continue
-        if item.get("stale_dismissal") is True:
-            continue
-        valid_scope = item.get("valid_scope", "global")
-        if valid_scope == "task_scope" and not include_task_scope:
-            continue
-        if requested_scope == "global" and valid_scope != "global":
-            continue
-        evidence.append(deepcopy(item))
-    return evidence
-
-
 evaluate_conflict_review_items = evaluate_conflicts
 run_conflict_review = evaluate_conflicts
 generate_conflict_review_items = evaluate_conflicts
@@ -845,7 +777,5 @@ build_conflict_freshness_report = summarize_conflict_review_state
 conflict_review_freshness_report = summarize_conflict_review_state
 mark_stale_conflict_resolutions = refresh_conflict_dismissal_staleness
 validate_conflict_resolution_freshness = refresh_conflict_dismissal_staleness
-filter_usable_conflict_evidence = usable_conflict_resolution_evidence
-resolved_conflict_evidence = usable_conflict_resolution_evidence
 build_conflict_judging_pairs = select_conflict_judging_pairs
 candidate_conflict_pairs = select_conflict_judging_pairs

@@ -129,14 +129,6 @@ def build_main_parser() -> argparse.ArgumentParser:
         help="configured [llm.providers.<id>] to use for this /spec-core run",
     )
     core.add_argument(
-        "--decision-json",
-        help="JSON conflict decision payload to pass to /spec-core",
-    )
-    core.add_argument(
-        "--decision-file",
-        help="path to a JSON conflict decision payload to pass to /spec-core",
-    )
-    core.add_argument(
         "--dismiss-conflict",
         dest="dismiss_conflict_id",
         metavar="CONFLICT_ID",
@@ -170,11 +162,6 @@ def build_main_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "inject-purpose",
         help="Phase R-6: return Purpose + Core Concept file contents",
-    )
-
-    subparsers.add_parser(
-        "inject-conflicts",
-        help="Phase R-6: return resolved (non-stale) Conflict Review Items",
     )
 
     realign = subparsers.add_parser(
@@ -305,8 +292,6 @@ def _dispatch_command(args: argparse.Namespace, parser: argparse.ArgumentParser)
         return _run_inject_chapters_from_args(args)
     if args.command == "inject-purpose":
         return _run_inject_purpose_from_args(args)
-    if args.command == "inject-conflicts":
-        return _run_inject_conflicts_from_args(args)
     if args.command == "realign":
         return _run_realign_from_args(args)
     if args.command == "watch":
@@ -390,11 +375,6 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
         _emit_result_json(result)
         return _command_exit_code(result)
     try:
-        decision_payload = _load_json_argument(
-            value=args.decision_json,
-            file_path=args.decision_file,
-            label="decision payload",
-        )
         rebuild_embeddings = bool(args.rebuild)
         run_full_flag = bool(args.all or rebuild_embeddings)
         result = run_spec_core(
@@ -404,7 +384,6 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
             mode="full" if run_full_flag else None,
             rebuild_embeddings=rebuild_embeddings,
             verify_index=args.verify_index,
-            decision_payload=decision_payload,
             llm_provider_id=args.llm_provider_id,
         )
     except Exception as exc:
@@ -479,22 +458,6 @@ def _run_inject_purpose_from_args(args: argparse.Namespace) -> int:
     except Exception as exc:
         result = _exception_result(
             "/spec-inject inject-purpose", project_root=project_root, exc=exc
-        )
-    _emit_result_json(result)
-    return 0
-
-
-def _run_inject_conflicts_from_args(args: argparse.Namespace) -> int:
-    """Phase R-6: dispatch `spec-anchor inject-conflicts`."""
-
-    from spec_anchor.inject import run_inject_conflicts
-
-    project_root = _resolved_project_root()
-    try:
-        result = run_inject_conflicts(project_root=project_root)
-    except Exception as exc:
-        result = _exception_result(
-            "/spec-inject inject-conflicts", project_root=project_root, exc=exc
         )
     _emit_result_json(result)
     return 0

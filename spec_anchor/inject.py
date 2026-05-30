@@ -77,29 +77,6 @@ def run_spec_inject(
         result["continues_with_warnings"] = bool(decision.get("continues_with_warnings"))
     return result
 
-
-def _read_conflict_review_items(project_root: Path) -> list[dict[str, Any]]:
-    return _coerce_conflict_review_items(
-        _read_json_file(_context_dir(project_root) / "conflict_review_items.json")
-    )
-
-
-def _coerce_conflict_review_items(
-    value: Sequence[Mapping[str, Any]] | Mapping[str, Any] | None,
-) -> list[dict[str, Any]]:
-    if value is None:
-        return []
-    if isinstance(value, Mapping):
-        for key in ("conflict_review_items", "items"):
-            nested = value.get(key)
-            if nested is not None:
-                return _coerce_conflict_review_items(nested)
-        return [deepcopy(dict(value))] if value.get("conflict_id") else []
-    if not _is_sequence(value):
-        return []
-    return [deepcopy(dict(item)) for item in value if isinstance(item, Mapping)]
-
-
 def _base_result(
     decision: Mapping[str, Any],
     *,
@@ -548,64 +525,6 @@ def run_inject_purpose(
         "warnings": warnings,
     }
 
-
-def run_inject_conflicts(
-    project_root: str | Path = ".",
-    *,
-    root: str | Path | None = None,
-    cwd: str | Path | None = None,
-) -> dict[str, Any]:
-    """Phase R-6: return resolved + non-stale Conflict Review Items.
-
-    `doc/EXTERNAL_DESIGN.ja.md` §8.4 (inject-conflicts). The Agent uses
-    these as `evidence_origin = Conflict Review Item` candidates for
-    constraints. Pending / dismissed / stale items are filtered out so
-    callers see only safe-to-cite resolutions.
-    """
-
-    project = _project_root(project_root, root=root, cwd=cwd)
-    config_missing = _config_missing_error_result(project, "/spec-inject inject-conflicts")
-    if config_missing is not None:
-        return config_missing
-    gate, gate_warnings = _run_gate(project, "/spec-inject inject-conflicts")
-    if gate is not None:
-        return gate
-    raw_items = _read_conflict_review_items(project)
-    resolved_items: list[dict[str, Any]] = []
-    excluded_items: list[dict[str, Any]] = []
-    for item in raw_items:
-        status = str(item.get("status") or "").strip().lower()
-        if status == "resolved":
-            # Filter out stale resolutions; the Agent must only cite
-            # non-stale resolved items as `evidence_origin = "Conflict
-            # Review Item"`.
-            stale_marker = item.get("stale_dismissal") or item.get("stale")
-            if stale_marker:
-                excluded_items.append(
-                    {
-                        "conflict_id": item.get("conflict_id"),
-                        "reason_code": "stale_dismissal",
-                    }
-                )
-                continue
-            resolved_items.append(deepcopy(item))
-        else:
-            excluded_items.append(
-                {
-                    "conflict_id": item.get("conflict_id"),
-                    "reason_code": f"status_{status or 'missing'}",
-                }
-            )
-    return {
-        "command": "/spec-inject inject-conflicts",
-        "project_root": project.as_posix(),
-        "resolved_conflict_review_items": resolved_items,
-        "excluded_conflict_review_items": excluded_items,
-        "count": len(resolved_items),
-        "warnings": list(gate_warnings),
-    }
-
-
 def run_inject_search(
     project_root: str | Path = ".",
     *,
@@ -781,7 +700,6 @@ __all__ = [
     "SpecInjectError",
     "run_spec_inject",
     "run_inject_chapters",
-    "run_inject_conflicts",
     "run_inject_purpose",
     "run_inject_search",
     "run_inject_section",

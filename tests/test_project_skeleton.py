@@ -120,16 +120,6 @@ def test_t_p02_cli_help_exits_zero(command: str) -> None:
     assert "usage" in result.stdout.lower() or "help" in result.stdout.lower()
 
 
-def test_t_p02_main_cli_help_lists_primary_commands() -> None:
-    result = _run_help("spec-anchor")
-
-    assert result.returncode == 0, result.stderr or result.stdout
-    help_text = result.stdout.lower()
-    for expected in ("core", "inject-conflicts", "realign"):
-        assert expected in help_text
-    assert 'inject "' not in help_text
-
-
 @pytest.mark.parametrize(
     ("command", "runner_module", "runner_name", "extra_args"),
     (

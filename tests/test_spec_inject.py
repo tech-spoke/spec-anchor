@@ -282,26 +282,6 @@ def _write_conflicting_project(project_root: Path) -> dict[str, Path]:
     return paths
 
 
-def _pending_conflict(conflict_id: str = "conflict-auth-session") -> dict[str, Any]:
-    return {
-        "conflict_id": conflict_id,
-        "status": "pending",
-        "severity": "high",
-        "source_refs": [
-            {"source_section_id": "docs/spec/security.md#authentication"},
-            {"source_section_id": "docs/spec/security.md#session"},
-        ],
-        "claims": [
-            {"side": "a", "summary": "Authentication requires active sessions."},
-            {"side": "b", "summary": "Session validity is undecided."},
-        ],
-        "why_conflicting": "The active-session requirement cannot be applied safely.",
-        "why_llm_cannot_decide": "No higher-priority source defines the exception.",
-        "decision_options": [{"id": "prefer_a"}, {"id": "prefer_b"}, {"id": "defer"}],
-        "recommended_next_action": "Ask a human to resolve the session rule.",
-    }
-
-
 def _auto_dismissed_conflict(conflict_id: str = "auto-dismissed-conflict") -> dict[str, Any]:
     item = _pending_conflict(conflict_id)
     item["status"] = "dismissed"
@@ -532,49 +512,6 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
     text = _text_blob(result)
     assert "conflict-from-spec-core-artifact" in text
     assert "why_llm_cannot_decide" in text
-
-
-def test_auto_dismissed_conflict_is_not_displayed_by_inject_or_realign_paths(
-    tmp_path: Path,
-) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-    dismissed = _auto_dismissed_conflict()
-    pending = _pending_conflict("still-pending-conflict")
-    _write_conflict_review_state(project_root, [dismissed, pending])
-
-    from spec_anchor.inject import run_inject_chapters, run_inject_conflicts
-    from spec_anchor.realign import run_spec_realign
-
-    results = [
-        _run_spec_inject(project_root),
-        run_inject_chapters(project_root=project_root),
-        run_inject_conflicts(project_root=project_root),
-        run_spec_realign(
-            project_root=project_root,
-            agent_answer={
-                "今回守る制約": [],
-                "今回扱う修正候補または検討対象": [],
-                "競合 / 不確実性 / 人間レビューが必要な点": [],
-                "課題プロンプトへの回答または修正案": "blocked before answer shaping",
-            },
-            generated_at="2026-05-06T00:00:00Z",
-        ),
-    ]
-
-    for result in results:
-        data = _result_dict(result)
-        text = _text_blob(data)
-        pending_items = data.get("pending_conflict_items") or []
-        assert _stopped(data) is True
-        assert "pending_conflict" in text
-        assert "still-pending-conflict" in text
-        assert "auto-dismissed-conflict" not in text
-        assert all(
-            item.get("conflict_id") != "auto-dismissed-conflict"
-            for item in pending_items
-            if isinstance(item, dict)
-        )
 
 
 @pytest.mark.parametrize(
