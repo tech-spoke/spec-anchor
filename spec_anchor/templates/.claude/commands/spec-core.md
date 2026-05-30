@@ -104,17 +104,18 @@ CLI が失敗を返したとき (返却 JSON の `status` が `failed` / `error`
 
 ### pending conflict の本文展開フォーマット (⑤)
 
-pending conflict があるとき、件数だけを伝えてはいけない。各衝突を次の人間向けフォーマットで本文展開する。`conflict_id` / `claims` / `why_conflicting` などの内部 field 名は **見出しに使わず、値だけ** を出す。
+pending conflict があるとき、件数だけを伝えてはいけない。各衝突を次の人間向けフォーマットで本文展開する。`conflict_id` / `conflict_points` / `why_conflicting` などの内部 field 名は **見出しに使わず、値だけ** を出す。
 
 ```text
 ■ 人間判断が必要な仕様の衝突があります (N 件)
 
   1. <短い見出し: 衝突の論点を 1 行で>
 
-     主張 A: <claims[0] の主張本文>
-        出典: <claims[0] の出典>
-     主張 B: <claims[1] の主張本文>
-        出典: <claims[1] の出典>
+     衝突箇所:
+       - 左の抜粋: <conflict_points[0].left_excerpt>
+         右の抜粋: <conflict_points[0].right_excerpt>
+         なぜ衝突するか: <conflict_points[0].why_conflicting>
+         重要度: <conflict_points[0].severity を high → 高 / medium → 中 / low → 低 へ翻訳>
 
      論点: <なぜ衝突しているか>
      人間判断が必要な理由: <なぜ LLM が決められないか>
@@ -123,16 +124,12 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
      関係する仕様:
        - <関係する仕様の参照>
 
-     選択肢:
-       - <採用候補 1>
-       - <採用候補 2>
-
      次の操作: <Agent が日本語訳した item recommended_next_action 値。CLI が日本語以外の自然文を返した場合は日本語に置き換える。例: `Ask a human to decide this conflict.` → 「人間判断で衝突を解消してください。」>
 
      (衝突 ID: <conflict_id の値>  ← 再参照用)
 ```
 
-`claims` が 3 件以上なら「主張 A / B / C / ...」と続ける。複数衝突なら見出しを `1.` `2.` と連番にする。各 item の `recommended_next_action` の **値** は省略せず必ず本文に含める (日本語以外の自然文は Agent が翻訳して反映)。Agent は衝突を決めない。
+`conflict_points` が 2 件以上なら「衝突箇所」に箇条書きを追加する。複数衝突なら見出しを `1.` `2.` と連番にする。各 item の `recommended_next_action` の **値** は省略せず必ず本文に含める (日本語以外の自然文は Agent が翻訳して反映)。Agent は衝突を決めない。
 
 ## ユーザー向け本文に貼ってはいけない内部用語
 
@@ -141,7 +138,7 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 - 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"`
 - freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `failed_required_artifact`
 - 正常完了系の field 名: `updated_sources` / `failed_sources` / `failed_sections` / `retrieval_index_status` / `pending_conflict_count` / `stale_dismissal_count` / `auto_dismissed_conflict_count` / `auto_dismissed_conflict_ids` / `regenerated_chapter_anchors`
-- パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `claim_retrieval_status` / `conflict_candidate_triage_status` / `spec_claims_status`
+- パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `section_pair_candidate_generation_status`
 - 内部 path / 答案 field 名: `inject_result.<...>` / `freshness_report` / `evidence_origin` / `support_refs`
 - conflict の raw field 名: `conflict_id` / `why_conflicting` / `why_llm_cannot_decide` / `source_refs` (= 上記の人間向け見出しへ置換する)
 - **日本語以外の自然文** (例: CLI の `recommended_next_action` default 値 `Ask a human to decide this conflict.`、LLM judge の英語返答)。本文は日本語で統一する。**翻訳対象外**: コマンド名 / URL / file path / 識別子
