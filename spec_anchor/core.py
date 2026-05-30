@@ -959,6 +959,143 @@ def run_spec_core_for_watcher(project_root: str | Path = ".", **kwargs: Any) -> 
     return run_spec_core(project_root, **kwargs)
 
 
+def run_dismiss_conflict(
+    project_root: str | Path = ".",
+    *,
+    conflict_id: str,
+    reason: str,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Persist a human dismissal of one pending Conflict Review Item.
+
+    This is the single human-facing write path for marking a Conflict Review
+    Item as ``dismissed`` (``spec-anchor core --dismiss-conflict <id> --reason
+    "..."``). The Agent runs it on behalf of a human who has explicitly judged
+    that the surfaced conflict is not a real conflict. ``--reason`` is mandatory
+    as the audit record. The dismissal is reopened automatically when the
+    dismissed conflict's evidence sections change on a later `/spec-core` run.
+    """
+
+    root = Path(project_root).expanduser().resolve()
+    command = "/spec-core --dismiss-conflict"
+    conflict_id = str(conflict_id or "").strip()
+    reason_text = str(reason or "").strip()
+    if not conflict_id:
+        return _dismiss_error_result(
+            root, command, "conflict_id is required", "invalid_dismiss_request"
+        )
+    if not reason_text:
+        return _dismiss_error_result(
+            root,
+            command,
+            "--reason is required and must be a non-empty dismissal reason",
+            "missing_reason",
+        )
+    try:
+        config = _load_project_config(root)
+    except config_api.ConfigError as exc:
+        return _dismiss_error_result(
+            root, command, str(exc), "command_error", exc_type=type(exc).__name__
+        )
+
+    context_dir = root / _config_get(config, ("context", "storage"), ".spec-anchor/context")
+    store = ContextArtifactStore(context_dir)
+    payload = _read_artifact(store, "conflict_review_items")
+    items = [
+        dict(item)
+        for item in payload.get("conflict_review_items", payload.get("items", []))
+        if isinstance(item, Mapping)
+    ]
+    target = next(
+        (item for item in items if str(item.get("conflict_id")) == conflict_id), None
+    )
+    if target is None:
+        return _dismiss_error_result(
+            root, command, f"conflict item not found: {conflict_id}", "conflict_not_found"
+        )
+    if target.get("status") != "pending":
+        return _dismiss_error_result(
+            root,
+            command,
+            f"conflict {conflict_id} is not pending "
+            f"(status={target.get('status')}); only pending conflicts can be dismissed",
+            "conflict_not_pending",
+        )
+
+    referenced_source_refs = [
+        deepcopy(ref) for ref in target.get("source_refs", []) if isinstance(ref, Mapping)
+    ]
+    if not referenced_source_refs:
+        return _dismiss_error_result(
+            root,
+            command,
+            f"conflict {conflict_id} has no source_refs to record as dismissal evidence",
+            "conflict_missing_source_refs",
+        )
+
+    now = generated_at or _nowish()
+    decision_payload = {
+        "conflict_id": conflict_id,
+        "decision": "dismiss",
+        "selected_option": "dismiss",
+        "reason": reason_text,
+        "valid_scope": "global",
+        "referenced_source_refs": referenced_source_refs,
+        "decision_origin": "human",
+        "human_acknowledgement": True,
+    }
+    try:
+        updated_items = apply_conflict_decision(
+            conflict_review_items=items,
+            decision_payload=decision_payload,
+            generated_at=now,
+        )
+    except ValueError as exc:
+        return _dismiss_error_result(
+            root, command, str(exc), "invalid_dismiss_request"
+        )
+
+    store.write(
+        "conflict_review_items",
+        {"conflict_review_items": updated_items, "generated_at": now},
+    )
+    dismissed = next(
+        (item for item in updated_items if str(item.get("conflict_id")) == conflict_id),
+        None,
+    )
+    return {
+        "command": command,
+        "project_root": root.as_posix(),
+        "status": "dismissed",
+        "conflict_id": conflict_id,
+        "reason": reason_text,
+        "conflict_review_item": dismissed,
+        "pending_conflict_count": sum(
+            1 for item in updated_items if item.get("status") == "pending"
+        ),
+    }
+
+
+def _dismiss_error_result(
+    root: Path,
+    command: str,
+    message: str,
+    code: str,
+    *,
+    exc_type: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "command": command,
+        "project_root": root.as_posix(),
+        "status": "error",
+        "error": {
+            "code": code,
+            "type": exc_type or "ValueError",
+            "message": message,
+        },
+    }
+
+
 def _record_llm_call_stats(
     tracker: CoreProgressTracker,
     stage: str,

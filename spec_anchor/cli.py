@@ -136,6 +136,17 @@ def build_main_parser() -> argparse.ArgumentParser:
         "--decision-file",
         help="path to a JSON conflict decision payload to pass to /spec-core",
     )
+    core.add_argument(
+        "--dismiss-conflict",
+        dest="dismiss_conflict_id",
+        metavar="CONFLICT_ID",
+        help="mark one pending Conflict Review Item as dismissed (requires --reason)",
+    )
+    core.add_argument(
+        "--reason",
+        dest="dismiss_reason",
+        help="human reason recorded with --dismiss-conflict (mandatory for dismissal)",
+    )
 
     inject_search = subparsers.add_parser(
         "inject-search",
@@ -363,6 +374,21 @@ def _run_core_from_args(args: argparse.Namespace) -> int:
     from spec_anchor.core import run_spec_core
 
     project_root = _resolved_project_root()
+    if getattr(args, "dismiss_conflict_id", None):
+        from spec_anchor.core import run_dismiss_conflict
+
+        try:
+            result = run_dismiss_conflict(
+                project_root=project_root,
+                conflict_id=args.dismiss_conflict_id,
+                reason=args.dismiss_reason,
+            )
+        except Exception as exc:
+            result = _exception_result(
+                "/spec-core --dismiss-conflict", project_root=project_root, exc=exc
+            )
+        _emit_result_json(result)
+        return _command_exit_code(result)
     try:
         decision_payload = _load_json_argument(
             value=args.decision_json,
