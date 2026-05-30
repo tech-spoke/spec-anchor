@@ -18,7 +18,7 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 2. answer candidate が会話または argument にある場合、4 区分 JSON の暫定形を作り、project root で gate probe として `spec-anchor realign --answer-json '<json-object>'` を実行する。`.spec-anchor/config.toml` の有無を事前確認しない。CLI が `should_stop=true`、`status="blocked"`、`status="failed"`、または `status="error"` を返した場合、その JSON を読んで利用者に伝達し、ここで即停止する。停止後に `spec-anchor inject-*`、Source Specs の Read、answer 整形へ進まない。CLI が `should_stop=false` を返した場合、この最初の戻り値だけで完了扱いにせず、以降の Agentic Search と最終 realign へ進む。
 3. answer candidate が会話にも argument にも無い場合、project root で `spec-anchor realign` を実行して CLI の `stop_reason="needs_agent_answer"` / `recommended_next_action` を確認する。`.spec-anchor/config.toml` 不在や freshness blocker など `should_stop=true` の場合は、その JSON を利用者に伝達して停止する。
 4. task と会話区間から search keys を生成する。
-5. `/spec-inject` と同じ 3 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose)。各 path の手順は `/spec-inject` template を参照。各 `spec-anchor inject-*` コマンドは freshness blocked / failed / watcher 実行中のとき自動的に停止指示を返す。`should_stop=true` または `status="error"` を返した時点で他 path へ進まず停止する。pending conflict は CLI の停止理由ではなく情報として返るので、pending のみのときは停止せず提示へ進む。`inject-search` は positional query を使い、存在しない `--keys` option を使わない。
+5. `/spec-inject` と同じ 3 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose)。各 path の手順は `/spec-inject` template を参照。各 `spec-anchor inject-*` コマンドは freshness blocked / failed / watcher 実行中のとき自動的に停止指示を返す。`should_stop=true` または `status="error"` を返した時点で他 path へ進まず停止する。`/spec-core` は自動実行しない。pending conflict は CLI の停止理由ではなく情報として返るので、pending のみのときは停止せず提示へ進む。`inject-search` は positional query を使い、存在しない `--keys` option を使わない。
 
    **3 path は探索の起点であり上限ではない**。Agent は 3 path 通過後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索 (別 search key の生成、別 path への切り替え、上位章 hop) を能動的に行う。探索の十分性は Agent が判断し、制約に必要な根拠が揃うまで継続する。ただし `evidence_origin` 縛りと「CLI 道具経由でしか Source Specs に到達しない」制約は維持する (ドリフト防止)。詳細は `/spec-inject` template の「path 選択の指針」と外部設計書 §8.3 を参照。
 6. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
@@ -184,7 +184,7 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 
 利用者が答案なしで `/spec-realign "<課題>"` を呼び、CLI が「Agent 答案待ち」の内部信号で停止した場合、その停止を利用者へ見せてはいけない。Agent は黙って次を行う:
 
-1. 4 path の Agentic Search を行い constraints を抽出する。
+1. 3 path の Agentic Search を行い constraints を抽出する。
 2. 4 区分 (今回守る制約 / 今回扱う修正候補 / 競合・不確実性 / 課題プロンプトへの回答) の答案を組み立てる。
 3. `spec-anchor realign --answer-json '<json>'` で再実行する。
 4. 利用者には整形済み RealignResult (4 区分) のみを表示する。
@@ -197,7 +197,7 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 
 1. CLI が返した `error.code` / `error.field` / `error.expected` を読む。代表的な `code`:
    - `missing_final_section`: 回答/修正案セクションが空。`課題プロンプトへの回答または修正案` を埋める。
-   - `invalid_evidence_origin`: ある制約の根拠種別が許可外。`field` が指す制約の根拠を Purpose / Core Concept / Source Specs / Conflict Review Item のいずれかへ直す。
+   - `invalid_evidence_origin`: ある制約の根拠種別が許可外。`field` が指す制約の根拠を Purpose / Core Concept / Source Specs のいずれかへ直す。
    - `invalid_support_refs_type`: ある制約の参照補助がリストでない。`field` が指す制約の参照補助をリストへ直す。
    - `empty_applicability`: ある制約の適用範囲が空。`field` が指す制約の適用範囲を埋める。
 2. 同じ Agentic Search 結果を使い、`error.field` が指す箇所だけを修正して答案を再構成する。盲目的に作り直さない。
@@ -210,12 +210,12 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 
 次の内部 field 名・enum 値・パイプライン段階名は、利用者宛の本文に出さない (`tests/e2e/forbidden_terms.py` が単一の真実)。利用者は CLI の内部構造を知らない前提で読む。
 
-- 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"` / `="degraded"`
-- freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `pending_conflict` / `failed_required_artifact` / `degraded_optional_artifact`
+- 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"`
+- freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `pending_conflict` / `failed_required_artifact`
 - Agent 答案待ちの内部信号: `needs_agent_answer` / `answer candidate`
 - パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `claim_retrieval_status` / `conflict_candidate_triage_status` / `spec_claims_status`
 - 内部 path / 答案 field 名: `inject_result.<...>` / `freshness_report` / `evidence_origin` / `support_refs`
-- conflict の raw field 名: `conflict_id` / `why_conflicting` / `why_llm_cannot_decide` / `decision_options` / `source_refs` (= 上記の人間向け見出しへ置換する)
+- conflict の raw field 名: `conflict_id` / `severity` / `why_conflicting` / `why_llm_cannot_decide` / `source_refs` (= 上記の人間向け見出しへ置換する)
 - **日本語以外の自然文** (例: CLI の `recommended_next_action` default 値 `Ask a human to decide this conflict.`、LLM judge の英語返答)。本文は日本語で統一する。**翻訳対象外**: コマンド名 / URL / file path / 識別子
 
 許可される文字列:

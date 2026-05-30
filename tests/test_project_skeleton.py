@@ -124,7 +124,7 @@ def test_t_p02_cli_help_exits_zero(command: str) -> None:
     ("command", "runner_module", "runner_name", "extra_args"),
     (
         ("core", "spec_anchor.core", "run_spec_core", ("--all",)),
-        ("inject-conflicts", "spec_anchor.inject", "run_inject_conflicts", ()),
+        ("inject-purpose", "spec_anchor.inject", "run_inject_purpose", ()),
         ("realign", "spec_anchor.realign", "run_spec_realign", ()),
     ),
 )

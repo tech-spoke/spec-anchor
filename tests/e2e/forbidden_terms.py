@@ -26,12 +26,10 @@ _CONTROL_FLAGS = (
     'status="failed"',
     'status="error"',
     'status="fresh"',
-    'status="degraded"',
     "status=blocked",
     "status=failed",
     "status=error",
     "status=fresh",
-    "status=degraded",
 )
 
 # Freshness `blocking_reasons` enum values + the internal "needs answer" signal.
@@ -42,7 +40,6 @@ _ENUM_VALUES = (
     "watcher_queue_pending",
     "pending_conflict",
     "failed_required_artifact",
-    "degraded_optional_artifact",
     "needs_agent_answer",
     "answer candidate",
 )
@@ -67,8 +64,7 @@ _NORMAL_COMPLETION_FIELDS = (
     "failed_sources",
     "failed_sections",
     "pending_conflict_count",
-    "stale_resolution_count",
-    "unreflected_conflict_resolutions",
+    "stale_dismissal_count",
     "auto_dismissed_conflict_count",
     "auto_dismissed_conflict_ids",
     "regenerated_chapter_anchors",
@@ -87,7 +83,6 @@ _CONFLICT_FIELD_NAMES = (
     "conflict_id",
     "why_conflicting",
     "why_llm_cannot_decide",
-    "decision_options",
     "source_refs",
     "recommended_next_action",
     'status="dismissed"',

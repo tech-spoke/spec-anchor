@@ -654,10 +654,9 @@ def load_watcher_settings(
     raw = dict(project_config.raw)
     include = list(project_config.sources.include)
     exclude = list(project_config.sources.exclude)
-    # Purpose / Core Concept are read-only inputs to /spec-core. CLAUDE.md ルール 4
-    # requires that Purpose / Core Concept changes invalidate the saved
-    # artifacts together with Source Specs changes. Include the two files in
-    # the watcher snapshot so the watcher cycle observes their hash drift.
+    # Purpose / Core Concept are read-only inputs to /spec-core. Their hash
+    # drift must invalidate saved artifacts together with Source Specs changes,
+    # so include the two files in the watcher snapshot.
     extra_files: list[Path] = []
     try:
         purpose_path = project_config.core.purpose_file

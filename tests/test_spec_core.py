@@ -127,15 +127,6 @@ class FakeSpecCoreProvider:
                 ],
                 "why_conflicting": "FEATURE_X cannot be both required and forbidden.",
                 "why_llm_cannot_decide": "Purpose and Core Concept do not define priority.",
-                "decision_options": [
-                    {"id": "prefer_a", "label": "Prefer Alpha"},
-                    {"id": "prefer_b", "label": "Prefer Beta"},
-                    {"id": "conditional", "label": "Conditional rule"},
-                    {"id": "dismiss", "label": "Not a conflict"},
-                    {"id": "needs_source_update", "label": "Update Source Specs"},
-                    {"id": "defer", "label": "Defer"},
-                    {"id": "task_scope_resolution", "label": "Resolve for task only"},
-                ],
                 "recommended_next_action": "Ask a human to choose the applicable rule.",
             }
         return {
@@ -253,6 +244,30 @@ def _call(func: Any, **kwargs: Any) -> Any:
         return func(**supported)
     except TypeError:
         return func(*kwargs.get("_positional", ()), **supported)
+
+
+def _run_spec_core(project_root: Path, **kwargs: Any) -> Any:
+    func = _run_function()
+    all_mode = bool(kwargs.pop("all_mode", False))
+    provider = kwargs.pop("provider", None)
+    return _call(
+        func,
+        _positional=(project_root,),
+        project_root=project_root,
+        root=project_root,
+        cwd=project_root,
+        all=all_mode,
+        all_mode=all_mode,
+        full=all_mode,
+        force=all_mode,
+        mode="full" if all_mode else "incremental",
+        provider=provider,
+        llm_provider=provider,
+        conflict_judge=provider,
+        judge=provider,
+        generated_at="2026-05-06T00:00:00Z",
+        **kwargs,
+    )
 
 
 def _write_project(project_root: Path) -> dict[str, Path]:
@@ -1750,7 +1765,7 @@ def test_spec_core_does_not_modify_human_owned_purpose_or_concept(
     assert paths["concept"].read_text() == before["concept"]
 
 
-def test_t_i04_conflicts_with_unresolved_blocks_freshness(
+def test_t_i04_conflicts_with_unresolved_surfaces_pending_without_blocking_freshness(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -1764,11 +1779,11 @@ def test_t_i04_conflicts_with_unresolved_blocks_freshness(
     assert result["conflict_review_items"]
     assert result["pending_conflict_count"] >= 1
     assert any(item.get("status") == "pending" for item in result["conflict_review_items"])
-    assert _freshness(result)["status"] == "blocked"
-    assert "pending_conflict" in _freshness(result).get("blocking_reasons", [])
+    assert _freshness(result)["status"] == "fresh"
+    assert "pending_conflict" not in _freshness(result).get("blocking_reasons", [])
 
 
-def test_t_i04_resolved_conflicts_with_becomes_potential_conflict_warning(
+def test_t_i04_non_pending_conflicts_with_becomes_potential_conflict_warning(
     tmp_path: Path,
 ) -> None:
     project_root = tmp_path / "project"
@@ -1782,7 +1797,7 @@ def test_t_i04_resolved_conflicts_with_becomes_potential_conflict_warning(
     assert result["pending_conflict_count"] == 0
     assert result["conflict_review_items"] == []
     assert result["potential_conflicts"]
-    assert _freshness(result)["status"] in {"fresh", "degraded"}
+    assert _freshness(result)["status"] == "fresh"
 
 
 def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
@@ -1855,7 +1870,8 @@ def test_t_conflict_recheck_without_source_change_keeps_pending(
     assert result["pending_conflict_count"] == pending_count_before
     assert result["auto_dismissed_conflict_count"] == 0
     assert result["auto_dismissed_conflict_ids"] == []
-    assert _freshness(result)["status"] == "blocked"
+    assert _freshness(result)["status"] == "fresh"
+    assert "pending_conflict" not in _freshness(result).get("blocking_reasons", [])
 
 
 def test_t_conflict_source_update_auto_dismisses_absent_pair(

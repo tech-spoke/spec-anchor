@@ -39,7 +39,6 @@ def _pending_item(conflict_id: str = "cnf-1") -> dict:
         "claims": [],
         "why_conflicting": "two sections disagree",
         "why_llm_cannot_decide": "no safe priority",
-        "decision_options": [{"id": "dismiss", "label": "Dismiss as not a conflict"}],
         "base_source_hashes": [
             {"source_ref": "sec-1", "hash": "h1"},
             {"source_ref": "sec-2", "hash": "h2"},

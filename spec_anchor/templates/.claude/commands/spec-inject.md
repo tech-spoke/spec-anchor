@@ -16,9 +16,9 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 
 1. 明示された argument と現在の会話区間から task を定義する。会話区間は search と constraint generation の補助に使うが、final evidence ではない。
 2. task と会話区間から search keys を生成する。
-3. 4 path の Agentic Search を行う。各 `spec-anchor inject-*` コマンドは freshness が blocked / failed のとき、または `spec-anchor-watch` 実行中のとき、または pending Conflict Review Item があるとき自動的に停止指示 (`should_stop=true`) を返す。返却 JSON の `blocking_reasons` に dirty / stale / watcher 系の理由がある場合、`/spec-core` または watcher を実行・待機するようユーザーに伝える。`/spec-core` は自動実行しない。唯一の blocker が pending conflict の場合、Conflict Review Items と decision choices を人間に提示する。path は必須ではなく許可。課題の性質に応じて組み合わせる。
+3. 3 path の Agentic Search を行う。各 `spec-anchor inject-*` コマンドは freshness が blocked / failed のとき、または `spec-anchor-watch` 実行中のとき自動的に停止指示 (`should_stop=true`) を返す。返却 JSON の `blocking_reasons` に dirty / stale / watcher 系の理由がある場合、`/spec-core` または watcher を実行・待機するようユーザーに伝える。`/spec-core` は自動実行しない。pending Conflict Review Item は停止理由ではなく、CLI が `pending_conflict_items` / `pending_conflict_count` を情報として返す。課題に関連する pending conflict があれば、制約情報と併せて提示する(矛盾の扱いは後述「矛盾(Conflict Review Item)の扱い」を参照)。path は必須ではなく許可。課題の性質に応じて組み合わせる。
 
-   重要: いずれか 1 つの `spec-anchor inject-*` が `should_stop=true`、`status="blocked"`、`status="failed"`、または `status="error"` を返した時点で、他の inject path、Source Specs の Read、constraints 生成へ進まず即停止する。停止後に追加の `spec-anchor inject-*` を試してはならない。
+   重要: いずれか 1 つの `spec-anchor inject-*` が `should_stop=true`、`status="blocked"`、`status="failed"`、または `status="error"` を返した時点で、他の inject path、Source Specs の Read、constraints 生成へ進まず即停止する。停止後に追加の `spec-anchor inject-*` を試してはならない。pending conflict は停止理由ではないので、pending のみの場合は停止せず、constraints + 矛盾情報の提示へ進む。
 
 ### path ① Qdrant section-level retrieval (Source Specs 探索の主経路)
 
@@ -41,44 +41,36 @@ a. Purpose 全文と Core Concept path を取得する: `spec-anchor inject-purp
 b. 返ってきた `purpose` (全文) から課題に該当する制約根拠を抽出する
 c. 返ってきた `core_concept_path` を `Read` で読み、課題に関連する箇所だけを部分取得して制約根拠を抽出する。Core Concept は大きくなる可能性があるため一括投入しない
 
-### path ④ resolved Conflict Review Items の確認
-
-a. resolved + stale でない items を取得する: `spec-anchor inject-conflicts`
-b. valid_scope (global / task_scope) と resolution.referenced_source_refs を確認する
-c. 制約に関係する場合、evidence_origin = "Conflict Review Item" として制約に組み込む
-
 ### path 選択の指針
 
 | 課題タイプ | 主 path | 補強 |
 |---|---|---|
-| 具体的 API / 識別子 | ① | ③、④ |
-| 全体方針 / 抽象的 | ② | ①、③、④ |
+| 具体的 API / 識別子 | ① | ③ |
+| 全体方針 / 抽象的 | ② | ①、③ |
 | Purpose / Core Concept 直接質問 | ③ | ①、② |
-| 過去判断の継続 | ④ | ①、③ |
 
-**4 path は探索の起点であり上限ではない**。Agent は 4 path を通過した後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索を能動的に行う:
+**3 path は探索の起点であり上限ではない**。Agent は 3 path を通過した後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索を能動的に行う:
 
 - 別の search key を生成して `spec-anchor inject-search` を再実行する
 - 別 path へ切り替える (例: ① で根拠不足なら ② 章単位エントリへ)
 - 上位章や横断 section へ hop する (`spec-anchor inject-section` の関連辿りを拡張)
-- 関連 Conflict Review Item を再確認する (`spec-anchor inject-conflicts`)
 
 **探索の十分性は Agent が判断**し、制約に必要な根拠が揃うまで継続する。CLI は path 数や hop 数の上限を強制しない。
 
-ただし根拠は引き続き `evidence_origin` ∈ {Purpose / Core Concept / Source Specs / Conflict Review Item} に縛られる。**CLI 道具 (`spec-anchor inject-*`) を介さずにいきなり Source Specs を grep する経路は禁止** (ドリフト防止: 検索の起点は必ず CLI の hybrid retrieval / 章 anchor / Purpose / Conflict Review Item のいずれか)。Source Specs ファイル本文の `Read` は、CLI で section_id を特定した後の補助確認としてのみ許可される。
+ただし根拠は引き続き `evidence_origin` ∈ {Purpose / Core Concept / Source Specs} に縛られる。**CLI 道具 (`spec-anchor inject-*`) を介さずにいきなり Source Specs を grep する経路は禁止** (ドリフト防止: 検索の起点は必ず CLI の hybrid retrieval / 章 anchor / Purpose のいずれか)。Source Specs ファイル本文の `Read` は、CLI で section_id を特定した後の補助確認としてのみ許可される。
 
 4. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
-5. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空文字列であること、`evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` / `Conflict Review Item` のいずれかであること、`Section Summary` / `Search Keys` / `Related Sections` / `Chapter Key Anchor` を `evidence_origin` に置かないこと、`support_refs` が list であること。`evidence_origin = "Conflict Review Item"` の場合、`spec-anchor inject-conflicts` の返却に含まれる items (resolved + stale でない) だけを参照する。CLI は構造検証を行わないため、Agent 自身が確認する。
+5. constraints の構造を自己点検する: 各 constraint で `statement` / `evidence_origin` / `evidence_ref` / `applicability` が非空文字列であること、`evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` のいずれかであること、`Section Summary` / `Search Keys` / `Related Sections` / `Chapter Key Anchor` を `evidence_origin` に置かないこと、`support_refs` が list であること。CLI は構造検証を行わないため、Agent 自身が確認する。
 6. constraint set、evidence list、Agentic Search summary だけを出力する。`/spec-inject` では task への回答や最終案を出さない。
 
 ## CLI 出力と人間向け整形
 
-`spec-anchor inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` / `inject-conflicts` の戻り値は **stdout に出る内部 JSON** であり、CLI 自身は人間向け整形を持たない (外部設計書 §8.5)。Agent はこの JSON を読んで、ユーザー宛の会話に対して次の構造で整形する:
+`spec-anchor inject-search` / `inject-section` / `inject-chapters` / `inject-purpose` の戻り値は **stdout に出る内部 JSON** であり、CLI 自身は人間向け整形を持たない (外部設計書 §8.5)。Agent はこの JSON を読んで、ユーザー宛の会話に対して次の構造で整形する:
 
 ```text
 今回守る制約
   - <制約の文 (statement の値)>
-    根拠の種類: <Purpose / Core Concept / Source Specs / Conflict Review Item>
+    根拠の種類: <Purpose / Core Concept / Source Specs>
     参照: <文書 path + section ID など (evidence_ref の値)>
     参照補助: <探索補助に使った Section Summary / Related Sections / Chapter Key Anchor の要約>
     適用範囲: <この制約が効く作業範囲 (applicability の値)>
@@ -124,17 +116,37 @@ c. 制約に関係する場合、evidence_origin = "Conflict Review Item" とし
 ]
 ```
 
-良い例: `evidence_ref` は実在する Purpose / Core Concept / Source Specs の path + section id、または stale でない resolved Conflict Review Item id を指す。`statement` は evidence から直接言える内容だけにする。迷いがある場合は `uncertainty` に短く書き、断定しない。
+良い例: `evidence_ref` は実在する Purpose / Core Concept / Source Specs の path + section id を指す。`statement` は evidence から直接言える内容だけにする。迷いがある場合は `uncertainty` に短く書き、断定しない。
 
 禁止例: `evidence_origin` に Section Summary / Related Sections / Chapter Key Anchor を入れない。`evidence_ref` を「たぶん関連」「上の要約」など曖昧にしない。`support_refs` だけを根拠にした constraint を作らない。CLI validation failed の場合、field を削って通そうとせず、引用元 snippet を読み直して constraints JSON を再生成する。
 
 ## 根拠ルール
 
-`evidence_origin` は Purpose、Core Concept、Source Specs、Conflict Review Item のいずれかでなければならない。Conflict Review Item は resolved かつ stale でない場合だけ final evidence にできる。
+`evidence_origin` は Purpose、Core Concept、Source Specs のいずれかでなければならない。
 
 Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor は navigation / support 専用である。`support_refs` には入れられるが、constraint の sole evidence にはしない。
 
 Purpose と Core Concept は人間が維持する read-only input である。両ファイルは変更しない。`.spec-anchor/config.toml` の `[llm]` provider は使わない。`/spec-inject` はこの command を実行している Agent / LLM が担当する。
+
+## 矛盾 (Conflict Review Item) の扱い
+
+pending conflict は「解決すべきゲート」ではなく「注入すべき情報」として扱う。矛盾は pending (提示対象) / dismissed (却下済み・抑制中) の 2 状態しかない。
+
+- 課題に関連する pending conflict があれば、制約情報と併せて提示する (提示した時点でドリフト防止・仕様未読防止の目的は達成される)
+- pending conflict を解決しないまま提示で停止してよい (解決を強制しない)
+- dismissed の矛盾は提示されない。却下根拠のセクションが変わると `/spec-core` 再生成で却下が自動失効し、矛盾は再び pending に戻る
+
+pending conflict の各衝突は、後述「停止時のユーザー向け出力フォーマット」⑤ の「pending conflict の本文展開フォーマット」で本文展開する。ただし pending のみのときは停止扱いにせず、constraints + 矛盾情報を提示する。
+
+### 却下フロー (説明と却下を取り違えない)
+
+矛盾の意味を人間が説明・議論しているだけのときは状態を変えない。**人間が明示的に「これは矛盾ではない / 却下する」意図を示したときだけ** 却下を永続化する。永続化するときは次を守る。
+
+1. 実行前に一度確認する (「この矛盾を却下として永続化します。よろしいですか?」)
+2. `spec-anchor core --dismiss-conflict <conflict_id> --reason "<却下理由>"` を実際に実行する (`--reason` は必須)
+3. 実行したコマンドと結果 (dismissed になったこと) を証跡として利用者に報告する
+
+利用者向け本文では conflict_id を出さず、却下を永続化する段でのみ証跡として conflict_id を示す。Agent が矛盾を勝手に却下しない。
 
 ## 停止時のユーザー向け出力フォーマット
 
@@ -243,12 +255,12 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 
 次の内部 field 名・enum 値・パイプライン段階名は、利用者宛の本文に出さない (`tests/e2e/forbidden_terms.py` が単一の真実)。利用者は CLI の内部構造を知らない前提で読む。
 
-- 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"` / `="degraded"`
-- freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `pending_conflict` / `failed_required_artifact` / `degraded_optional_artifact`
+- 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"`
+- freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `pending_conflict` / `failed_required_artifact`
 - Agent 答案待ちの内部信号: `needs_agent_answer` / `answer candidate`
 - パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `claim_retrieval_status` / `conflict_candidate_triage_status` / `spec_claims_status`
 - 内部 path / 答案 field 名: `inject_result.<...>` / `freshness_report` / `evidence_origin` / `support_refs`
-- conflict の raw field 名: `conflict_id` / `why_conflicting` / `why_llm_cannot_decide` / `decision_options` / `source_refs` (= 上記の人間向け見出しへ置換する)
+- conflict の raw field 名: `conflict_id` / `severity` / `why_conflicting` / `why_llm_cannot_decide` / `source_refs` (= 上記の人間向け見出しへ置換する)
 - **日本語以外の自然文** (例: CLI の `recommended_next_action` default 値 `Ask a human to decide this conflict.`、LLM judge の英語返答)。本文は日本語で統一する。**翻訳対象外**: コマンド名 / URL / file path / 識別子 (例: `conflict-candidate-sha256-...`、`/spec-core before /spec-inject`、`spec-anchor-setup-project --target ...`)
 
 許可される文字列:

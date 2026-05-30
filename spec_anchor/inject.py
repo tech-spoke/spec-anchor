@@ -54,7 +54,10 @@ def run_spec_inject(
         if freshness is not None
         else _read_freshness_artifact(project)
     )
-    decision = build_freshness_gate_decision(report, command="inject")
+    decision = _hydrate_pending_conflict_items(
+        build_freshness_gate_decision(report, command="inject"),
+        project,
+    )
 
     base_result = _base_result(
         decision,
@@ -62,7 +65,6 @@ def run_spec_inject(
         generated_at=generated_at,
     )
     if decision.get("should_stop"):
-        decision = _hydrate_pending_conflict_items(decision, project)
         return _stopped_result(base_result, decision)
 
     result = {
@@ -75,6 +77,10 @@ def run_spec_inject(
     if decision.get("warnings"):
         result["warnings"] = list(decision.get("warnings") or [])
         result["continues_with_warnings"] = bool(decision.get("continues_with_warnings"))
+    if "pending_conflict_items" in decision:
+        pending = deepcopy(list(decision.get("pending_conflict_items") or []))
+        result["pending_conflict_items"] = pending
+        result["pending_conflict_count"] = decision.get("pending_conflict_count", len(pending))
     return result
 
 def _base_result(
@@ -118,7 +124,7 @@ def _hydrate_pending_conflict_items(
     project_root: Path,
 ) -> dict[str, Any]:
     result = dict(decision)
-    if not _pending_only_stop(result):
+    if result.get("should_stop"):
         return result
     if result.get("pending_conflict_items"):
         return result
@@ -130,15 +136,6 @@ def _hydrate_pending_conflict_items(
     result["pending_conflict_items"] = pending
     result["pending_conflict_count"] = len(pending)
     return result
-
-
-def _pending_only_stop(decision: Mapping[str, Any]) -> bool:
-    return (
-        bool(decision.get("should_stop"))
-        and decision.get("status") == "blocked"
-        and list(decision.get("blocking_reasons") or []) == ["pending_conflict"]
-    )
-
 
 def _read_freshness_artifact(project_root: Path) -> dict[str, Any]:
     from spec_anchor.artifacts import ContextArtifactStore
@@ -303,15 +300,15 @@ def _run_gate(
     """Run freshness gate; return (stopped_result, gate_warnings).
 
     Each `/spec-inject inject-*` and `/spec-realign` command enforces the
-    freshness gate (§3.3), pending conflict gate (§2.8 / §3.4), and watcher
-    gate (§6.3) before doing its specific work. The Agent only sees the
+    freshness gate (§3.3) and watcher gate (§6.3) before doing its specific
+    work. Pending Conflict Review Items are surfaced as information on a fresh
+    gate, not as a separate blocking gate. The Agent only sees the
     stopped payload — there is no separate `spec-anchor inject` probe to call
     in advance.
 
     When the gate blocks, returns a stopped result dict and an empty list.
-    When the gate allows continuation (fresh or degraded), returns None and
-    any gate warnings (e.g. ``"degraded_optional_artifact"``) for the caller
-    to merge into its own output.
+    When the gate allows continuation, returns None and any gate warnings for
+    the caller to merge into its own output.
     """
 
     gate = run_spec_inject(project_root=project)

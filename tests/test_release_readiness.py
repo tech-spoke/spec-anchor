@@ -202,11 +202,11 @@ max_retries = 0
     assert core_payload["status"] == "updated"
 
     inject_payload = _json_output(
-        _run([executable, "inject-conflicts"], cwd=tmp_path)
+        _run([executable, "inject-purpose"], cwd=tmp_path)
     )
-    # inject-conflicts runs the same internal freshness gate as every other
-    # inject-* command (F-C). On a freshly-built project it should return
-    # the resolved (non-stale) Conflict Review Items list without stopping.
+    # inject-purpose runs the same internal freshness gate as every other
+    # inject-* command. On a freshly-built project it should continue and
+    # return Purpose / Core Concept payload without external services.
     assert "should_stop" not in inject_payload or inject_payload["should_stop"] is False
 
     answer_json = json.dumps({
@@ -228,5 +228,4 @@ max_retries = 0
     )
     assert realign_payload["status"] in {"fresh", "success"}
     assert realign_payload["can_continue"] is True
-
 

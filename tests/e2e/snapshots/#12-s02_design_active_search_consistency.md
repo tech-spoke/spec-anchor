@@ -14,7 +14,7 @@
 
 > 各 path は必須ではなく許可で、Agent が選んで使い分ける。
 
-→ 維持。新規追加文言は「必須ではない / 許可」の精神を補強する形 (4 path 完了で終了せず、必要なら継続)。
+→ 維持。新規追加文言は「必須ではない / 許可」の精神を補強する形 (3 path 完了で終了せず、必要なら継続)。
 
 ### `doc/EXTERNAL_DESIGN.ja.md §8.3.1 (line 921)`
 
@@ -24,7 +24,7 @@
 
 ### `.claude/commands/spec-inject.md` constraints 構造点検 (§5)
 
-> `evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` / `Conflict Review Item` のいずれかであること
+> `evidence_origin` が `Purpose` / `Core Concept` / `Source Specs` のいずれかであること
 
 → 維持。本 #12 でも「根拠は引き続き `evidence_origin` ∈ {...} に縛られる」と明記。
 
@@ -32,7 +32,7 @@
 
 新規文言の中で `CLI 道具 (spec-anchor inject-*) を介さずにいきなり Source Specs を grep する経路は禁止` を明示。これにより:
 
-- (a) Agent の能動的追加探索を奨励 (4 path 通過 → 即終了の排除)
+- (a) Agent の能動的追加探索を奨励 (3 path 通過 → 即終了の排除)
 - (b) 探索の経路は常に CLI 道具経由 (ドリフト防止)
 - (c) `evidence_origin` 縛りで根拠の trace 可能性は維持
 

@@ -114,7 +114,6 @@ def _extract_json_block(text: str) -> str:
 # enough to prove "stdout holds exactly one JSON object" without Qdrant / a model.
 _NO_SERVICE_COMMANDS = (
     ["inject-purpose"],
-    ["inject-conflicts"],
     ["inject-chapters"],
     ["inject-section", "0001-some-section"],
     ["inject-search", "example", "query"],

@@ -25,7 +25,7 @@ import spec_anchor.spec_claims as spec_claims_api
 import spec_anchor.llm_provider as llm_provider_api
 from spec_anchor.artifacts import ArtifactError, ContextArtifactStore, build_empty_chapter_anchors
 from spec_anchor.conflict_review import (
-    apply_conflict_decision,
+    apply_conflict_dismissal,
     evaluate_conflicts,
     refresh_conflict_dismissal_staleness,
     summarize_conflict_review_state,
@@ -1019,10 +1019,9 @@ def run_dismiss_conflict(
         )
 
     now = generated_at or _nowish()
-    decision_payload = {
+    dismissal_payload = {
         "conflict_id": conflict_id,
         "decision": "dismiss",
-        "selected_option": "dismiss",
         "reason": reason_text,
         "valid_scope": "global",
         "referenced_source_refs": referenced_source_refs,
@@ -1030,9 +1029,9 @@ def run_dismiss_conflict(
         "human_acknowledgement": True,
     }
     try:
-        updated_items = apply_conflict_decision(
+        updated_items = apply_conflict_dismissal(
             conflict_review_items=items,
-            decision_payload=decision_payload,
+            dismissal_payload=dismissal_payload,
             generated_at=now,
         )
     except ValueError as exc:
@@ -4647,7 +4646,6 @@ def _auto_dismiss_pending_conflict(
     resolution: dict[str, Any] = {
         "decision": "dismiss",
         "reason": "Source update recheck no longer requires human conflict review.",
-        "selected_option": "dismiss",
         "valid_scope": "global",
         "referenced_source_refs": source_refs,
         "decision_origin": "auto_source_update",

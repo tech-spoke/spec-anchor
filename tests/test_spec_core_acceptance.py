@@ -21,11 +21,8 @@ Coverage map to §7 (line numbers refer to ``doc/EXTERNAL_DESIGN.ja.md``):
 - §7.4 related_sections_status enum (L683-686) + details (L688-691): 8
 - §7.4 Chapter Key Anchor (L693, L694): 2
 - §7.4 potential_conflicts (L696, L697): 2
-- §7.4 Conflict Review Item fields (L702-713): 12
-- §7.4 human options (L718-722) + defer note (L724): 6
-- §7.4 resolution attrs (L726-730): 5
-- §7.4 decision payload (L735-740): 6
-- §7.4 decision enum (L747-753): 7
+- §7.4 Conflict Review Item fields: pending / dismissed schema
+- §7.4 resolution attrs: dismiss evidence and source hashes
 - §7.4 conflict pair (L755-757): 3
 
 Total: 118 ✓
@@ -484,8 +481,8 @@ _CLI_FLAG_CASES = [
     (598, "--rebuild", "rebuild_recreates_collection"),
     (599, "--verify-index", "verify_index_runs"),
     (600, "--llm-provider", "llm_provider_override_accepted"),
-    (601, "--decision-json", "decision_json_accepted"),
-    (602, "--decision-file", "decision_file_accepted"),
+    (601, "--dismiss-conflict", "dismiss_conflict_accepted"),
+    (602, "--reason", "dismiss_reason_accepted"),
 ]
 
 
@@ -675,8 +672,7 @@ _CORE_RESULT_FIELDS = [
     (659, "potential_conflicts", list),
     (660, "conflict_review_items", list),
     (661, "pending_conflict_count", int),
-    (662, "unreflected_conflict_resolutions", list),
-    (663, "stale_resolution_count", int),
+    (662, "stale_dismissal_count", int),
     (664, "freshness_report", dict),
     (665, "warnings", list),
 ]
@@ -1015,7 +1011,6 @@ _CONFLICT_REVIEW_FIELDS = [
     (707, "why_conflicting"),
     (708, "why_llm_cannot_decide"),
     (709, "related_sections"),
-    (710, "decision_options"),
     (711, "recommended_next_action"),
     (712, "base_source_hashes"),
     (713, "valid_scope"),
@@ -1048,63 +1043,6 @@ def test_conflict_review_item_field(spec_line: int, field: str) -> None:
     assert field in item, f"L{spec_line}: missing field {field!r}"
     if spec_line == 703:
         assert item[field] == "pending"
-
-
-# ---------------------------------------------------------------------------
-# §7.4 — human decision options (L718-722) + defer note (L724)
-# ---------------------------------------------------------------------------
-
-
-_HUMAN_OPTION_CASES = [
-    (718, "prefer_a"),
-    (718, "prefer_b"),
-    (719, "conditional"),
-    (720, "dismiss"),
-    (721, "needs_source_update"),
-    (722, "defer"),
-]
-
-
-# Note: L718 lists "片方の仕様を優先する" which covers both prefer_a and prefer_b
-# from the implementation perspective.  We use the first prefer_* mapping to
-# satisfy the per-row evidence entry, then verify the second under §7.4
-# decision-enum (L748).
-
-
-_HUMAN_OPTION_CASES_DEDUP = [
-    (718, "prefer_a"),
-    (719, "conditional"),
-    (720, "dismiss"),
-    (721, "needs_source_update"),
-    (722, "defer"),
-]
-
-
-@pytest.mark.parametrize(
-    "spec_line, option_id",
-    [
-        pytest.param(
-            *case,
-            id=f"L{case[0]}-{case[1]}",
-        )
-        for case in _HUMAN_OPTION_CASES_DEDUP
-    ],
-)
-def test_decision_option_offered(spec_line: int, option_id: str) -> None:
-    """L718-722: each documented human option is present in decision_options.
-    """
-
-    import importlib
-
-    cr = importlib.import_module("spec_anchor.conflict_review")
-    item = cr.validate_conflict_review_item(
-        item={
-            "conflict_id": "test-options",
-            "source_refs": [{"source_section_id": "a"}, {"source_section_id": "b"}],
-        }
-    )
-    offered = {opt["id"] for opt in item["decision_options"]}
-    assert option_id in offered, f"L{spec_line}: option {option_id!r} not offered"
 
 
 # ---------------------------------------------------------------------------
@@ -1147,37 +1085,6 @@ def test_resolution_has_base_hashes_and_scope() -> None:
 
 
 # ---------------------------------------------------------------------------
-# §7.4 — decision payload schema (L735-740)
-# ---------------------------------------------------------------------------
-
-
-_DECISION_PAYLOAD_FIELDS = [
-    (735, "conflict_id"),
-    (736, "decision"),
-    (737, "reason"),
-    (738, "selected_option"),
-    (739, "valid_scope"),
-    (740, "referenced_source_refs"),
-]
-
-
-# ---------------------------------------------------------------------------
-# §7.4 — decision enum (L747-753, 7 values)
-# ---------------------------------------------------------------------------
-
-
-_DECISION_ENUM_CASES = [
-    (747, "prefer_a", "resolved", "global"),
-    (748, "prefer_b", "resolved", "global"),
-    (749, "conditional", "resolved", "global"),
-    (750, "dismiss", "dismissed", "global"),
-    (751, "needs_source_update", "pending", "global"),
-    (752, "defer", "pending", "global"),
-    (753, "task_scope_resolution", "resolved", "task_scope"),
-]
-
-
-# ---------------------------------------------------------------------------
 # §7.4 — conflict pair selection (L755-757)
 # ---------------------------------------------------------------------------
 
@@ -1189,5 +1096,4 @@ def test_conflict_evaluation_is_separate_stage(core_fake_fresh: dict[str, Any]) 
     progress = core_fake_fresh["progress"]
     stage_order = progress["stage_order"]
     assert stage_order.index("conflict_evaluation") > stage_order.index("related_sections")
-
 

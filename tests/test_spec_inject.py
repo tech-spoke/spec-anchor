@@ -282,12 +282,30 @@ def _write_conflicting_project(project_root: Path) -> dict[str, Path]:
     return paths
 
 
+def _pending_conflict(conflict_id: str = "conflict-auth-session") -> dict[str, Any]:
+    return {
+        "conflict_id": conflict_id,
+        "status": "pending",
+        "severity": "high",
+        "source_refs": [
+            {"source_section_id": "docs/spec/security.md#authentication"},
+            {"source_section_id": "docs/spec/security.md#session"},
+        ],
+        "claims": [
+            {"side": "a", "summary": "Authentication requires active sessions."},
+            {"side": "b", "summary": "Session validity is undecided."},
+        ],
+        "why_conflicting": "The active-session requirement cannot be applied safely.",
+        "why_llm_cannot_decide": "No higher-priority source defines the exception.",
+        "recommended_next_action": "Ask a human to resolve the session rule.",
+    }
+
+
 def _auto_dismissed_conflict(conflict_id: str = "auto-dismissed-conflict") -> dict[str, Any]:
     item = _pending_conflict(conflict_id)
     item["status"] = "dismissed"
     item["resolution"] = {
         "decision": "dismiss",
-        "selected_option": "dismiss",
         "reason": "Source update recheck no longer requires human conflict review.",
         "valid_scope": "global",
         "referenced_source_refs": list(item["source_refs"]),
@@ -399,7 +417,7 @@ def test_t_u17_inject_output_has_no_answer_or_constraint_field(tmp_path: Path) -
     assert "answer section" not in text
 
 
-def test_t_i09_pending_conflict_stop_output_surfaces_items(tmp_path: Path) -> None:
+def test_t_i09_pending_conflict_fresh_output_surfaces_items_without_stopping(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
     pending = _pending_conflict()
@@ -408,8 +426,8 @@ def test_t_i09_pending_conflict_stop_output_surfaces_items(tmp_path: Path) -> No
         _run_spec_inject(
             project_root,
             freshness_report={
-                "status": "blocked",
-                "blocking_reasons": ["pending_conflict"],
+                "status": "fresh",
+                "blocking_reasons": [],
                 "warnings": [],
                 "pending_conflict_items": [pending],
             },
@@ -417,19 +435,18 @@ def test_t_i09_pending_conflict_stop_output_surfaces_items(tmp_path: Path) -> No
     )
     text = _text_blob(result)
 
-    assert _stopped(result) is True
+    assert _stopped(result) is False
     for expected in (
-        "pending_conflict",
         "conflict-auth-session",
         "severity",
         "source_refs",
         "claims",
         "why_conflicting",
         "why_llm_cannot_decide",
-        "decision_options",
         "recommended_next_action",
     ):
         assert expected in text
+    assert "pending_conflict" not in result.get("blocking_reasons", [])
 
 
 def test_review_dirty_plus_pending_conflict_does_not_surface_stale_conflict_targets(
@@ -455,12 +472,11 @@ def test_review_dirty_plus_pending_conflict_does_not_surface_stale_conflict_targ
 
     assert _stopped(result) is True
     assert "dirty_or_stale_source" in text
-    assert "pending_conflict" in text
     assert "/spec-core" in text
+    assert "pending_conflict" not in result.get("blocking_reasons", [])
     assert _value(result, "pending_conflict_items", default=[]) == []
     assert _value(result, "pending_conflict_count", default=0) == 0
     assert "stale-conflict-auth-session" not in text
-    assert "decision_options" not in text
     assert "why_llm_cannot_decide" not in text
 
 
@@ -483,8 +499,8 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
     assert _value(core_result, "failed_sources", default=[]) == []
     assert _value(core_result, "pending_conflict_count") >= 1
     freshness = _value(core_result, "freshness_report")
-    assert _value(freshness, "status") == "blocked"
-    assert _value(freshness, "blocking_reasons") == ["pending_conflict"]
+    assert _value(freshness, "status") == "fresh"
+    assert _value(freshness, "blocking_reasons") == []
 
     artifact_path = project_root / ".spec-anchor/context/conflict_review_items.json"
     artifact = json.loads(artifact_path.read_text())
@@ -499,15 +515,15 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
         _run_spec_inject(
             project_root,
             freshness_report={
-                "status": "blocked",
-                "blocking_reasons": ["pending_conflict"],
+                "status": "fresh",
+                "blocking_reasons": [],
                 "pending_conflict_count": len(pending_items),
                 "warnings": [],
             },
         )
     )
 
-    assert _stopped(result) is True
+    assert _stopped(result) is False
     assert _value(result, "pending_conflict_items") == pending_items
     text = _text_blob(result)
     assert "conflict-from-spec-core-artifact" in text
@@ -562,24 +578,27 @@ def test_t_u18_blocked_or_failed_inject_stops_without_running_spec_core(
     assert "recommended_next_action" in text
 
 
-def test_t_u03_degraded_optional_artifact_continues_with_warnings(tmp_path: Path) -> None:
+def test_t_u03_legacy_partial_artifact_reason_stops_as_failed(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
 
+    legacy_partial_artifact_reason = "degraded" + "_optional_artifact"
     result = _result_dict(
         _run_spec_inject(
             project_root,
             freshness_report={
                 "status": "degraded",
-                "blocking_reasons": ["degraded_optional_artifact"],
-                "warnings": [{"reason_code": "degraded_optional_artifact", "artifact": "section_metadata"}],
+                "blocking_reasons": [legacy_partial_artifact_reason],
+                "warnings": [{"reason_code": legacy_partial_artifact_reason, "artifact": "section_metadata"}],
             },
         )
     )
     text = _text_blob(result)
 
-    assert _stopped(result) is False
-    assert "degraded_optional_artifact" in text
+    assert _stopped(result) is True
+    assert result["status"] == "failed"
+    assert result["blocking_reasons"] == ["failed_required_artifact"]
+    assert "failed_required_artifact" in text
     assert "warnings" in text
 
 

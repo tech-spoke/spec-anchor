@@ -1,9 +1,8 @@
 """Conflict Review Item contract tests for G-09.
 
-Conflict Review Items are the only standard path where unresolved Source Spec
-conflicts become human-blocking state. Resolvable conflicts stay diagnostics /
-warnings, and resolved human decisions are usable evidence only while their
-source hashes and valid scope allow it.
+Conflict Review Items surface unresolved Source Spec conflicts to humans.
+Resolvable conflicts stay diagnostics / warnings. The only persistent human
+write path is dismissing an item as not a real conflict.
 """
 
 from __future__ import annotations
@@ -24,24 +23,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-DECISION_ENUM = {
-    "prefer_a",
-    "prefer_b",
-    "conditional",
-    "dismiss",
-    "needs_source_update",
-    "defer",
-    "task_scope_resolution",
-}
-RESOLVED_DECISIONS = {
-    "prefer_a",
-    "prefer_b",
-    "conditional",
-    "task_scope_resolution",
-}
-PENDING_DECISIONS = {"needs_source_update", "defer"}
 
 
 @dataclass
@@ -78,15 +59,6 @@ class FakeConflictJudge:
                 ],
                 "why_conflicting": "FEATURE_X is simultaneously required and forbidden.",
                 "why_llm_cannot_decide": "No Purpose or Core Concept priority exists.",
-                "decision_options": [
-                    {"id": "prefer_a", "label": "Prefer Alpha"},
-                    {"id": "prefer_b", "label": "Prefer Beta"},
-                    {"id": "conditional", "label": "Use a conditional rule"},
-                    {"id": "dismiss", "label": "Not a conflict"},
-                    {"id": "needs_source_update", "label": "Update Source Specs"},
-                    {"id": "defer", "label": "Defer"},
-                    {"id": "task_scope_resolution", "label": "Resolve for this task only"},
-                ],
                 "recommended_next_action": "Ask a human to choose the applicable rule.",
             }
         return {
@@ -321,21 +293,7 @@ def _freshness(payload: Any) -> dict[str, Any]:
     return dict(payload)
 
 
-def _option_ids(item: dict[str, Any]) -> set[str]:
-    ids: set[str] = set()
-    for option in item.get("decision_options", []):
-        if isinstance(option, str):
-            ids.add(option)
-        elif isinstance(option, dict):
-            ids.add(str(option.get("id", option.get("decision", option.get("value", "")))))
-    return {option_id for option_id in ids if option_id}
-
-
 def _pending_item(conflict_id: str = "conflict-feature-x") -> dict[str, Any]:
-    options = [
-        {"id": decision, "label": decision.replace("_", " ")}
-        for decision in sorted(DECISION_ENUM)
-    ]
     return {
         "conflict_id": conflict_id,
         "status": "pending",
@@ -357,7 +315,6 @@ def _pending_item(conflict_id: str = "conflict-feature-x") -> dict[str, Any]:
                 "relation_hint": "conflicts_with",
             }
         ],
-        "decision_options": options,
         "recommended_next_action": "Ask a human for a decision.",
         "base_source_hashes": [
             {"source_ref": "docs/spec/conflict.md#alpha", "hash": "hash-a"},
@@ -499,7 +456,6 @@ def test_t_u14_pending_item_required_schema_fields() -> None:
         "why_conflicting",
         "why_llm_cannot_decide",
         "related_sections",
-        "decision_options",
         "recommended_next_action",
         "base_source_hashes",
         "valid_scope",
@@ -510,8 +466,8 @@ def test_t_u14_pending_item_required_schema_fields() -> None:
     assert required_fields.issubset(item)
     assert item["status"] == "pending"
     assert item["source_refs"]
-    assert item["decision_options"]
-    assert _option_ids(item) == DECISION_ENUM
+    assert ("decision" + "_options") not in item
+    assert item["recommended_next_action"]
 
 
 def test_t_u20_conflict_pair_selection_uses_triaged_spec_claim_pairs() -> None:

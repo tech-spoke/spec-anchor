@@ -552,7 +552,7 @@ def test_t_u26_max_retries_is_additional_attempt_count() -> None:
     assert result.attempts == 2
 
 
-def test_t_i07_partial_llm_failure_is_degraded_and_total_failure_is_failed() -> None:
+def test_t_i07_partial_llm_failure_folds_to_failed_like_total_failure() -> None:
     success = generate_with_retries(
         FakeLlmProvider({"summary": "S"}),
         _request(),
@@ -568,7 +568,8 @@ def test_t_i07_partial_llm_failure_is_degraded_and_total_failure_is_failed() -> 
     partial = summarize_generation_results({"a": success, "b": failure})
     total = summarize_generation_results({"a": failure, "b": failure})
 
-    assert partial["freshness_status"] == "degraded"
+    assert partial["freshness_status"] == "failed"
     assert partial["failed_sections"] == ["b"]
     assert partial["warnings"]
+    assert partial["blocking_reasons"] == ["failed_required_artifact"]
     assert total["freshness_status"] == "failed"

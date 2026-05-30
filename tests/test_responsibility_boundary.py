@@ -142,7 +142,6 @@ def test_cli_does_not_accept_conversation_transcript_argument() -> None:
         "inject-section",
         "inject-chapters",
         "inject-purpose",
-        "inject-conflicts",
         "realign",
         "core",
     ):
@@ -159,9 +158,9 @@ def test_cli_does_not_expose_auto_exploration_command() -> None:
 
     Verifies that ``spec-anchor --help`` lists only single-shot retrieval
     primitives (``inject-search`` / ``inject-section`` / ``inject-chapters``
-    / ``inject-purpose`` / ``inject-conflicts``) plus ``core`` / ``realign``
-    / ``watch``, and exposes no ``auto-explore`` / ``walk`` / ``traverse``
-    style subcommand. Recursive related-section lookup is the Agent's job.
+    / ``inject-purpose``) plus ``core`` / ``realign`` / ``watch``, and exposes
+    no ``auto-explore`` / ``walk`` / ``traverse`` style subcommand. Recursive
+    related-section lookup is the Agent's job.
     """
 
     help_text = _cli_help_text()
@@ -185,7 +184,7 @@ def test_inject_search_output_does_not_contain_fabricated_constraints(tmp_path: 
 
     The contract per §5.3 L413 is that the ``inject-*`` family
     (``inject-search`` / ``inject-section`` / ``inject-chapters`` /
-    ``inject-purpose`` / ``inject-conflicts``) returns retrieval data
+    ``inject-purpose``) returns retrieval data
     (heading_path / summary / search_keys / identifiers /
     related_sections / score for ``inject-search``; analogous payloads
     for the others). Constraint ``statement`` composition is the Agent /
@@ -230,13 +229,13 @@ def test_inject_search_output_does_not_contain_fabricated_constraints(tmp_path: 
         )
 
 
-def test_inject_conflicts_does_not_auto_resolve_pending_status(tmp_path: Path) -> None:
-    """CLI never flips a `pending` Conflict Review Item to `resolved`
+def test_inject_purpose_does_not_auto_dismiss_pending_status(tmp_path: Path) -> None:
+    """CLI never flips a `pending` Conflict Review Item to `dismissed`
     automatically.
 
     Seeds ``conflict_review_items.json`` with a ``status: pending`` entry,
-    runs ``spec-anchor inject-conflicts``, and verifies the on-disk
-    artifact is unchanged afterwards.
+    runs ``spec-anchor inject-purpose``, and verifies the on-disk artifact is
+    unchanged afterwards.
     """
 
     project = tmp_path / "conflict-autoresolve-probe"
@@ -255,7 +254,6 @@ def test_inject_conflicts_does_not_auto_resolve_pending_status(tmp_path: Path) -
                 "claims": ["claim a", "claim b"],
                 "why_conflicting": "test fixture",
                 "why_llm_cannot_decide": "test fixture",
-                "decision_options": ["option_a", "option_b"],
                 "recommended_next_action": "Ask a human to decide this conflict.",
             }
         ]
@@ -263,12 +261,12 @@ def test_inject_conflicts_does_not_auto_resolve_pending_status(tmp_path: Path) -
     conflict_path.write_text(json.dumps(pending_item), encoding="utf-8")
     before = conflict_path.read_bytes()
 
-    _run_spec_anchor("inject-conflicts", cwd=project)
+    _run_spec_anchor("inject-purpose", cwd=project)
 
     after = conflict_path.read_bytes()
     assert before == after, (
-        "CLI mutated `conflict_review_items.json` during `inject-conflicts`; "
-        "§5.3 forbids CLI from auto-resolving a pending conflict."
+        "CLI mutated `conflict_review_items.json` during `inject-purpose`; "
+        "§5.3 forbids CLI from auto-dismissing a pending conflict."
     )
 
 

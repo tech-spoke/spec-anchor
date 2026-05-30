@@ -237,7 +237,6 @@ def _pending_conflict(conflict_id: str = "conflict-1") -> dict[str, Any]:
         "claims": [{"claim_text": "A", "source": "docs/spec/main.md#a"}],
         "why_conflicting": "two sections disagree",
         "why_llm_cannot_decide": "no safe priority",
-        "decision_options": [{"id": "dismiss", "label": "Dismiss as not a conflict"}],
         "recommended_next_action": "Ask a human to decide this conflict.",
     }
 
@@ -373,6 +372,16 @@ def test_t_u03_pending_conflict_does_not_block() -> None:
 
     assert _status(report) == "fresh"
     assert "pending_conflict" not in _reasons(report)
+
+
+def test_t_u03_legacy_blocked_without_reasons_normalizes_to_fresh() -> None:
+    decision = _gate(
+        "/spec-inject",
+        {"status": "blocked", "blocking_reasons": [], "warnings": []},
+    )
+
+    assert _continue_allowed(decision) is True
+    assert _value(decision, "freshness_report", "status") == "fresh"
 
 
 def test_t_u07_artifact_failure_status_blocks_as_failed() -> None:
@@ -516,7 +525,6 @@ def test_t_u04_pending_only_gate_continues_and_surfaces_items() -> None:
         "claims",
         "why_conflicting",
         "why_llm_cannot_decide",
-        "decision_options",
         "recommended_next_action",
     ):
         assert expected in text

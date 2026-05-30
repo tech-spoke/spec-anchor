@@ -2,7 +2,7 @@
 
 This module keeps the G-09 conflict review contract intentionally plain:
 dict-shaped items in, dict-shaped items out, with small helpers for judging,
-human decisions, freshness, and evidence filtering.
+human dismissals, freshness counts, and diagnostics.
 """
 
 from __future__ import annotations
@@ -15,14 +15,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 
-DECISIONS = {"dismiss"}
 STATUSES = {"pending", "dismissed"}
 SCOPES = {"global", "source_pair", "section_pair", "task_scope"}
 REFLECTION_STATUSES = {"unreflected", "reflected", "not_required"}
-
-_DEFAULT_DECISION_OPTIONS = [
-    {"id": "dismiss", "label": "Dismiss as not a conflict"},
-]
 
 @dataclass
 class ConflictReviewResult:
@@ -95,43 +90,6 @@ def _section_map(sections: list[dict[str, Any]] | None) -> dict[str, dict[str, A
 def _hash_for_section(section: dict[str, Any]) -> str | None:
     value = section.get("source_hash") or section.get("hash") or section.get("semantic_hash")
     return str(value) if value is not None else None
-
-
-def _decision_option_ids(item: dict[str, Any]) -> set[str]:
-    ids: set[str] = set()
-    for option in item.get("decision_options", []):
-        if isinstance(option, str):
-            ids.add(option)
-        elif isinstance(option, dict):
-            option_id = option.get("id", option.get("decision", option.get("value")))
-            if option_id:
-                ids.add(str(option_id))
-    return ids
-
-
-def _normalize_decision_options(options: Any = None) -> list[dict[str, str]]:
-    seen: set[str] = set()
-    normalized: list[dict[str, str]] = []
-
-    raw_options = options if isinstance(options, list) else []
-    for option in raw_options:
-        if isinstance(option, str):
-            option_id = option
-            label = option.replace("_", " ")
-        elif isinstance(option, dict):
-            option_id = str(option.get("id", option.get("decision", option.get("value", ""))))
-            label = str(option.get("label") or option_id.replace("_", " "))
-        else:
-            continue
-        if option_id in DECISIONS and option_id not in seen:
-            normalized.append({"id": option_id, "label": label})
-            seen.add(option_id)
-
-    for option in _DEFAULT_DECISION_OPTIONS:
-        if option["id"] not in seen:
-            normalized.append(dict(option))
-            seen.add(option["id"])
-    return normalized
 
 
 def _source_ref(section: dict[str, Any], fallback_id: str) -> dict[str, Any]:
@@ -459,7 +417,6 @@ def _build_conflict_item(
         ),
         "related_sections": [],
         "spec_claim_pair": deepcopy(pair),
-        "decision_options": _normalize_decision_options(judge_payload.get("decision_options")),
         "recommended_next_action": str(
             judge_payload.get("recommended_next_action") or "Ask a human to decide this conflict."
         ),
@@ -615,7 +572,7 @@ def validate_conflict_review_item(
     normalized.setdefault("why_conflicting", "")
     normalized.setdefault("why_llm_cannot_decide", "")
     normalized.setdefault("related_sections", [])
-    normalized["decision_options"] = _normalize_decision_options(normalized.get("decision_options"))
+    normalized.pop("decision" + "_options", None)
     normalized.setdefault("recommended_next_action", "Ask a human to decide this conflict.")
     normalized.setdefault("base_source_hashes", _base_source_hash(normalized.get("source_refs", [])))
     normalized.setdefault("valid_scope", "global")
@@ -631,21 +588,18 @@ def validate_conflict_review_item(
         raise ValueError(f"invalid conflict review scope: {normalized['valid_scope']}")
     if normalized["reflection_status"] not in REFLECTION_STATUSES:
         raise ValueError(f"invalid reflection status: {normalized['reflection_status']}")
-    if _decision_option_ids(normalized) != DECISIONS:
-        raise ValueError("decision_options must contain the full conflict decision enum")
     return normalized
 
 
-def apply_conflict_decision(
+def apply_conflict_dismissal(
     items: list[dict[str, Any]] | None = None,
-    decision_payload: dict[str, Any] | None = None,
+    dismissal_payload: dict[str, Any] | None = None,
     *,
     conflict_review_items: list[dict[str, Any]] | None = None,
     payload: dict[str, Any] | None = None,
-    decision: dict[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Apply one human dismissal payload to a pending conflict item.
+    """Apply one human dismissal request to a pending conflict item.
 
     Only ``dismiss`` is supported: a human marks a surfaced conflict as not a
     real conflict. The payload must attest ``human_acknowledgement=true`` and
@@ -653,24 +607,23 @@ def apply_conflict_decision(
     """
 
     current_items = _copy_items(items if items is not None else conflict_review_items)
-    decision_payload = decision_payload or payload or decision
-    if not decision_payload:
-        raise ValueError("decision payload is required")
+    dismissal_payload = dismissal_payload or payload
+    if not dismissal_payload:
+        raise ValueError("dismissal payload is required")
 
-    conflict_id = str(decision_payload.get("conflict_id") or "")
-    selected_decision = str(decision_payload.get("decision") or "")
-    selected_option = str(decision_payload.get("selected_option") or selected_decision)
-    if selected_decision not in DECISIONS:
-        raise ValueError(f"invalid conflict decision: {selected_decision}")
+    conflict_id = str(dismissal_payload.get("conflict_id") or "")
+    selected_action = str(dismissal_payload.get("decision") or dismissal_payload.get("action") or "")
+    if selected_action != "dismiss":
+        raise ValueError(f"invalid conflict dismissal: {selected_action}")
     # A pending Conflict Review Item is dismissed by a human who has judged it
     # is not a real conflict, never by the LLM/agent autonomously. The caller
     # must attest a human authorization; CLI tools that proxy a human decision
     # (`spec-anchor core --dismiss-conflict`) include the field.
-    if not bool(decision_payload.get("human_acknowledgement")):
+    if not bool(dismissal_payload.get("human_acknowledgement")):
         raise ValueError(
             "human_acknowledgement=true is required to dismiss a conflict; "
             "agent-only callers must surface this to a human operator before "
-            "invoking apply_conflict_decision"
+            "invoking apply_conflict_dismissal"
         )
 
     for index, item in enumerate(current_items):
@@ -678,18 +631,16 @@ def apply_conflict_decision(
             continue
         if item.get("status") == "dismissed":
             raise ValueError("dismissed conflict decisions cannot be overwritten")
-        if selected_option not in _decision_option_ids(item):
-            raise ValueError(f"selected option is not available: {selected_option}")
 
         updated = validate_conflict_review_item(item=item, generated_at=generated_at)
         now = _timestamp(generated_at)
         updated["status"] = "dismissed"
         updated["valid_scope"] = str(
-            decision_payload.get("valid_scope") or updated.get("valid_scope") or "global"
+            dismissal_payload.get("valid_scope") or updated.get("valid_scope") or "global"
         )
         if updated["valid_scope"] not in SCOPES:
             raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
-        updated["resolution"] = _resolution_from_payload(decision_payload, selected_option=selected_option)
+        updated["resolution"] = _resolution_from_payload(dismissal_payload)
         updated["reflection_status"] = "not_required"
         updated["updated_at"] = now
         updated.setdefault("reflected_refs", [])
@@ -699,17 +650,16 @@ def apply_conflict_decision(
     raise ValueError(f"conflict item not found: {conflict_id}")
 
 
-def _resolution_from_payload(decision_payload: dict[str, Any], *, selected_option: str) -> dict[str, Any]:
-    referenced_source_refs = decision_payload.get("referenced_source_refs") or []
+def _resolution_from_payload(dismissal_payload: dict[str, Any]) -> dict[str, Any]:
+    referenced_source_refs = dismissal_payload.get("referenced_source_refs") or []
     if not referenced_source_refs:
-        raise ValueError("referenced_source_refs is required for resolved or dismissed conflicts")
+        raise ValueError("referenced_source_refs is required for dismissed conflicts")
     return {
-        "decision": str(decision_payload.get("decision")),
-        "reason": str(decision_payload.get("reason") or ""),
-        "selected_option": selected_option,
-        "valid_scope": str(decision_payload.get("valid_scope") or "global"),
+        "decision": str(dismissal_payload.get("decision") or dismissal_payload.get("action")),
+        "reason": str(dismissal_payload.get("reason") or ""),
+        "valid_scope": str(dismissal_payload.get("valid_scope") or "global"),
         "referenced_source_refs": list(referenced_source_refs),
-        "decision_origin": str(decision_payload.get("decision_origin") or "human"),
+        "decision_origin": str(dismissal_payload.get("decision_origin") or "human"),
     }
 
 
@@ -725,8 +675,6 @@ def summarize_conflict_review_state(
     pending_count = sum(1 for item in current_items if item.get("status") == "pending")
     stale_count = sum(1 for item in current_items if item.get("stale_dismissal") is True)
     blocking_reasons = list(existing_blocking_reasons or [])
-    if pending_count and "pending_conflict" not in blocking_reasons:
-        blocking_reasons.append("pending_conflict")
 
     return {
         "pending_conflict_count": pending_count,
@@ -771,8 +719,6 @@ run_conflict_review = evaluate_conflicts
 generate_conflict_review_items = evaluate_conflicts
 normalize_conflict_review_item = validate_conflict_review_item
 validate_conflict_review_items = validate_conflict_review_item
-record_conflict_decision = apply_conflict_decision
-resolve_conflict_review_item = apply_conflict_decision
 build_conflict_freshness_report = summarize_conflict_review_state
 conflict_review_freshness_report = summarize_conflict_review_state
 mark_stale_conflict_resolutions = refresh_conflict_dismissal_staleness

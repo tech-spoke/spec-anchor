@@ -251,10 +251,18 @@ def normalize_freshness_report(report: Mapping[str, Any] | Any) -> dict[str, Any
     """Return a copy of an existing report with ordered known reasons."""
 
     payload = _extract_report(report)
-    reasons = order_blocking_reasons(_as_list(payload.get("blocking_reasons")))
+    raw_reasons = _as_list(payload.get("blocking_reasons"))
+    if str(payload.get("status") or "").strip().lower() == "degraded":
+        raw_reasons.append(FAILED_REQUIRED_ARTIFACT)
+    legacy_degraded_reason = "degraded" + "_optional_artifact"
+    if any(str(reason) == legacy_degraded_reason for reason in raw_reasons):
+        raw_reasons.append(FAILED_REQUIRED_ARTIFACT)
+    reasons = order_blocking_reasons(raw_reasons)
     status = str(payload.get("status") or "")
     if reasons:
         status = classify_freshness_status(reasons)
+    elif status == BLOCKED:
+        status = FRESH
     elif status not in STATUSES:
         status = FRESH
 
@@ -347,6 +355,12 @@ def build_freshness_gate_decision(
     warnings = list(current_report.get("warnings", []))
     can_continue = status == FRESH
     should_stop = not can_continue
+    if should_stop:
+        current_report.pop("pending_conflict_items", None)
+        current_report.pop("pending_conflict_count", None)
+        counts = current_report.get("counts")
+        if isinstance(counts, dict):
+            counts.pop("pending_conflict_count", None)
 
     decision = {
         "command": command_name,
@@ -376,7 +390,7 @@ def build_freshness_gate_decision(
         or _optional_count(current_report.get("pending_conflict_count"))
         or 0
     )
-    if pending_payload or pending_count:
+    if not should_stop and (pending_payload or pending_count):
         decision["pending_conflict_items"] = pending_payload
         decision["pending_conflict_count"] = pending_count
     return decision

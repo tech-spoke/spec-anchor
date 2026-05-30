@@ -66,11 +66,6 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("ツール側", "開発元"),
     ),
     Scenario(
-        "#2-s06", "#2", "◇ 情報通知 (補助保持物のみ劣化) で続行可能",
-        "#2-s06_info_degraded_optional_continue.md",
-        required=("続行できます", "参考情報"),
-    ),
-    Scenario(
         "#2-s07", "#2", "3 コマンド一貫性: ③ で 3 コマンド同テンプレ",
         "#2-s07_stop_dirty_three_commands_consistency.md",
         required=("/spec-core", "/spec-inject", "/spec-realign", "保持物の更新が必要"),
@@ -137,46 +132,41 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("ツール側", "開発元", "期待された形式との差分", "最後に送った回答候補"),
     ),
 
-    # --- #8 normal completion templates --------------------------------------
+    # --- #8 conflict simplification ------------------------------------------
     Scenario(
-        "#8-s01", "#8", "/spec-core 正常完了 (変更なし)",
-        "#8-s01_core_complete_no_change.md",
-        required=("保持物の更新が完了しました", "変更ありませんでした"),
+        "#8-s01", "#8", "pending が blocker にならず /spec-inject が検索可能",
+        "#8-s01_pending_inject_search_available.md",
+        required=("pending_conflict_items", "blocked ではない", "今回守る制約"),
     ),
     Scenario(
-        "#8-s02", "#8", "/spec-core 正常完了 (更新あり → section 見出し表示)",
-        "#8-s02_core_complete_updated_sources.md",
-        required=("保持物の更新が完了しました", "更新があった仕様", "docs/spec/auth.md"),
+        "#8-s02", "#8", "/spec-realign テンプレートが pending 時に提示停止",
+        "#8-s02_realign_pending_template_stops_before_answer.md",
+        required=("答案つきの spec-anchor realign を呼ばない", "回答は生成していません"),
     ),
     Scenario(
-        "#8-s03", "#8", "/spec-core 正常完了 (再確認の候補 N 件)",
-        "#8-s03_core_complete_stale_resolution.md",
-        required=("再確認の候補", "過去の判断", "却下"),
+        "#8-s03", "#8", "/spec-inject と /spec-realign が pending 時に同一提示",
+        "#8-s03_pending_same_presentation.md",
+        required=("/spec-inject", "/spec-realign", "同じ本文展開"),
     ),
     Scenario(
-        "#8-s04", "#8", "/spec-core 正常完了 (pending conflict → #3 本文展開)",
-        "#8-s04_core_complete_with_pending_conflict.md",
-        required=("保持物の更新が完了しました", "人間判断が必要な仕様の衝突", "主張 A"),
+        "#8-s04", "#8", "dismiss CLI 実行後は以後提示されない",
+        "#8-s04_dismiss_cli_suppresses_conflict.md",
+        required=("spec-anchor core --dismiss-conflict", "以後の提示対象から外れます"),
     ),
     Scenario(
-        "#8-s05", "#8", "/spec-inject 正常完了 (内部 label を人間語へ翻訳)",
-        "#8-s05_inject_complete_translated_labels.md",
-        required=("今回守る制約", "根拠の種類", "適用範囲"),
+        "#8-s05", "#8", "dismissed が source hash 変更で再 pending",
+        "#8-s05_dismissal_reopens_after_source_change.md",
+        required=("stale_dismissal_count", "再び人間判断が必要"),
     ),
     Scenario(
-        "#8-s06", "#8", "/spec-realign 正常完了 (4 区分、内部 label 漏出なし)",
-        "#8-s06_realign_complete_four_sections.md",
-        required=(
-            "今回守る制約",
-            "今回扱う修正候補または検討対象",
-            "競合 / 不確実性 / 人間レビューが必要な点",
-            "課題プロンプトへの回答または修正案",
-        ),
+        "#8-s06", "#8", "説明だけでは却下を永続化しない",
+        "#8-s06_dismiss_requires_explicit_confirmation.md",
+        required=("説明のみでは却下を記録しません", "実行前確認"),
     ),
     Scenario(
-        "#8-s07", "#8", "正常完了系の禁止用語チェック",
-        "#8-s07_normal_completion_forbidden_check.md", kind="note",
-        required=("禁止用語",),
+        "#8-s07", "#8", "section_metadata 部分失敗は failed 停止",
+        "#8-s07_section_metadata_partial_failure_stops.md",
+        required=("failed_required_artifact", "保持物の更新が必要"),
     ),
 
     # --- #5 realign CLI error detail (raw CLI error block) -------------------
@@ -262,10 +252,6 @@ SCENARIOS: tuple[Scenario, ...] = (
         "#9-s05_inject_purpose_stdout_single_json.md", kind="cli_json",
     ),
     Scenario(
-        "#9-s06", "#9", "spec-anchor inject-conflicts stdout が valid JSON 単体",
-        "#9-s06_inject_conflicts_stdout_single_json.md", kind="cli_json",
-    ),
-    Scenario(
         "#9-s07", "#9", "spec-anchor realign stdout が valid JSON 単体",
         "#9-s07_realign_stdout_single_json.md", kind="cli_json",
     ),
@@ -288,9 +274,9 @@ SCENARIOS: tuple[Scenario, ...] = (
     # --- #12 explicit active Agentic Search (doc lint) -----------------------
     Scenario(
         "#12-s01", "#12",
-        "「能動的追加探索」「探索の十分性は Agent が判断」「4 path は起点 (上限ではない)」が grep でヒット (3 ファイル)",
+        "「能動的追加探索」「探索の十分性は Agent が判断」「3 path は起点 (上限ではない)」が grep でヒット (3 ファイル)",
         "#12-s01_design_active_search_phrasing.md", kind="note",
-        required=("4 path は探索の起点であり上限ではない", "探索の十分性は Agent が判断", "自らの気づきに基づく追加探索"),
+        required=("3 path は探索の起点であり上限ではない", "探索の十分性は Agent が判断", "自らの気づきに基づく追加探索"),
     ),
     Scenario(
         "#12-s02", "#12",

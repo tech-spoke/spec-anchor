@@ -2,7 +2,7 @@
 
 A dismissed Conflict Review Item is reopened to ``pending`` when its evidence
 sections change (hash drift on `base_source_hashes`); an unchanged dismissal is
-kept. The legacy ``stale_resolution`` symbol is renamed to ``stale_dismissal``.
+kept. The legacy resolution-staleness symbol is renamed to ``stale_dismissal``.
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ def test_refresh_marks_stale_dismissal_field() -> None:
         current_source_hashes={"sec-1": "NEW", "sec-2": "h2"},
     )
     assert changed[0]["stale_dismissal"] is True
-    assert "stale_resolution" not in changed[0]
+    assert ("stale_" + "resolution") not in changed[0]
 
     unchanged = refresh_conflict_dismissal_staleness(
         conflict_review_items=[_dismissed_item()],

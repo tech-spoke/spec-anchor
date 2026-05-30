@@ -1,12 +1,11 @@
 """Tests for the inject CLI extensions.
 
-The `spec-anchor` CLI ships five helper subcommands:
+The `spec-anchor` CLI ships four helper subcommands:
 
 * `inject-search "<query>"`
 * `inject-section "<id>" [<id>...]`
 * `inject-chapters`
 * `inject-purpose`
-* `inject-conflicts`
 
 The tests below exercise the Python entry points
 (`spec_anchor.inject.run_inject_*`) directly so the assertions stay

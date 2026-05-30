@@ -22,7 +22,6 @@ DEFAULT_METADATA_VERSION = 1
 SUCCESS = "success"
 FAILED = "failed"
 FRESH = "fresh"
-DEGRADED = "degraded"
 SPEC_CORE_GENERATION_STAGES = {
     "section_metadata",
     "section_summary",
@@ -1192,8 +1191,6 @@ def summarize_generation_results(results: Mapping[str, LlmGenerationResult]) -> 
     blocking_reasons: list[str] = []
     if freshness_status == FAILED:
         blocking_reasons.append("failed_required_artifact")
-    elif freshness_status == DEGRADED:
-        blocking_reasons.append("degraded_optional_artifact")
     return {
         "failed_sections": failed_sections,
         "warnings": [f"LLM generation failed for {section_id}" for section_id in failed_sections],
@@ -1208,9 +1205,7 @@ def classify_generation_status(results: Mapping[str, LlmGenerationResult]) -> st
     failed_count = sum(1 for result in results.values() if result.status != SUCCESS)
     if failed_count == 0:
         return FRESH
-    if failed_count == len(results):
-        return FAILED
-    return DEGRADED
+    return FAILED
 
 
 def _fake_response_for(request: LlmRequest) -> dict[str, Any]:
