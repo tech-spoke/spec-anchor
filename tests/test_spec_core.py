@@ -1901,6 +1901,69 @@ def test_t_conflict_source_update_auto_dismisses_absent_pair(
     assert conflict_id in result["auto_dismissed_conflict_ids"]
 
 
+def test_t_conflict_detection_disabled_does_not_evaluate_stale_pairs(
+    tmp_path: Path,
+) -> None:
+    """GPT-01: detection disabled の run では、前回生成された
+    conflict_candidate_pairs.jsonl を再評価せず (conflict judge を呼ばず)、
+    既存 pending を pair absent で auto-dismiss もしない。"""
+
+    class _CountingConflictJudgeProvider(ConflictCandidateTriageProvider):
+        """conflict judge が実際に呼ばれた回数を数える。`_conflict_payload` は
+        FakeSpecCoreProvider.generate の conflict-judge 分岐だけが呼ぶため、
+        呼び出し回数 = stale pair / 新 pair の judge 実行回数になる。"""
+
+        def __post_init__(self) -> None:
+            super().__post_init__()
+            self.conflict_judge_calls = 0
+
+        def _conflict_payload(self) -> dict[str, Any]:
+            self.conflict_judge_calls += 1
+            return super()._conflict_payload()
+
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
+
+    first_provider = _CountingConflictJudgeProvider("unresolved")
+    pending = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=first_provider)
+    )
+    conflict_id = _conflict_item_touching_source(
+        pending["conflict_review_items"],
+        "#0003-beta",
+    )["conflict_id"]
+    assert first_provider.conflict_judge_calls > 0, (
+        "前提: detection enabled の初回 run は conflict judge を呼ぶ"
+    )
+
+    stale_pairs = (
+        project_root / ".spec-anchor" / "context" / "conflict_candidate_pairs.jsonl"
+    )
+    assert stale_pairs.exists() and stale_pairs.read_text().strip(), (
+        "前提: 初回 run が stale 評価対象の artifact を残している"
+    )
+
+    config_path = project_root / ".spec-anchor" / "config.toml"
+    config_path.write_text(
+        config_path.read_text()
+        + "\n[conflict_candidate_detection]\nenabled = false\n"
+    )
+
+    second_provider = _CountingConflictJudgeProvider("unresolved")
+    result = _result_dict(_run_spec_core(project_root, provider=second_provider))
+
+    assert second_provider.conflict_judge_calls == 0, (
+        "detection disabled の run は stale pair を再評価して judge を呼んではならない"
+    )
+    assert result["conflict_candidate_triage_status"] == "success_no_triage"
+    assert result["auto_dismissed_conflict_count"] == 0
+    item = next(
+        item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id
+    )
+    assert item["status"] == "pending", "既存 pending は disabled run で保持される"
+
+
 def test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_ref(
     tmp_path: Path,
 ) -> None:

@@ -624,12 +624,30 @@ def _run_spec_core_unlocked(
         for item in previous_conflicts.get("conflict_review_items", previous_conflicts.get("items", []))
         if isinstance(item, Mapping)
     ]
-    conflict_candidate_pairs = conflict_candidates_api.read_conflict_candidate_pairs_jsonl(
-        context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
+    # detection が disabled / failed の run では、前回生成された
+    # conflict_candidate_pairs.jsonl / spec_claims.jsonl は今回の入力を反映して
+    # いない stale artifact である。これを評価へ渡すと、過去の候補で
+    # conflict_evaluation が走り (LLM 呼び出し + stale な判定結果) が生じる。
+    # absence が信頼できる run でだけ read + 評価し、それ以外は空を渡す。
+    # 既存 Conflict Review Item は _merge_conflict_items の
+    # allow_pair_absent_auto_dismiss=False により保持される (pair absent を
+    # 「矛盾が消えた」と解釈して auto-dismiss しない)。
+    conflict_detection_reliable = _conflict_pair_absence_is_reliable(
+        spec_claims_status=spec_claims_status,
+        claim_retrieval_status=claim_retrieval_status,
+        conflict_candidate_triage_status=conflict_candidate_triage_status,
+        conflict_candidate_detection_enabled=_claim_retrieval_enabled(config),
     )
-    spec_claim_records = _read_jsonl_records(
-        context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
-    )
+    if conflict_detection_reliable:
+        conflict_candidate_pairs = conflict_candidates_api.read_conflict_candidate_pairs_jsonl(
+            context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
+        )
+        spec_claim_records = _read_jsonl_records(
+            context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
+        )
+    else:
+        conflict_candidate_pairs = []
+        spec_claim_records = []
     emit("core_conflict_evaluation_start")
     conflict_result = evaluate_conflicts(
         conflict_candidate_pairs=conflict_candidate_pairs,
@@ -680,12 +698,7 @@ def _run_spec_core_unlocked(
         non_pending_signals=non_pending_conflict_signals,
         current_source_hashes=current_hashes,
         generated_at=generated_at,
-        allow_pair_absent_auto_dismiss=_conflict_pair_absence_is_reliable(
-            spec_claims_status=spec_claims_status,
-            claim_retrieval_status=claim_retrieval_status,
-            conflict_candidate_triage_status=conflict_candidate_triage_status,
-            conflict_candidate_detection_enabled=_claim_retrieval_enabled(config),
-        ),
+        allow_pair_absent_auto_dismiss=conflict_detection_reliable,
     )
     conflict_review_items = _ensure_context_base_hashes(
         conflict_review_items,
