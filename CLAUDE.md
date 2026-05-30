@@ -598,6 +598,18 @@ GPT (ChatGPT) からの指摘で初めて output file を最後まで読み、Cl
 
 詳細は `feedback_codex_invocation_protocol.md` に保存。
 
+### ルール 20: CODEX へ実装を委譲する場合は委譲・監査ガイドに従う
+
+Agent (Claude main / 人間) が `codex:codex-rescue` 経由で CODEX へ実装を委譲する場合、`agent_doc/CODEX_DELEGATION_GUIDE.ja.md` の依頼ルールと受け取り後の監査チェックリストに従う。CODEX の自己申告 (「完了しました」「テスト通過」) を完了の根拠にしない。
+
+特に次を必須とする (詳細と理由は同ガイド参照)。
+
+- **外部仕様書 (`doc/EXTERNAL_DESIGN.ja.md` / `doc/EXTERNAL_SPEC_DRAFT.ja.md`) の反映は、実装の監査が終わってから行う。** 実装と仕様反映を同じ CODEX task でやらせない (phantom 仕様の混入を防ぐ)。外部仕様書を更新する task の prompt には「仕様の発明を禁止する / docs に追加してよいのは実装済みかつテストで観測可能な挙動だけ / `code`・`test`・`TODO` に根拠の無い field・status・reason・route・config key を追加してはならない」を必ず入れる。
+- 真因不明 / 再現困難の調査を simple prompt で委譲する場合は **root cause exploration に限る**。同じ task で修正・仕様変更・TODO close を許可せず、出力を hypothesis / evidence / reproduction steps / proposed next test に限定する。
+- 受け取り後は、phantom フィールド (doc 記載 × コード未 emit)、根絶残骸 (廃止概念の write-only 死蔵フィールド)、grep 回避の文字列連結 hack、早期リターン dead code、smoke / fake の production 混入を機械的に監査する。契約ドキュメントを信頼基準にせず、人間承認の TODO とコードの実挙動を基準にする。
+
+関連: ルール 7 (実装完了ガード)、ルール 15 (廃止 = 根絶)、ルール 19 (Codex subagent 完了判定)。
+
 ## 実行環境メモ
 
 Agent が頻繁に使うコマンドの実行系について、本リポジトリ作業時の注意。
