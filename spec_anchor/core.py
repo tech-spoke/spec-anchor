@@ -27,9 +27,11 @@ from spec_anchor.artifacts import ArtifactError, ContextArtifactStore, build_emp
 from spec_anchor.conflict_review import (
     apply_conflict_dismissal,
     evaluate_conflicts,
+    evaluate_section_pair_conflicts,
     refresh_conflict_dismissal_staleness,
     summarize_conflict_review_state,
 )
+from spec_anchor.section_pair_candidates import generate_section_pair_candidates
 from spec_anchor.core_lock import (
     DEFAULT_STALE_LOCK_MS,
     acquire_core_update_lock,
@@ -548,60 +550,6 @@ def _run_spec_core_unlocked(
             related_llm_results,
         )
     emit("core_related_sections_done")
-    emit("core_spec_claims_start")
-    spec_claims_generation = _generate_spec_claims_if_enabled(
-        root=root,
-        config=spec_claims_llm_config,
-        sections=sections,
-        provider=spec_claims_provider,
-        generated_at=generated_at,
-        context_dir=context_dir,
-        run_full=run_full,
-        progress_tracker=progress_tracker,
-    )
-    emit("core_spec_claims_done")
-    spec_claims_status = str(spec_claims_generation.get("status") or "failed")
-    spec_claims_diagnostics = dict(spec_claims_generation.get("diagnostics") or {})
-    emit("core_claim_retrieval_start")
-    claim_retrieval_generation = _generate_claim_retrieval_if_enabled(
-        root=root,
-        config=config,
-        spec_claims_status=spec_claims_status,
-        spec_claims_diagnostics=spec_claims_diagnostics,
-        generated_at=generated_at,
-        context_dir=context_dir,
-        run_full=run_full,
-        progress_tracker=progress_tracker,
-    )
-    emit("core_claim_retrieval_done")
-    claim_retrieval_status = str(
-        claim_retrieval_generation.get("status") or "failed"
-    )
-    claim_retrieval_diagnostics = dict(
-        claim_retrieval_generation.get("diagnostics") or {}
-    )
-    emit("core_conflict_candidate_triage_start")
-    conflict_candidate_triage_generation = (
-        _generate_conflict_candidate_triage_if_enabled(
-            root=root,
-            config=conflict_candidate_triage_llm_config,
-            spec_claims_status=spec_claims_status,
-            claim_retrieval_status=claim_retrieval_status,
-            generated_at=generated_at,
-            context_dir=context_dir,
-            cache_dir=cache_dir,
-            provider=conflict_candidate_triage_provider,
-            run_full=run_full,
-            progress_tracker=progress_tracker,
-        )
-    )
-    emit("core_conflict_candidate_triage_done")
-    conflict_candidate_triage_status = str(
-        conflict_candidate_triage_generation.get("status") or "failed"
-    )
-    conflict_candidate_triage_diagnostics = dict(
-        conflict_candidate_triage_generation.get("diagnostics") or {}
-    )
     metadata_entries = [
         dict(entry)
         for entry in section_metadata.get("sections", [])
@@ -624,81 +572,159 @@ def _run_spec_core_unlocked(
         for item in previous_conflicts.get("conflict_review_items", previous_conflicts.get("items", []))
         if isinstance(item, Mapping)
     ]
-    # detection が disabled / failed の run では、前回生成された
-    # conflict_candidate_pairs.jsonl / spec_claims.jsonl は今回の入力を反映して
-    # いない stale artifact である。これを評価へ渡すと、過去の候補で
-    # conflict_evaluation が走り (LLM 呼び出し + stale な判定結果) が生じる。
-    # absence が信頼できる run でだけ read + 評価し、それ以外は空を渡す。
-    # 既存 Conflict Review Item は _merge_conflict_items の
-    # allow_pair_absent_auto_dismiss=False により保持される (pair absent を
-    # 「矛盾が消えた」と解釈して auto-dismiss しない)。
-    conflict_detection_reliable = _conflict_pair_absence_is_reliable(
-        spec_claims_status=spec_claims_status,
-        claim_retrieval_status=claim_retrieval_status,
-        conflict_candidate_triage_status=conflict_candidate_triage_status,
-        conflict_candidate_detection_enabled=_claim_retrieval_enabled(config),
-    )
-    if conflict_detection_reliable:
-        conflict_candidate_pairs = conflict_candidates_api.read_conflict_candidate_pairs_jsonl(
-            context_dir / claim_retrieval_api.CONFLICT_CANDIDATE_PAIRS_JSONL_FILENAME
-        )
-        spec_claim_records = _read_jsonl_records(
-            context_dir / spec_claims_api.SPEC_CLAIMS_JSONL_FILENAME
-        )
-    else:
-        conflict_candidate_pairs = []
-        spec_claim_records = []
-    emit("core_conflict_evaluation_start")
-    conflict_result = evaluate_conflicts(
-        conflict_candidate_pairs=conflict_candidate_pairs,
-        spec_claims=spec_claim_records,
-        sections=sections,
-        conflict_judge=_EvidenceGroundedConflictJudge(
-            active_judge,
-            purpose_ref=purpose_ref,
-            purpose_text=purpose_text,
-            purpose_hash=purpose_hash,
-            concept_ref=concept_ref,
-            concept_text=concept_text,
-            concept_hash=concept_hash,
-            llm_config=_config_get(conflict_llm_config, ("llm",), {}),
-        ),
-        config=config,
-        generated_at=generated_at,
-    )
-    emit("core_conflict_evaluation_done")
-    if progress_tracker is not None:
-        from types import SimpleNamespace
-        _record_llm_call_stats(
-            progress_tracker,
-            "conflict_evaluation",
-            [
-                SimpleNamespace(attempts=1, status="success", artifact=None, usage=u)
-                for u in getattr(conflict_result, "usage_list", [])
-                if u
-            ],
-        )
-    conflict_payload = conflict_result.to_dict() if hasattr(conflict_result, "to_dict") else dict(conflict_result)
-    new_items = [
-        dict(item)
-        for item in conflict_payload.get("conflict_review_items", [])
-        if isinstance(item, Mapping)
-    ]
+
+    # section_pair conflict path (ST-3a). Candidates are recomputed in-memory
+    # each run (A案: no candidate artifact is persisted or read). The judge is
+    # the same Purpose / Core-Concept grounded wrapper as before (CR-004).
     current_hashes = {section["section_id"]: section["source_hash"] for section in sections}
     current_hashes[purpose_ref] = purpose_hash
     current_hashes[concept_ref] = concept_hash
-    non_pending_conflict_signals = [
-        dict(item)
-        for item in conflict_payload.get("non_pending_conflict_signals", [])
-        if isinstance(item, Mapping)
-    ]
+
+    detection_enabled = _claim_retrieval_enabled(config)
+    # changed_this_run: a full/rebuild run, any section whose source_hash changed
+    # this run (updated_sections), or a Purpose / Core-Concept hash change vs the
+    # prior run's section_manifest. The prior Purpose / Core-Concept hashes are
+    # the top-level purpose_hash / concept_hash persisted on section_manifest.
+    previous_purpose_hash = (
+        str(previous_section_manifest.get("purpose_hash") or "")
+        if isinstance(previous_section_manifest, Mapping)
+        else ""
+    )
+    previous_concept_hash = (
+        str(previous_section_manifest.get("concept_hash") or "")
+        if isinstance(previous_section_manifest, Mapping)
+        else ""
+    )
+    purpose_or_concept_changed = (
+        previous_purpose_hash != str(purpose_hash)
+        or previous_concept_hash != str(concept_hash)
+    )
+    changed_this_run = bool(
+        run_full or updated_sections or purpose_or_concept_changed
+    )
+
+    section_metadata_by_id = _section_metadata_by_id(section_metadata)
+    new_items: list[dict[str, Any]] = []
+    non_pending_conflict_signals: list[dict[str, Any]] = []
+    conflict_usage_list: list[dict[str, Any]] = []
+    potential_conflicts: list[dict[str, Any]] = []
+    conflict_selection_diagnostics: list[dict[str, Any]] = []
+    if not detection_enabled:
+        # Detection off: do not generate candidates or call the judge. Existing
+        # Conflict Review Items are preserved (absence is not reliable, so no
+        # auto-dismiss on pair absence).
+        section_pair_candidate_diagnostics = {
+            "status": "disabled",
+            "section_count": len(sections),
+            "mode": "all_pairs",
+            "generated_count": 0,
+            "truncated_count": 0,
+            "recheck_count": 0,
+        }
+        allow_pair_absent_auto_dismiss = False
+    elif not changed_this_run:
+        # No-change incremental skip: no section source_hash changed and the
+        # Purpose / Core-Concept hashes are unchanged, so skip candidate
+        # generation and the judge. The merge still runs (over existing items +
+        # empty new) so dismiss/reopen staleness bookkeeping stays correct, but
+        # absence is not reliable here (nothing was judged) -> no auto-dismiss.
+        section_pair_candidate_diagnostics = {
+            "status": "skipped_unchanged",
+            "section_count": len(sections),
+            "mode": "all_pairs",
+            "generated_count": 0,
+            "truncated_count": 0,
+            "recheck_count": 0,
+        }
+        allow_pair_absent_auto_dismiss = False
+    else:
+        emit("core_section_pair_candidate_generation_start")
+        cand = generate_section_pair_candidates(
+            sections,
+            existing_conflict_items=existing_conflict_items,
+            current_source_hashes=current_hashes,
+            config=config,
+            section_metadata=section_metadata_by_id,
+        )
+        emit("core_section_pair_candidate_generation_done")
+        emit("core_conflict_evaluation_start")
+        conflict_result = evaluate_section_pair_conflicts(
+            cand.candidates,
+            conflict_judge=_EvidenceGroundedConflictJudge(
+                active_judge,
+                purpose_ref=purpose_ref,
+                purpose_text=purpose_text,
+                purpose_hash=purpose_hash,
+                concept_ref=concept_ref,
+                concept_text=concept_text,
+                concept_hash=concept_hash,
+                llm_config=_config_get(conflict_llm_config, ("llm",), {}),
+            ),
+            sections=sections,
+            config=config,
+            generated_at=generated_at,
+        )
+        emit("core_conflict_evaluation_done")
+        conflict_payload = (
+            conflict_result.to_dict()
+            if hasattr(conflict_result, "to_dict")
+            else dict(conflict_result)
+        )
+        new_items = [
+            dict(item)
+            for item in conflict_payload.get("conflict_review_items", [])
+            if isinstance(item, Mapping)
+        ]
+        non_pending_conflict_signals = [
+            dict(item)
+            for item in conflict_payload.get("non_pending_conflict_signals", [])
+            if isinstance(item, Mapping)
+        ]
+        conflict_usage_list = [u for u in getattr(conflict_result, "usage_list", []) if u]
+        potential_conflicts = list(
+            conflict_payload.get("potential_conflicts")
+            or conflict_payload.get("diagnostics")
+            or []
+        )
+        conflict_selection_diagnostics = list(
+            conflict_payload.get("selection_diagnostics") or []
+        )
+        # absence-reliable redefinition (CR-001): a pair's absence is only
+        # trustworthy when every pair was judged, i.e. all_pairs mode with no
+        # truncation. retrieval_cap / truncation -> not reliable -> do not
+        # auto-dismiss on absence. Changed existing conflicts are still
+        # force-rechecked via the generator's recheck union regardless.
+        allow_pair_absent_auto_dismiss = (
+            cand.diagnostics.get("mode") == "all_pairs"
+            and int(cand.diagnostics.get("truncated_count") or 0) == 0
+        )
+        section_pair_candidate_diagnostics = {
+            "status": "success",
+            **cand.diagnostics,
+        }
+
+    if progress_tracker is not None:
+        progress_tracker.update(
+            "section_pair_candidate_generation",
+            **section_pair_candidate_diagnostics,
+        )
+        if conflict_usage_list:
+            from types import SimpleNamespace
+            _record_llm_call_stats(
+                progress_tracker,
+                "conflict_evaluation",
+                [
+                    SimpleNamespace(attempts=1, status="success", artifact=None, usage=u)
+                    for u in conflict_usage_list
+                ],
+            )
     conflict_review_items, auto_dismissed_conflict_ids = _merge_conflict_items(
         existing_conflict_items,
         new_items,
         non_pending_signals=non_pending_conflict_signals,
         current_source_hashes=current_hashes,
         generated_at=generated_at,
-        allow_pair_absent_auto_dismiss=conflict_detection_reliable,
+        allow_pair_absent_auto_dismiss=allow_pair_absent_auto_dismiss,
     )
     conflict_review_items = _ensure_context_base_hashes(
         conflict_review_items,
@@ -712,8 +738,6 @@ def _run_spec_core_unlocked(
         current_source_hashes=current_hashes,
     )
     conflict_summary = summarize_conflict_review_state(conflict_review_items=conflict_review_items)
-    potential_conflicts = list(conflict_payload.get("potential_conflicts") or conflict_payload.get("diagnostics") or [])
-    conflict_selection_diagnostics = list(conflict_payload.get("selection_diagnostics") or [])
     pending_conflict_count = int(conflict_summary.get("pending_conflict_count", 0))
     stale_dismissal_count = int(conflict_summary.get("stale_dismissal_count", 0))
     metadata_generation_summary = llm_provider_api.summarize_generation_results(
@@ -776,18 +800,7 @@ def _run_spec_core_unlocked(
             "diagnostics": _related_generation_diagnostics(related_generation),
             "qdrant_backend_failure": related_sections_qdrant_backend_failure,
         },
-        "spec_claims": {
-            "status": spec_claims_status,
-            "diagnostics": spec_claims_diagnostics,
-        },
-        "claim_retrieval": {
-            "status": claim_retrieval_status,
-            "diagnostics": claim_retrieval_diagnostics,
-        },
-        "conflict_candidate_triage": {
-            "status": conflict_candidate_triage_status,
-            "diagnostics": conflict_candidate_triage_diagnostics,
-        },
+        "section_pair_candidate_generation": dict(section_pair_candidate_diagnostics),
     }
     if conflict_selection_diagnostics:
         generation_diagnostics["conflict_review"] = {
@@ -912,12 +925,7 @@ def _run_spec_core_unlocked(
         "regenerated_chapter_anchors": sorted({section["chapter_id"] for section in sections if section["section_id"] in changed_ids}),
         "retrieval_index_status": retrieval_index_status,
         "related_sections_status": related_sections_status,
-        "spec_claims_status": spec_claims_status,
-        "spec_claims_diagnostics": spec_claims_diagnostics,
-        "claim_retrieval_status": claim_retrieval_status,
-        "claim_retrieval_diagnostics": claim_retrieval_diagnostics,
-        "conflict_candidate_triage_status": conflict_candidate_triage_status,
-        "conflict_candidate_triage_diagnostics": conflict_candidate_triage_diagnostics,
+        "section_pair_candidate_generation_status": section_pair_candidate_diagnostics["status"],
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
@@ -1297,12 +1305,7 @@ def _blocked_core_result(
         "regenerated_chapter_anchors": [],
         "retrieval_index_status": "blocked",
         "related_sections_status": "blocked",
-        "spec_claims_status": "blocked",
-        "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
-        "claim_retrieval_status": "blocked",
-        "claim_retrieval_diagnostics": _empty_claim_retrieval_diagnostics(),
-        "conflict_candidate_triage_status": "blocked",
-        "conflict_candidate_triage_diagnostics": _empty_conflict_candidate_triage_diagnostics(),
+        "section_pair_candidate_generation_status": "blocked",
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
@@ -1350,12 +1353,7 @@ def _config_error_core_result(
         "regenerated_chapter_anchors": [],
         "retrieval_index_status": "failed",
         "related_sections_status": "blocked",
-        "spec_claims_status": "failed",
-        "spec_claims_diagnostics": _empty_spec_claims_diagnostics(),
-        "claim_retrieval_status": "failed",
-        "claim_retrieval_diagnostics": _empty_claim_retrieval_diagnostics(),
-        "conflict_candidate_triage_status": "failed",
-        "conflict_candidate_triage_diagnostics": _empty_conflict_candidate_triage_diagnostics(),
+        "section_pair_candidate_generation_status": "failed",
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,

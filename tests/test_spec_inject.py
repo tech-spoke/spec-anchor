@@ -526,7 +526,12 @@ def test_review_pending_conflict_items_are_loaded_from_real_context_artifact(tmp
     assert _stopped(result) is False
     assert _value(result, "pending_conflict_items") == pending_items
     text = _text_blob(result)
-    assert "conflict-from-spec-core-artifact" in text
+    # Under the section_pair conflict contract the conflict_id is a derived
+    # section_pair id (the judge payload's conflict_id is ignored by the item
+    # builder). Assert the loaded item's real id round-trips into the reply.
+    pending_conflict_id = str(pending_items[0]["conflict_id"])
+    assert pending_conflict_id.startswith("section_pair:")
+    assert pending_conflict_id in text
     assert "why_llm_cannot_decide" in text
 
 

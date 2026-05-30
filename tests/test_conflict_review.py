@@ -799,4 +799,7 @@ def test_core_does_not_route_related_sections_to_conflict_review() -> None:
     source = inspect.getsource(core._run_spec_core_unlocked)
 
     assert "related_sections=selected_related_sections" not in source
-    assert "conflict_candidate_pairs=" in source
+    # The section_pair conflict path judges generator-produced candidates, not
+    # related_sections. evaluate_section_pair_conflicts receives cand.candidates.
+    assert "evaluate_section_pair_conflicts(" in source
+    assert "cand.candidates" in source

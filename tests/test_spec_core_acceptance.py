@@ -416,7 +416,15 @@ def test_provider_failure_is_reported_not_swapped(tmp_path: Path) -> None:
     _seed_project(project, collection_suffix="provider_fail")
     config_path = project / ".spec-anchor" / "config.toml"
     text = config_path.read_text(encoding="utf-8")
-    text = text.replace('command = "codex"', 'command = "/nonexistent/codex-bin"', 1)
+    # Point every configured provider command at a non-existent binary. The
+    # section_pair conflict path now always invokes the conflict_review provider
+    # (routed to `claude`), so breaking only `codex` would leave the conflict
+    # judge spawning the real `claude` CLI and blocking on a live LLM call. We
+    # break all of them so each stage fails fast (FileNotFoundError) and the
+    # contract under test — a missing configured provider surfaces as failure,
+    # not a silent fallback — is exercised without any real CLI.
+    text = text.replace('command = "codex"', 'command = "/nonexistent/codex-bin"')
+    text = text.replace('command = "claude"', 'command = "/nonexistent/claude-bin"')
     config_path.write_text(text, encoding="utf-8")
     result = _run_core(
         project,
@@ -600,9 +608,7 @@ def test_trace_audit_stage_order(core_fake_fresh: dict[str, Any]) -> None:
         "section_collection_upsert",
         "verify_index",
         "related_sections",
-        "spec_claims",
-        "claim_retrieval",
-        "conflict_candidate_triage",
+        "section_pair_candidate_generation",
         "conflict_evaluation",
         "chapter_anchors",
         "artifact_write",

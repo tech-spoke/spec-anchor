@@ -456,9 +456,20 @@ related_selected_max_per_section = 4
 
 
 class _CoreFakePoint:
-    def __init__(self, point_id: Any, payload: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        point_id: Any,
+        payload: dict[str, Any] | None = None,
+        score: float = 0.0,
+    ) -> None:
         self.id = point_id
         self.payload = dict(payload or {})
+        self.score = float(score)
+
+
+class _CoreFakeQueryResult:
+    def __init__(self, points: Any) -> None:
+        self.points = list(points)
 
 
 class _CoreFakePointStruct:
@@ -555,6 +566,29 @@ class _CoreFakeQdrantClient:
         ]
         next_offset = end if end < len(self.point_ids) else None
         return points, next_offset
+
+    def query_points(
+        self,
+        *,
+        collection_name: str,
+        query: Any,
+        using: str,
+        limit: int,
+    ) -> _CoreFakeQueryResult:
+        # Used by QdrantHybridRetriever.search, which the section_pair conflict
+        # candidate generator drives in retrieval_cap mode (section count over
+        # the all_pairs threshold). Return stored points with a passing score so
+        # neighbour pairs survive the generator's min_dense_score filter; the
+        # generator drops the source section itself and dedupes pairs.
+        points = [
+            _CoreFakePoint(
+                point_id,
+                self.payload_by_point_id.get(str(point_id), {}),
+                score=1.0,
+            )
+            for point_id in self.point_ids[: int(limit)]
+        ]
+        return _CoreFakeQueryResult(points)
 
     def recreate_collection(self, **kwargs: Any) -> None:
         self.collection_created = True
@@ -1427,6 +1461,17 @@ def test_b7a_related_sections_candidate_generation_source_partial(
 
     project_root = tmp_path / "project"
     _write_cdx006_project(project_root, collection="b7a_related_sections_partial_collection")
+    # This test isolates Related Sections candidate-generation query counts via
+    # the shared fake embedding provider. The section_pair conflict candidate
+    # generator also queries the retriever per section (retrieval_cap mode for
+    # the 50-section fixture), which would pollute that count. Disable conflict
+    # detection so query_calls reflects only Related Sections work; the conflict
+    # path has dedicated coverage elsewhere.
+    config_path = project_root / ".spec-anchor/config.toml"
+    config_path.write_text(
+        config_path.read_text()
+        + "\n[conflict_candidate_detection]\nenabled = false\n"
+    )
     spec_path = project_root / "docs/spec/spec.md"
     sample_path = project_root / "docs/spec/sample.md"
     sample_path.unlink()
@@ -1874,9 +1919,18 @@ def test_t_conflict_recheck_without_source_change_keeps_pending(
     assert "pending_conflict" not in _freshness(result).get("blocking_reasons", [])
 
 
-def test_t_conflict_source_update_auto_dismisses_absent_pair(
+def test_t_conflict_source_update_auto_dismisses_on_recheck(
     tmp_path: Path,
 ) -> None:
+    """Section_pair path: when a pending conflict's sources change, the pair is
+    force-rechecked (recheck union). If the judge now resolves it, the existing
+    pending item is auto-dismissed with reason ``source_update_recheck_non_pending``.
+
+    (Under the prior claim path this surfaced as ``source_update_recheck_pair_absent``
+    because the changed pair simply dropped out of the candidate set. With the
+    section_pair generator the changed conflict is always rejudged, so the
+    non-pending recheck path is the one that fires.)"""
+
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
@@ -1889,29 +1943,31 @@ def test_t_conflict_source_update_auto_dismisses_absent_pair(
     )["conflict_id"]
 
     paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
+    # Resolved judge (conflict_outcome defaults to "resolved") -> the rechecked
+    # pair yields a non-pending signal, so the existing pending item is dismissed.
     result = _result_dict(
-        _run_spec_core(project_root, provider=NoReviewConflictCandidateTriageProvider())
+        _run_spec_core(project_root, provider=ConflictCandidateTriageProvider())
     )
 
     item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
     assert item["status"] == "dismissed"
     assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_pair_absent"
+    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_non_pending"
     assert result["auto_dismissed_conflict_count"] >= 1
     assert conflict_id in result["auto_dismissed_conflict_ids"]
 
 
-def test_t_conflict_detection_disabled_does_not_evaluate_stale_pairs(
+def test_t_conflict_detection_disabled_does_not_call_judge(
     tmp_path: Path,
 ) -> None:
-    """GPT-01: detection disabled の run では、前回生成された
-    conflict_candidate_pairs.jsonl を再評価せず (conflict judge を呼ばず)、
-    既存 pending を pair absent で auto-dismiss もしない。"""
+    """GPT-01 (section_pair path): detection disabled の run では、矛盾候補生成も
+    conflict judge 呼び出しも行わない。候補 artifact は持たない (A案) ので「stale
+    pair の再読み込み」は構造的に存在しないが、disabled の契約は維持する:
+    judge を呼ばず、既存 pending を pair absent で auto-dismiss しない。"""
 
     class _CountingConflictJudgeProvider(ConflictCandidateTriageProvider):
         """conflict judge が実際に呼ばれた回数を数える。`_conflict_payload` は
-        FakeSpecCoreProvider.generate の conflict-judge 分岐だけが呼ぶため、
-        呼び出し回数 = stale pair / 新 pair の judge 実行回数になる。"""
+        section_pair judge 分岐だけが呼ぶため、呼び出し回数 = judge 実行回数。"""
 
         def __post_init__(self) -> None:
             super().__post_init__()
@@ -1937,26 +1993,22 @@ def test_t_conflict_detection_disabled_does_not_evaluate_stale_pairs(
         "前提: detection enabled の初回 run は conflict judge を呼ぶ"
     )
 
-    stale_pairs = (
-        project_root / ".spec-anchor" / "context" / "conflict_candidate_pairs.jsonl"
-    )
-    assert stale_pairs.exists() and stale_pairs.read_text().strip(), (
-        "前提: 初回 run が stale 評価対象の artifact を残している"
-    )
-
     config_path = project_root / ".spec-anchor" / "config.toml"
     config_path.write_text(
         config_path.read_text()
         + "\n[conflict_candidate_detection]\nenabled = false\n"
     )
 
+    # Even with a source change, the disabled run must not generate candidates
+    # or call the judge, and must preserve the existing pending item.
+    paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
     second_provider = _CountingConflictJudgeProvider("unresolved")
     result = _result_dict(_run_spec_core(project_root, provider=second_provider))
 
     assert second_provider.conflict_judge_calls == 0, (
-        "detection disabled の run は stale pair を再評価して judge を呼んではならない"
+        "detection disabled の run は conflict judge を呼んではならない"
     )
-    assert result["conflict_candidate_triage_status"] == "success_no_triage"
+    assert result["section_pair_candidate_generation_status"] == "disabled"
     assert result["auto_dismissed_conflict_count"] == 0
     item = next(
         item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id
@@ -2500,163 +2552,6 @@ def test_t_i17_watcher_internal_update_api_is_distinct_from_external_command() -
     assert callable(internal)
 
 
-def test_spec_claims_incremental_unchanged_skips_llm_calls(tmp_path: Path) -> None:
-    class SpecClaimProvider(FakeSpecCoreProvider):
-        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-            if str(getattr(request, "stage", "")) == "spec_claims":
-                self.calls.append(request)
-                return _spec_claim_response_from_request(request)
-            return super().generate(request, timeout_sec=timeout_sec)
-
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    first = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
-    second_provider = SpecClaimProvider()
-    second = _result_dict(_run_spec_core(project_root, provider=second_provider))
-
-    assert first["spec_claims_status"] == "success"
-    assert second["spec_claims_status"] == "skipped_unchanged"
-    assert [
-        call
-        for call in second_provider.calls
-        if str(getattr(call, "stage", "")) == "spec_claims"
-    ] == []
-
-
-def test_spec_claims_incremental_reextracts_changed_and_excludes_deleted(
-    tmp_path: Path,
-) -> None:
-    class SpecClaimProvider(FakeSpecCoreProvider):
-        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-            if str(getattr(request, "stage", "")) == "spec_claims":
-                self.calls.append(request)
-                return _spec_claim_response_from_request(request)
-            return super().generate(request, timeout_sec=timeout_sec)
-
-    project_root = tmp_path / "project"
-    paths = _write_project(project_root)
-    _run_spec_core(project_root, provider=SpecClaimProvider())
-
-    paths["other"].unlink()
-    paths["main"].write_text(
-        paths["main"].read_text().replace("standard requests", "enterprise requests")
-    )
-    (project_root / "docs/spec/new.md").write_text(
-        "# Epsilon\nEpsilon requires TOKEN_Y for added coverage.\n"
-    )
-    second_provider = SpecClaimProvider()
-    result = _result_dict(_run_spec_core(project_root, provider=second_provider))
-
-    spec_claim_call_ids = {
-        str(getattr(call, "section_id", ""))
-        for call in second_provider.calls
-        if str(getattr(call, "stage", "")) == "spec_claims"
-    }
-    assert result["spec_claims_status"] == "success"
-    assert spec_claim_call_ids == {
-        "docs/spec/main.md#0002-alpha",
-        "docs/spec/new.md#0001-epsilon",
-    }
-
-    jsonl_path = project_root / ".spec-anchor/context/spec_claims.jsonl"
-    records = [
-        json.loads(line)
-        for line in jsonl_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    source_ids = {str(record["source_section_id"]) for record in records}
-    assert "docs/spec/main.md#0002-alpha" in source_ids
-    assert "docs/spec/new.md#0001-epsilon" in source_ids
-    assert not any(source_id.startswith("docs/spec/other.md#") for source_id in source_ids)
-
-
-def test_claim_retrieval_incremental_unchanged_skips_qdrant_calls(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from spec_anchor.core_progress import read_progress
-
-    class SpecClaimProvider(FakeSpecCoreProvider):
-        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-            if str(getattr(request, "stage", "")) == "spec_claims":
-                self.calls.append(request)
-                return _spec_claim_response_from_request(request)
-            return super().generate(request, timeout_sec=timeout_sec)
-
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-    _configure_claim_retrieval_qdrant(project_root)
-    core_module = _core_module()
-    _install_claim_retrieval_spies(monkeypatch, core_module)
-
-    first = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
-    second = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
-
-    assert first["claim_retrieval_status"] in {"success", "success_no_candidates"}
-    assert second["claim_retrieval_status"] == "skipped_unchanged"
-    progress = read_progress(project_root)
-    assert progress is not None
-    stage = progress["stages"]["claim_retrieval"]
-    assert stage["status"] == "skipped_unchanged"
-    assert stage["qdrant_upsert_count"] == 0
-    assert stage["qdrant_search_count"] == 0
-
-
-def test_claim_retrieval_incremental_upserts_changed_and_deletes_removed(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from spec_anchor.core_progress import read_progress
-
-    class SpecClaimProvider(FakeSpecCoreProvider):
-        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-            if str(getattr(request, "stage", "")) == "spec_claims":
-                self.calls.append(request)
-                return _spec_claim_response_from_request(request)
-            return super().generate(request, timeout_sec=timeout_sec)
-
-    project_root = tmp_path / "project"
-    paths = _write_project(project_root)
-    _configure_claim_retrieval_qdrant(project_root)
-    core_module = _core_module()
-    spies = _install_claim_retrieval_spies(monkeypatch, core_module)
-    _run_spec_core(project_root, provider=SpecClaimProvider())
-    previous_claims = _read_spec_claim_records(project_root)
-    removed_claim_uids = {
-        claim["claim_uid"]
-        for claim in previous_claims
-        if str(claim["source_section_id"]).startswith("docs/spec/other.md#")
-    }
-
-    paths["other"].unlink()
-    paths["main"].write_text(
-        paths["main"].read_text().replace("standard requests", "enterprise requests")
-    )
-    (project_root / "docs/spec/new.md").write_text(
-        "# Epsilon\nEpsilon requires TOKEN_Y for added coverage.\n"
-    )
-    result = _result_dict(_run_spec_core(project_root, provider=SpecClaimProvider()))
-
-    second_claim_upsert = spies["claim_upserts"][-1]
-    upsert_source_ids = {
-        str(claim["source_section_id"])
-        for claim in second_claim_upsert["claims_to_upsert"]
-    }
-    assert result["claim_retrieval_status"] in {"success", "success_no_candidates"}
-    assert upsert_source_ids == {
-        "docs/spec/main.md#0002-alpha",
-        "docs/spec/new.md#0001-epsilon",
-    }
-    assert removed_claim_uids <= set(second_claim_upsert["claims_to_delete"])
-    progress = read_progress(project_root)
-    assert progress is not None
-    stage = progress["stages"]["claim_retrieval"]
-    assert stage["qdrant_upsert_count"] == 2
-    assert stage["qdrant_delete_count"] >= len(removed_claim_uids)
-    assert stage["qdrant_search_count"] == 6
-
-
 @dataclass
 class ConflictCandidateTriageProvider(FakeSpecCoreProvider):
     def __post_init__(self) -> None:
@@ -2694,87 +2589,6 @@ class NoReviewConflictCandidateTriageProvider(ConflictCandidateTriageProvider):
                 "confidence": "medium",
             }
         return super().generate(request, timeout_sec=timeout_sec)
-
-
-def test_conflict_candidate_triage_incremental_unchanged_skips_llm_calls(
-    tmp_path: Path,
-) -> None:
-    from spec_anchor.core_progress import read_progress
-
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    first_provider = ConflictCandidateTriageProvider()
-    first = _result_dict(_run_spec_core(project_root, provider=first_provider))
-    second_provider = ConflictCandidateTriageProvider()
-    second = _result_dict(_run_spec_core(project_root, provider=second_provider))
-
-    assert first["conflict_candidate_triage_status"] == "success"
-    assert first_provider.triage_candidate_uids
-    assert second["conflict_candidate_triage_status"] == "skipped_unchanged"
-    assert second_provider.triage_candidate_uids == []
-    progress = read_progress(project_root)
-    assert progress is not None
-    stage = progress["stages"]["conflict_candidate_triage"]
-    assert stage["status"] == "skipped_unchanged"
-    assert stage["llm_calls"] == 0
-
-
-def test_conflict_candidate_triage_incremental_reuses_unchanged_pair_cache(
-    tmp_path: Path,
-) -> None:
-    from spec_anchor.core_progress import read_progress
-
-    project_root = tmp_path / "project"
-    paths = _write_project(project_root)
-    _run_spec_core(project_root, provider=ConflictCandidateTriageProvider())
-    first_claims = _read_spec_claim_records(project_root)
-    previous_alpha_uids = {
-        str(claim["claim_uid"])
-        for claim in first_claims
-        if str(claim["source_section_id"]).endswith("#0002-alpha")
-    }
-    assert previous_alpha_uids
-
-    paths["main"].write_text(
-        paths["main"].read_text().replace("standard requests", "enterprise requests")
-    )
-    second_provider = ConflictCandidateTriageProvider()
-    result = _result_dict(_run_spec_core(project_root, provider=second_provider))
-    second_claims = _read_spec_claim_records(project_root)
-    current_alpha_uids = {
-        str(claim["claim_uid"])
-        for claim in second_claims
-        if str(claim["source_section_id"]).endswith("#0002-alpha")
-    }
-    assert current_alpha_uids
-    assert current_alpha_uids.isdisjoint(previous_alpha_uids)
-
-    records = _read_conflict_candidate_records(project_root)
-    changed_candidate_uids = {
-        str(record["candidate_uid"])
-        for record in records
-        if str(record.get("left_claim_uid")) in current_alpha_uids
-        or str(record.get("right_claim_uid")) in current_alpha_uids
-    }
-    unchanged_candidate_uids = {
-        str(record["candidate_uid"])
-        for record in records
-        if str(record.get("left_claim_uid")) not in current_alpha_uids
-        and str(record.get("right_claim_uid")) not in current_alpha_uids
-    }
-
-    assert result["conflict_candidate_triage_status"] == "success"
-    assert second_provider.triage_candidate_uids
-    assert set(second_provider.triage_candidate_uids) <= changed_candidate_uids
-    assert unchanged_candidate_uids
-    assert unchanged_candidate_uids.isdisjoint(second_provider.triage_candidate_uids)
-    progress = read_progress(project_root)
-    assert progress is not None
-    stage = progress["stages"]["conflict_candidate_triage"]
-    assert stage["status"] == "success"
-    assert stage["llm_calls"] == len(second_provider.triage_candidate_uids)
-    assert stage["cache_hits"] >= len(unchanged_candidate_uids)
 
 
 def _configure_claim_retrieval_qdrant(project_root: Path) -> None:
