@@ -175,12 +175,11 @@ llm_batch_concurrency = 1   # default、逐次
 
 | コマンド | 目的 |
 |---|---|
-| `spec-anchor core [--all] [--rebuild] [--verify-index]` | Section Summary、Search Keys、Related Sections、Chapter Key Anchor、Retrieval Index、Conflict Review Item を生成・更新する。`--all` は LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。`--rebuild` は加えて Qdrant section collection を drop + recreate する。`--verify-index` は Source Retrieval Index の payload と current section hash の整合を能動検証する。Conflict Review Item の人間判断は Agent が構造化して `/spec-core` に渡す（人間が JSON を直接編集する運用ではない） |
-| `spec-anchor inject-search "<query>"` | Section-level hybrid retrieval (BGE-M3 dense + sparse の RRF) で top-K の Section payload を返す。各コマンドは内部で freshness / pending conflict / watcher gate を通すので、Agent は事前 probe を呼ぶ必要はない |
+| `spec-anchor core [--all] [--rebuild] [--verify-index]` | Section Summary、Search Keys、Related Sections、Chapter Key Anchor、Retrieval Index、Conflict Review Item を生成・更新する。`--all` は LLM 由来 cache (section_metadata / pair typing / chapter_anchors) をクリアして再評価する。`--rebuild` は加えて Qdrant section collection を drop + recreate する。`--verify-index` は Source Retrieval Index の payload と current section hash の整合を能動検証する。矛盾を却下する場合は `--dismiss-conflict <conflict_id> --reason "<理由>"` を指定する |
+| `spec-anchor inject-search "<query>"` | Section-level hybrid retrieval (BGE-M3 dense + sparse の RRF) で top-K の Section payload を返す。各コマンドは内部で保持物の鮮度と watcher 状態を確認する。pending の Conflict Review Item は停止理由ではなく、Agent が提示する注入情報として返される |
 | `spec-anchor inject-section "<section_id>" [<section_id>...]` | 指定 section_id の payload を一括取得する (related_sections 辿りの素呼び出し) |
 | `spec-anchor inject-chapters` | `chapter_anchors.json` の path を返す。Agent は path を `Read` で読み、関連章を特定する (artifact 本文は丸ごと注入しない) |
 | `spec-anchor inject-purpose` | Purpose 全文と Core Concept の path を返す。Core Concept は path で返し、Agent が `Read` で必要箇所のみ部分取得する |
-| `spec-anchor inject-conflicts` | resolved かつ stale でない Conflict Review Item を返す。Agent はこの範囲だけを `evidence_origin = "Conflict Review Item"` の制約根拠にしてよい |
 | `spec-anchor realign --answer-json '<json>'` (もしくは `--answer-file <path>` / `--answer <text>`) | Agent が生成した回答候補を 4 区分 (今回守る制約 / 今回扱う修正候補または検討対象 / 競合・不確実性・人間レビューが必要な点 / 課題プロンプトへの回答または修正案) の RealignResult に整形して返す。CLI は constraints の真偽を検証しない (Agent 責務、§8.5 / §9 参照) |
 | `spec-anchor-watch [--once]` | カレントディレクトリのプロジェクトの Source Specs 変更を監視し、background で incremental update を行う |
 | `spec-anchor-setup-project --target <path>` | 対象プロジェクトに `.spec-anchor/config.toml`、Agent 入口、Purpose / Core Concept 雛形を配置する |
