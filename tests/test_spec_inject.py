@@ -114,99 +114,12 @@ class PendingConflictSpecCoreProvider(FakeSpecCoreProvider):
     def provider_id(self) -> str:
         return "fake-spec-core-pending-conflict"
 
-    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-        self.calls.append(request)
-        if not isinstance(request, dict):
-            stage = getattr(request, "stage", "") or getattr(request, "task", "")
-            section_id = getattr(request, "section_id", "") or ""
-            if stage == "spec_claims":
-                if section_id.endswith("#authentication") or "authentication" in section_id:
-                    return {
-                        "claims": [
-                            {
-                                "claim_text": "Sessions must be validated before privileged actions.",
-                                "target": "session validation",
-                                "target_aliases": ["session check", "session verification"],
-                                "scope": "",
-                                "condition": "",
-                                "value": "",
-                                "claim_kind": "requirement",
-                                "claim_kind_confidence": "high",
-                                "evidence_span": (
-                                    "Authentication must validate active sessions before privileged actions."
-                                ),
-                                "evidence_start": 0,
-                                "evidence_end": 0,
-                                "evidence_hash": "",
-                                "confidence": "high",
-                                "retrieval": {
-                                    "sparse_keys": ["session", "validation", "authentication"],
-                                    "embedding_text": (
-                                        "Session validation is required before privileged actions."
-                                    ),
-                                    "conflict_probes": [
-                                        "Session validation is optional",
-                                        "Sessions may not require validation",
-                                    ],
-                                },
-                            }
-                        ]
-                    }
-                if section_id.endswith("#session") or section_id.endswith("session"):
-                    return {
-                        "claims": [
-                            {
-                                "claim_text": "Session validation is optional in this flow.",
-                                "target": "session validation",
-                                "target_aliases": ["session check", "session verification"],
-                                "scope": "",
-                                "condition": "",
-                                "value": "",
-                                "claim_kind": "behavior",
-                                "claim_kind_confidence": "high",
-                                "evidence_span": (
-                                    "For the same privileged actions, session validation is optional during migration."
-                                ),
-                                "evidence_start": 0,
-                                "evidence_end": 0,
-                                "evidence_hash": "",
-                                "confidence": "high",
-                                "retrieval": {
-                                    "sparse_keys": ["session", "expire", "refresh"],
-                                    "embedding_text": (
-                                        "Sessions only need to be refreshed when expired, not validated."
-                                    ),
-                                    "conflict_probes": [
-                                        "Sessions must be validated",
-                                        "Validation is mandatory",
-                                    ],
-                                },
-                            }
-                        ]
-                    }
-                return {"claims": []}
-            if stage == "conflict_candidate_triage":
-                return {
-                    "send_to_review": True,
-                    "reason": (
-                        "The two SpecClaim entries govern the same target (session validation) "
-                        "and impose conflicting requirements: one mandates validation, the other "
-                        "treats it as optional."
-                    ),
-                    "confidence": "high",
-                }
-        return super().generate(request, timeout_sec=timeout_sec)
-
     def judge_conflict(self, request: Any, **_: Any) -> dict[str, Any]:
         self.calls.append(request)
         return {
             "outcome": "needs_human_review",
             "conflict_id": "conflict-from-spec-core-artifact",
             "severity": "high",
-            "claims": [
-                {"side": "a", "summary": "Authentication must validate active sessions."},
-                {"side": "b", "summary": "Session validation is optional in this flow."},
-            ],
             "why_conflicting": "One source requires session validation while the other makes it optional.",
             "why_llm_cannot_decide": "No higher-priority source resolves the priority.",
             "recommended_next_action": "Ask a human to choose the session validation rule.",
@@ -290,10 +203,6 @@ def _pending_conflict(conflict_id: str = "conflict-auth-session") -> dict[str, A
         "source_refs": [
             {"source_section_id": "docs/spec/security.md#authentication"},
             {"source_section_id": "docs/spec/security.md#session"},
-        ],
-        "claims": [
-            {"side": "a", "summary": "Authentication requires active sessions."},
-            {"side": "b", "summary": "Session validity is undecided."},
         ],
         "why_conflicting": "The active-session requirement cannot be applied safely.",
         "why_llm_cannot_decide": "No higher-priority source defines the exception.",
@@ -440,7 +349,6 @@ def test_t_i09_pending_conflict_fresh_output_surfaces_items_without_stopping(tmp
         "conflict-auth-session",
         "severity",
         "source_refs",
-        "claims",
         "why_conflicting",
         "why_llm_cannot_decide",
         "recommended_next_action",

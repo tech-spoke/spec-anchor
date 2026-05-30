@@ -10,8 +10,6 @@ from __future__ import annotations
 import importlib
 import inspect
 import sys
-import threading
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,50 +21,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-@dataclass
-class FakeConflictJudge:
-    outcome: str
-
-    def __post_init__(self) -> None:
-        self.calls: list[Any] = []
-
-    @property
-    def provider_id(self) -> str:
-        return f"fake-conflict-judge-{self.outcome}"
-
-    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-        self.calls.append(request)
-        return self._payload()
-
-    def judge(self, pair: Any, **_: Any) -> dict[str, Any]:
-        self.calls.append(pair)
-        return self._payload()
-
-    def judge_conflict(self, pair: Any, **_: Any) -> dict[str, Any]:
-        self.calls.append(pair)
-        return self._payload()
-
-    def _payload(self) -> dict[str, Any]:
-        if self.outcome == "unresolved":
-            return {
-                "outcome": "needs_human_review",
-                "severity": "high",
-                "claims": [
-                    {"side": "a", "summary": "Alpha says FEATURE_X is required."},
-                    {"side": "b", "summary": "Beta says FEATURE_X is forbidden."},
-                ],
-                "why_conflicting": "FEATURE_X is simultaneously required and forbidden.",
-                "why_llm_cannot_decide": "No Purpose or Core Concept priority exists.",
-                "recommended_next_action": "Ask a human to choose the applicable rule.",
-            }
-        return {
-            "outcome": "resolved_by_existing_evidence",
-            "severity": "medium",
-            "warning": "Potential conflict is resolved by explicit Core Concept priority.",
-            "why_not_pending": "Core Concept says Beta overrides Alpha.",
-        }
 
 
 def _module() -> Any:
@@ -162,100 +116,6 @@ def _sections() -> list[dict[str, Any]]:
     ]
 
 
-def _claim(
-    suffix: str,
-    *,
-    source_section_id: str,
-    claim_text: str,
-    target: str = "FEATURE_X",
-) -> dict[str, Any]:
-    return {
-        "claim_uid": f"claim:sha256:{suffix}",
-        "display_id": f"{source_section_id}:C{suffix}",
-        "claim_hash": f"claim-hash-{suffix}",
-        "retrieval_hash": f"retrieval-hash-{suffix}",
-        "source_section_id": source_section_id,
-        "source_document_id": "docs/spec/conflict.md",
-        "source_hash": f"hash-{source_section_id}",
-        "claim_text": claim_text,
-        "target": target,
-        "target_aliases": [target],
-        "claim_kind": "requirement",
-        "scope": "normal operation",
-        "condition": "",
-        "value": claim_text,
-        "confidence": "high",
-        "evidence_span": claim_text,
-        "evidence_start": 0,
-        "evidence_end": len(claim_text),
-        "evidence_hash": f"evidence-hash-{suffix}",
-    }
-
-
-def _candidate_pair(
-    left: dict[str, Any],
-    right: dict[str, Any],
-    *,
-    send_to_review: bool = True,
-) -> dict[str, Any]:
-    left_uid, right_uid = sorted([left["claim_uid"], right["claim_uid"]])
-    claims = {left["claim_uid"]: left, right["claim_uid"]: right}
-    left_claim = claims[left_uid]
-    right_claim = claims[right_uid]
-    return {
-        "candidate_uid": f"candidate:sha256:{left_uid.rsplit(':', 1)[-1]}-{right_uid.rsplit(':', 1)[-1]}",
-        "display_id": "CC-00001",
-        "left_claim_uid": left_uid,
-        "right_claim_uid": right_uid,
-        "left_claim_hash": left_claim["claim_hash"],
-        "right_claim_hash": right_claim["claim_hash"],
-        "left_retrieval_hash": left_claim["retrieval_hash"],
-        "right_retrieval_hash": right_claim["retrieval_hash"],
-        "left_section_uid": left_claim["source_section_id"],
-        "right_section_uid": right_claim["source_section_id"],
-        "shared_target": left_claim["target"],
-        "retrieval_sources": ["dense_claim_retrieval"],
-        "signals": ["semantic_same_target"],
-        "triage": {
-            "send_to_review": send_to_review,
-            "reason": "Claims share a target and require Conflict Review evaluation.",
-            "confidence": "medium",
-        },
-        "evidence": [
-            {
-                "claim_uid": left_claim["claim_uid"],
-                "section_uid": left_claim["source_section_id"],
-                "evidence_span": left_claim["evidence_span"],
-                "evidence_start": left_claim["evidence_start"],
-                "evidence_end": left_claim["evidence_end"],
-                "evidence_hash": left_claim["evidence_hash"],
-            },
-            {
-                "claim_uid": right_claim["claim_uid"],
-                "section_uid": right_claim["source_section_id"],
-                "evidence_span": right_claim["evidence_span"],
-                "evidence_start": right_claim["evidence_start"],
-                "evidence_end": right_claim["evidence_end"],
-                "evidence_hash": right_claim["evidence_hash"],
-            },
-        ],
-    }
-
-
-def _spec_claim_fixture() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    left = _claim(
-        "alpha",
-        source_section_id="docs/spec/conflict.md#alpha",
-        claim_text="FEATURE_X is required for all requests.",
-    )
-    right = _claim(
-        "beta",
-        source_section_id="docs/spec/conflict.md#beta",
-        claim_text="FEATURE_X is forbidden for guest requests.",
-    )
-    return [left, right], [_candidate_pair(left, right)]
-
-
 def _items(payload: Any) -> list[dict[str, Any]]:
     if hasattr(payload, "conflict_review_items"):
         payload = payload.conflict_review_items
@@ -302,10 +162,6 @@ def _pending_item(conflict_id: str = "conflict-feature-x") -> dict[str, Any]:
             {"source_section_id": "docs/spec/conflict.md#alpha", "source_hash": "hash-a"},
             {"source_section_id": "docs/spec/conflict.md#beta", "source_hash": "hash-b"},
         ],
-        "claims": [
-            {"side": "a", "summary": "FEATURE_X is required."},
-            {"side": "b", "summary": "FEATURE_X is forbidden."},
-        ],
         "why_conflicting": "Required and forbidden cannot both hold globally.",
         "why_llm_cannot_decide": "No priority source is present.",
         "related_sections": [
@@ -350,75 +206,6 @@ def _assert_rejected(func: Any, **kwargs: Any) -> None:
     pytest.fail("invalid conflict decision must be rejected")
 
 
-def test_t_i04_unresolved_spec_claim_pair_creates_pending_item() -> None:
-    """`/spec-core` generates Conflict Review Items as `conflict_review_items.json`.
-    """
-
-    module = _module()
-    evaluate = _required_function(
-        module,
-        (
-            "evaluate_conflicts",
-        ),
-    )
-    judge = FakeConflictJudge("unresolved")
-    claims, pairs = _spec_claim_fixture()
-
-    result = _call(
-        evaluate,
-        _positional=(pairs, judge),
-        conflict_candidate_pairs=pairs,
-        spec_claims=claims,
-        sections=_sections(),
-        provider=judge,
-        judge=judge,
-        conflict_judge=judge,
-        config=_config(),
-        generated_at="2026-05-06T00:00:00Z",
-    )
-    items = _items(result)
-
-    assert judge.calls, "triaged SpecClaim pair must be sent to the injected fake judge"
-    assert len(items) == 1
-    assert items[0]["status"] == "pending"
-    assert items[0]["source_refs"]
-    assert items[0]["why_llm_cannot_decide"]
-
-
-def test_t_i04_resolvable_spec_claim_pair_is_warning_not_pending() -> None:
-    module = _module()
-    evaluate = _required_function(
-        module,
-        (
-            "evaluate_conflicts",
-        ),
-    )
-    judge = FakeConflictJudge("resolved")
-    claims, pairs = _spec_claim_fixture()
-
-    result = _call(
-        evaluate,
-        _positional=(pairs, judge),
-        conflict_candidate_pairs=pairs,
-        spec_claims=claims,
-        sections=_sections(),
-        provider=judge,
-        judge=judge,
-        conflict_judge=judge,
-        config=_config(),
-        generated_at="2026-05-06T00:00:00Z",
-    )
-
-    assert judge.calls, "triaged SpecClaim pair must still be judged"
-    assert _items(result) == []
-    diagnostics = _diagnostics(result)
-    assert diagnostics
-    assert any(
-        item.get("level") in {"warning", "info"} or item.get("kind") == "potential_conflict"
-        for item in diagnostics
-    )
-
-
 def test_t_u14_pending_item_required_schema_fields() -> None:
     module = _module()
     validate = _required_function(
@@ -442,7 +229,6 @@ def test_t_u14_pending_item_required_schema_fields() -> None:
         "status",
         "severity",
         "source_refs",
-        "claims",
         "why_conflicting",
         "why_llm_cannot_decide",
         "related_sections",
@@ -473,138 +259,6 @@ def test_conflict_review_item_rejects_unknown_fields() -> None:
 
     with pytest.raises(ValueError, match="unknown conflict review item field"):
         _call(validate, item=item, generated_at="2026-05-06T00:00:00Z")
-
-
-def test_t_u20_conflict_pair_selection_uses_triaged_spec_claim_pairs() -> None:
-    module = _module()
-    select_pairs = _required_function(
-        module,
-        (
-            "select_conflict_judging_pairs",
-        ),
-    )
-    claims, pairs = _spec_claim_fixture()
-    skipped_pair = _candidate_pair(claims[0], claims[1], send_to_review=False)
-    duplicate_pair = dict(pairs[0])
-
-    result = _call(
-        select_pairs,
-        _positional=([pairs[0], skipped_pair, duplicate_pair],),
-        conflict_candidate_pairs=[pairs[0], skipped_pair, duplicate_pair],
-        spec_claims=claims,
-    )
-    pairs = result.get("pairs", result.get("conflict_pairs", result)) if isinstance(result, dict) else result
-    assert isinstance(pairs, list), "conflict pair selection must return list-like pairs"
-
-    assert len(pairs) == 1
-    assert pairs[0]["left_claim_uid"] == claims[0]["claim_uid"]
-    assert pairs[0]["right_claim_uid"] == claims[1]["claim_uid"]
-    assert pairs[0]["source_section_id"] == "docs/spec/conflict.md#alpha"
-    assert pairs[0]["target_section_id"] == "docs/spec/conflict.md#beta"
-    assert [claim["claim_uid"] for claim in pairs[0]["claims"]] == [
-        claims[0]["claim_uid"],
-        claims[1]["claim_uid"],
-    ]
-
-
-def test_conflict_review_accepts_only_spec_claim_pair_input() -> None:
-    module = _module()
-    evaluate = _required_function(
-        module,
-        (
-            "evaluate_conflicts",
-        ),
-    )
-    judge = FakeConflictJudge("unresolved")
-    claims, pairs = _spec_claim_fixture()
-    previous_shape = {
-        "docs/spec/conflict.md#alpha": [
-            {
-                "source_section_id": "docs/spec/conflict.md#alpha",
-                "target_section_id": "docs/spec/conflict.md#beta",
-                "relation_hint": "depends_on",
-            }
-        ]
-    }
-
-    with pytest.raises(TypeError):
-        evaluate(related_sections=previous_shape, conflict_judge=judge)
-
-    result = _call(
-        evaluate,
-        conflict_candidate_pairs=pairs,
-        spec_claims=claims,
-        sections=_sections(),
-        conflict_judge=judge,
-        config=_config(),
-        generated_at="2026-05-06T00:00:00Z",
-    )
-    items = _items(result)
-
-    assert judge.calls, "triaged SpecClaim pair input must be judged"
-    assert len(items) == 1
-    assert items[0]["spec_claim_pair"]["triage"]["send_to_review"] is True
-
-
-def test_conflict_review_concurrency_uses_config_limits() -> None:
-    module = _module()
-    evaluate = _required_function(
-        module,
-        (
-            "evaluate_conflicts",
-        ),
-    )
-    active = 0
-    max_active = 0
-    lock = threading.Lock()
-
-    class TrackingJudge:
-        def judge_conflict(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-            nonlocal active, max_active
-            del request, timeout_sec
-            with lock:
-                active += 1
-                max_active = max(max_active, active)
-            time.sleep(0.01)
-            with lock:
-                active -= 1
-            return {"outcome": "not_a_conflict", "severity": "low"}
-
-    claims = [
-        _claim(
-            f"s{index}",
-            source_section_id=f"docs/spec/conflict.md#s{index}",
-            claim_text=f"FEATURE_X rule {index}.",
-        )
-        for index in range(5)
-    ]
-    pairs = [_candidate_pair(claims[0], claims[index]) for index in range(1, 5)]
-
-    _call(
-        evaluate,
-        conflict_candidate_pairs=pairs,
-        spec_claims=claims,
-        sections=[
-            _section(
-                f"docs/spec/conflict.md#s{index}",
-                text=f"FEATURE_X rule {index}.",
-                ordinal=index + 1,
-            )
-            for index in range(5)
-        ],
-        conflict_judge=TrackingJudge(),
-        config=_config(llm_batch_concurrency=1),
-    )
-
-    assert max_active == 1
-
-
-def test_conflict_review_concurrency_uses_mapping_config_limits() -> None:
-    module = _module()
-    get_concurrency = getattr(module, "_get_llm_batch_concurrency")
-
-    assert get_concurrency(config={"limits": {"llm_batch_concurrency": 2}}) == 2
-    assert get_concurrency(limits={"llm_batch_concurrency": 3}) == 3
 
 
 @dataclass
@@ -692,12 +346,10 @@ def test_build_section_pair_conflict_item_matches_schema_and_validates() -> None
     assert item["conflict_id"] == expected_id
     assert item["valid_scope"] == "section_pair"
     assert item["status"] == "pending"
-    # The section_pair builder never emits claim-era payloads. The shared
-    # validator still setdefaults the transitional claims/related_sections keys
-    # to empty during the additive migration (a later task removes them), so we
-    # assert they are empty rather than absent.
-    assert "spec_claim_pair" not in item
-    assert item.get("claims", []) == []
+    # The section_pair item only carries fields in the current schema; the
+    # claim-era fields are no longer allowed. related_sections is a general
+    # field the validator setdefaults to empty.
+    assert set(item).issubset(module.CONFLICT_REVIEW_ITEM_FIELDS)
     assert item.get("related_sections", []) == []
     section_pair = item["section_pair"]
     assert section_pair["section_pair_id"] == expected_id
@@ -785,7 +437,6 @@ def test_evaluate_section_pair_conflicts_resolved_is_non_pending_signal() -> Non
     assert _items(result) == []
     assert result.non_pending_conflict_signals
     signal = result.non_pending_conflict_signals[0]
-    assert "spec_claim_pair" not in signal
     assert signal["conflict_id"] == module.section_pair_id(
         "docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"
     )

@@ -71,12 +71,6 @@ class FakeSpecCoreProvider:
 
     def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
         self.calls.append(request)
-        if str(getattr(request, "stage", "")) == "conflict_candidate_triage":
-            return {
-                "send_to_review": False,
-                "reason": "Fixture default keeps the candidate out of review.",
-                "confidence": "low",
-            }
         section_hashes = getattr(request, "section_hashes", None)
         if (
             str(getattr(request, "stage", "")) == "section_metadata"
@@ -121,10 +115,6 @@ class FakeSpecCoreProvider:
             return {
                 "outcome": "needs_human_review",
                 "severity": "high",
-                "claims": [
-                    {"side": "a", "summary": "Alpha requires FEATURE_X."},
-                    {"side": "b", "summary": "Beta forbids FEATURE_X."},
-                ],
                 "why_conflicting": "FEATURE_X cannot be both required and forbidden.",
                 "why_llm_cannot_decide": "Purpose and Core Concept do not define priority.",
                 "recommended_next_action": "Ask a human to choose the applicable rule.",
@@ -906,20 +896,6 @@ class EvidenceGroundedConflictProvider(FakeSpecCoreProvider):
     def __init__(self) -> None:
         super().__init__("resolved")
         self.conflict_requests: list[Any] = []
-
-    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-        stage = str(getattr(request, "stage", ""))
-        if stage == "spec_claims":
-            self.calls.append(request)
-            return _shared_target_spec_claim_response_from_request(request)
-        if stage == "conflict_candidate_triage":
-            self.calls.append(request)
-            return {
-                "send_to_review": True,
-                "reason": "Fixture claims share a target and should be reviewed.",
-                "confidence": "medium",
-            }
-        return super().generate(request, timeout_sec=timeout_sec)
 
     def judge_conflict(self, pair: Any, **_: Any) -> dict[str, Any]:
         self.conflict_requests.append(pair)
@@ -1818,7 +1794,7 @@ def test_t_i04_conflicts_with_unresolved_surfaces_pending_without_blocking_fresh
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
 
     result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
     )
 
     assert result["conflict_review_items"]
@@ -1836,7 +1812,7 @@ def test_t_i04_non_pending_conflicts_with_becomes_potential_conflict_warning(
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
 
     result = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("resolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("resolved"))
     )
 
     assert result["pending_conflict_count"] == 0
@@ -1852,7 +1828,7 @@ def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
     )
     pending_count_before = pending["pending_conflict_count"]
     conflict_id = _conflict_item_touching_source(
@@ -1860,7 +1836,7 @@ def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
         "#0003-beta",
     )["conflict_id"]
 
-    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
+    class FixedConflictIdResolvedProvider(FakeSpecCoreProvider):
         def _conflict_payload(self) -> dict[str, Any]:
             payload = super()._conflict_payload()
             payload["conflict_id"] = conflict_id
@@ -1892,7 +1868,7 @@ def test_t_conflict_recheck_without_source_change_keeps_pending(
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
     )
     pending_count_before = pending["pending_conflict_count"]
     conflict_id = _conflict_item_touching_source(
@@ -1900,7 +1876,7 @@ def test_t_conflict_recheck_without_source_change_keeps_pending(
         "#0003-beta",
     )["conflict_id"]
 
-    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
+    class FixedConflictIdResolvedProvider(FakeSpecCoreProvider):
         def _conflict_payload(self) -> dict[str, Any]:
             payload = super()._conflict_payload()
             payload["conflict_id"] = conflict_id
@@ -1935,7 +1911,7 @@ def test_t_conflict_source_update_auto_dismisses_on_recheck(
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
     )
     conflict_id = _conflict_item_touching_source(
         pending["conflict_review_items"],
@@ -1946,7 +1922,7 @@ def test_t_conflict_source_update_auto_dismisses_on_recheck(
     # Resolved judge (conflict_outcome defaults to "resolved") -> the rechecked
     # pair yields a non-pending signal, so the existing pending item is dismissed.
     result = _result_dict(
-        _run_spec_core(project_root, provider=ConflictCandidateTriageProvider())
+        _run_spec_core(project_root, provider=FakeSpecCoreProvider())
     )
 
     item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
@@ -1965,7 +1941,7 @@ def test_t_conflict_detection_disabled_does_not_call_judge(
     pair の再読み込み」は構造的に存在しないが、disabled の契約は維持する:
     judge を呼ばず、既存 pending を pair absent で auto-dismiss しない。"""
 
-    class _CountingConflictJudgeProvider(ConflictCandidateTriageProvider):
+    class _CountingConflictJudgeProvider(FakeSpecCoreProvider):
         """conflict judge が実際に呼ばれた回数を数える。`_conflict_payload` は
         section_pair judge 分岐だけが呼ぶため、呼び出し回数 = judge 実行回数。"""
 
@@ -2023,7 +1999,7 @@ def test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_re
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
     )
     pending_item = _conflict_item_touching_source(
         pending["conflict_review_items"],
@@ -2043,7 +2019,7 @@ def test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_re
         )
     )
     result = _result_dict(
-        _run_spec_core(project_root, provider=NoReviewConflictCandidateTriageProvider())
+        _run_spec_core(project_root, provider=FakeSpecCoreProvider("resolved"))
     )
 
     item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
@@ -2061,7 +2037,7 @@ def test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref(
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
     pending = _result_dict(
-        _run_spec_core(project_root, all_mode=True, provider=ConflictCandidateTriageProvider("unresolved"))
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
     )
     pending_item = _conflict_item_touching_source(
         pending["conflict_review_items"],
@@ -2079,7 +2055,7 @@ def test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref(
         "Gamma defines CACHE_MODE as optional.\n"
     )
     result = _result_dict(
-        _run_spec_core(project_root, provider=NoReviewConflictCandidateTriageProvider())
+        _run_spec_core(project_root, provider=FakeSpecCoreProvider("resolved"))
     )
 
     item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
@@ -2104,7 +2080,7 @@ def test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api(
         watcher_core(
             project_root,
             all_mode=True,
-            provider=ConflictCandidateTriageProvider("unresolved"),
+            provider=FakeSpecCoreProvider("unresolved"),
             generated_at="2026-05-06T00:00:00Z",
         )
     )
@@ -2113,7 +2089,7 @@ def test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api(
         "#0003-beta",
     )["conflict_id"]
 
-    class FixedConflictIdResolvedProvider(ConflictCandidateTriageProvider):
+    class FixedConflictIdResolvedProvider(FakeSpecCoreProvider):
         def _conflict_payload(self) -> dict[str, Any]:
             payload = super()._conflict_payload()
             payload["conflict_id"] = conflict_id
@@ -2550,260 +2526,3 @@ def test_t_i17_watcher_internal_update_api_is_distinct_from_external_command() -
 
     assert internal is not external
     assert callable(internal)
-
-
-@dataclass
-class ConflictCandidateTriageProvider(FakeSpecCoreProvider):
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        self.triage_candidate_uids: list[str] = []
-
-    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-        stage = str(getattr(request, "stage", ""))
-        if stage == "spec_claims":
-            self.calls.append(request)
-            return _shared_target_spec_claim_response_from_request(request)
-        if stage == "conflict_candidate_triage":
-            self.calls.append(request)
-            self.triage_candidate_uids.append(
-                str(getattr(request, "candidate_uid", "") or "")
-            )
-            return {
-                "send_to_review": True,
-                "reason": "Fixture claims share a target and should be reviewed.",
-                "confidence": "medium",
-            }
-        return super().generate(request, timeout_sec=timeout_sec)
-
-
-class NoReviewConflictCandidateTriageProvider(ConflictCandidateTriageProvider):
-    def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
-        if str(getattr(request, "stage", "")) == "conflict_candidate_triage":
-            self.calls.append(request)
-            self.triage_candidate_uids.append(
-                str(getattr(request, "candidate_uid", "") or "")
-            )
-            return {
-                "send_to_review": False,
-                "reason": "Source update removed the conflict candidate from review.",
-                "confidence": "medium",
-            }
-        return super().generate(request, timeout_sec=timeout_sec)
-
-
-def _configure_claim_retrieval_qdrant(project_root: Path) -> None:
-    config_path = project_root / ".spec-anchor/config.toml"
-    config_path.write_text(
-        config_path.read_text().replace(
-            """\
-[embedding]
-provider = "fake"
-model = "fake-embedding"
-
-    [vector_store]
-    provider = "memory"
-    """,
-            """\
-[embedding]
-provider = "flagembedding"
-model = "BAAI/bge-m3"
-dense_enabled = true
-sparse_enabled = true
-
-[vector_store]
-provider = "qdrant"
-url = "http://fake-qdrant:6333"
-
-[retrieval]
-section_collection = "spec_anchor_section_test"
-claim_collection = "spec_anchor_claim_test"
-""",
-        )
-    )
-
-
-def _install_claim_retrieval_spies(
-    monkeypatch: pytest.MonkeyPatch,
-    core_module: Any,
-) -> dict[str, Any]:
-    spies: dict[str, Any] = {"claim_upserts": []}
-    _install_core_fake_qdrant(monkeypatch, _CoreFakeQdrantClient())
-
-    def fake_section_upsert(*_args: Any, **kwargs: Any) -> dict[str, Any]:
-        sections_to_upsert = list(kwargs.get("sections_to_upsert") or [])
-        sections_to_delete = list(kwargs.get("sections_to_delete") or [])
-        return {
-            "status": "success",
-            "diagnostics": {
-                "recreate": bool(kwargs.get("recreate")),
-                "sections_upserted_count": len(sections_to_upsert),
-                "sections_deleted_count": len(sections_to_delete),
-                "embed_documents_input_size": len(sections_to_upsert),
-                "stale_points_deleted": len(sections_to_delete),
-            },
-        }
-
-    def fake_related(*_args: Any, **kwargs: Any) -> dict[str, Any]:
-        return {
-            "related_section_candidates": [],
-            "related_sections": {},
-            "sections": [],
-            "diagnostics": [],
-            "generated_at": kwargs.get("generated_at"),
-        }
-
-    def fake_claim_upsert(claims: Any, **kwargs: Any) -> dict[str, Any]:
-        claims = list(claims)
-        recreate = bool(kwargs.get("recreate"))
-        claims_to_upsert = (
-            claims
-            if recreate or kwargs.get("claims_to_upsert") is None
-            else list(kwargs.get("claims_to_upsert") or [])
-        )
-        claims_to_delete = list(kwargs.get("claims_to_delete") or [])
-        spies["claim_upserts"].append(
-            {
-                "claims_to_upsert": [dict(claim) for claim in claims_to_upsert],
-                "claims_to_delete": [str(uid) for uid in claims_to_delete],
-                "recreate": recreate,
-            }
-        )
-        return {
-            "status": "success",
-            "claims_upserted_count": len(claims_to_upsert),
-            "claims_deleted_count": len(claims_to_delete),
-        }
-
-    class EmptyClaimRetriever:
-        def __init__(self, **_kwargs: Any) -> None:
-            pass
-
-        def dense_search(self, query: str, top_k: int) -> list[Any]:
-            return []
-
-        def sparse_search(self, query: str, top_k: int) -> list[Any]:
-            return []
-
-    monkeypatch.setattr(
-        core_module,
-        "_section_collection_exists",
-        lambda *_args, **_kwargs: True,
-    )
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "upsert_qdrant_section_collection",
-        fake_section_upsert,
-    )
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "update_section_collection_related_sections",
-        lambda *_args, **_kwargs: None,
-    )
-    monkeypatch.setattr(
-        core_module.related_sections_api,
-        "generate_related_sections_result",
-        fake_related,
-    )
-    monkeypatch.setattr(
-        core_module.related_sections_api,
-        "generate_related_sections_partial_result",
-        fake_related,
-    )
-    monkeypatch.setattr(
-        core_module.claim_retrieval_api,
-        "upsert_qdrant_claim_collection",
-        fake_claim_upsert,
-    )
-    monkeypatch.setattr(
-        core_module.claim_retrieval_api,
-        "QdrantClaimRetriever",
-        EmptyClaimRetriever,
-    )
-    return spies
-
-
-def _read_spec_claim_records(project_root: Path) -> list[dict[str, Any]]:
-    path = project_root / ".spec-anchor/context/spec_claims.jsonl"
-    return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-
-
-def _read_conflict_candidate_records(project_root: Path) -> list[dict[str, Any]]:
-    path = project_root / ".spec-anchor/context/conflict_candidate_pairs.jsonl"
-    return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-
-
-def _spec_claim_response_from_request(request: Any) -> dict[str, Any]:
-    payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
-    source_section = payload.get("source_section") if isinstance(payload, dict) else {}
-    text = str(source_section.get("text") if isinstance(source_section, dict) else "")
-    section_id = str(getattr(request, "section_id", "") or "")
-    evidence = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    if not evidence:
-        return {"claims": []}
-    start = text.index(evidence)
-    normalized = " ".join(evidence.strip().split())
-    digest = __import__("hashlib").sha256(normalized.encode("utf-8")).hexdigest()
-    evidence_hash = "sha256:" + digest
-    return {
-        "claims": [
-            {
-                "claim_text": f"{section_id} states {normalized}",
-                "target": section_id,
-                "target_aliases": [section_id.rsplit("#", 1)[-1]],
-                "claim_kind": "requirement",
-                "evidence_span": evidence,
-                "evidence_start": start,
-                "evidence_end": start + len(evidence),
-                "evidence_hash": evidence_hash,
-                "confidence": "high",
-                "retrieval": {
-                    "sparse_keys": [section_id, normalized],
-                    "embedding_text": normalized,
-                    "conflict_probes": [normalized],
-                },
-            }
-        ]
-    }
-
-
-def _shared_target_spec_claim_response_from_request(request: Any) -> dict[str, Any]:
-    payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
-    source_section = payload.get("source_section") if isinstance(payload, dict) else {}
-    text = str(source_section.get("text") if isinstance(source_section, dict) else "")
-    section_id = str(getattr(request, "section_id", "") or "")
-    evidence = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    if not evidence:
-        return {"claims": []}
-    start = text.index(evidence)
-    normalized = " ".join(evidence.strip().split())
-    digest = __import__("hashlib").sha256(normalized.encode("utf-8")).hexdigest()
-    evidence_hash = "sha256:" + digest
-    target = "shared-conflict-target"
-    return {
-        "claims": [
-            {
-                "claim_text": f"{section_id} states {normalized}",
-                "target": target,
-                "target_aliases": [target, section_id.rsplit("#", 1)[-1]],
-                "claim_kind": "requirement",
-                "evidence_span": evidence,
-                "evidence_start": start,
-                "evidence_end": start + len(evidence),
-                "evidence_hash": evidence_hash,
-                "confidence": "high",
-                "retrieval": {
-                    "sparse_keys": [target, normalized],
-                    "embedding_text": f"{target} {normalized}",
-                    "conflict_probes": [target, normalized],
-                },
-            }
-        ]
-    }

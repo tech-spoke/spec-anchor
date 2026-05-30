@@ -53,9 +53,6 @@ _PIPELINE_STAGE_NAMES = (
     "retrieval_index",
     "chapter_anchors",
     "chapter_key_anchor",
-    "claim_retrieval_status",
-    "conflict_candidate_triage_status",
-    "spec_claims_status",
 )
 
 # Normal-completion metric / count field names from CoreResult.

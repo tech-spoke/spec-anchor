@@ -234,7 +234,6 @@ def _pending_conflict(conflict_id: str = "conflict-1") -> dict[str, Any]:
                 "source_hash": "source-hash-a",
             }
         ],
-        "claims": [{"claim_text": "A", "source": "docs/spec/main.md#a"}],
         "why_conflicting": "two sections disagree",
         "why_llm_cannot_decide": "no safe priority",
         "recommended_next_action": "Ask a human to decide this conflict.",
@@ -522,7 +521,6 @@ def test_t_u04_pending_only_gate_continues_and_surfaces_items() -> None:
         "conflict-pending-only",
         "severity",
         "source_refs",
-        "claims",
         "why_conflicting",
         "why_llm_cannot_decide",
         "recommended_next_action",

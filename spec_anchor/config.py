@@ -84,8 +84,7 @@ class LlmProviderConfig:
 class LlmConfig:
     providers: dict[str, LlmProviderConfig]
     # Per-stage provider routing. Maps SPEC-anchor pipeline stages to provider
-    # names (keys of `providers`). `claim_retrieval` is accepted for forward
-    # compatibility but is not consumed because it does not call an LLM.
+    # names (keys of `providers`).
     stage_routing: dict[str, str] = field(default_factory=dict)
 
 
@@ -115,16 +114,12 @@ class RetrievalConfig:
 @dataclass(frozen=True)
 class ConflictCandidateDetectionConfig:
     enabled: bool = True
-    per_claim_top_k: int = 10
-    per_section_top_k: int = 20
-    per_target_top_k: int = 20
-    global_candidate_top_k: int = 100
-    triage_max_pairs: int = 30
+    small_section_all_pairs_threshold: int = 12
+    section_pair_top_k: int = 8
+    global_pair_cap: int = 80
     min_dense_score: float = 0.55
-    min_sparse_score: float = 0.0
-    rank_fusion: str = "rrf"
-    allow_same_section_claim_pair: bool = True
-    allow_same_source_file_claim_pair: bool = True
+    allow_same_source_file_pair: bool = True
+    allow_same_section_pair: bool = True
 
 
 @dataclass(frozen=True)
@@ -430,9 +425,6 @@ _STAGE_ROUTING_ALLOWED_STAGES = frozenset(
         "related_sections",
         "conflict_review",
         "chapter_key_anchor",
-        "spec_claims",
-        "claim_retrieval",
-        "conflict_candidate_triage",
     }
 )
 
@@ -522,38 +514,19 @@ def _load_conflict_candidate_detection(
     raw_value: Any,
 ) -> ConflictCandidateDetectionConfig:
     table = _optional_table(raw_value, "conflict_candidate_detection")
-    rank_fusion = (
-        _optional_str(table, "conflict_candidate_detection", "rank_fusion")
-        or STANDARD_RANK_FUSION
-    )
-    if rank_fusion != STANDARD_RANK_FUSION:
-        raise ConfigError("conflict_candidate_detection.rank_fusion must be rrf")
     return ConflictCandidateDetectionConfig(
         enabled=_bool(table, "conflict_candidate_detection", "enabled", True),
-        per_claim_top_k=_int(table, "conflict_candidate_detection", "per_claim_top_k", 10),
-        per_section_top_k=_int(table, "conflict_candidate_detection", "per_section_top_k", 20),
-        per_target_top_k=_int(table, "conflict_candidate_detection", "per_target_top_k", 20),
-        global_candidate_top_k=_int(
-            table,
-            "conflict_candidate_detection",
-            "global_candidate_top_k",
-            100,
+        small_section_all_pairs_threshold=_int(
+            table, "conflict_candidate_detection", "small_section_all_pairs_threshold", 12
         ),
-        triage_max_pairs=_int(table, "conflict_candidate_detection", "triage_max_pairs", 30),
+        section_pair_top_k=_int(table, "conflict_candidate_detection", "section_pair_top_k", 8),
+        global_pair_cap=_int(table, "conflict_candidate_detection", "global_pair_cap", 80),
         min_dense_score=_float(table, "conflict_candidate_detection", "min_dense_score", 0.55),
-        min_sparse_score=_float(table, "conflict_candidate_detection", "min_sparse_score", 0.0),
-        rank_fusion=rank_fusion,
-        allow_same_section_claim_pair=_bool(
-            table,
-            "conflict_candidate_detection",
-            "allow_same_section_claim_pair",
-            True,
+        allow_same_source_file_pair=_bool(
+            table, "conflict_candidate_detection", "allow_same_source_file_pair", True
         ),
-        allow_same_source_file_claim_pair=_bool(
-            table,
-            "conflict_candidate_detection",
-            "allow_same_source_file_claim_pair",
-            True,
+        allow_same_section_pair=_bool(
+            table, "conflict_candidate_detection", "allow_same_section_pair", True
         ),
     )
 

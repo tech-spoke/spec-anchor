@@ -251,7 +251,6 @@ def test_inject_purpose_does_not_auto_dismiss_pending_status(tmp_path: Path) -> 
                 "status": "pending",
                 "severity": "medium",
                 "source_refs": ["docs/spec/main.md#0001-overview"],
-                "claims": ["claim a", "claim b"],
                 "why_conflicting": "test fixture",
                 "why_llm_cannot_decide": "test fixture",
                 "recommended_next_action": "Ask a human to decide this conflict.",

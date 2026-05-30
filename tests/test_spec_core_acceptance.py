@@ -1013,7 +1013,6 @@ _CONFLICT_REVIEW_FIELDS = [
     (703, "status"),
     (704, "severity"),
     (705, "source_refs"),
-    (706, "claims"),
     (707, "why_conflicting"),
     (708, "why_llm_cannot_decide"),
     (709, "related_sections"),
