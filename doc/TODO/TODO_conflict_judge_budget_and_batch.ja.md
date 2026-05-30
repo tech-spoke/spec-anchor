@@ -80,7 +80,9 @@ Phase 4: self-pair 見直し (#3)
 
 小規模で候補数が cap 以下なら全件 judge され recall 同等。`exhaustive` は通常 default にせず、検証用 config (`conflict_candidate_mode = "exhaustive"` 等) として明示有効化する。
 
-> CR-B01 反映(rule 15 根絶・High): 「分岐廃止」を実装する場合、`small_section_all_pairs_threshold` を **コードだけでなく config.py(`ConflictCandidateDetectionConfig`)/ `doc/EXTERNAL_DESIGN.ja.md`(§4.1・config table・L261/L1119 付近)/ `doc/DESIGN.ja.md`(L926 付近)/ 初期 config template / test** から全て根絶する(grep 0)。コードだけ変えて設計書・設定 key が残るのは根絶漏れ。廃止せず残す判断なら、その理由を本 TODO に明記する。
+> CR-B01 反映(rule 15 根絶・High): 「分岐廃止」を実装する場合、`small_section_all_pairs_threshold` を **コードだけでなく config.py(`ConflictCandidateDetectionConfig`)/ `doc/EXTERNAL_DESIGN.ja.md`(§4.1・config table・L261/L1119 付近)/ `doc/DESIGN.ja.md`(L926 付近)/ 初期 config template / test** から全て根絶する。コードだけ変えて設計書・設定 key が残るのは根絶漏れ。廃止せず残す判断なら、その理由を本 TODO に明記する。
+
+> CR-B07 反映(grep 0 の scope・Medium): 根絶検証 `git grep small_section_all_pairs_threshold` の対象は **live code(`spec_anchor/`)+ active contract docs(`doc/EXTERNAL_DESIGN.ja.md` / `doc/DESIGN.ja.md` / `doc/EXTERNAL_SPEC_DRAFT.ja.md`)+ config template + tests(`tests/`)** に限定し、**`doc/TODO/**` と `archive/**` は除外**する(本 TODO 自身が同語を含むため、文字通りの全体 grep 0 は完了不能)。本 TODO は完了時に `doc/TODO/完了済みTODO/` へ git mv する(本体課題 CR-007 と同パターン)。
 
 > CR-B02 反映(既存 conflict の cap-exempt 再評価・High・最重要): budget-first の cap は **新規候補 pair にのみ適用**する。本体課題 CR-001(`TODO_conflict_detection_pipeline_simplify.ja.md` の absence reliable)で確定済みの通り、**既存 Conflict Review Item が参照する section_pair は cap/top_k 対象外で必ず再評価対象へ union する(cap 後)**。現コード `section_pair_candidates.py` の `existing_conflict_recheck`(cap-exempt union)を壊さない。cap 外に落ちただけで auto-dismiss しない。judge_targets = `capped_new_candidates ∪ existing_conflict_pairs_requiring_recheck(cap 免除)`。
 
@@ -101,6 +103,8 @@ Phase 4: self-pair 見直し (#3)
 - batch judge の出力契約(各 pair の outcome / conflict_points を pair 識別子付きで返す)を `llm_provider.py` の conflict_review schema/prompt に定義。
 - **parse failure / 出力欠落(後半 pair の見落とし)時は、該当 batch だけ per-pair fallback** に落とす(recall を守る)。
 - 既存の並列化(#6 commit feba231)と整合(batch 単位で ThreadPoolExecutor)。
+
+> CR-B06 反映(grounding 維持・High): batch 化で `llm_provider.py` を直呼びして `_EvidenceGroundedConflictJudge`(`core.py` 付近、Purpose/Core Concept を judge 入力へ注入)を迂回すると、本体課題 CR-004 で確定した grounding が外れ過剰検出になる。**batch call も per-pair fallback も既存の `_EvidenceGroundedConflictJudge` wrapper を必ず通し、Purpose / Core Concept grounding を維持する**。batch では複数 pair を 1 prompt にまとめても、各 pair の section A/B + 共通 grounding(Purpose/Core Concept)を含める。grounding を外す実装は不採用。
 
 #### 残作業 / 人間判断点
 
@@ -147,6 +151,8 @@ self-pair は今回 21 calls 中 6 件(~29%)を占めるが価値が低い。`al
 | CR-B03 | High | #3 | self-pair lightweight 化が「同一 section 内矛盾を含める」確定(本体 CR-002)と未整合。検出範囲・recall 維持条件が未定義 | 採用 | #3 に CR-B03: 生成は維持、judge 投入のみ見直し。検出範囲と recall 維持条件を実装前に定義。 |
 | CR-B04 | Medium | #1 | `max_judge_pairs` / `conflict_candidate_mode="exhaustive"` が既存 `global_pair_cap` との関係未定義(rule 6/16) | 採用 | #1 に CR-B04: `global_pair_cap` 流用(意味拡張)を有力、`exhaustive` は新 key として含む/含まない/既定を定義。 |
 | CR-B05 | Medium | #4 | diagnostics field の意味が曖昧、既存 `generated_count`/`truncated_count`/`recheck_count` と命名不整合 | 採用 | #4 に CR-B05: 各 field の意味を定義、既存と重複は流用、新設のみ追加。 |
+| CR-B06 | High | #2 | batch judge に Purpose/Core Concept grounding 維持が未記載。llm_provider 直呼びで wrapper 迂回すると過剰検出(本体 CR-004) | 採用 | #2 に CR-B06: batch / fallback とも `_EvidenceGroundedConflictJudge` を通し grounding 維持。外す実装は不採用。 |
+| CR-B07 | Medium | #1 | `small_section_all_pairs_threshold` の grep 0 が本 TODO 自身に hit し完了不能 | 採用 | #1 に CR-B07: grep 0 対象を live code + active contract docs + template + tests に限定、`doc/TODO/**`・`archive/**` 除外。完了時に本 TODO を 完了済みTODO へ移す。 |
 
 ## 依存 / scope 外
 
