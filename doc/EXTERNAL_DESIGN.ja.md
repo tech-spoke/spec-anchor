@@ -720,7 +720,7 @@ CoreResult
   [ ] related_sections_status
   [ ] potential_conflicts
   [ ] spec_claims_status
-  [ ] conflict_candidate_pairs_status
+  [ ] conflict_candidate_triage_status
   [ ] conflict_review_items
   [ ] pending_conflict_count
   [ ] auto_dismissed_conflict_count
@@ -759,7 +759,7 @@ CoreResult
 - [ ] LLM 生成に失敗した chapter があった場合、`/spec-core` は chapter_anchors artifact 全体を failed として扱い、canonical `chapter_anchors.json` は更新せず前回値を残し、freshness を failed に降格する (失敗した chapter 一覧は CoreResult の diagnostics で確認可能、`/spec-core --all` で再試行)。
 
 - [ ] `potential_conflicts` は SpecClaim pair の LLM triage で `send_to_review = true` と判定された候補のうち、Conflict Review で「矛盾ではない」または「優先関係が明確」と判断できた pair を warning として保持する。
-- [ ] `conflict_candidate_pairs_status` は Conflict Candidate Detection (Claim Retrieval + LLM triage) の最終状態を示す。`success` / `partial_success` / `skipped_unchanged` / `failed` / `blocked` のいずれかの値を取る。
+- [ ] `conflict_candidate_triage_status` は Conflict Candidate Detection (Claim Retrieval + LLM triage) の最終状態を示す。`success` / `partial_success` / `skipped_unchanged` / `failed` / `blocked` のいずれかの値を取る。
 - [ ] `spec_claims_status` は SpecClaim 抽出 stage の最終状態を示す。`success` / `partial_success` / `skipped_unchanged` / `failed` / `blocked` のいずれかの値を取る。SpecClaim 抽出に失敗した section が 1 件以上ある場合、status は `partial_success` または `failed` になり、Conflict Candidate Detection の recall は完全ではないとして diagnostics に記録される。
 - [ ] LLM が既存根拠だけでは解決できない場合、`conflict_review_items` に `status = "pending"` の項目が作成される。pending な矛盾は freshness の停止理由にはならず (`blocking_reasons` に矛盾起因の理由は積まれない)、`/spec-core` は矛盾件数を `pending_conflict_count`、矛盾本文を `conflict_review_items` として返す。
 
