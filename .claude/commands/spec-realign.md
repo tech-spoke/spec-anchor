@@ -18,14 +18,14 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 2. answer candidate が会話または argument にある場合、4 区分 JSON の暫定形を作り、project root で gate probe として `spec-anchor realign --answer-json '<json-object>'` を実行する。`.spec-anchor/config.toml` の有無を事前確認しない。CLI が `should_stop=true`、`status="blocked"`、`status="failed"`、または `status="error"` を返した場合、その JSON を読んで利用者に伝達し、ここで即停止する。停止後に `spec-anchor inject-*`、Source Specs の Read、answer 整形へ進まない。CLI が `should_stop=false` を返した場合、この最初の戻り値だけで完了扱いにせず、以降の Agentic Search と最終 realign へ進む。
 3. answer candidate が会話にも argument にも無い場合、project root で `spec-anchor realign` を実行して CLI の `stop_reason="needs_agent_answer"` / `recommended_next_action` を確認する。`.spec-anchor/config.toml` 不在や freshness blocker など `should_stop=true` の場合は、その JSON を利用者に伝達して停止する。
 4. task と会話区間から search keys を生成する。
-5. `/spec-inject` と同じ 4 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose、path ④ inject-conflicts)。各 path の手順は `/spec-inject` template を参照。各 `spec-anchor inject-*` コマンドは freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示を返す。`should_stop=true` または `status="error"` を返した時点で他 path へ進まず停止する。`inject-search` は positional query を使い、存在しない `--keys` option を使わない。
+5. `/spec-inject` と同じ 3 path の Agentic Search を行う (path ① inject-search + inject-section、path ② inject-chapters、path ③ inject-purpose)。各 path の手順は `/spec-inject` template を参照。各 `spec-anchor inject-*` コマンドは freshness blocked / failed / watcher 実行中のとき自動的に停止指示を返す。`should_stop=true` または `status="error"` を返した時点で他 path へ進まず停止する。pending conflict は CLI の停止理由ではなく情報として返るので、pending のみのときは停止せず提示へ進む。`inject-search` は positional query を使い、存在しない `--keys` option を使わない。
 
-   **4 path は探索の起点であり上限ではない**。Agent は 4 path 通過後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索 (別 search key の生成、別 path への切り替え、上位章 hop、関連 Conflict Review Item 再確認) を能動的に行う。探索の十分性は Agent が判断し、制約に必要な根拠が揃うまで継続する。ただし `evidence_origin` 縛りと「CLI 道具経由でしか Source Specs に到達しない」制約は維持する (ドリフト防止)。詳細は `/spec-inject` template の「path 選択の指針」と外部設計書 §8.3 を参照。
+   **3 path は探索の起点であり上限ではない**。Agent は 3 path 通過後でも、課題への根拠が不十分と判断した場合、自らの気づきに基づく追加探索 (別 search key の生成、別 path への切り替え、上位章 hop) を能動的に行う。探索の十分性は Agent が判断し、制約に必要な根拠が揃うまで継続する。ただし `evidence_origin` 縛りと「CLI 道具経由でしか Source Specs に到達しない」制約は維持する (ドリフト防止)。詳細は `/spec-inject` template の「path 選択の指針」と外部設計書 §8.3 を参照。
 6. constraints JSON array を作る。各 constraint は `statement`, `evidence_origin`, `evidence_ref`, `support_refs`, `applicability`, `uncertainty` を持つ。
 7. constraints の構造を自己点検する (spec-inject template §5 と同じ手順)。CLI は構造検証を行わないため、Agent 自身が確認する。
 8. constraints に従う answer candidate を作る。answer が constraint と衝突する場合、隠さず human review として明示する。
 9. answer candidate は次の 4 区分を区別する: `今回守る制約`, `今回扱う修正候補または検討対象`, `競合 / 不確実性 / 人間レビューが必要な点`, `課題プロンプトへの回答または修正案`。constraints は `今回守る制約` セクションに直接書く。
-10. CLI で答案を整形する: `spec-anchor realign --answer-json '<json-object>'`。CLI は freshness gate を通したうえで answer を 4 区分の RealignResult に整形して返す。`/spec-realign` も freshness blocked / failed / watcher 実行中 / pending conflict のとき自動的に停止指示を返す。CLI は constraints の真偽は検証しない (Agent の責務)。
+10. CLI で答案を整形する: `spec-anchor realign --answer-json '<json-object>'`。CLI は freshness gate を通したうえで answer を 4 区分の RealignResult に整形して返す。`/spec-realign` も freshness blocked / failed / watcher 実行中のとき自動的に停止指示を返す。pending conflict は CLI の停止理由ではない (CLI は答案抑止のゲートを持たない)。**課題に関連する pending conflict があるときは、このテンプレの指示として答案を生成せず、答案つきの `spec-anchor realign` を呼ばない**。提示で停止する。CLI は constraints の真偽は検証しない (Agent の責務)。
 11. CLI の戻り値は **stdout に出る内部 JSON** (RealignResult) であり、CLI 自身は人間向け整形を持たない (外部設計書 §8.5)。Agent は JSON 内の `answer.今回守る制約` / `今回扱う修正候補または検討対象` / `競合 / 不確実性 / 人間レビューが必要な点` / `課題プロンプトへの回答または修正案` の 4 セクションを読み、ユーザー宛の会話に対して 4 区分の見出し付きで整形して出す。`今回守る制約` セクション内の各制約は `/spec-inject` と同じ label 翻訳を適用する (内部 field 名 `evidence_origin` / `support_refs` / `applicability` を「根拠の種類」/「参照補助」/「適用範囲」へ置換する)。CLI の JSON を生のまま会話に貼らない。ユーザーが意図して raw JSON を求めた場合のみ JSON を出す。
 
 ### constraints JSON の作り方
@@ -51,17 +51,29 @@ allowed-tools: Read, Grep, Glob, Bash(spec-anchor inject*), Bash(spec-anchor rea
 ]
 ```
 
-良い例: `evidence_ref` は実在する Purpose / Core Concept / Source Specs の path + section id、または stale でない resolved Conflict Review Item id を指す。`statement` は evidence から直接言える内容だけにする。迷いがある場合は `uncertainty` に短く書き、断定しない。
+良い例: `evidence_ref` は実在する Purpose / Core Concept / Source Specs の path + section id を指す。`statement` は evidence から直接言える内容だけにする。迷いがある場合は `uncertainty` に短く書き、断定しない。
 
 禁止例: `evidence_origin` に Section Summary / Related Sections / Chapter Key Anchor を入れない。`evidence_ref` を「たぶん関連」「上の要約」など曖昧にしない。`support_refs` だけを根拠にした constraint を作らない。CLI validation failed の場合、field を削って通そうとせず、引用元 snippet を読み直して constraints JSON を再生成する。
 
 ## 根拠ルール
 
-`evidence_origin` は Purpose、Core Concept、Source Specs、Conflict Review Item のいずれかでなければならない。Conflict Review Item は resolved かつ stale でない場合だけ final evidence にできる。
+`evidence_origin` は Purpose、Core Concept、Source Specs のいずれかでなければならない。
 
 Section Summary、Section Search Keys、Related Sections、Chapter Key Anchor は navigation / support 専用である。`support_refs` には入れられるが、constraint の sole evidence にはしない。
 
 Purpose と Core Concept は人間が維持する read-only input である。両ファイルは変更しない。`.spec-anchor/config.toml` の `[llm]` provider は使わない。`/spec-realign` はこの command を実行している Agent / LLM が担当する。
+
+## 矛盾 (Conflict Review Item) の扱い
+
+`/spec-realign` の矛盾時挙動は `/spec-inject` と同じで、矛盾は pending (提示対象) / dismissed (却下済み・抑制中) の 2 状態しかない。
+
+- 課題に関連する pending conflict があれば、制約情報と併せて提示して**停止する**
+- 矛盾ありのときは回答 (答案・修正案) を生成しない。答案つきの `spec-anchor realign` を呼ばない (CLI は答案抑止のゲートを持たないため、停止はこのテンプレ指示で保証する)
+- 矛盾なしのときだけ回答まで進む
+- 課題と無関係な pending は関連性で絞ってよい
+- dismissed の矛盾は提示されない。却下根拠のセクションが変わると `/spec-core` 再生成で却下が自動失効し、矛盾は再び pending に戻る
+
+人間が明示的に「これは矛盾ではない」と却下したときだけ、却下を永続化する。却下フロー (実行前確認 → `spec-anchor core --dismiss-conflict <conflict_id> --reason "<理由>"` 実行 → 証跡表示) は `/spec-inject` template の「却下フロー」と同じ。Agent が矛盾を勝手に却下・解決しない。
 
 ## 停止時のユーザー向け出力フォーマット
 
