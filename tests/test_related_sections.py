@@ -781,7 +781,13 @@ def test_qdrant_section_hybrid_uses_retrieval_section_collection(
     captured: dict[str, str] = {}
 
     class _Retriever:
-        def __init__(self, *, url: str, collection: str) -> None:
+        def __init__(
+            self,
+            *,
+            url: str,
+            collection: str,
+            embedding_provider: Any = None,
+        ) -> None:
             captured["url"] = url
             captured["collection"] = collection
 
@@ -894,7 +900,13 @@ def test_aud007_qdrant_backend_initialization_failure_returns_failure_descriptor
     metadata = _metadata_for(sections)
 
     class _BrokenRetriever:
-        def __init__(self, *, url: str, collection: str) -> None:
+        def __init__(
+            self,
+            *,
+            url: str,
+            collection: str,
+            embedding_provider: Any = None,
+        ) -> None:
             raise RuntimeError("simulated qdrant connection refused")
 
     monkeypatch.setattr(retrieval_module, "QdrantHybridRetriever", _BrokenRetriever)
@@ -950,7 +962,13 @@ def test_aud007_qdrant_normal_no_fallback_diagnostic(
     metadata = _metadata_for(sections)
 
     class _Retriever:
-        def __init__(self, *, url: str, collection: str) -> None:
+        def __init__(
+            self,
+            *,
+            url: str,
+            collection: str,
+            embedding_provider: Any = None,
+        ) -> None:
             self.url = url
             self.collection = collection
 

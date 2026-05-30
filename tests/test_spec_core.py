@@ -660,6 +660,31 @@ class _CoreFakeEmbeddingProvider:
         return module.BgeM3Embedding(dense=[1.0], sparse=module.SparseVector())
 
 
+def _patch_core_fake_flagembedding(
+    monkeypatch: pytest.MonkeyPatch,
+    core_module: Any,
+    fake_embedding: _CoreFakeEmbeddingProvider | None = None,
+) -> tuple[_CoreFakeEmbeddingProvider, list[dict[str, Any]]]:
+    fake_embedding = fake_embedding or _CoreFakeEmbeddingProvider()
+    constructor_calls: list[dict[str, Any]] = []
+
+    def fake_flagembedding_provider(**kwargs: Any) -> _CoreFakeEmbeddingProvider:
+        constructor_calls.append(dict(kwargs))
+        return fake_embedding
+
+    monkeypatch.setattr(
+        core_module,
+        "FlagEmbeddingBgeM3Provider",
+        fake_flagembedding_provider,
+    )
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "FlagEmbeddingBgeM3Provider",
+        fake_flagembedding_provider,
+    )
+    return fake_embedding, constructor_calls
+
+
 def _install_core_fake_qdrant(
     monkeypatch: pytest.MonkeyPatch,
     client: _CoreFakeQdrantClient,
@@ -1151,6 +1176,8 @@ section_final_top_n = 8
 """
     )
     core_module = _core_module()
+    _patch_core_fake_flagembedding(monkeypatch, core_module)
+    _install_core_fake_qdrant(monkeypatch, _CoreFakeQdrantClient())
     collection_state = {"exists": True}
     monkeypatch.setattr(
         core_module,
@@ -1210,6 +1237,140 @@ section_final_top_n = 8
     assert progress["stages"]["related_sections"]["action"] == "skipped_unchanged"
 
 
+def test_core_threads_one_shared_bge_m3_provider_to_retrieval_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "project"
+    _write_real_provider_project(
+        project_root,
+        collection="shared_provider_collection",
+        qdrant_url="http://fake-qdrant:6333",
+    )
+    config_path = project_root / ".spec-anchor/config.toml"
+    config_path.write_text(
+        config_path.read_text()
+        + """\
+
+[retrieval]
+section_candidate_top_k = 2
+section_final_top_n = 1
+
+[conflict_candidate_detection]
+small_section_all_pairs_threshold = 1
+section_pair_top_k = 2
+global_pair_cap = 20
+min_dense_score = 0.0
+"""
+    )
+    (project_root / "docs/spec/main.md").write_text(
+        "# Main\n\n"
+        "## Alpha\n"
+        "Alpha defines account access behavior.\n\n"
+        "## Beta\n"
+        "Beta defines billing behavior.\n\n"
+        "## Gamma\n"
+        "Gamma defines retention behavior.\n"
+    )
+
+    core_module = _core_module()
+    fake_embedding, constructor_calls = _patch_core_fake_flagembedding(
+        monkeypatch,
+        core_module,
+    )
+    _install_core_fake_qdrant(monkeypatch, _CoreFakeQdrantClient())
+    retrieval_module = importlib.import_module("spec_anchor.retrieval_index")
+    section_pair_module = importlib.import_module("spec_anchor.section_pair_candidates")
+
+    upsert_providers: list[Any] = []
+    retriever_providers: list[Any] = []
+    known_section_ids: list[str] = []
+
+    def fake_upsert(
+        sections: list[dict[str, Any]],
+        *_args: Any,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        known_section_ids[:] = [
+            str(section.get("source_section_id") or section.get("section_id") or "")
+            for section in sections
+        ]
+        upsert_providers.append(kwargs.get("embedding_provider"))
+        return {
+            "status": "success",
+            "diagnostics": {
+                "recreate": bool(kwargs.get("recreate")),
+                "sections_upserted_count": len(sections),
+                "sections_deleted_count": 0,
+                "embed_documents_input_size": len(sections),
+                "stale_points_deleted": 0,
+            },
+        }
+
+    class _Hit:
+        score = 1.0
+        dense_score = 1.0
+
+        def __init__(self, source_section_id: str) -> None:
+            self._source_section_id = source_section_id
+
+        @property
+        def source_section_id(self) -> str:
+            return self._source_section_id
+
+    class _CapturingQdrantRetriever:
+        def __init__(
+            self,
+            *,
+            url: str,
+            collection: str,
+            embedding_provider: Any = None,
+        ) -> None:
+            retriever_providers.append(embedding_provider)
+
+        def search(self, *_args: Any, **_kwargs: Any) -> types.SimpleNamespace:
+            return types.SimpleNamespace(
+                hits=[_Hit(section_id) for section_id in known_section_ids[:4]]
+            )
+
+    monkeypatch.setattr(
+        core_module.retrieval_index_api,
+        "upsert_qdrant_section_collection",
+        fake_upsert,
+    )
+    monkeypatch.setattr(
+        retrieval_module,
+        "QdrantHybridRetriever",
+        _CapturingQdrantRetriever,
+    )
+    monkeypatch.setattr(
+        section_pair_module,
+        "QdrantHybridRetriever",
+        _CapturingQdrantRetriever,
+    )
+
+    result = _result_dict(
+        _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
+    )
+
+    assert result["retrieval_index_status"] == "success"
+    assert len(constructor_calls) == 1
+    assert constructor_calls[0]["model"] == "BAAI/bge-m3"
+    assert constructor_calls[0]["dense_enabled"] is True
+    assert constructor_calls[0]["sparse_enabled"] is True
+    assert constructor_calls[0]["allow_real_provider"] is True
+    assert constructor_calls[0]["use_fp16"] is False
+    assert upsert_providers == [fake_embedding]
+    assert len(retriever_providers) >= 2
+    assert all(provider is fake_embedding for provider in retriever_providers)
+    assert core_module._build_shared_embedding_provider_for_core(
+        {
+            "embedding": {"provider": "fake"},
+            "vector_store": {"provider": "memory"},
+        }
+    ) is None
+
+
 def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1223,6 +1384,8 @@ def test_b3b_core_passes_partial_diff_sets_and_records_stage_diagnostics(
         qdrant_url="http://localhost:6333",
     )
     core_module = _core_module()
+    _patch_core_fake_flagembedding(monkeypatch, core_module)
+    _install_core_fake_qdrant(monkeypatch, _CoreFakeQdrantClient())
     monkeypatch.setattr(
         core_module,
         "_section_collection_exists",
@@ -1317,11 +1480,7 @@ def test_cdx006_related_sections_fingerprint_timing_keeps_partial_upsert(
     fake_qdrant = _CoreFakeQdrantClient()
     fake_embedding = _CoreFakeEmbeddingProvider()
     _install_core_fake_qdrant(monkeypatch, fake_qdrant)
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "FlagEmbeddingBgeM3Provider",
-        lambda **_kwargs: fake_embedding,
-    )
+    _patch_core_fake_flagembedding(monkeypatch, core_module, fake_embedding)
 
     _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
     assert any(
@@ -1362,11 +1521,7 @@ def test_b7_related_sections_partial_regenerate_source_centric(
     fake_qdrant = _CoreFakeQdrantClient()
     fake_embedding = _CoreFakeEmbeddingProvider()
     _install_core_fake_qdrant(monkeypatch, fake_qdrant)
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "FlagEmbeddingBgeM3Provider",
-        lambda **_kwargs: fake_embedding,
-    )
+    _patch_core_fake_flagembedding(monkeypatch, core_module, fake_embedding)
 
     first = _result_dict(
         _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
@@ -1457,11 +1612,7 @@ def test_b7a_related_sections_candidate_generation_source_partial(
     fake_qdrant = _CoreFakeQdrantClient()
     fake_embedding = _CoreFakeEmbeddingProvider()
     _install_core_fake_qdrant(monkeypatch, fake_qdrant)
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "FlagEmbeddingBgeM3Provider",
-        lambda **_kwargs: fake_embedding,
-    )
+    _patch_core_fake_flagembedding(monkeypatch, core_module, fake_embedding)
 
     first = _result_dict(
         _run_spec_core(project_root, provider=RelatedSectionsSpecCoreProvider())
@@ -1610,11 +1761,7 @@ section_final_top_n = 8
     fake_qdrant = _CoreFakeQdrantClient()
     fake_embedding = _CoreFakeEmbeddingProvider()
     _install_core_fake_qdrant(monkeypatch, fake_qdrant)
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "FlagEmbeddingBgeM3Provider",
-        lambda **_kwargs: fake_embedding,
-    )
+    _patch_core_fake_flagembedding(monkeypatch, core_module, fake_embedding)
 
     _run_spec_core(project_root, provider=FakeSpecCoreProvider())
     spec_path.write_text(
@@ -1650,6 +1797,8 @@ def test_aud002_retrieval_index_failure_marks_freshness_failed(
         qdrant_url="http://localhost:6333",
     )
     core_module = _core_module()
+    _patch_core_fake_flagembedding(monkeypatch, core_module)
+    _install_core_fake_qdrant(monkeypatch, _CoreFakeQdrantClient())
     monkeypatch.setattr(
         core_module,
         "_section_collection_exists",
@@ -1712,17 +1861,19 @@ def test_aud007_qdrant_backend_failure_marks_related_sections_failed(
     fake_qdrant = _CoreFakeQdrantClient()
     fake_embedding = _CoreFakeEmbeddingProvider()
     _install_core_fake_qdrant(monkeypatch, fake_qdrant)
-    monkeypatch.setattr(
-        core_module.retrieval_index_api,
-        "FlagEmbeddingBgeM3Provider",
-        lambda **_kwargs: fake_embedding,
-    )
+    _patch_core_fake_flagembedding(monkeypatch, core_module, fake_embedding)
 
     retrieval_module = importlib.import_module("spec_anchor.retrieval_index")
     related_module = importlib.import_module("spec_anchor.related_sections")
 
     class _BrokenQdrantRetriever:
-        def __init__(self, *, url: str, collection: str) -> None:
+        def __init__(
+            self,
+            *,
+            url: str,
+            collection: str,
+            embedding_provider: Any = None,
+        ) -> None:
             raise RuntimeError("simulated qdrant connection refused for AUD-007")
 
     monkeypatch.setattr(

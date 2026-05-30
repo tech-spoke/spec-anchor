@@ -26,6 +26,7 @@ from typing import Any
 
 from spec_anchor.conflict_review import section_pair_id
 from spec_anchor.retrieval_index import (
+    BgeM3EmbeddingProvider,
     InMemoryHybridRetriever,
     QdrantHybridRetriever,
     build_section_payloads,
@@ -152,6 +153,7 @@ def _build_retriever(
     sections: Sequence[Mapping[str, Any]],
     section_metadata: Mapping[str, Mapping[str, Any]] | None,
     config: Any,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> Any:
     """Build the hybrid retriever, reusing retrieval_index primitives only.
 
@@ -169,7 +171,11 @@ def _build_retriever(
             _config_get(config, ("retrieval", "section_collection"), "spec_anchor_section")
             or "spec_anchor_section"
         )
-        return QdrantHybridRetriever(url=url, collection=collection)
+        return QdrantHybridRetriever(
+            url=url,
+            collection=collection,
+            embedding_provider=embedding_provider,
+        )
     return InMemoryHybridRetriever(payloads)
 
 
@@ -208,6 +214,7 @@ def generate_section_pair_candidates(
     current_source_hashes: dict[str, str] | None = None,
     config: Any = None,
     section_metadata: dict[str, Any] | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> SectionPairCandidateResult:
     """Generate deduped section_pair candidates for the conflict judge.
 
@@ -300,7 +307,12 @@ def generate_section_pair_candidates(
             _record(capped_pairs, a_id, b_id, "all_pairs")
     else:
         # Algorithm step 4: retrieval_cap.
-        retriever = _build_retriever(sections, section_metadata, config)
+        retriever = _build_retriever(
+            sections,
+            section_metadata,
+            config,
+            embedding_provider=embedding_provider,
+        )
         per_source_pairs: dict[str, dict[str, Any]] = {}
         for source_id in section_ids:
             source_section = section_by_id[source_id]

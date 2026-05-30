@@ -36,6 +36,7 @@ from spec_anchor.related_typing_cache import (
     RelatedTypingCache,
     make_related_typing_cache_key,
 )
+from spec_anchor.retrieval_index import BgeM3EmbeddingProvider
 from spec_anchor.section_metadata import extract_identifiers
 
 
@@ -320,6 +321,7 @@ def generate_related_section_candidates_result(
     limits: Any | None = None,
     source_section_ids: Sequence[str] | None = None,
     generated_at: str | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> RelatedSectionCandidateGeneration:
     """Build high-recall Related Section candidates from deterministic channels."""
 
@@ -438,6 +440,7 @@ def generate_related_section_candidates_result(
         qdrant_url=qdrant_url,
         qdrant_collection=section_collection,
         embedding_provider_id=embedding_provider_id,
+        embedding_provider=embedding_provider,
     )
 
     all_candidates = [builder.to_candidate() for builder in builders.values()]
@@ -532,6 +535,7 @@ def select_related_sections_result(
     prompt_version: str = RELATED_SECTIONS_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
     cache_dir: Any | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> RelatedSectionSelection:
     """Run LLM selection over CLI-generated candidates only."""
 
@@ -569,6 +573,7 @@ def select_related_sections_result(
             limits=limits_config,
             source_section_ids=requested_source_input,
             generated_at=generated_at,
+            embedding_provider=embedding_provider,
         )
     candidate_items = _coerce_candidate_items(candidate_input)
     candidates_by_source = _candidates_by_source(candidate_items, records_by_id)
@@ -1121,6 +1126,7 @@ def generate_related_sections_result(
     prompt_version: str = RELATED_SECTIONS_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
     cache_dir: Any | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> RelatedSectionsGeneration:
     """Generate candidates, run selection, and return a Related Sections artifact."""
 
@@ -1132,6 +1138,7 @@ def generate_related_sections_result(
         project_config=project_config,
         limits=limits,
         generated_at=generated_at,
+        embedding_provider=embedding_provider,
     )
     selection = select_related_sections_result(
         sections,
@@ -1147,6 +1154,7 @@ def generate_related_sections_result(
         prompt_version=prompt_version,
         metadata_version=metadata_version,
         cache_dir=cache_dir,
+        embedding_provider=embedding_provider,
     )
     diagnostics = candidate_generation.diagnostics + selection.diagnostics
     qdrant_backend_failure = candidate_generation.qdrant_backend_failure
@@ -1207,6 +1215,7 @@ def generate_related_sections_partial_result(
     prompt_version: str = RELATED_SECTIONS_PROMPT_VERSION,
     metadata_version: int = DEFAULT_METADATA_VERSION,
     cache_dir: Any | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> RelatedSectionsGeneration:
     """Regenerate Related Sections for changed/added sources and inherit the rest."""
 
@@ -1235,6 +1244,7 @@ def generate_related_sections_partial_result(
         limits=limits,
         source_section_ids=changed_sources_in_order,
         generated_at=generated_at,
+        embedding_provider=embedding_provider,
     )
     filtered_candidates = [
         dict(candidate)
@@ -1258,6 +1268,7 @@ def generate_related_sections_partial_result(
         prompt_version=prompt_version,
         metadata_version=metadata_version,
         cache_dir=cache_dir,
+        embedding_provider=embedding_provider,
     )
 
     previous_by_source = _coerce_related_sections_by_source(previous_related_sections)
@@ -1620,6 +1631,7 @@ def _add_qdrant_section_hybrid_candidates(
     qdrant_url: str = "",
     qdrant_collection: str = "spec_anchor_section",
     embedding_provider_id: str = "",
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> dict[str, Any] | None:
     """Add candidates from section-level dense+sparse hybrid retrieval (Qdrant).
 
@@ -1674,6 +1686,7 @@ def _add_qdrant_section_hybrid_candidates(
             retriever = QdrantHybridRetriever(
                 url=qdrant_url,
                 collection=qdrant_collection,
+                embedding_provider=embedding_provider,
             )
         except Exception as exc:
             # AUD-007: Qdrant が設定済みなのに retriever 初期化に失敗した場合は

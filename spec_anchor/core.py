@@ -38,6 +38,7 @@ from spec_anchor.core_lock import (
 )
 from spec_anchor.core_progress import CoreProgressTracker
 from spec_anchor.freshness import build_freshness_report
+from spec_anchor.retrieval_index import BgeM3EmbeddingProvider, FlagEmbeddingBgeM3Provider
 
 
 RETRIEVAL_INDEX_STATE_SCHEMA_VERSION = 1
@@ -213,6 +214,7 @@ def _run_spec_core_unlocked(
     root = Path(project_root)
     generated_at = generated_at or _nowish()
     config = dict(config) if config is not None else _load_project_config(root)
+    shared_embedding_provider = _build_shared_embedding_provider_for_core(config)
     run_full_for_progress = bool(all or all_mode or full or force or mode == "full")
     progress_mode = "full" if run_full_for_progress else "incremental"
     progress_tracker = (
@@ -439,6 +441,7 @@ def _run_spec_core_unlocked(
         previous_section_manifest=previous_section_manifest,
         section_payload_fingerprints_out=section_collection_fingerprints_by_id,
         section_collection_upsert_info_out=section_collection_upsert_info,
+        embedding_provider=shared_embedding_provider,
     )
     emit("core_section_collection_upsert_done")
     verify_section_manifest = {
@@ -482,6 +485,7 @@ def _run_spec_core_unlocked(
         previous_related_sections=previous_metadata,
         retrieval_index_status=retrieval_index_status,
         progress_tracker=progress_tracker,
+        embedding_provider=shared_embedding_provider,
     )
     related_sections_status = _related_sections_status(related_generation)
     related_sections_qdrant_backend_failure = _related_sections_qdrant_backend_failure(
@@ -616,6 +620,7 @@ def _run_spec_core_unlocked(
             current_source_hashes=current_hashes,
             config=config,
             section_metadata=section_metadata_by_id,
+            embedding_provider=shared_embedding_provider,
         )
         emit("core_section_pair_candidate_generation_done")
         emit("core_conflict_evaluation_start")
@@ -1399,6 +1404,30 @@ def _config_get(config: Mapping[str, Any], path: tuple[str, ...], default: Any =
             return default
         current = current[key]
     return current
+
+
+def _build_shared_embedding_provider_for_core(
+    config: Mapping[str, Any],
+) -> BgeM3EmbeddingProvider | None:
+    embedding_provider_id = str(_config_get(config, ("embedding", "provider"), ""))
+    vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
+    if embedding_provider_id != "flagembedding" or vector_store_provider != "qdrant":
+        return None
+    model = str(
+        _config_get(
+            config,
+            ("embedding", "model"),
+            retrieval_index_api.STANDARD_EMBEDDING_MODEL,
+        )
+        or retrieval_index_api.STANDARD_EMBEDDING_MODEL
+    )
+    return FlagEmbeddingBgeM3Provider(
+        model=model,
+        dense_enabled=_config_bool(config, ("embedding", "dense_enabled"), True),
+        sparse_enabled=_config_bool(config, ("embedding", "sparse_enabled"), True),
+        allow_real_provider=True,
+        use_fp16=False,
+    )
 
 
 def _read_previous_section_metadata(
@@ -2240,6 +2269,7 @@ def _upsert_section_collection_if_enabled(
     previous_section_manifest: Mapping[str, Any] | None = None,
     section_payload_fingerprints_out: MutableMapping[str, Mapping[str, str]] | None = None,
     section_collection_upsert_info_out: MutableMapping[str, Any] | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> str:
     """Build / refresh the section-level Qdrant collection.
 
@@ -2254,9 +2284,9 @@ def _upsert_section_collection_if_enabled(
     """
 
     del emit  # kept for backward-compatible call sites and tests
-    embedding_provider = str(_config_get(config, ("embedding", "provider"), ""))
+    embedding_provider_id = str(_config_get(config, ("embedding", "provider"), ""))
     vector_store_provider = str(_config_get(config, ("vector_store", "provider"), ""))
-    if embedding_provider != "flagembedding" or vector_store_provider != "qdrant":
+    if embedding_provider_id != "flagembedding" or vector_store_provider != "qdrant":
         if section_collection_upsert_info_out is not None:
             section_collection_upsert_info_out.clear()
             section_collection_upsert_info_out.update(
@@ -2359,6 +2389,7 @@ def _upsert_section_collection_if_enabled(
             generated_at=str(section_metadata.get("generated_at") or ""),
             sections_to_upsert=partial_sections_to_upsert if use_partial_args else None,
             sections_to_delete=partial_sections_to_delete if use_explicit_delete_set else None,
+            embedding_provider=embedding_provider,
         )
         diagnostics = artifact.get("diagnostics", {}) if isinstance(artifact, Mapping) else {}
         state_write_error: str | None = None
@@ -2757,6 +2788,7 @@ def _generate_related_sections(
     previous_related_sections: Mapping[str, Any] | None = None,
     retrieval_index_status: str = "",
     progress_tracker: CoreProgressTracker | None = None,
+    embedding_provider: BgeM3EmbeddingProvider | None = None,
 ) -> Any:
     expected_state = _build_related_sections_state(
         sections,
@@ -2799,6 +2831,7 @@ def _generate_related_sections(
             config=config,
             generated_at=generated_at,
             cache_dir=cache_dir,
+            embedding_provider=embedding_provider,
         )
         candidate_generation = getattr(result, "candidate_generation", None)
         selection = getattr(result, "selection", None)
@@ -2831,6 +2864,7 @@ def _generate_related_sections(
             config=config,
             generated_at=generated_at,
             cache_dir=cache_dir,
+            embedding_provider=embedding_provider,
         )
         candidate_generation = getattr(result, "candidate_generation", None)
         selection = getattr(result, "selection", None)
