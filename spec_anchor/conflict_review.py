@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -131,6 +132,32 @@ def _call_judge(conflict_judge: Any, request: dict[str, Any], timeout_sec: int =
     if callable(conflict_judge):
         return dict(conflict_judge(request))
     raise TypeError("conflict_judge must expose judge_conflict, judge, generate, or be callable")
+
+
+def _config_get(config: Any, path: tuple[str, ...], default: Any = None) -> Any:
+    current: Any = config
+    for key in path:
+        if current is None:
+            return default
+        if isinstance(current, Mapping):
+            if key not in current:
+                return default
+            current = current[key]
+        else:
+            if not hasattr(current, key):
+                return default
+            current = getattr(current, key)
+    if current is None:
+        return default
+    return current
+
+
+def _llm_batch_concurrency_from_config(config: Any) -> int:
+    value = _config_get(config, ("limits", "llm_batch_concurrency"), 4)
+    try:
+        return max(1, int(value or 4))
+    except (TypeError, ValueError):
+        return 4
 
 
 def section_pair_id(left_section_id: str, right_section_id: str) -> str:
@@ -286,8 +313,8 @@ def evaluate_section_pair_conflicts(
     ``{"left_section_id", "right_section_id", "candidate_origin"}``. The judge
     request carries ``section_a`` / ``section_b`` / ``source_refs`` only; the
     injected judge wrapper adds Purpose / Core Concept grounding itself, so this
-    function must not strip grounding. Runs sequentially (concurrency is added
-    in a later task).
+    function must not strip grounding. Judge calls can run concurrently, but
+    result processing remains in section_pairs order.
     """
 
     active_judge = conflict_judge
@@ -298,12 +325,14 @@ def evaluate_section_pair_conflicts(
         _llm_cfg.get("timeout_sec") if isinstance(_llm_cfg, dict) else None
     ) or 120)
     sections_by_id = _section_map(sections)
+    concurrency = _llm_batch_concurrency_from_config(config)
 
     items: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
     non_pending_signals: list[dict[str, Any]] = []
     call_usages: list[dict[str, Any]] = []
 
+    valid_pairs: list[Mapping[str, Any]] = []
     for pair in section_pairs or []:
         if not isinstance(pair, Mapping):
             continue
@@ -311,6 +340,19 @@ def evaluate_section_pair_conflicts(
         b_id = str(pair.get("right_section_id") or "")
         if not a_id or not b_id:
             continue
+        valid_pairs.append(pair)
+
+    def _judge_pair(pair: Mapping[str, Any]) -> tuple[
+        str,
+        str,
+        str,
+        dict[str, Any],
+        dict[str, Any],
+        list[dict[str, Any]],
+        dict[str, Any],
+    ]:
+        a_id = str(pair.get("left_section_id") or "")
+        b_id = str(pair.get("right_section_id") or "")
         candidate_origin = str(pair.get("candidate_origin") or "all_pairs")
         section_a = deepcopy(sections_by_id.get(a_id, {"source_section_id": a_id}))
         section_b = deepcopy(sections_by_id.get(b_id, {"source_section_id": b_id}))
@@ -321,7 +363,23 @@ def evaluate_section_pair_conflicts(
             "source_refs": source_refs,
         }
         payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
+        return a_id, b_id, candidate_origin, section_a, section_b, source_refs, payload
 
+    if concurrency > 1 and len(valid_pairs) > 1:
+        with ThreadPoolExecutor(max_workers=concurrency) as ex:
+            judge_outputs = list(ex.map(_judge_pair, valid_pairs))
+    else:
+        judge_outputs = [_judge_pair(pair) for pair in valid_pairs]
+
+    for (
+        a_id,
+        b_id,
+        candidate_origin,
+        section_a,
+        section_b,
+        source_refs,
+        payload,
+    ) in judge_outputs:
         call_usage = dict(payload.pop("__spec_anchor_usage", None) or {})
         if call_usage:
             call_usages.append(call_usage)

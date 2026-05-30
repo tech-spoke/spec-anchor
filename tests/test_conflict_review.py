@@ -10,6 +10,8 @@ from __future__ import annotations
 import importlib
 import inspect
 import sys
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -443,6 +445,91 @@ def test_evaluate_section_pair_conflicts_resolved_is_non_pending_signal() -> Non
     assert signal["outcome"] == "resolved_by_existing_evidence"
     diagnostics = _diagnostics(result)
     assert any(item.get("kind") == "potential_conflict" for item in diagnostics)
+
+
+def test_evaluate_section_pair_conflicts_uses_configured_concurrency_and_preserves_order() -> None:
+    module = _module()
+    evaluate = module.evaluate_section_pair_conflicts
+    section_pairs = [
+        {
+            "left_section_id": "docs/spec/conflict.md#alpha",
+            "right_section_id": "docs/spec/conflict.md#beta",
+            "candidate_origin": "all_pairs",
+        },
+        {
+            "left_section_id": "docs/spec/conflict.md#beta",
+            "right_section_id": "docs/spec/conflict.md#gamma",
+            "candidate_origin": "section_pair_retrieval",
+        },
+        {
+            "left_section_id": "docs/spec/conflict.md#alpha",
+            "right_section_id": "docs/spec/conflict.md#gamma",
+            "candidate_origin": "existing_conflict_recheck",
+        },
+    ]
+
+    class ConcurrentJudge:
+        def __init__(self) -> None:
+            self.lock = threading.Lock()
+            self.in_flight = 0
+            self.max_in_flight = 0
+            self.two_in_flight = threading.Event()
+
+        def judge_conflict(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            del timeout_sec
+            left_id = request["section_a"]["source_section_id"]
+            right_id = request["section_b"]["source_section_id"]
+            with self.lock:
+                self.in_flight += 1
+                self.max_in_flight = max(self.max_in_flight, self.in_flight)
+                if self.in_flight >= 2:
+                    self.two_in_flight.set()
+            try:
+                self.two_in_flight.wait(timeout=1.0)
+                if left_id.endswith("#alpha") and right_id.endswith("#beta"):
+                    time.sleep(0.12)
+                elif left_id.endswith("#beta") and right_id.endswith("#gamma"):
+                    time.sleep(0.01)
+                else:
+                    time.sleep(0.04)
+                return {
+                    "outcome": "needs_human_review",
+                    "severity": "high",
+                    "conflict_points": [
+                        {
+                            "left_excerpt": left_id,
+                            "right_excerpt": right_id,
+                            "why_conflicting": f"{left_id} conflicts with {right_id}",
+                            "severity": "high",
+                        }
+                    ],
+                    "why_conflicting": f"{left_id} conflicts with {right_id}",
+                    "why_llm_cannot_decide": "No priority source is present.",
+                    "__spec_anchor_usage": {"pair": f"{left_id}|{right_id}"},
+                }
+            finally:
+                with self.lock:
+                    self.in_flight -= 1
+
+    judge = ConcurrentJudge()
+    result = evaluate(
+        section_pairs,
+        judge,
+        sections=_sections(),
+        config={"limits": {"llm_batch_concurrency": 3}},
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    expected_pair_ids = [
+        module.section_pair_id(pair["left_section_id"], pair["right_section_id"])
+        for pair in section_pairs
+    ]
+    items = _items(result)
+    assert judge.max_in_flight > 1
+    assert [item["section_pair"]["section_pair_id"] for item in items] == expected_pair_ids
+    assert [usage["pair"] for usage in result.usage_list] == [
+        f"{pair['left_section_id']}|{pair['right_section_id']}" for pair in section_pairs
+    ]
 
 
 def test_core_does_not_route_related_sections_to_conflict_review() -> None:
