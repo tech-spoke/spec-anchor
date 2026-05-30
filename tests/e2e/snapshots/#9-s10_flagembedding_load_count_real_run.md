@@ -30,17 +30,17 @@
 
 | 項目 | 値 | 評価 |
 |---|---|---|
-| `spec-anchor core --rebuild` 総 wall | 123 s | — |
+| `spec-anchor core --rebuild` 総 wall | 修正前 123 s / 修正後 118 s | — |
 | exit code | 0 | ✅ 正常終了 |
-| **`FlagEmbeddingBgeM3Provider.__init__` 呼び出し回数** | **2** | ⚠️ 2 回構築 |
-| **`BGEM3FlagModel(...)` 構築 (実 weights load) 回数** | **2** | ⚠️ **1 回の core 実行で 2 回 load** |
+| **`FlagEmbeddingBgeM3Provider.__init__` 呼び出し回数** | **修正前 2 → 修正後 1** | ✅ provider 共有で 1 回に |
+| **`BGEM3FlagModel(...)` 構築 (実 weights load) 回数** | **修正前 2 → 修正後 1** | ✅ **1 回の core 実行で 1 回 load (修正済み)** |
 | stdout の構造 | `json.load()` が成功し top-level **21 keys** を持つ単一 JSON object | ✅ Agent が `json.loads(stdout)` 直呼び可 |
 | stdout の top-level keys (代表) | `auto_dismissed_conflict_count` / `conflict_review_items` / `pending_conflict_count` / `section_pair_candidate_generation_status` / `related_sections_status` / `retrieval_index_status` / `status` / ... 計 21 keys (claim 系 status は廃止済み) | CLI の正常応答スキーマ |
 | `Loading weights:` 進捗バー出現 (stdout) | 0 | ✅ 進捗バー抑制は有効 |
 
-## BGE-M3 が 2 回 load される call site
+## 【修正前】BGE-M3 が 2 回 load されていた call site
 
-instrument で記録した `BGEM3FlagModel(...)` 構築の 2 箇所:
+修正前の instrument で記録した `BGEM3FlagModel(...)` 構築の 2 箇所 (現在は provider 共有で 1 回に統合済み):
 
 ```
 # 構築 #1: section collection の embedding upsert 経路
@@ -71,8 +71,8 @@ spec_anchor/core.py:471  (_run_spec_core_unlocked → _generate_related_sections
 
 これらにより stdout は valid JSON 単体に保たれる (#9 = stdout を valid JSON 単体にする契約は満たされている)。
 
-## 結論と残作業
+## 結論
 
 - **stdout cleanliness (#9 本体)**: 満たされている。stdout は 21 keys の valid JSON 単体、進捗バー混入なし。
-- **load 回数**: 旧版の「1 回 load」は誤り。実測で **1 回の `/spec-core` につき 2 回** BGE-M3 を load している (section_collection_upsert + related_sections がそれぞれ provider を構築)。これは ~5-10 s の無駄。
-- **改善 TODO**: 1 回の `/spec-core` 内で BGE-M3 provider / retriever を共有し load を 1 回に減らす改善を `doc/TODO/TODO_bge_m3_provider_sharing.ja.md` に起票した。
+- **load 回数 (修正済み)**: 旧版の「1 回 load (class-level cache)」主張は誤りで、実測では **1 回の `/spec-core` につき 2 回** load していた (section_collection_upsert + related_sections がそれぞれ provider を構築)。**provider 共有 (commit `dee9550`、`_build_shared_embedding_provider_for_core` で 1 回構築し各 retriever へ注入) で 1 回に修正済み**。修正後の実機 instrument で `BGEM3FlagModel` 構築 = 1 を確認。total wall 123→118 s。
+- **改善 TODO**: `doc/TODO/TODO_bge_m3_provider_sharing.ja.md` (完了済み)。

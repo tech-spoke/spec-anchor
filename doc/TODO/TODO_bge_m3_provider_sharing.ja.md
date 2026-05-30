@@ -3,7 +3,7 @@
 **起票日**: 2026-05-31
 **起票者**: Claude main (実機計測で発見)
 **最終更新**: 2026-05-31
-**ステータス**: 計画中
+**ステータス**: 完了（案 A 実装、commit `dee9550`。実機 instrument で BGEM3FlagModel 構築 2→1 を確認、total wall 123→118 s。targeted 112 passed。人間レビュー待ち）
 **関連設計書**: `tests/e2e/snapshots/#9-s10_flagembedding_load_count_real_run.md` (計測エビデンス)、`doc/性能測定/METRICS.md` 第12回
 
 ## 全体目的
