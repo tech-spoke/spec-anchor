@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import json
 import sys
 import threading
 import time
@@ -410,9 +411,63 @@ def test_evaluate_section_pair_conflicts_pending_item_with_conflict_points() -> 
     assert len(items) == 1
     assert items[0]["status"] == "pending"
     assert items[0]["valid_scope"] == "section_pair"
-    assert items[0]["conflict_points"]
+    assert items[0]["conflict_points"] == [
+        {
+            "left_excerpt": "FEATURE_X is required for all requests.",
+            "right_excerpt": "FEATURE_X is forbidden for guest requests.",
+            "why_conflicting": "Required and forbidden cannot both hold.",
+            "severity": "high",
+        }
+    ]
+    assert items[0]["why_conflicting"] == "FEATURE_X is simultaneously required and forbidden."
+    assert items[0]["why_conflicting"] != "Potential source specifications conflict."
+    assert (
+        items[0]["why_llm_cannot_decide"]
+        == "No Purpose or Core Concept priority exists."
+    )
+    assert (
+        items[0]["recommended_next_action"]
+        == "Ask a human to choose the applicable rule."
+    )
     assert items[0]["section_pair"]["candidate_origin"] == "all_pairs"
     assert result.pending_conflict_count == 1
+
+
+def test_build_conflict_review_llm_request_preserves_section_text_for_quotes() -> None:
+    core = importlib.import_module("spec_anchor.core")
+    build_request = core._build_conflict_review_llm_request
+
+    llm_request = build_request(
+        {
+            "section_a": {
+                "source_section_id": "docs/spec/conflict.md#alpha",
+                "text": "Alpha requires FEATURE_X for all requests.",
+            },
+            "section_b": {
+                "source_section_id": "docs/spec/conflict.md#beta",
+                "text": "Beta forbids FEATURE_X for guest requests.",
+            },
+            "source_refs": [
+                {
+                    "source_section_id": "docs/spec/conflict.md#alpha",
+                    "source_hash": "hash-alpha",
+                },
+                {
+                    "source_section_id": "docs/spec/conflict.md#beta",
+                    "source_hash": "hash-beta",
+                },
+            ],
+        },
+        {"model": "fake-model", "effort": "low"},
+    )
+
+    payload = json.loads(llm_request.prompt)
+    assert payload["section_a"]["text"] == "Alpha requires FEATURE_X for all requests."
+    assert payload["section_b"]["text"] == "Beta forbids FEATURE_X for guest requests."
+    assert llm_request.section_hashes == {
+        "docs/spec/conflict.md#alpha": "hash-alpha",
+        "docs/spec/conflict.md#beta": "hash-beta",
+    }
 
 
 def test_evaluate_section_pair_conflicts_resolved_is_non_pending_signal() -> None:

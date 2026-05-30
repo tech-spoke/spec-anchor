@@ -509,8 +509,15 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
             "\"outcome\" must be one of: \"needs_human_review\" (a real conflict requiring human decision), "
             "\"not_a_conflict\" (sections are compatible), or \"false_positive\" (no actual conflict). "
             "\"severity\" must be one of: \"low\", \"medium\", \"high\". "
-            "Optional: string field \"why_not_pending\" (reason when outcome is not needs_human_review), "
-            "string field \"summary\" (brief description of the conflict)."
+            "When \"outcome\" is \"needs_human_review\", include array field \"conflict_points\". "
+            "Each conflict_points item must include string fields \"left_excerpt\", \"right_excerpt\", "
+            "\"why_conflicting\", and string field \"severity\" with one of: \"low\", \"medium\", \"high\". "
+            "Quote \"left_excerpt\" from the provided \"section_a\" text and \"right_excerpt\" from the "
+            "provided \"section_b\" text in the request. "
+            "Also include string fields \"why_conflicting\" (item-level summary), "
+            "\"why_llm_cannot_decide\" (why the existing evidence, Purpose, and Core Concept cannot resolve it), "
+            "and \"recommended_next_action\". "
+            "When \"outcome\" is \"not_a_conflict\" or \"false_positive\", include string field \"why_not_pending\"."
         )
     elif stage == "chapter_key_anchor":
         output_contract = (
@@ -618,6 +625,22 @@ def _chapter_key_anchor_output_schema() -> dict[str, Any]:
 def _conflict_review_output_schema() -> dict[str, Any]:
     """JSON schema for the conflict_review LLM stage."""
 
+    conflict_point_schema = {
+        "type": "object",
+        "properties": {
+            "left_excerpt": {"type": "string"},
+            "right_excerpt": {"type": "string"},
+            "why_conflicting": {"type": "string"},
+            "severity": {"type": "string", "enum": ["low", "medium", "high"]},
+        },
+        "required": [
+            "left_excerpt",
+            "right_excerpt",
+            "why_conflicting",
+            "severity",
+        ],
+        "additionalProperties": False,
+    }
     return {
         "type": "object",
         "properties": {
@@ -629,7 +652,10 @@ def _conflict_review_output_schema() -> dict[str, Any]:
                 "type": "string",
                 "enum": ["low", "medium", "high"],
             },
-            "summary": {"type": "string"},
+            "conflict_points": {"type": "array", "items": conflict_point_schema},
+            "why_conflicting": {"type": "string"},
+            "why_llm_cannot_decide": {"type": "string"},
+            "recommended_next_action": {"type": "string"},
             "why_not_pending": {"type": "string"},
         },
         "required": ["outcome", "severity"],
@@ -1113,7 +1139,49 @@ def classify_generation_status(results: Mapping[str, LlmGenerationResult]) -> st
     return FAILED
 
 
+def _fake_section_excerpt(section: Any, fallback: str) -> str:
+    if isinstance(section, Mapping):
+        text = str(section.get("text") or "")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped:
+                return stripped[:240]
+        section_id = section.get("source_section_id") or section.get("section_id")
+        if section_id:
+            return str(section_id)
+    return fallback
+
+
+def _fake_conflict_review_response(request: LlmRequest) -> dict[str, Any]:
+    prompt_payload = _try_json_loads(request.prompt)
+    if not isinstance(prompt_payload, Mapping):
+        prompt_payload = {}
+    left_excerpt = _fake_section_excerpt(prompt_payload.get("section_a"), "section_a")
+    right_excerpt = _fake_section_excerpt(prompt_payload.get("section_b"), "section_b")
+    return {
+        "outcome": "needs_human_review",
+        "severity": "high",
+        "conflict_points": [
+            {
+                "left_excerpt": left_excerpt,
+                "right_excerpt": right_excerpt,
+                "why_conflicting": "The two provided specification sections require incompatible behavior.",
+                "severity": "high",
+            }
+        ],
+        "why_conflicting": "The two provided specification sections require incompatible behavior.",
+        "why_llm_cannot_decide": (
+            "The provided Purpose and Core Concept do not establish which section has priority."
+        ),
+        "recommended_next_action": (
+            "Ask a human to choose which specification section should take priority."
+        ),
+    }
+
+
 def _fake_response_for(request: LlmRequest) -> dict[str, Any]:
+    if request.stage == "conflict_review":
+        return _fake_conflict_review_response(request)
     seed = request.section_id or request.task
     search_key = seed.replace("/", " ").replace("_", " ").strip() or "fake"
     section_ids = list(request.section_hashes) or ([request.section_id] if request.section_id else [])

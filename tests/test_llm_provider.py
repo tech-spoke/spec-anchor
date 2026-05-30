@@ -351,6 +351,143 @@ def test_related_section_selection_prompt_matches_sections_schema(
     assert "channels" not in related_item_schema["required"]
 
 
+def test_conflict_review_prompt_and_schema_match_item_builder_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        command = list(args[0])
+        schema_path = Path(command[command.index("--output-schema") + 1])
+        schema = json.loads(schema_path.read_text())
+        calls.append({"schema": schema, "kwargs": kwargs})
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout="\n".join(
+                [
+                    json.dumps(
+                        {
+                            "type": "done",
+                            "result": json.dumps(
+                                {
+                                    "outcome": "needs_human_review",
+                                    "severity": "high",
+                                    "conflict_points": [
+                                        {
+                                            "left_excerpt": "Alpha requires FEATURE_X.",
+                                            "right_excerpt": "Beta forbids FEATURE_X.",
+                                            "why_conflicting": "Required and forbidden cannot both hold.",
+                                            "severity": "high",
+                                        }
+                                    ],
+                                    "why_conflicting": "FEATURE_X is both required and forbidden.",
+                                    "why_llm_cannot_decide": "Purpose and Core Concept do not set priority.",
+                                    "recommended_next_action": "Ask a human to choose the applicable rule.",
+                                },
+                                ensure_ascii=False,
+                            ),
+                        },
+                        ensure_ascii=False,
+                    )
+                ]
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
+    provider = SubprocessLlmProvider(["codex"], real_smoke_enabled=True)
+    request = LlmRequest(
+        task="conflict_review",
+        stage="conflict_review",
+        prompt=json.dumps(
+            {
+                "section_a": {"text": "Alpha requires FEATURE_X."},
+                "section_b": {"text": "Beta forbids FEATURE_X."},
+            },
+            ensure_ascii=False,
+        ),
+        prompt_version="conflict-review-v1",
+        model="gpt-test",
+        source_hash="conflict-hash",
+        section_hashes={"docs/spec/a.md#a": "ha", "docs/spec/b.md#b": "hb"},
+    )
+
+    output = provider.generate(request, timeout_sec=3)
+
+    prompt = calls[0]["kwargs"]["input"]
+    schema = calls[0]["schema"]
+    properties = schema["properties"]
+    assert output["conflict_points"][0]["left_excerpt"] == "Alpha requires FEATURE_X."
+    assert set(properties) == {
+        "outcome",
+        "severity",
+        "conflict_points",
+        "why_conflicting",
+        "why_llm_cannot_decide",
+        "recommended_next_action",
+        "why_not_pending",
+    }
+    assert schema["required"] == ["outcome", "severity"]
+    assert schema["additionalProperties"] is False
+    conflict_point_schema = properties["conflict_points"]["items"]
+    assert set(conflict_point_schema["properties"]) == {
+        "left_excerpt",
+        "right_excerpt",
+        "why_conflicting",
+        "severity",
+    }
+    assert conflict_point_schema["required"] == [
+        "left_excerpt",
+        "right_excerpt",
+        "why_conflicting",
+        "severity",
+    ]
+    assert conflict_point_schema["additionalProperties"] is False
+    assert "summary" not in properties
+    assert 'include array field "conflict_points"' in prompt
+    assert 'Quote "left_excerpt" from the provided "section_a" text' in prompt
+    assert 'include string field "why_not_pending"' in prompt
+    assert "Alpha requires FEATURE_X." in prompt
+    assert "Beta forbids FEATURE_X." in prompt
+
+
+def test_conflict_review_fake_provider_returns_full_representative_payload() -> None:
+    request = LlmRequest(
+        task="conflict_review",
+        stage="conflict_review",
+        prompt=json.dumps(
+            {
+                "section_a": {"text": "Alpha requires FEATURE_X."},
+                "section_b": {"text": "Beta forbids FEATURE_X."},
+            },
+            ensure_ascii=False,
+        ),
+        prompt_version="conflict-review-v1",
+        model="fake-model",
+        source_hash="conflict-hash",
+    )
+
+    output = FakeLlmProvider().generate(request, timeout_sec=3)
+
+    assert output["outcome"] == "needs_human_review"
+    assert output["severity"] == "high"
+    assert output["conflict_points"] == [
+        {
+            "left_excerpt": "Alpha requires FEATURE_X.",
+            "right_excerpt": "Beta forbids FEATURE_X.",
+            "why_conflicting": (
+                "The two provided specification sections require incompatible behavior."
+            ),
+            "severity": "high",
+        }
+    ]
+    assert output["why_conflicting"]
+    assert output["why_llm_cannot_decide"]
+    assert output["recommended_next_action"]
+    assert "summary" not in output
+
+
 def test_t_u26_claude_provider_uses_print_and_structured_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -399,6 +536,18 @@ def test_t_u26_real_provider_uses_configured_agent_cli() -> None:
         timeout_sec=120,
         max_retries=0,
     )
+    if result.status != "success":
+        diagnostic_text = "\n".join(str(item) for item in (result.diagnostics or []))
+        external_unready_markers = (
+            "Read-only file system",
+            "Failed to create session",
+            "error sending request",
+        )
+        if any(marker in diagnostic_text for marker in external_unready_markers):
+            pytest.skip(
+                f"{command_name} is installed but cannot start a real provider session "
+                "in this environment"
+            )
 
     assert result.status == "success"
     assert result.artifact is not None
