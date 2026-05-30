@@ -173,6 +173,8 @@ allow_same_section_pair = true
 
 > 「section 数 <= 12 → all-pairs」の閾値は固定値をコードに埋めず `small_section_all_pairs_threshold` として config 化する（後で調整しやすくするため）。
 
+> 【ST-2 実装監査で判明・要 real Qdrant キャリブレーション】`min_dense_score` の比較対象。retriever の `hit.score` は RRF fused score（定義上 rank ベースで ~0.03 程度）であり、`min_dense_score=0.55` を fused score に当てると retrieval_cap 経路（section 数 > 12）で全候補が閾値落ちし false negative になる。現実装（`spec_anchor/section_pair_candidates.py`）は既存 `related_sections.py` と同じく `hit.score`（fused）に閾値を当てている。**閾値の比較対象を `hit.dense_score`（dense channel 生 cosine、real BGE-M3 で ~0.5-0.9）に変えるか、default 値を fused スケールへ再調整するかは、実 Qdrant + BGE-M3 で実測してから ST-3 の real-smoke または #7 で確定する**（rule 11 の外部ブロッカー扱い）。docs 簡易サンプル（5 section）は all_pairs mode のためこの経路を通らず、影響を受けない。unit test は `min_dense_score=0.0` で retrieval 経路を通している（閾値挙動自体は未検証）。
+
 > CR-002 反映（同一 section 内矛盾と recall）: 現 claim 経路は `allow_same_section_claim_pair`（`core.py:2512` 付近、**既定 True**）で同一 section 内 claim pair を候補にできる。GPT 当初案の `allow_same_section_pair = false` はこれを検出対象外にし、「recall 維持」と衝突する。**default を `true` に変更し、同一 section 内矛盾を scope に含める**。この場合 A/B が同一 section になる judge 入力と conflict_id の扱いを定義する（conflict_id は section_pair_id だが A==B の場合の安定 ID 規則を決める）。同一 section 内を scope 外にするなら、recall 劣化として完了条件に明記する（人間判断点）。
 >
 > CR-002 実装注意（self-pair 落ち防止・GPT 追加）: `allow_same_section_pair = true` の場合、self-pair（A==A）を候補に含める。通常の組み合わせ実装（i<j）も retrieval（自分自身は近傍に出ない）も self-pair を自然には含めないため、**all-pairs 経路・retrieval+cap 経路の両方で self-pair を明示的に候補生成へ注入する**。これを怠ると「設定は true だが同一 section 内矛盾を実際は見ない」事故になる。ただし同一 section pair は **1 件だけ生成し、重複 judge しない**。
