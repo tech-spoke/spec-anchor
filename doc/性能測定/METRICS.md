@@ -959,17 +959,19 @@ claim 多段パイプライン（spec_claims → claim_retrieval → triage → 
 
 クリーン rebuild（mode=full、4 conflict 検出、conflict_points 修正後）の per-stage 計測（`.spec-anchor/state/core_progress.json`）:
 
-| ステージ | wall (s) | LLM calls | token_count | output_tok | provider / 備考 |
-|---|---|---|---|---|---|
-| start + inputs/sections_loaded | 0.7 | 0 | 0 | — | 起動・入力ロード |
-| section_metadata | 9.9 | 1 | 19,045 | 448 | codex gpt-5.4-mini（batch 1 call） |
-| section_collection_upsert | 10.2 | 0 | 0 | — | **BGE-M3 embedding（model load を含む。cache warm 時）** |
-| related_sections | 29.4 | 1 | 1,978 | 1,974 | claude sonnet-4-6 |
-| **section_pair_candidate_generation** | **0.0** | **0** | **0** | **—** | **非LLM（retrieval / rank / cap）。瞬時** |
-| **conflict_evaluation（section_pair judge）** | **67.9** | **21** | **6,959** | **6,875** | **claude_judge、all_pairs = 15 cross + 6 self、concurrency 4** |
-| chapter_anchors | 6.0 | 1 | 19,468 | 244 | codex gpt-5.4-mini |
-| artifact_write | 0.0 | 0 | — | — | — |
-| **総 wall** | **124〜143 s** | **24 calls** | | | conflict_points 修正後の richな出力 run は最大 143 s |
+| ステージ | wall (s) | LLM calls | token_count | output_tok | provider | model | 備考 |
+|---|---|---|---|---|---|---|---|
+| start + inputs/sections_loaded | 0.7 | 0 | 0 | — | — | — | 起動・入力ロード |
+| section_metadata | 9.9 | 1 | 19,045 | 448 | codex | gpt-5.4-mini | batch 1 call |
+| section_collection_upsert | 10.2 | 0 | 0 | — | flagembedding | BAAI/bge-m3 | **BGE-M3 embedding（model load を含む。cache warm 時）。LLM 非使用** |
+| related_sections | 29.4 | 1 | 1,978 | 1,974 | claude_typing | claude-sonnet-4-6 | — |
+| **section_pair_candidate_generation** | **0.0** | **0** | **0** | **—** | **—** | **—** | **非LLM（retrieval / rank / cap）。瞬時** |
+| **conflict_evaluation（section_pair judge）** | **67.9** | **21** | **6,959** | **6,875** | **claude_judge** | **claude-sonnet-4-6** | **all_pairs = 15 cross + 6 self、concurrency 4** |
+| chapter_anchors | 6.0 | 1 | 19,468 | 244 | codex | gpt-5.4-mini | — |
+| artifact_write | 0.0 | 0 | — | — | — | — | — |
+| **総 wall** | **124〜143 s** | **24 calls** | | | | | conflict_points 修正後の richな出力 run は最大 143 s |
+
+provider / model は `.spec-anchor/config.toml` の `[llm.stage_routing]`(section_metadata=codex/gpt-5.4-mini、related_sections=claude_typing/sonnet-4-6、conflict_review=claude_judge/sonnet-4-6、chapter_key_anchor=codex/gpt-5.4-mini)と `[embedding]`(flagembedding/BAAI/bge-m3)に対応。section_pair_candidate_generation は LLM を呼ばないため provider/model なし。
 
 支配ステージは **conflict_evaluation 67.9s / 21 calls**（all_pairs judge）と **related_sections 29.4s**。BGE-M3 の model load は section_collection_upsert（10.2s、cache warm 時）に含まれる。`spec-anchor-watch` / cold cache 時は BGE-M3 初回 load がさらに数十秒加算される。
 
