@@ -76,22 +76,6 @@ README に置くもの:
 
 CLI は Agentic Search の探索方針を自律的に決めない。Agent / LLM は CLI が返す保持物と検索結果を使って探索する。
 
-### ルール 4: Source Specs の生テキストを無制限に混ぜない
-
-Agent / LLM は Agentic Search、検索キー生成、根拠確認のために必要な Source Specs snippet を読んでよい。
-
-ただし、読んだ本文を未整理のまま最終回答の前提へ混ぜてはいけない。最終的に使う制約は、今回の課題に必要なものとして生成し、Purpose / Core Concept / Source Specs / stale でない resolved Conflict Review Item の根拠を示す。
-
-Search Keys、Section Summary、Related Sections、Chapter Key Anchor は参照補助であり、単独で制約根拠にしてはいけない。
-
-### ルール 5: pending conflict を無視して進まない
-
-status が `pending` の Conflict Review Item が残っている場合、`/spec-inject` と `/spec-realign` は通常の制約生成や回答生成へ進まない。
-
-dirty / stale と pending conflict が同時にある場合、先に `/spec-core` または watcher で保持物を更新し、更新後も残る pending conflict だけを人間判断対象にする。
-
-resolved だが未反映の Conflict Review Item は、`base_source_hashes` と `valid_scope` に従う。`stale_resolution` になったものを制約根拠にしてはいけない。
-
 ### ルール 6: 新しい用語・仮称を出す時は範囲を先に明示する
 
 設計相談や監査中に、Agent が新しい用語・仮称・整理ラベルを突然導入してはいけない。新しい用語が必要な場合は、先に次を明示する。
