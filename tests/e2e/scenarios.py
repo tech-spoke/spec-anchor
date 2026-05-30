@@ -266,7 +266,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         required=("stderr", "Fetching 30 files"),
     ),
     Scenario(
-        "#9-s10", "#9", "FlagEmbedding model が 1 回だけ load される (実機検証エビデンス)",
+        "#9-s10", "#9", "FlagEmbedding model の per-run load 回数 実機計測 (実測 2 回 / 旧 1 回 load 主張は誤りと訂正)",
         "#9-s10_flagembedding_load_count_real_run.md", kind="note",
         required=("HF_HUB_DISABLE_PROGRESS_BARS", "id(p1.model)"),
     ),

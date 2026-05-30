@@ -1,4 +1,4 @@
-# #9-s10 FlagEmbedding model 1 回 load 化の実機検証
+# #9-s10 FlagEmbedding model の per-run load 回数 実機計測
 
 ## シナリオ要件
 
@@ -6,102 +6,73 @@
 
 - FlagEmbedding model の重み読み込み (`Loading weights:`) と Hub fetch (`Fetching 30 files:`) の **進捗バーが stdout / stderr に過剰に反復出力されない**。
 - stdout は **valid JSON 単体** であり、Agent が Python parser を書かずに `json.loads(stdout)` で読める。
-- 内部の実 weights I/O は **1 回** (BGEM3FlagModel の class-level cache hit) で済み、`__init__` を複数箇所で呼んでも model object が共有される。
+- 1 回の `/spec-core` 実行中に BGE-M3 model weights を **実際に何回 load するか** を instrument で計測する。
 
-TODO の元観察 (2026-05-29 セッション初回) では `/spec-core` の **stdout に `Loading weights:` 系の進捗バーが 4 セット混入** していた。本シナリオはこれが現実装で解消されたことを実 CLI 経路で立証する。
+> **重要な訂正 (2026-05-31)**: 旧版の本シナリオは「BGEM3FlagModel が class-level cache を持ち、`__init__` を何回呼んでも model object は共有され実 weights I/O は 1 回」と結論していた。これは **誤り**である。旧版 probe は `id(p1.model) == id(p2.model)` で「同一 instance」と判定していたが、`FlagEmbeddingBgeM3Provider.model` は **モデル名の文字列** (`"BAAI/bge-m3"`) であり、Python の文字列 interning により異なる instance でも `id` が一致する (偽の一致)。実モデルオブジェクト `FlagEmbeddingBgeM3Provider._model = BGEM3FlagModel(...)` を比較すると別物であり、class-level cache は効いていない。2026-05-31 の実機計測で **1 回の `/spec-core` で BGE-M3 を 2 回 load している**ことが判明した。
 
-## 実機検証手順
+## 実機計測手順
 
-```
-$ rm -f /tmp/sa-core-stdout.json /tmp/sa-core-stderr.log
-$ time .venv/bin/spec-anchor core 1>/tmp/sa-core-stdout.json 2>/tmp/sa-core-stderr.log
-```
+`FlagEmbedding.BGEM3FlagModel` と `FlagEmbeddingBgeM3Provider.__init__` を wrap して構築回数と call site を記録し、`spec-anchor core --rebuild` を in-process 実行した (`spec_anchor.cli.main(["core","--rebuild"])`)。stdout の CoreResult JSON は別バッファへ退避し、構築カウントのみ stderr へ出力した。
 
 ## 実行環境
 
 | 項目 | 値 |
 |---|---|
-| 日付 | 2026-05-29 |
+| 日付 | 2026-05-31 |
 | プロジェクト root | `/home/kazuki/public_html/spec-anchor` |
-| Python | 3.12.3 |
-| qdrant_client | installed (`.venv/lib/python3.12/site-packages/qdrant_client/`) |
+| Source Specs | `docs/spec/sample.md` (6 section) |
+| Python | 3.12 (`.venv`) |
 | FlagEmbedding | installed (BAAI/bge-m3 model cache あり: `~/.cache/huggingface/hub/models--BAAI--bge-m3`) |
-| Qdrant service | `http://localhost:6333/` HTTP 200 |
+| Qdrant service | `http://localhost:6333/` healthz OK |
 | `.spec-anchor/config.toml` | embedding=flagembedding / model=BAAI/bge-m3 / vector_store=qdrant 実 provider 設定済み |
 
 ## 計測結果
 
 | 項目 | 値 | 評価 |
 |---|---|---|
-| 所要時間 (`real`) | 6m32.965s | — |
+| `spec-anchor core --rebuild` 総 wall | 123 s | — |
 | exit code | 0 | ✅ 正常終了 |
-| stdout サイズ | 60,869 bytes | — |
-| stdout の構造 | `json.load()` が成功し top-level 27 キーを持つ単一 JSON object | ✅ Agent が `json.loads(stdout)` 直呼び可 |
-| stderr 行数 | 1 行 | — |
-| stderr の内容 | `Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN ...` (1 行のみ) | — |
-| `Loading weights:` 出現回数 (stderr) | **0** | ✅ 進捗バー完全抑制 |
-| `Fetching 30 files:` 出現回数 (stderr) | **0** | ✅ 進捗バー完全抑制 |
-| stdout の top-level keys (代表) | `auto_dismissed_conflict_count` / `claim_retrieval_status` / `conflict_review_items` / `failed_sections` / `failed_sources` / ... 計 27 keys | CLI の正常応答スキーマ |
+| **`FlagEmbeddingBgeM3Provider.__init__` 呼び出し回数** | **2** | ⚠️ 2 回構築 |
+| **`BGEM3FlagModel(...)` 構築 (実 weights load) 回数** | **2** | ⚠️ **1 回の core 実行で 2 回 load** |
+| stdout の構造 | `json.load()` が成功し top-level **21 keys** を持つ単一 JSON object | ✅ Agent が `json.loads(stdout)` 直呼び可 |
+| stdout の top-level keys (代表) | `auto_dismissed_conflict_count` / `conflict_review_items` / `pending_conflict_count` / `section_pair_candidate_generation_status` / `related_sections_status` / `retrieval_index_status` / `status` / ... 計 21 keys (claim 系 status は廃止済み) | CLI の正常応答スキーマ |
+| `Loading weights:` 進捗バー出現 (stdout) | 0 | ✅ 進捗バー抑制は有効 |
 
-## 内部の実 weights I/O について
+## BGE-M3 が 2 回 load される call site
 
-別途 `FlagEmbeddingBgeM3Provider` を 2 回直接構築する Probe (同セッション、env なし) で次を確認している:
+instrument で記録した `BGEM3FlagModel(...)` 構築の 2 箇所:
 
 ```
-[init call #1]
-[init call #2]
-first init done in 87.6s
-second init done in 37.6s
-total init count: 2
-same model instance? id(p1.model)=140459117687920 id(p2.model)=140459117687920
+# 構築 #1: section collection の embedding upsert 経路
+spec_anchor/core.py:428  (_run_spec_core_unlocked → section_collection_upsert)
+  -> spec_anchor/retrieval_index.py:211  self._model = BGEM3FlagModel(model, **model_kwargs)
+
+# 構築 #2: related_sections 候補生成の retrieval 経路
+spec_anchor/core.py:471  (_run_spec_core_unlocked → _generate_related_sections)
+  -> spec_anchor/related_sections.py:1128  generate_related_sections_result
+  -> spec_anchor/related_sections.py:427   generate_related_section_candidates_result
+  -> spec_anchor/retrieval_index.py:211    self._model = BGEM3FlagModel(model, **model_kwargs)
 ```
 
-`id(p1.model) == id(p2.model)` の通り **BGEM3FlagModel が class-level cache を内蔵**しており、`__init__` を何回呼んでも model object は同一で実 weights I/O は 1 回しか走らない。
+`FlagEmbeddingBgeM3Provider(...)` の構築点は現状 3 箇所 (`spec_anchor/inject.py:586` は `/spec-inject` 用、`spec_anchor/retrieval_index.py:390` / `:1010` が retrieval 用)。1 回の `/spec-core` では section_collection_upsert と related_sections がそれぞれ独自に retriever を構築するため **2 回 load** になる。
 
-`spec_anchor` 配下で `FlagEmbeddingBgeM3Provider(...)` を構築している箇所は静的 grep で 5 箇所:
+> 補足: section 数 > 12 の retrieval_cap mode では section_pair candidate generation も独自に retriever を構築するため、その場合は **3 回 load** になりうる (本計測の sample は 6 section = all_pairs mode で candidate generation は retrieval を呼ばない)。
 
-- `spec_anchor/inject.py:670`
-- `spec_anchor/claim_retrieval.py:200`
-- `spec_anchor/claim_retrieval.py:272`
-- `spec_anchor/retrieval_index.py:390`
-- `spec_anchor/retrieval_index.py:1010`
+## per-stage 所要時間 (どこで load が起きるか)
 
-これらが 1 回の `/spec-core` 実行中に複数回呼ばれても、cache hit で実 I/O は 1 回。
+詳細な per-stage 計測は `doc/性能測定/METRICS.md` 第12回を参照。BGE-M3 の 1 回目 load は `section_collection_upsert` (10.2 s) に、2 回目 load は `related_sections` (29.4 s、大半は LLM typing) に含まれる。warm cache 時の 1 回 load は実測 ~4.5 s、cold 時は数十秒。
 
-## 元 TODO 観察「4 回反復」との照合
-
-元観察「`/spec-core` の stdout に `Fetching 30 files:` と `Loading weights:` の進捗バーが 4 セット混入」は次の二つの要因が重なっていた:
-
-1. **env が立っていなかった**: 当時の CLI には HF/FlagEmbedding 系の env 設定機構がなく、HuggingFace Hub と FlagEmbedding が tqdm 進捗バーを描画していた
-2. **stdout / stderr 分離がなかった**: 当時の CLI は stdout に直接 result JSON を書き、ライブラリ進捗バーも stdout に混じっていた
-
-現実装の対策:
+## 進捗バー抑制 (旧版から有効な対策、訂正なし)
 
 | 対策 | 実装箇所 | 効果 |
 |---|---|---|
-| HF/FlagEmbedding の進捗バーを env で抑制 | `spec_anchor/cli.py:27-28` で `HF_HUB_DISABLE_PROGRESS_BARS=1` / `HF_HUB_DISABLE_TELEMETRY=1` 等を `setdefault` | tqdm 描画自体が起きない |
-| コマンド本体実行中 stdout を stderr へ redirect | `spec_anchor/cli.py:62` `_stdout_reserved_for_result()` context manager | ライブラリが何かを書いても stdout は汚染されない |
-| BGEM3FlagModel の class-level cache | FlagEmbedding ライブラリ側の機構 (本リポジトリでは利用) | `__init__` を何度呼んでも実 weights I/O は 1 回 |
+| HF/FlagEmbedding の進捗バーを env で抑制 | `spec_anchor/cli.py` で `HF_HUB_DISABLE_PROGRESS_BARS=1` / `HF_HUB_DISABLE_TELEMETRY=1` を `setdefault` | tqdm 描画自体が起きない |
+| コマンド本体実行中 stdout を stderr へ redirect | `spec_anchor/cli.py` `_stdout_reserved_for_result()` context manager | ライブラリが何かを書いても stdout は汚染されない |
 
-これらが揃ったため、実 CLI 経路では:
+これらにより stdout は valid JSON 単体に保たれる (#9 = stdout を valid JSON 単体にする契約は満たされている)。
 
-- 進捗バー描画 = 0 件
-- 実 weights I/O = 1 回 (cache hit)
-- stdout = 60KB の valid JSON 単体
-- stderr = HF Hub の token absence warning 1 行のみ (s10 スコープ外)
+## 結論と残作業
 
-## 結論
-
-#9-s10 シナリオ要件「FlagEmbedding model が 1 回だけ load される (4 回反復が解消されている)」は **実 CLI 経路で完全に満たされている**。前セッションでターミナル側 Claude が「外部ブロッカー」分類したのは誤判断で、本環境には qdrant_client / FlagEmbedding / Qdrant service / HF model cache がすべて揃っており検証可能であった。
-
-## 残作業
-
-なし。
-
-## 補足: 残る stderr 1 行 (`HF_TOKEN` warning) について
-
-```
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-```
-
-これは HuggingFace Hub の token absence warning で、rate limit 緩和のための提案メッセージ。`HF_HUB_DISABLE_PROGRESS_BARS` でも `HF_HUB_DISABLE_TELEMETRY` でも抑制されない。抑制したい場合は `HF_TOKEN` を設定するか、`huggingface_hub` の logging level を下げる必要がある。本 sub task (#9 = stdout を valid JSON 単体にする) のスコープ外。
+- **stdout cleanliness (#9 本体)**: 満たされている。stdout は 21 keys の valid JSON 単体、進捗バー混入なし。
+- **load 回数**: 旧版の「1 回 load」は誤り。実測で **1 回の `/spec-core` につき 2 回** BGE-M3 を load している (section_collection_upsert + related_sections がそれぞれ provider を構築)。これは ~5-10 s の無駄。
+- **改善 TODO**: 1 回の `/spec-core` 内で BGE-M3 provider / retriever を共有し load を 1 回に減らす改善を `doc/TODO/TODO_bge_m3_provider_sharing.ja.md` に起票した。
