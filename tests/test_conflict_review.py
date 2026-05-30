@@ -366,7 +366,7 @@ def _pending_item(conflict_id: str = "conflict-feature-x") -> dict[str, Any]:
         "valid_scope": "global",
         "reflection_status": "unreflected",
         "reflected_refs": [],
-        "stale_resolution": False,
+        "stale_dismissal": False,
         "created_at": "2026-05-06T00:00:00Z",
         "updated_at": "2026-05-06T00:00:00Z",
     }
@@ -714,7 +714,7 @@ def test_t_u11_pending_count_is_only_pending_conflict_blocking_reason() -> None:
     assert "pending_conflict" not in no_pending_freshness.get("blocking_reasons", [])
 
 
-def test_t_u16_stale_resolution_and_scope_control_evidence_use() -> None:
+def test_t_u16_stale_dismissal_and_scope_control_evidence_use() -> None:
     module = _module()
     mark_stale = _required_function(
         module,
@@ -759,7 +759,7 @@ def test_t_u16_stale_resolution_and_scope_control_evidence_use() -> None:
         },
     )
     stale_item = _item_by_id(refreshed, "resolved-conflict")
-    assert stale_item["stale_resolution"] is True
+    assert stale_item["stale_dismissal"] is True
 
     evidence = _call(
         usable_evidence,

@@ -26,7 +26,7 @@ from spec_anchor.artifacts import ArtifactError, ContextArtifactStore, build_emp
 from spec_anchor.conflict_review import (
     apply_conflict_decision,
     evaluate_conflicts,
-    refresh_conflict_resolution_staleness,
+    refresh_conflict_dismissal_staleness,
     summarize_conflict_review_state,
 )
 from spec_anchor.core_lock import (
@@ -712,7 +712,7 @@ def _run_spec_core_unlocked(
         concept_ref=concept_ref,
         concept_hash=concept_hash,
     )
-    conflict_review_items = refresh_conflict_resolution_staleness(
+    conflict_review_items = refresh_conflict_dismissal_staleness(
         conflict_review_items=conflict_review_items,
         current_source_hashes=current_hashes,
     )
@@ -720,7 +720,7 @@ def _run_spec_core_unlocked(
     potential_conflicts = list(conflict_payload.get("potential_conflicts") or conflict_payload.get("diagnostics") or [])
     conflict_selection_diagnostics = list(conflict_payload.get("selection_diagnostics") or [])
     pending_conflict_count = int(conflict_summary.get("pending_conflict_count", 0))
-    stale_resolution_count = int(conflict_summary.get("stale_resolution_count", 0))
+    stale_dismissal_count = int(conflict_summary.get("stale_dismissal_count", 0))
     unreflected_conflicts = [
         item
         for item in conflict_review_items
@@ -939,7 +939,7 @@ def _run_spec_core_unlocked(
         "auto_dismissed_conflict_count": len(auto_dismissed_conflict_ids),
         "auto_dismissed_conflict_ids": auto_dismissed_conflict_ids,
         "unreflected_conflict_resolutions": unreflected_conflicts,
-        "stale_resolution_count": stale_resolution_count,
+        "stale_dismissal_count": stale_dismissal_count,
         "freshness_report": freshness_report,
         "warnings": result_warnings,
         "diagnostics": diagnostics_payload,
@@ -1312,7 +1312,7 @@ def _blocked_core_result(
         "auto_dismissed_conflict_count": 0,
         "auto_dismissed_conflict_ids": [],
         "unreflected_conflict_resolutions": [],
-        "stale_resolution_count": 0,
+        "stale_dismissal_count": 0,
         "freshness_report": report,
         "warnings": list(report.get("warnings") or []),
         "diagnostics": {
@@ -1366,7 +1366,7 @@ def _config_error_core_result(
         "auto_dismissed_conflict_count": 0,
         "auto_dismissed_conflict_ids": [],
         "unreflected_conflict_resolutions": [],
-        "stale_resolution_count": 0,
+        "stale_dismissal_count": 0,
         "freshness_report": report,
         "warnings": list(report.get("warnings") or []),
         "diagnostics": {
@@ -4637,7 +4637,7 @@ def _auto_dismiss_pending_conflict(
     updated["valid_scope"] = "global"
     updated["resolution"] = resolution
     updated["reflection_status"] = "not_required"
-    updated["stale_resolution"] = False
+    updated["stale_dismissal"] = False
     updated["updated_at"] = now
     updated["base_source_hashes"] = _current_base_source_hashes(
         updated,

@@ -483,7 +483,7 @@ def _build_conflict_item(
         "valid_scope": "global",
         "reflection_status": "unreflected",
         "reflected_refs": [],
-        "stale_resolution": False,
+        "stale_dismissal": False,
         "created_at": now,
         "updated_at": now,
     }
@@ -637,7 +637,7 @@ def validate_conflict_review_item(
     normalized.setdefault("valid_scope", "global")
     normalized.setdefault("reflection_status", "unreflected")
     normalized.setdefault("reflected_refs", [])
-    normalized.setdefault("stale_resolution", False)
+    normalized.setdefault("stale_dismissal", False)
     normalized.setdefault("created_at", now)
     normalized.setdefault("updated_at", now)
 
@@ -756,7 +756,7 @@ def summarize_conflict_review_state(
 
     current_items = items if items is not None else conflict_review_items or []
     pending_count = sum(1 for item in current_items if item.get("status") == "pending")
-    stale_count = sum(1 for item in current_items if item.get("stale_resolution") is True)
+    stale_count = sum(1 for item in current_items if item.get("stale_dismissal") is True)
     unreflected_count = sum(
         1
         for item in current_items
@@ -770,31 +770,31 @@ def summarize_conflict_review_state(
         "pending_conflict_count": pending_count,
         "unreflected_conflict_resolution_count": unreflected_count,
         "unreflected_conflict_resolutions": unreflected_count,
-        "stale_resolution_count": stale_count,
+        "stale_dismissal_count": stale_count,
         "freshness_report": {
             "status": "blocked" if blocking_reasons else "fresh",
             "blocking_reasons": blocking_reasons,
             "pending_conflict_count": pending_count,
             "unreflected_conflict_resolution_count": unreflected_count,
-            "stale_resolution_count": stale_count,
+            "stale_dismissal_count": stale_count,
         },
     }
 
 
-def refresh_conflict_resolution_staleness(
+def refresh_conflict_dismissal_staleness(
     items: list[dict[str, Any]] | None = None,
     *,
     conflict_review_items: list[dict[str, Any]] | None = None,
     current_source_hashes: dict[str, str] | None = None,
     source_hashes: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Refresh stale_resolution by comparing base_source_hashes to current hashes."""
+    """Refresh stale_dismissal by comparing base_source_hashes to current hashes."""
 
     current_items = _copy_items(items if items is not None else conflict_review_items)
     hashes = current_source_hashes or source_hashes or {}
     for item in current_items:
         if item.get("status") not in {"resolved", "dismissed"}:
-            item["stale_resolution"] = False
+            item["stale_dismissal"] = False
             continue
         stale = False
         for base in item.get("base_source_hashes", []):
@@ -803,7 +803,7 @@ def refresh_conflict_resolution_staleness(
             if source_ref in hashes and expected_hash is not None and str(hashes[source_ref]) != str(expected_hash):
                 stale = True
                 break
-        item["stale_resolution"] = stale
+        item["stale_dismissal"] = stale
     return current_items
 
 
@@ -823,7 +823,7 @@ def usable_conflict_resolution_evidence(
     for item in current_items:
         if item.get("status") != "resolved":
             continue
-        if item.get("stale_resolution") is True:
+        if item.get("stale_dismissal") is True:
             continue
         valid_scope = item.get("valid_scope", "global")
         if valid_scope == "task_scope" and not include_task_scope:
@@ -843,8 +843,8 @@ record_conflict_decision = apply_conflict_decision
 resolve_conflict_review_item = apply_conflict_decision
 build_conflict_freshness_report = summarize_conflict_review_state
 conflict_review_freshness_report = summarize_conflict_review_state
-mark_stale_conflict_resolutions = refresh_conflict_resolution_staleness
-validate_conflict_resolution_freshness = refresh_conflict_resolution_staleness
+mark_stale_conflict_resolutions = refresh_conflict_dismissal_staleness
+validate_conflict_resolution_freshness = refresh_conflict_dismissal_staleness
 filter_usable_conflict_evidence = usable_conflict_resolution_evidence
 resolved_conflict_evidence = usable_conflict_resolution_evidence
 build_conflict_judging_pairs = select_conflict_judging_pairs

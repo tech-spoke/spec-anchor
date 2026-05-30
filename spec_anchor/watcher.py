@@ -855,7 +855,7 @@ def _core_result_summary(core_result: Mapping[str, Any] | Any) -> dict[str, Any]
         "retrieval_index_artifact_revision",
         "source_update_diff",
         "pending_conflict_count",
-        "stale_resolution_count",
+        "stale_dismissal_count",
     ):
         if key in core_result:
             summary[key] = _jsonable(core_result[key])

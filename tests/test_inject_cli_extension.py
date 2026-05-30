@@ -198,7 +198,7 @@ def test_inject_conflicts_returns_only_resolved_non_stale(tmp_path: Path) -> Non
             {"conflict_id": "c-resolved", "status": "resolved"},
             {"conflict_id": "c-pending", "status": "pending"},
             {"conflict_id": "c-dismissed", "status": "dismissed"},
-            {"conflict_id": "c-stale", "status": "resolved", "stale_resolution": True},
+            {"conflict_id": "c-stale", "status": "resolved", "stale_dismissal": True},
         ],
     )
 

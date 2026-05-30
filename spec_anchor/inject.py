@@ -579,12 +579,12 @@ def run_inject_conflicts(
             # Filter out stale resolutions; the Agent must only cite
             # non-stale resolved items as `evidence_origin = "Conflict
             # Review Item"`.
-            stale_marker = item.get("stale_resolution") or item.get("stale")
+            stale_marker = item.get("stale_dismissal") or item.get("stale")
             if stale_marker:
                 excluded_items.append(
                     {
                         "conflict_id": item.get("conflict_id"),
-                        "reason_code": "stale_resolution",
+                        "reason_code": "stale_dismissal",
                     }
                 )
                 continue
