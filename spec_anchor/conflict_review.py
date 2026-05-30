@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from threading import Lock
 from typing import Any
 
 
@@ -54,6 +55,8 @@ class ConflictReviewResult:
     pending_conflict_count: int = 0
     selection_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     non_pending_conflict_signals: list[dict[str, Any]] = field(default_factory=list)
+    judge_pair_count: int = 0
+    llm_call_count: int = 0
     # Token usage collected from each _call_judge invocation.
     # Each entry is the __spec_anchor_usage dict returned by the LLM provider.
     usage_list: list[dict[str, Any]] = field(default_factory=list)
@@ -67,6 +70,8 @@ class ConflictReviewResult:
             "non_pending_conflict_signals": self.non_pending_conflict_signals,
             "freshness_report": self.freshness_report,
             "pending_conflict_count": self.pending_conflict_count,
+            "judge_pair_count": self.judge_pair_count,
+            "llm_call_count": self.llm_call_count,
         }
 
 
@@ -331,6 +336,8 @@ def evaluate_section_pair_conflicts(
     diagnostics: list[dict[str, Any]] = []
     non_pending_signals: list[dict[str, Any]] = []
     call_usages: list[dict[str, Any]] = []
+    llm_call_count = 0
+    llm_call_count_lock = Lock()
 
     valid_pairs: list[Mapping[str, Any]] = []
     for pair in section_pairs or []:
@@ -362,6 +369,9 @@ def evaluate_section_pair_conflicts(
             "section_b": section_b,
             "source_refs": source_refs,
         }
+        nonlocal llm_call_count
+        with llm_call_count_lock:
+            llm_call_count += 1
         payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
         return a_id, b_id, candidate_origin, section_a, section_b, source_refs, payload
 
@@ -426,6 +436,8 @@ def evaluate_section_pair_conflicts(
         pending_conflict_count=summary["pending_conflict_count"],
         selection_diagnostics=[],
         non_pending_conflict_signals=non_pending_signals,
+        judge_pair_count=len(valid_pairs),
+        llm_call_count=llm_call_count,
         usage_list=call_usages,
     )
 

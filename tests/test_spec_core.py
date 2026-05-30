@@ -2143,6 +2143,35 @@ def test_t_conflict_detection_disabled_does_not_call_judge(
     assert item["status"] == "pending", "既存 pending は disabled run で保持される"
 
 
+def test_conflict_budget_diagnostics_surface_in_core_result_and_progress(
+    tmp_path: Path,
+) -> None:
+    from spec_anchor.core_progress import read_progress
+
+    project_root = tmp_path / "project"
+    _write_project(project_root)
+
+    result = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider())
+    )
+
+    candidate_diagnostics = result["diagnostics"]["section_pair_candidate_generation"]
+    conflict_diagnostics = result["diagnostics"]["conflict_evaluation"]
+    assert candidate_diagnostics["generated_count"] > 0
+    assert candidate_diagnostics["self_pair_count"] > 0
+    assert candidate_diagnostics["self_pair_count"] <= candidate_diagnostics["generated_count"]
+    assert conflict_diagnostics["judge_pair_count"] == candidate_diagnostics["generated_count"]
+    assert conflict_diagnostics["llm_call_count"] == conflict_diagnostics["judge_pair_count"]
+
+    progress = read_progress(project_root)
+    assert progress is not None
+    candidate_stage = progress["stages"]["section_pair_candidate_generation"]
+    conflict_stage = progress["stages"]["conflict_evaluation"]
+    assert candidate_stage["self_pair_count"] == candidate_diagnostics["self_pair_count"]
+    assert conflict_stage["judge_pair_count"] == conflict_diagnostics["judge_pair_count"]
+    assert conflict_stage["llm_call_count"] == conflict_diagnostics["llm_call_count"]
+
+
 def test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_ref(
     tmp_path: Path,
 ) -> None:

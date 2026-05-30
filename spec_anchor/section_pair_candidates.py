@@ -394,12 +394,18 @@ def generate_section_pair_candidates(
             merged[pid] = payload
 
     candidates = [merged[pid] for pid in sorted(merged)]
+    self_pair_count = sum(
+        1
+        for candidate in candidates
+        if candidate.get("left_section_id") == candidate.get("right_section_id")
+    )
     diagnostics = {
         "section_count": len(sections),
         "mode": mode,
         "generated_count": len(candidates),
         "truncated_count": truncated_count,
         "recheck_count": recheck_count,
+        "self_pair_count": self_pair_count,
     }
     return SectionPairCandidateResult(candidates=candidates, diagnostics=diagnostics)
 

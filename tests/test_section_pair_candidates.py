@@ -357,3 +357,47 @@ def test_empty_sections_returns_empty_candidates() -> None:
     assert result.candidates == []
     assert result.diagnostics["section_count"] == 0
     assert result.diagnostics["mode"] == "all_pairs"
+    assert result.diagnostics["self_pair_count"] == 0
+
+
+def test_self_pair_count_counts_final_candidate_set() -> None:
+    sections = [_section(f"doc.md#s{i}", source_hash="current") for i in range(3)]
+    existing = [
+        {
+            "section_pair": {
+                "left_section_id": "doc.md#s0",
+                "right_section_id": "doc.md#s0",
+            },
+            "base_source_hashes": [{"source_ref": "doc.md#s0", "hash": "OLD"}],
+        },
+        {
+            "section_pair": {
+                "left_section_id": "doc.md#s1",
+                "right_section_id": "doc.md#s1",
+            },
+            "base_source_hashes": [{"source_ref": "doc.md#s1", "hash": "OLD"}],
+        },
+    ]
+    current_hashes = {f"doc.md#s{i}": "current" for i in range(3)}
+
+    result = generate_section_pair_candidates(
+        sections,
+        existing_conflict_items=existing,
+        current_source_hashes=current_hashes,
+        config={
+            "conflict_candidate_detection": {
+                "allow_same_section_pair": False,
+            }
+        },
+    )
+
+    self_pairs = [
+        c for c in result.candidates if c["left_section_id"] == c["right_section_id"]
+    ]
+    cross_pairs = [
+        c for c in result.candidates if c["left_section_id"] != c["right_section_id"]
+    ]
+    assert len(self_pairs) == 2
+    assert len(cross_pairs) == 3
+    assert result.diagnostics["generated_count"] == 5
+    assert result.diagnostics["self_pair_count"] == 2

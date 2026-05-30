@@ -584,6 +584,10 @@ def _run_spec_core_unlocked(
     conflict_usage_list: list[dict[str, Any]] = []
     potential_conflicts: list[dict[str, Any]] = []
     conflict_selection_diagnostics: list[dict[str, Any]] = []
+    conflict_evaluation_diagnostics: dict[str, Any] = {
+        "judge_pair_count": 0,
+        "llm_call_count": 0,
+    }
     if not detection_enabled:
         # Detection off: do not generate candidates or call the judge. Existing
         # Conflict Review Items are preserved (absence is not reliable, so no
@@ -595,6 +599,7 @@ def _run_spec_core_unlocked(
             "generated_count": 0,
             "truncated_count": 0,
             "recheck_count": 0,
+            "self_pair_count": 0,
         }
         allow_pair_absent_auto_dismiss = False
     elif not changed_this_run:
@@ -610,6 +615,7 @@ def _run_spec_core_unlocked(
             "generated_count": 0,
             "truncated_count": 0,
             "recheck_count": 0,
+            "self_pair_count": 0,
         }
         allow_pair_absent_auto_dismiss = False
     else:
@@ -646,6 +652,24 @@ def _run_spec_core_unlocked(
             if hasattr(conflict_result, "to_dict")
             else dict(conflict_result)
         )
+        conflict_evaluation_diagnostics = {
+            "judge_pair_count": int(
+                getattr(
+                    conflict_result,
+                    "judge_pair_count",
+                    conflict_payload.get("judge_pair_count", 0),
+                )
+                or 0
+            ),
+            "llm_call_count": int(
+                getattr(
+                    conflict_result,
+                    "llm_call_count",
+                    conflict_payload.get("llm_call_count", 0),
+                )
+                or 0
+            ),
+        }
         new_items = [
             dict(item)
             for item in conflict_payload.get("conflict_review_items", [])
@@ -683,6 +707,10 @@ def _run_spec_core_unlocked(
         progress_tracker.update(
             "section_pair_candidate_generation",
             **section_pair_candidate_diagnostics,
+        )
+        progress_tracker.update(
+            "conflict_evaluation",
+            **conflict_evaluation_diagnostics,
         )
         if conflict_usage_list:
             from types import SimpleNamespace
@@ -777,6 +805,7 @@ def _run_spec_core_unlocked(
             "qdrant_backend_failure": related_sections_qdrant_backend_failure,
         },
         "section_pair_candidate_generation": dict(section_pair_candidate_diagnostics),
+        "conflict_evaluation": dict(conflict_evaluation_diagnostics),
     }
     if conflict_selection_diagnostics:
         generation_diagnostics["conflict_review"] = {

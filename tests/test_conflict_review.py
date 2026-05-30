@@ -433,6 +433,61 @@ def test_evaluate_section_pair_conflicts_pending_item_with_conflict_points() -> 
     assert result.pending_conflict_count == 1
 
 
+def test_evaluate_section_pair_conflicts_reports_call_budget_counts() -> None:
+    module = _module()
+    evaluate = module.evaluate_section_pair_conflicts
+    section_pairs = [
+        {
+            "left_section_id": "docs/spec/conflict.md#alpha",
+            "right_section_id": "docs/spec/conflict.md#beta",
+            "candidate_origin": "all_pairs",
+        },
+        {
+            "left_section_id": "docs/spec/conflict.md#beta",
+            "right_section_id": "docs/spec/conflict.md#gamma",
+            "candidate_origin": "section_pair_retrieval",
+        },
+        {
+            "left_section_id": "docs/spec/conflict.md#alpha",
+            "right_section_id": "docs/spec/conflict.md#gamma",
+            "candidate_origin": "existing_conflict_recheck",
+        },
+        {"left_section_id": "docs/spec/conflict.md#alpha"},
+    ]
+
+    class CountingJudge:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def judge_conflict(
+            self,
+            request: dict[str, Any],
+            *,
+            timeout_sec: int = 5,
+        ) -> dict[str, Any]:
+            del timeout_sec
+            self.calls.append(request)
+            return {
+                "outcome": "resolved_by_existing_evidence",
+                "warning": "Existing evidence resolves this pair.",
+            }
+
+    judge = CountingJudge()
+    result = evaluate(
+        section_pairs,
+        judge,
+        sections=_sections(),
+        config=_config(llm_batch_concurrency=1),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    assert len(judge.calls) == 3
+    assert result.judge_pair_count == 3
+    assert result.llm_call_count == 3
+    assert result.to_dict()["judge_pair_count"] == 3
+    assert result.to_dict()["llm_call_count"] == 3
+
+
 def test_build_conflict_review_llm_request_preserves_section_text_for_quotes() -> None:
     core = importlib.import_module("spec_anchor.core")
     build_request = core._build_conflict_review_llm_request
