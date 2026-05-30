@@ -2,7 +2,7 @@
 
 **起票日**: 2026-05-30
 **起票者**: Claude main
-**最終更新**: 2026-05-30
+**最終更新**: 2026-05-31 (CODEX 監査指摘 4 件を完了条件・対象リストに反映)
 **ステータス**: 計画中
 **関連設計書**: `doc/EXTERNAL_DESIGN.ja.md` (freshness 停止理由 enum / §11.1.5 / §11.2)、`doc/DESIGN.ja.md §watcher`
 
@@ -78,6 +78,7 @@ freshness の停止理由 `watcher_queue_pending` を根絶し、「Source Specs
 - `python3 -m pytest tests/test_freshness.py tests/test_watcher.py tests/test_spec_inject.py -q` がパス
 - 新規 or 既存の test で「source 変更 → watcher が queue に積んだ (core 未実行) 状態」で `/spec-inject` が `dirty_or_stale_source` を含む `blocking_reasons[]` で停止することを確認
 - edge case 確認: `section_manifest` が存在しない新規プロジェクトでは `_live_source_dirty` が False を返す (`spec_anchor/inject.py:188-189`) が、その場合は `failed_required_artifact` で別途停止することを確認 (= queue-pending 廃止で「停止しない穴」が空かないこと)
+- migration edge case 確認 (GPT 監査 2026-05-31 指摘 / 裏取り済): `WATCHER_QUEUE_PENDING` を `REASON_PRIORITY` から削除すると `KNOWN_REASONS = set(REASON_PRIORITY)` (`spec_anchor/freshness.py:39`) から外れ、`order_blocking_reasons` が `str(reason) in KNOWN_REASONS` で弾く (`spec_anchor/freshness.py:294`) ため、**廃止前に書かれた古い freshness artifact に `watcher_queue_pending` だけが残っているケースでは normalize 時にその reason が黙って落ちる**。これが「停止しない穴」を空けないことを test で確認する。具体ケース: 古い artifact (`blocking_reasons:["watcher_queue_pending"]`) + Source Specs が `section_manifest` より先行 → `/spec-inject` の live check が `dirty_or_stale_source` を再挿入して停止する。移行時の安心材料として残す
 
 #### 完了条件
 
@@ -92,6 +93,7 @@ freshness の停止理由 `watcher_queue_pending` を根絶し、「Source Specs
 - `WATCHER_ACTIVITY_REASONS` 縮約の影響確認
 - `queue_pending` 診断フィールドの個別判定
 - targeted pytest + queue-pending 状態の停止 test
+- migration test (古い artifact に `watcher_queue_pending` 残存 + source 先行 → `dirty_or_stale_source` で停止)
 
 #### 依存 / scope 外
 
@@ -111,17 +113,20 @@ freshness の停止理由 `watcher_queue_pending` を根絶し、「Source Specs
 
 #### 根絶対象 (grep 確定, 2026-05-30)
 
-設計書:
-- `doc/EXTERNAL_DESIGN.ja.md:966` (停止理由列挙), `:1390` (`blocking_reasons` JSON 例)。**他にも §11.1.5 / §11.2 / 物理配置表周辺に記述があれば併せて確認**
-- `doc/DESIGN.ja.md:1093`, `:1100` (watcher 説明)
-- `doc/EXTERNAL_SPEC_DRAFT.ja.md` (grep で該当行特定)
+設計書 (行番号は 2026-05-31 再確認値。実装時の編集で前後するので grep で再特定する):
+- `doc/EXTERNAL_DESIGN.ja.md` 5 件: `:962` (停止理由列挙), `:1386` (`blocking_reasons` JSON 例), `:1464` / `:1494` / `:1499` (CODEX 監査 High-2 で発覚した当初リスト漏れ。§11 周辺)
+- `doc/EXTERNAL_SPEC_DRAFT.ja.md` 4 件: `:627` / `:815` / `:1348` / `:1368`
+- `doc/DESIGN.ja.md` 2 件: `:1083` / `:1090` (watcher 説明)
 
-コマンドテンプレート (本体):
+コマンド / skill テンプレート (本体 = git 追跡対象):
 - `spec_anchor/templates/.claude/commands/spec-core.md:142`
 - `spec_anchor/templates/.claude/commands/spec-inject.md:247`
 - `spec_anchor/templates/.claude/commands/spec-realign.md:202`
+- `spec_anchor/templates/.codex/skills/spec-anchor/SKILL.md` (1 件。CODEX 監査で発覚。当初リスト漏れ。Codex 向け skill 配布元なので同じ enum 列挙を更新する)
 
-リポジトリ直下の `.claude/commands/` (`spec-core.md:142` / `spec-inject.md:259` / `spec-realign.md:214`): **`spec_anchor/templates/` から生成されるコピーか、手管理かを先に確認**。生成物なら再生成、手管理なら直接編集。
+リポジトリ直下の生成物コピー:
+- `.claude/commands/` (`spec-core.md:142` / `spec-inject.md:259` / `spec-realign.md:214`): **`spec_anchor/templates/.claude/commands/` から生成されるコピーか、手管理かを先に確認**。生成物なら再生成、手管理なら直接編集。
+- `.codex/skills/spec-anchor/SKILL.md` (1 件): **`.codex/` は `.gitignore:18` で無視されるため `git grep` では検出されない** (CODEX 監査 Medium 指摘)。配布元 `spec_anchor/templates/.codex/...` を更新した後、ローカル `.codex/skills/...` を再生成するか、再生成不能なら直接編集する。完了確認は `git grep` ではなく `rg --hidden -n "watcher_queue_pending|WATCHER_QUEUE_PENDING" .codex/skills/` を別途実行する (ただし `.codex/sessions/**` の過去ログ hit は履歴なので除外対象)。
 
 test:
 - `tests/e2e/forbidden_terms.py` (1 件。`watcher_queue_pending` が許可語 enum リストに入っている等の用途を確認して更新)
@@ -131,20 +136,31 @@ test:
 
 #### 検証条件 / 完了条件
 
-- `git grep -nE "watcher_queue_pending|WATCHER_QUEUE_PENDING"` が **archive 除き 0 件**:
+- **live target (= 更新対象) 0 件確認** (CODEX 監査 High-1 / High-2 指摘を反映):
   ```bash
-  git grep -nE "watcher_queue_pending|WATCHER_QUEUE_PENDING" | grep -vE "doc/OLD|完了済みTODO|e2eテスト/evidence|archive/full-grag"
+  git -c core.quotePath=false grep -nE "watcher_queue_pending|WATCHER_QUEUE_PENDING" \
+    | grep -vE "doc/OLD|完了済みTODO|doc/e2eテスト|archive/full-grag|doc/監査|TODO_watcher_queue_pending_eradication"
   ```
   → 0 件
-- `git grep -nE "stub|dormant|legacy|disabled|deprecated|fallback"` の新規 hit が出ていない (置換で中途半端な残骸を作っていない)
+  - **`-c core.quotePath=false` は必須**。これが無いと git grep が日本語パス (`doc/e2eテスト...`) を octal escape (`doc/e2e\343\203\206...`) で出力し、`grep -vE "doc/e2eテスト"` が一致せず除外が静かに失敗する (旧 TODO の grep が抱えていた欠陥。CODEX 監査で発覚)。
+  - **除外対象は履歴・証跡 docs**: `doc/OLD`、`doc/TODO/完了済みTODO/`、`doc/e2eテスト*` (= `e2eテスト/` / `e2eテストCODEX実施用/` / `e2eテストSONNET用/` の evidence・RESULTS・*-progress 系すべて。frozen な実行証跡)、`archive/full-grag`、`doc/監査-CODEX/`、本 TODO ファイル自身。
+  - **本 TODO ファイル自身を除外する理由**: archive 移動 (本ファイル末尾「archive 手順」) は完了条件達成**後**に行うため、完了判定 grep 時点では本ファイル内の語 (26 件) が残る。これを除外しないと完了判定が永久に 0 件にならない (CODEX 監査 High-1 = grep 自己矛盾の指摘)。
+  - この除外後の残数 = 更新すべき live target そのもの。着手前時点で 37 件 (2026-05-31 確認: freshness.py 9 / watcher.py 5 / EXTERNAL_DESIGN.ja.md 5 / EXTERNAL_SPEC_DRAFT.ja.md 4 / DESIGN.ja.md 2 / test 5 / template .claude 3 / template .codex 1 / 生成物 .claude 3)。
+- ローカル `.codex/skills/` (git 無視対象) は上記 grep で検出されないため別途:
+  ```bash
+  rg --hidden -n "watcher_queue_pending|WATCHER_QUEUE_PENDING" .codex/skills/
+  ```
+  → 0 件 (`.codex/sessions/**` の過去ログ hit は履歴なので対象外)
+- `git -c core.quotePath=false grep -nE "stub|dormant|legacy|disabled|deprecated|fallback"` の新規 hit が出ていない (置換で中途半端な残骸を作っていない)
 - T-WQP-1 と T-WQP-2 は **同一 commit 群で landing** させる (片方だけ landing すると enum とコードが乖離する)
 
 #### 残作業
 
-- 設計書 3 ファイルの enum 列挙・JSON 例から除去
-- テンプレート 3 ファイル + `.claude/commands` 3 ファイルの enum 列挙から除去 (生成/手管理を先に判定)
+- 設計書 3 ファイル (`EXTERNAL_DESIGN.ja.md` 5 件 / `EXTERNAL_SPEC_DRAFT.ja.md` 4 件 / `DESIGN.ja.md` 2 件) の enum 列挙・JSON 例から除去
+- テンプレート本体 4 ファイル (`spec_anchor/templates/.claude/commands/` 3 + `spec_anchor/templates/.codex/skills/spec-anchor/SKILL.md` 1) の enum 列挙から除去
+- 生成物コピー: リポジトリ直下 `.claude/commands/` 3 ファイル + ローカル `.codex/skills/spec-anchor/SKILL.md` (生成/手管理を先に判定。`.codex` は再生成 or 直接編集)
 - test 5 ファイルの参照除去・更新
-- 全 grep 0 確認
+- live target grep 0 確認 (`-c core.quotePath=false` + 除外条件) + `.codex/skills/` の `rg --hidden` 0 確認
 
 #### 依存 / scope 外
 
@@ -152,10 +168,11 @@ test:
 
 ## 課題全体の完了条件
 
-- `git grep -nE "watcher_queue_pending|WATCHER_QUEUE_PENDING"` が archive 除き 0 件
+- live target grep が 0 件 (T-WQP-2「検証条件 / 完了条件」の `git -c core.quotePath=false grep ... | grep -vE "...履歴除外..."` コマンド。`-c core.quotePath=false` と本 TODO ファイル自身の除外を含む) + ローカル `.codex/skills/` の `rg --hidden` が 0 件
 - watcher が「source 先行・core 未実行」状態で `dirty_or_stale_source` を書く
 - 「source 変更 → watcher queue 済 → core 未実行」で `/spec-inject` が `dirty_or_stale_source` で停止する test がパス
-- `python3 -m pytest tests/test_freshness.py tests/test_watcher.py tests/test_spec_inject.py -q` および forbidden_terms e2e がパス
+- `python3 -m pytest tests/test_freshness.py tests/test_watcher.py tests/test_spec_inject.py -q` がパス
+- `python3 -m pytest tests/e2e/test_user_facing_output.py -q` がパス (`tests/e2e/forbidden_terms.py` は helper module であり pytest 実行対象ではない。`FORBIDDEN_TERMS` を使う assertion は `test_user_facing_output.py` 側。CODEX 監査 Low 指摘で具体 command を明記)
 - 利用者向け挙動 (停止する / しない) が本課題前後で不変であることを確認
 
 ## 依存 / scope 外
