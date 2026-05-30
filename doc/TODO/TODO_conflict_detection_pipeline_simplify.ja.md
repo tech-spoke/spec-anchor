@@ -69,7 +69,7 @@ sections
 | # | sub task ID | 概要 | 状態 | 残作業 | 最終更新 | 完了 commit |
 |---|---|---|---|---|---|---|
 | 1 | T-stale-artifact-guard | GPT-01: detection disabled/failed 時に stale な `conflict_candidate_pairs.jsonl` / `spec_claims.jsonl` を無条件 read して評価するバグを修正（status ガード追加） | 実装済み・テスト未検証 | test 観測点修正 + pytest + production E2E | 2026-05-30 | — |
-| 2 | T-section-pair-judge | section ペアを直接 judge する dedicated 検出器を新設（責務分離）。候補生成は非LLM retrieval/rank。`conflict_points[]` を出力契約に含める | 未着手 | artifact 名/config 確定 + 実装 + test | 2026-05-30 | — |
+| 2 | T-section-pair-judge | section ペアを直接 judge する dedicated 検出器を新設（責務分離）。候補生成は非LLM retrieval/rank・非永続(A案)。`conflict_points[]` を出力契約に含める | ST-1/ST-2 実装済(additive・未配線) | ST-3 配線 + no-change skip + diagnostics + test | 2026-05-31 | — |
 | 3 | T-conflict-item-redesign | `conflict_review_item` を section_pair_id + conflict_points[] に再設計し、dismiss/reopen を section_pair 単位へ | 未着手 | 実装 + test（方針承認済み） | 2026-05-30 | — |
 | 4 | T-claim-pipeline-eradicate | `spec_claims` / `claim_retrieval` / `triage` / claim_uid 単位 dismiss/reopen を根絶（GPT-02 enable バグも消滅） | 未着手 | 実装 + grep 検証 + test | 2026-05-30 | — |
 | 5 | T-contract-realign | 外部設計書 / 仕様 draft / 内部設計書 / テンプレ / §4.1 配置表を新検出経路へ整合（実装監査後） | 未着手 | docs 反映 + 人間レビュー | 2026-05-30 | — |
@@ -212,9 +212,16 @@ allow_same_section_pair = true
 > - **section 削除**: 当該 section が source から消えた場合、その section を含む既存 conflict pair は auto-dismiss 可能（dangling ref）。
 > - **heading slug の rename**: 旧 section id が消えても内容は残っているので「pair 不在 → 矛盾解消」ではなく、**source ref / section id の変化（再マップ対象）**として扱い、新 section id で再評価する。rename を削除と同一視して auto-dismiss しない。
 
-#### artifact 名（claim 由来と混ざらない名前へ）
+#### candidate は永続化しない（A 案・確定 / 旧 artifact 名は撤回）
 
-旧 `conflict_candidate_pairs.jsonl` は claim pair 由来の意味が強く、#4 の claim pipeline 根絶時に grep / 監査が混ざる。section pair 候補用に新名へ変更する（旧名は #4 で根絶）。**新 artifact 名 = `section_conflict_candidate_pairs.jsonl`（確定）**。理由: 「section pair の conflict candidate」が最も明確（GPT 推奨で確定）。
+section_pair candidate は **永続化せず、full / changed run で毎回 in-memory 再計算**する（GPT・Human 合意 A 案）。旧 `conflict_candidate_pairs.jsonl` は #4 で根絶し、**新 artifact は作らない**。以前確定した `section_conflict_candidate_pairs.jsonl` は撤回（外部設計書反映前なので実装前の設計修正で済む）。
+
+理由: section_pair candidate は LLM 非使用の retrieval/rank で軽量に再生成でき、再評価に必要な状態は既存 artifact から復元できる（現在の sections = section_manifest、既存 conflict と recheck 対象 = `conflict_review_items.json` の `section_pair` + `base_source_hashes`）。candidate を永続化すると schema / state file / fingerprint / stale 判定 / disabled-failed read guard / §4.1 契約 / E2E が再び必要になり、今回消したい複雑性に逆行する。**GPT-01 の stale-read 問題は「artifact が存在するから起きる」ので、永続化しない方が構造的に安全**。
+
+ただし次の 2 条件を必須とする。
+
+1. **no-change incremental では candidate generation も section_pair judge も skip する**（毎回再計算しない）。skip 判定材料: section_manifest の section hash / `conflict_review_items` の `base_source_hashes` / config fingerprint / Purpose・Core Concept hash。これらが不変なら前回の `conflict_review_items.json` を維持し、candidate 再生成も judge もしない。source hash が変わった run だけ candidate を再生成し、existing_conflict recheck pair を cap 対象外で union して judge する。
+2. candidate を永続化しない代わりに、**candidate generation の diagnostics を `CoreResult` / `core_progress` に出す**: `status` / `mode`(all_pairs|retrieval_cap) / `section_count` / `candidate_count_before_cap` / `candidate_count_after_cap` / `self_pair_count` / `recheck_pair_count` / `truncated_pair_count` / `absence_reliable` / `origin_counts`(all_pairs/section_pair_retrieval/existing_conflict_recheck)。これで永続ログが無くても性能・安全性・cap 外 false negative を監査できる。
 
 #### 検証条件
 
@@ -227,15 +234,14 @@ section_pair judge が既知矛盾を検出し、conflict_points を返す。rec
 
 #### 残作業
 
-- artifact 名の確定（実装前）。
-- judge 出力契約の確定と実装、test。
-- Purpose / Core Concept grounding を judge 入力に含める実装（CR-004）。
-- cap truncation 時の「absence reliable」判定と既存 pair 強制再評価の実装（CR-001）。
-- 同一 section 内矛盾を scope に含めるか確定し、含む場合 A==B の conflict_id 規則を定義（CR-002・人間判断点）。
+- ST-1（judge コア）/ ST-2（候補生成）実装済（additive・未配線）。残りは ST-3 の core.py 配線。
+- ST-3 で: candidate 非永続(A案)・no-change incremental skip・candidate diagnostics を CoreResult/core_progress に出す。
+- Purpose / Core Concept grounding を judge 入力に含める実装（CR-004。ST-3 配線で wrapper を通す）。
+- cap truncation 時の「absence reliable」判定と既存 pair 強制再評価の実装（CR-001。ST-2 で recheck union 実装済、ST-3 で absence_reliable を core 側に配線）。
 
 #### 依存 / scope 外
 
-#3（conflict_review_item 再設計）と密結合。並列化（#6）は本 sub task の後。候補生成方式は上記で確定済み（残るのは artifact 名・config 値・CR-001/002/004 の確定）。
+#3（conflict_review_item 再設計）と密結合。並列化（#6）は本 sub task の後。候補生成方式・config 値・CR-001/002/004 はすべて確定済（残るのは ST-3 配線のみ）。
 
 ### #3 T-conflict-item-redesign: conflict_review_item を section_pair 単位へ再設計
 
@@ -332,11 +338,11 @@ section_pair_id("session-policy", "session-policy")
 }
 ```
 
-#### 外部契約への影響（**section_pair 化で承認済み / 残るは artifact 名のみ**）
+#### 外部契約への影響（**section_pair 化で承認済み**）
 
-次の 3 つが外部から見て変わる。方針は section_pair 化で承認済み（GPT・Human）。実装前に確定が残るのは artifact 名だけ（#2 参照）。
+次の 3 つが外部から見て変わる。方針は section_pair 化で承認済み（GPT・Human）。すべて確定済。
 
-1. `conflict_candidate_pairs.jsonl` → section pair 候補用の新 artifact へ（claim pair 由来の名前を残さない）。
+1. candidate artifact: 旧 `conflict_candidate_pairs.jsonl` は #4 で根絶し、**新 candidate artifact は作らない（A案・非永続）**。candidate は毎回 in-memory 再計算。
 2. Agent に出す conflict の根拠粒度: section pair + `conflict_points[]` で提示。
 3. dismiss / reopen の単位: claim pair → section pair。同じ section ペア内に複数矛盾があっても個別 dismiss は section pair 単位に粗くなる（conflict_points で表示は細かく維持）。
 
@@ -374,7 +380,7 @@ claim 単位を opt-in mode として残すと、`spec_claims` スキーマ / cl
 
 CLAUDE.md ルール 15（廃止 = 根絶）に従い、次を grep で網羅して削除する。stub / disabled / コメントアウト / opt-in / fallback を残さない。
 
-- artifact: `spec_claims.jsonl`、claim 由来の `conflict_candidate_pairs.jsonl` の意味（#3 で section pair 候補へ再定義 or 廃止）
+- artifact: `spec_claims.jsonl` / `conflict_candidate_pairs.jsonl` / それらの state file を根絶（A案で candidate は非永続のため代替 artifact は作らない）
 - 処理: `spec_claims` 生成（`core.py` L1919 付近）、`claim_retrieval`、`conflict_review.select_conflict_judging_pairs`（L336、triage 選抜）
 - 設定 key: `[section_metadata].enabled` 参照を含む `_spec_claims_enabled`（L2872-2876）。GPT-02 バグ（`section_metadata.enabled`（既定 True）`or` `conflict_candidate_detection.enabled` で常時 True、`or` のため off にできない）はこの関数の削除で消滅。矛盾検出の on/off は `conflict_candidate_detection.enabled` を唯一の gate にする。
 - 参照: import / call / 型注釈
@@ -484,8 +490,9 @@ doc 記載の field / status / config key が実 emit / 実コードと突合し
 
 #### 対応方針
 
-- 新ステージ構成（section_metadata / section_pair_judge / chapter_anchors / related_sections / section_collection_upsert）の per-stage wall / calls / token を計測し METRICS.md に記録。
+- 新ステージ構成（section_metadata / section_pair_candidate_generation / section_pair_judge / chapter_anchors / related_sections / section_collection_upsert）の per-stage wall / calls / token を計測し METRICS.md に記録。
 - claim 多段時の baseline（METRICS.md 既存回。例: 第11回 5 section / 第9回 56 section）と比較し、簡易サンプルの総 wall が大幅悪化しないことを確認。目標は短縮。
+- **full / rebuild と no-change incremental の両方を測る**（A案の前提条件確認）: (1) full/rebuild = candidate generation + section_pair judge の wall、(2) no-change incremental = candidate generation も judge も走らず ほぼ skip されること。
 - 並列化（#6）前後で 2 点測る。
 
 #### 検証条件
@@ -518,7 +525,7 @@ doc 記載の field / status / config key が実 emit / 実コードと突合し
 
 - 本課題は `TODO_conflict_resolution_simplification.ja.md` の production E2E ゲートを **supersede** する（検出パイプライン作り直しが先決と判明したため。旧 TODO 側に supersede メモあり）。
 - 旧 TODO で確定済みの「矛盾 = 注入情報（解決ゲート廃止）」「pending/dismissed の 2 値」「dismiss CLI が唯一の却下口」「freshness 簡素化」は維持する。本課題は検出 **経路** の作り直しであり、矛盾の **扱い** の方針は変えない。
-- 候補 section ペア選抜方式（#2）と外部契約 3 点（#3）は section_pair 化で承認済み。artifact 名・config 初期値・section_pair_id 規則・absence reliable predicate・完全 schema はすべて本 TODO 内に確定記載済み（末尾「人間判断点」参照）。実装は本 TODO の確定値を正として進められる状態。
+- 候補 section ペア選抜方式（#2）と外部契約 3 点（#3）は section_pair 化で承認済み。candidate 非永続(A案)・no-change skip・config 初期値・section_pair_id 規則・absence reliable predicate・完全 schema はすべて本 TODO 内に確定記載済み（末尾「人間判断点」参照）。実装は本 TODO の確定値を正として進められる状態。
 
 ## 設計レビュー指摘と disposition（2026-05-30 CODEX 監査）
 
@@ -544,7 +551,7 @@ CODEX が本 TODO（実装着手前の設計）を監査して挙げた 6 指摘
 
 - section_pair judge を default にする / claim-based pipeline は opt-in でも残さず廃止 / triage 廃止 / related_sections artifact 非依存 / `conflict_candidate_detection` は default on / dismiss・reopen は section_pair 単位 / Purpose・Core Concept grounding 維持。
 - 同一 section 内矛盾は **scope に含める**（`allow_same_section_pair = true`。all-pairs・retrieval 両経路で self-pair A==A を 1 件生成）。
-- artifact 名は **`section_conflict_candidate_pairs.jsonl`**。
+- candidate は **永続化しない（A案）**。毎回 in-memory 再計算。新 candidate artifact は作らない（旧確定の `section_conflict_candidate_pairs.jsonl` は撤回）。ただし no-change incremental では candidate generation / judge を skip し、candidate diagnostics を CoreResult/core_progress に出す。
 - `existing_conflict_pairs_requiring_recheck` は cap / top_k の **対象外**で union する。
 - conflict_review_item から旧 `claims[]` は廃止し、`conflict_points[]` + `why_conflicting` で代替する。
 
