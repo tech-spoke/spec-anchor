@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-b864-76b3-8af9-06a09c275d07"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims address the same order-approval policy and overlap on orders above 1000 USD: one requires manager approval, the other says it is never required. This is a clear candidate for conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13171,"cached_input_tokens":10624,"output_tokens":97,"reasoning_output_tokens":31}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-8dcf-7412-b390-a837a611d6e8"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims govern the same checkout order-approval policy and their scopes overlap directly: one requires manager approval above 1000 USD, the other auto-approves every order regardless of amount. This is worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13162,"cached_input_tokens":10624,"output_tokens":117,"reasoning_output_tokens":48}}

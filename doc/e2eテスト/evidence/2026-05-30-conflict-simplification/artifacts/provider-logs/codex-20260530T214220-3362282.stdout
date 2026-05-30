@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-282e-7d03-b93a-59718d9c6718"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Both claims describe the same order-approval policy and are consistent: manager approval is never required, so orders are not held for a human decision.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13139,"cached_input_tokens":10624,"output_tokens":108,"reasoning_output_tokens":54}}

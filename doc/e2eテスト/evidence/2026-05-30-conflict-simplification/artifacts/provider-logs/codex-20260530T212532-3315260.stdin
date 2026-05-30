@@ -1,0 +1,25 @@
+You are the SPEC-anchor /spec-core generation provider. Return only one JSON object. No markdown, no prose. The JSON object must include at least string field "summary" and array field "search_keys".
+
+Request JSON:
+{
+  "context_hashes": {
+    "artifact_role": "9f273810421587f730f5d5ccb215d2027458101f2a788e5aca87a58d99339103",
+    "identifier_extractor_version": "dda190c8ce6460af3574fe73dcc343c9b81b44e2a857a24bd51137dfaf3b2ab6"
+  },
+  "effort": "low",
+  "input_hashes": {
+    "docs/spec/checkout.md#0002-order-approval-policy": "edbcc614ef4d486ac1eaa623fa030d0e65ffc08fb63ed47e2f9744be938fed3b"
+  },
+  "metadata_version": 1,
+  "model": "gpt-5.4-mini",
+  "prompt": "{\"artifact_role\":\"retrieval_aid_not_evidence\",\"batch_completeness_rule\":\"Return exactly one item in output sections[] for every item in input sections[]. Use the exact section_id string from the input. Do not omit, add, rename, or merge sections. If a section is unclear, return empty summary and empty search_keys for that item but keep it in the output.\",\"instructions\":\"search_keys must be NATURAL LANGUAGE keywords for retrieval recall. Output domain concept phrases, chapter themes, synonyms, and the natural-language side of feature/state/warning names. Do NOT output code symbols, API names, function names, class names, CLI commands, CLI options (e.g. --rebuild), file paths, ALL_CAPS constants, PascalCase type names, or dotted technical names. Code symbols are tracked separately under `identifiers` and must not appear in `search_keys` (the two lists are disjoint by contract). If a phrase contains an identifier-shaped token, prefer the natural-language paraphrase (e.g. use 'config replace' instead of 'productStoreGroup.replace').\",\"limits\":{\"search_keys_enabled\":true,\"search_keys_max\":32,\"section_summary_max_chars\":480,\"summary_enabled\":true},\"return_shape\":{\"sections\":[{\"search_keys\":[\"string\"],\"section_id\":\"string\",\"summary\":\"string\"}]},\"sections\":[{\"heading_path\":[\"Checkout Service Spec\",\"Order Approval Policy\"],\"identifiers\":[\"MUST\",\"USD\",\"E2E\",\"pending\"],\"section_id\":\"docs/spec/checkout.md#0002-order-approval-policy\",\"stable_section_uid\":\"428641a2371a3a02\",\"text\":\"\\nThe checkout service MUST require manager approval for every order whose total\\nis above 1000 USD. Such an order is held in a pending state and is never\\nshipped until a human manager explicitly approves it. Automatic approval of\\nhigh-value orders is forbidden. (E2E edit: clarified that this rule applies to all storefront channels.)\\n\\n\"}],\"summary_search_keys_are_evidence\":false,\"task\":\"section_metadata\"}",
+  "prompt_version": "section-metadata-v3",
+  "section_hashes": {
+    "docs/spec/checkout.md#0002-order-approval-policy": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b"
+  },
+  "section_id": null,
+  "semantic_hash": "a131b5f4b634ad065ae0189b2e9cad2a8dc4b5d15641d4fb3513f917816156c8",
+  "source_hash": "ec09ef280c9d05cb9558a2c27f8c472477cf6e614e36f63695df374525426704",
+  "stage": "section_metadata",
+  "task": "section_metadata"
+}

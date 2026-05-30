@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-5b74-7171-af3a-3fdcd58acb12"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Both claims concern the same order approval policy, but one is a scope note and the other is a substantive constraint; they can coexist without contradiction, so conflict review is not worthwhile.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13136,"cached_input_tokens":10624,"output_tokens":148,"reasoning_output_tokens":87}}

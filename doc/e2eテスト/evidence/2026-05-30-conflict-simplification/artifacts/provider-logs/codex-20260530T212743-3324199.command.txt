@@ -1,0 +1,1 @@
+/home/kazuki/.nvm/versions/node/v24.11.1/bin/codex --ask-for-approval never exec --disable plugins --config analytics.enabled=false --config model_reasoning_effort="low" --skip-git-repo-check --ephemeral --ignore-rules --sandbox read-only --json --output-schema /tmp/spec-anchor-llm-schema-oh85yc6c.json --model gpt-5.4-mini -

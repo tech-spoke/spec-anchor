@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-dda8-7b10-ba90-cf320803422e"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Both claims target the checkout service, but they govern different scopes: automatic order approval versus refund timing. Their evidence spans do not indicate an overlapping rule conflict, so this pair is not worth escalation.\",\"confidence\":\"medium\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13165,"cached_input_tokens":2432,"output_tokens":188,"reasoning_output_tokens":124}}

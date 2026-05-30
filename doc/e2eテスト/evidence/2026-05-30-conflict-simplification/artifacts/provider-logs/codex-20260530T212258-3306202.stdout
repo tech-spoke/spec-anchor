@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-6bdf-7152-abf1-b46a024a82d1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims concern the checkout service refund window and directly disagree on whether refunds are rejected after 14 days or allowed at any time with no deadline, so this is worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13168,"cached_input_tokens":10624,"output_tokens":91,"reasoning_output_tokens":30}}

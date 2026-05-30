@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-3ad1-7010-b9a1-bb1415b8b5a1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims cover the same order-approval scope and are directionally aligned: automatic approval by the checkout service implies no manager approval is needed, including for large orders.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13168,"cached_input_tokens":10624,"output_tokens":191,"reasoning_output_tokens":133}}

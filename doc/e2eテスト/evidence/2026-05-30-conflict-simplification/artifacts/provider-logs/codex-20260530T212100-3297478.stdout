@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d4-9f07-7932-8a30-3d9f3d91bb79"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims govern approval for high-value orders and overlap on whether approval can happen automatically or by a manager, so the scope is close enough that conflict review is worthwhile.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13173,"cached_input_tokens":2432,"output_tokens":117,"reasoning_output_tokens":59}}

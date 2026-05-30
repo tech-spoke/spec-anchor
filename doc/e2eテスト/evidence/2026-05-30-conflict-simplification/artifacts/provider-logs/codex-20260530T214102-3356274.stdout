@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-f7b2-7c42-9927-3a4b69433273"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims address the same refund-window policy and are directly incompatible: one allows refunds at any time with no deadline, while the other imposes a 14-day deadline with no exceptions.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13198,"cached_input_tokens":10624,"output_tokens":119,"reasoning_output_tokens":57}}

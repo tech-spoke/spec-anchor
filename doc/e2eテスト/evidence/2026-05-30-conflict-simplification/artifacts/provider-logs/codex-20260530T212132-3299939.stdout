@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-1d53-7b02-aca7-e8ac203a3072"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims overlap on order approval policy for orders above 1000 USD and assert opposite requirements, so this is worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13199,"cached_input_tokens":10624,"output_tokens":72,"reasoning_output_tokens":21}}

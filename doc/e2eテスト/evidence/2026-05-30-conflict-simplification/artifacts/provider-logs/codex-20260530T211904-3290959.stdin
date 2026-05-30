@@ -1,0 +1,23 @@
+You are the SPEC-anchor /spec-core generation provider. Return only one JSON object. No markdown, no prose. The JSON object must include exactly one top-level array field "claims". Each item must include claim_text, target, target_aliases, claim_kind, evidence_span, evidence_start, evidence_end, evidence_hash, confidence, and retrieval. The retrieval object must include sparse_keys, embedding_text, and conflict_probes. Use an empty claims array when the section contains no grounded specification claim.
+
+Request JSON:
+{
+  "context_hashes": {},
+  "effort": "low",
+  "input_hashes": {
+    "semantic_hash": "d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+    "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2"
+  },
+  "metadata_version": 1,
+  "model": "gpt-5.4-mini",
+  "prompt": "{\n  \"instructions\": [\n    \"Extract only specification claims explicitly supported by the section.\",\n    \"Return strict JSON with exactly one top-level key: claims.\",\n    \"Each claim must contain claim_text, target, target_aliases, claim_kind, evidence_span, evidence_start, evidence_end, evidence_hash, confidence, and retrieval.\",\n    \"Each claim may also contain scope, condition, value, and claim_kind_confidence.\",\n    \"retrieval must contain sparse_keys, embedding_text, and conflict_probes.\",\n    \"Do not infer conflicts; only extract grounded claims.\",\n    \"Use an empty claims array when the section contains no specification claim.\"\n  ],\n  \"max_claims_per_section\": 20,\n  \"output_shape\": {\n    \"claims\": [\n      {\n        \"claim_kind\": \"requirement|constraint|behavior|status|fallback|deprecation|source_of_truth|scope_rule|freshness_rule|cache_rule|unknown|other\",\n        \"claim_kind_confidence\": \"high|medium|low\",\n        \"claim_text\": \"string\",\n        \"condition\": \"string\",\n        \"confidence\": \"high|medium|low\",\n        \"evidence_end\": 0,\n        \"evidence_hash\": \"sha256:<normalized evidence hash>\",\n        \"evidence_span\": \"exact source excerpt or whitespace-normalized excerpt\",\n        \"evidence_start\": 0,\n        \"retrieval\": {\n          \"conflict_probes\": [\n            \"string\"\n          ],\n          \"embedding_text\": \"string\",\n          \"sparse_keys\": [\n            \"string\"\n          ]\n        },\n        \"scope\": \"string\",\n        \"target\": \"string\",\n        \"target_aliases\": [\n          \"string\"\n        ],\n        \"value\": \"string\"\n      }\n    ]\n  },\n  \"prompt_version\": \"spec-claim-prompt-v1\",\n  \"retrieval_schema_version\": \"spec-claim-retrieval-v1\",\n  \"schema_version\": \"spec-claim-schema-v1\",\n  \"source_section\": {\n    \"semantic_hash\": \"d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d\",\n    \"source_hash\": \"06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2\",\n    \"source_section_id\": \"docs/spec/automation.md#0003-refund-window\",\n    \"text\": \"\\nThe checkout service MUST allow a refund at any time after purchase with no\\ndeadline. A refund request is never rejected because of the number of days that\\nhave elapsed since the purchase.\\n\"\n  },\n  \"task\": \"extract_spec_claims\"\n}",
+  "prompt_version": "spec-claim-prompt-v1",
+  "section_hashes": {
+    "docs/spec/automation.md#0003-refund-window": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2"
+  },
+  "section_id": "docs/spec/automation.md#0003-refund-window",
+  "semantic_hash": "d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+  "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+  "stage": "spec_claims",
+  "task": "spec_claims"
+}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-973d-71a0-816a-5da419b62305"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different checkout-service behaviors: order approval policy versus refund-request handling after a 14-day window. Their scopes do not materially overlap, so this is not a worthwhile conflict-review candidate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13194,"cached_input_tokens":10624,"output_tokens":140,"reasoning_output_tokens":76}}

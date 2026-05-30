@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-d4d4-7561-9876-d232c8f0267e"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims describe complementary rules for the same refund window: refunds are allowed within 14 days and rejected after that window, so they do not present a likely conflict.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13201,"cached_input_tokens":10624,"output_tokens":137,"reasoning_output_tokens":79}}

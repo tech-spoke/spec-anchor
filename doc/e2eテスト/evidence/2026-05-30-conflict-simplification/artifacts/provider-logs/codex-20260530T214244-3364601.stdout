@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-8333-7e93-8719-3bf85a44aae1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims are aligned on the same order-approval policy: both say orders are approved automatically and no manager approval is needed, including high-value orders. This is not a conflicting pair worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13153,"cached_input_tokens":10624,"output_tokens":122,"reasoning_output_tokens":58}}

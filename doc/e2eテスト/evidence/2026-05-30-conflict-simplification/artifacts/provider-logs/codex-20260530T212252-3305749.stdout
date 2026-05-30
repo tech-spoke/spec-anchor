@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-54af-7a31-a877-511247e76c3c"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same target service, but the claims govern different features: order approval above 1000 USD versus refund timing after purchase. Their scopes do not overlap, so this is not a worthwhile conflict review candidate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13219,"cached_input_tokens":2432,"output_tokens":129,"reasoning_output_tokens":64}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d4-7027-76d0-bc12-dda948d393ed"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims overlap on order approval policy, but they are mutually reinforcing rather than contradictory: both say orders do not wait for human/manager approval, including high-value orders.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13160,"cached_input_tokens":2432,"output_tokens":181,"reasoning_output_tokens":122}}

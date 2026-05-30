@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-c21e-7a02-a22a-e60e63151a3d"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims describe the same approval policy and are consistent: high-value orders stay pending until explicit human approval, which aligns with forbidding automatic approval.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13205,"cached_input_tokens":10624,"output_tokens":140,"reasoning_output_tokens":86}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-c835-79a0-b6b0-7027ea59b562"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different targets and scopes: refund eligibility for the checkout service versus approval and shipping rules for high-value orders. Their domains do not overlap in a way that warrants conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13268,"cached_input_tokens":10624,"output_tokens":110,"reasoning_output_tokens":48}}

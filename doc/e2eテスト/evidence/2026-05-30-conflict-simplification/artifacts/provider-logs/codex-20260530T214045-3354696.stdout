@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-b4cd-7960-bd17-ff353c2f5ef7"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same checkout service, but the claims govern different policy areas: order approval versus refund eligibility. Their scopes do not materially overlap, so this is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13147,"cached_input_tokens":10624,"output_tokens":157,"reasoning_output_tokens":99}}

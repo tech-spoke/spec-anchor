@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-4db4-78a0-812f-0b2f8447a98e"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims concern the checkout service’s high-value order approval policy, and their scopes overlap on orders above the threshold. That makes the pair worth conflict review even though the evidence may be compatible.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13156,"cached_input_tokens":10624,"output_tokens":135,"reasoning_output_tokens":72}}

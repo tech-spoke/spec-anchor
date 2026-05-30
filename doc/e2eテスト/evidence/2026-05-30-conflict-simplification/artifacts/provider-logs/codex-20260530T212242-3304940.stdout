@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-2d3f-7883-86f7-ace219b3f14c"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same target but different scopes: one governs high-value order approval, the other governs refund timing. Their conditions do not overlap in a way that suggests a conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13186,"cached_input_tokens":2432,"output_tokens":122,"reasoning_output_tokens":63}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d4-cba5-74d0-ab26-6b6661951a6f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different targets and policies: refund handling versus manager approval. Their scopes do not overlap, so this pair is not a useful conflict-review candidate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13154,"cached_input_tokens":10624,"output_tokens":89,"reasoning_output_tokens":33}}

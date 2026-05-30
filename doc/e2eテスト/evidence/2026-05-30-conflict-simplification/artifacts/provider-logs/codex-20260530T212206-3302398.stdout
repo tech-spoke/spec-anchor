@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-a28f-77e1-8246-06a8b147daa2"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Both claims describe the same refund-window rule for checkout and are complementary: refunds are allowed within 14 days and rejected after 14 days. No overlap suggesting a conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13152,"cached_input_tokens":10624,"output_tokens":121,"reasoning_output_tokens":60}}

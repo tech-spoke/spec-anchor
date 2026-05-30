@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-8b55-7791-9cfd-1d47d3222130"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different targets and scopes: manager approval for orders above 1000 USD versus an exceptionless 14-day refund deadline. They do not overlap in a way that suggests a conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13139,"cached_input_tokens":10624,"output_tokens":112,"reasoning_output_tokens":46}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-017b-7822-b549-dea41e3e9a3d"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims govern checkout order approval and their scopes can overlap: one requires automatic approval for every order, while the other forbids automatic approval for high-value orders.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13147,"cached_input_tokens":10624,"output_tokens":99,"reasoning_output_tokens":42}}

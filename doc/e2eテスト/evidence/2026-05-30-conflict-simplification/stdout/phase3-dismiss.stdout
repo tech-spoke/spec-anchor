@@ -1,0 +1,236 @@
+{
+  "command": "/spec-core --dismiss-conflict",
+  "conflict_id": "conflict-candidate-sha256-054b3634b2409d30df4a558758422954294292b059949c694b1c1e29f76fac1f",
+  "conflict_review_item": {
+    "base_source_hashes": [
+      {
+        "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+        "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+      },
+      {
+        "hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+        "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+      },
+      {
+        "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+        "source_ref": "docs/core/purpose.md"
+      },
+      {
+        "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+        "source_ref": "docs/core/concept.md"
+      }
+    ],
+    "claims": [
+      {
+        "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+        "claim_kind": "requirement",
+        "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+        "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+        "condition": "regardless of order total amount",
+        "confidence": "high",
+        "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+        "evidence_end": 92,
+        "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+        "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+        "evidence_start": 1,
+        "scope": "order approval policy",
+        "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target": "checkout service",
+        "target_aliases": [
+          "checkout"
+        ],
+        "value": "automatically approve every order"
+      },
+      {
+        "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+        "claim_kind": "constraint",
+        "claim_text": "Automatic approval of high-value orders is forbidden.",
+        "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+        "condition": "for high-value orders",
+        "confidence": "high",
+        "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+        "evidence_end": 260,
+        "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+        "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+        "evidence_start": 207,
+        "scope": "high-value orders",
+        "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target": "automatic approval",
+        "target_aliases": [
+          "auto approval",
+          "automatic approval of high-value orders"
+        ],
+        "value": "forbidden"
+      }
+    ],
+    "conflict_id": "conflict-candidate-sha256-054b3634b2409d30df4a558758422954294292b059949c694b1c1e29f76fac1f",
+    "created_at": "1970-01-01T00:00:00Z",
+    "recommended_next_action": "Ask a human to decide this conflict.",
+    "related_sections": [],
+    "resolution": {
+      "decision": "dismiss",
+      "decision_origin": "human",
+      "reason": "E2E: human judged the order-approval contradiction is intentional layering, not a real conflict.",
+      "referenced_source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "valid_scope": "global"
+    },
+    "severity": "high",
+    "source_refs": [
+      {
+        "source_document_id": "docs/spec/automation.md",
+        "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "source_span": {
+          "end_line": 8,
+          "end_offset": 271,
+          "start_line": 3,
+          "start_offset": 52
+        }
+      },
+      {
+        "source_document_id": "docs/spec/checkout.md",
+        "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "source_span": {
+          "end_line": 9,
+          "end_offset": 312,
+          "start_line": 3,
+          "start_offset": 50
+        }
+      }
+    ],
+    "spec_claim_pair": {
+      "candidate_uid": "candidate:sha256:054b3634b2409d30df4a558758422954294292b059949c694b1c1e29f76fac1f",
+      "claims": [
+        {
+          "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "condition": "regardless of order total amount",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "automatically approve every order"
+        },
+        {
+          "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+          "condition": "for high-value orders",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "automatic approval",
+          "target_aliases": [
+            "auto approval",
+            "automatic approval of high-value orders"
+          ],
+          "value": "forbidden"
+        }
+      ],
+      "display_id": "CC-00016",
+      "evidence": [
+        {
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+        }
+      ],
+      "left_claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+      "left_claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+      "left_retrieval_hash": "sha256:64ab3b5d34062b588aa0cf6c318dfcfd5a2804ae08089f0649178e2ffd10e74a",
+      "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+      "primary_route": "claim_retrieval",
+      "retrieval_sources": [
+        "dense_claim_retrieval",
+        "sparse_key_claim_retrieval",
+        "conflict_probe_claim_retrieval"
+      ],
+      "right_claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+      "right_claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+      "right_retrieval_hash": "sha256:13ae7f07ad31211d421c4960fd41ea659afe611eb74541b3be40a0b0e27c1a6d",
+      "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+      "routes": [
+        {
+          "is_primary_route": true,
+          "route": "claim_retrieval"
+        }
+      ],
+      "shared_target": "",
+      "signals": [
+        "llm_triage_send_to_review"
+      ],
+      "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+      "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+      "triage": {
+        "confidence": "high",
+        "reason": "The claims concern the same order-approval behavior and overlap on high-value orders: one requires automatic approval for every order, while the other forbids automatic approval for high-value orders.",
+        "send_to_review": true
+      }
+    },
+    "stale_dismissal": false,
+    "status": "dismissed",
+    "updated_at": "1970-01-01T00:00:00Z",
+    "valid_scope": "global",
+    "why_conflicting": "Potential source specifications conflict.",
+    "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+  },
+  "pending_conflict_count": 8,
+  "project_root": "/tmp/spec-anchor-e2e-2026-05-30-conflict/project",
+  "reason": "E2E: human judged the order-approval contradiction is intentional layering, not a real conflict.",
+  "status": "dismissed"
+}

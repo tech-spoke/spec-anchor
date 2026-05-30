@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-b7b0-7450-bb00-0cd95421e990"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims target the checkout service and their scopes overlap on orders above 1000 USD, but one requires manager approval while the other auto-approves every order, so the pair is worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13188,"cached_input_tokens":10624,"output_tokens":112,"reasoning_output_tokens":46}}

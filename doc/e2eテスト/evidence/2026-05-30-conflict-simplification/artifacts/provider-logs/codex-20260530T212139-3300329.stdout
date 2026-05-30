@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-35e8-76b1-8ab6-23d0bb07e5d2"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different policy areas: refund deadline exceptions versus manager approval for orders, so their scopes do not overlap enough to warrant conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13109,"cached_input_tokens":10624,"output_tokens":100,"reasoning_output_tokens":47}}

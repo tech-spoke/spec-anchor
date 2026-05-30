@@ -1,0 +1,3577 @@
+{
+  "conflict_review_items": [
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "condition": "regardless of order total amount",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "automatically approve every order"
+        },
+        {
+          "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+          "condition": "for high-value orders",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "automatic approval",
+          "target_aliases": [
+            "auto approval",
+            "automatic approval of high-value orders"
+          ],
+          "value": "forbidden"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-054b3634b2409d30df4a558758422954294292b059949c694b1c1e29f76fac1f",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "resolution": {
+        "applied_at": "1970-01-01T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+        "decision": "dismiss",
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "referenced_source_refs": [
+          {
+            "source_document_id": "docs/spec/automation.md",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 8,
+              "end_offset": 271,
+              "start_line": 3,
+              "start_offset": 52
+            }
+          },
+          {
+            "source_document_id": "docs/spec/checkout.md",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 9,
+              "end_offset": 312,
+              "start_line": 3,
+              "start_offset": 50
+            }
+          }
+        ],
+        "valid_scope": "global"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:054b3634b2409d30df4a558758422954294292b059949c694b1c1e29f76fac1f",
+        "claims": [
+          {
+            "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "condition": "regardless of order total amount",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "automatically approve every order"
+          },
+          {
+            "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+            "claim_kind": "constraint",
+            "claim_text": "Automatic approval of high-value orders is forbidden.",
+            "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+            "condition": "for high-value orders",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "scope": "high-value orders",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "automatic approval",
+            "target_aliases": [
+              "auto approval",
+              "automatic approval of high-value orders"
+            ],
+            "value": "forbidden"
+          }
+        ],
+        "display_id": "CC-00016",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+        "left_claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+        "left_retrieval_hash": "sha256:64ab3b5d34062b588aa0cf6c318dfcfd5a2804ae08089f0649178e2ffd10e74a",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+        "right_claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+        "right_retrieval_hash": "sha256:13ae7f07ad31211d421c4960fd41ea659afe611eb74541b3be40a0b0e27c1a6d",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims concern the same order-approval behavior and overlap on high-value orders: one requires automatic approval for every order, while the other forbids automatic approval for high-value orders.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "dismissed",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+          "claim_kind": "constraint",
+          "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+          "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+          "condition": "including for orders above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+          "evidence_end": 165,
+          "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+          "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+          "evidence_start": 93,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "manager approval",
+          "target_aliases": [
+            "human approval",
+            "manual approval"
+          ],
+          "value": "never required"
+        },
+        {
+          "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+          "condition": "for high-value orders",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "automatic approval",
+          "target_aliases": [
+            "auto approval",
+            "automatic approval of high-value orders"
+          ],
+          "value": "forbidden"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-373d922ec079886271d5de2fefecbf513d5cf6b20aba824f4675737e72ae1fd8",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "resolution": {
+        "applied_at": "1970-01-01T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+        "decision": "dismiss",
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "referenced_source_refs": [
+          {
+            "source_document_id": "docs/spec/automation.md",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 8,
+              "end_offset": 271,
+              "start_line": 3,
+              "start_offset": 52
+            }
+          },
+          {
+            "source_document_id": "docs/spec/checkout.md",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 9,
+              "end_offset": 312,
+              "start_line": 3,
+              "start_offset": 50
+            }
+          }
+        ],
+        "valid_scope": "global"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:373d922ec079886271d5de2fefecbf513d5cf6b20aba824f4675737e72ae1fd8",
+        "claims": [
+          {
+            "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+            "claim_kind": "constraint",
+            "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "condition": "including for orders above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "manager approval",
+            "target_aliases": [
+              "human approval",
+              "manual approval"
+            ],
+            "value": "never required"
+          },
+          {
+            "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+            "claim_kind": "constraint",
+            "claim_text": "Automatic approval of high-value orders is forbidden.",
+            "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+            "condition": "for high-value orders",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "scope": "high-value orders",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "automatic approval",
+            "target_aliases": [
+              "auto approval",
+              "automatic approval of high-value orders"
+            ],
+            "value": "forbidden"
+          }
+        ],
+        "display_id": "CC-00011",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+        "left_claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+        "left_retrieval_hash": "sha256:7e53742a3b839f5e6dd3401b5dee64e4f1453caf0ba100a6b421f59d27ea317a",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+        "right_claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+        "right_retrieval_hash": "sha256:13ae7f07ad31211d421c4960fd41ea659afe611eb74541b3be40a0b0e27c1a6d",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims govern approval for high-value orders and overlap on whether approval can happen automatically or by a manager, so the scope is close enough that conflict review is worthwhile.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "dismissed",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:bdf8452834cbd4d04d573d6460a9c178acdd02ad3c609b8623e66adbd8f72960",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST require manager approval for every order whose total is above 1000 USD.",
+          "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+          "condition": "when an order total is above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C22855962",
+          "evidence_end": 98,
+          "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+          "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+          "evidence_start": 1,
+          "scope": "orders whose total is above 1000 USD",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "manager approval is required"
+        },
+        {
+          "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+          "claim_kind": "constraint",
+          "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+          "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+          "condition": "including for orders above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+          "evidence_end": 165,
+          "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+          "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+          "evidence_start": 93,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "manager approval",
+          "target_aliases": [
+            "human approval",
+            "manual approval"
+          ],
+          "value": "never required"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-5d6a2308910602d5f7f96f47a8c493a61ba42e533db4036ef93360c729b419bd",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:5d6a2308910602d5f7f96f47a8c493a61ba42e533db4036ef93360c729b419bd",
+        "claims": [
+          {
+            "claim_hash": "sha256:bdf8452834cbd4d04d573d6460a9c178acdd02ad3c609b8623e66adbd8f72960",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST require manager approval for every order whose total is above 1000 USD.",
+            "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+            "condition": "when an order total is above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C22855962",
+            "evidence_end": 98,
+            "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+            "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+            "evidence_start": 1,
+            "scope": "orders whose total is above 1000 USD",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "manager approval is required"
+          },
+          {
+            "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+            "claim_kind": "constraint",
+            "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "condition": "including for orders above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "manager approval",
+            "target_aliases": [
+              "human approval",
+              "manual approval"
+            ],
+            "value": "never required"
+          }
+        ],
+        "display_id": "CC-00004",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+            "evidence_end": 98,
+            "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+            "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:bdf8452834cbd4d04d573d6460a9c178acdd02ad3c609b8623e66adbd8f72960",
+        "left_claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+        "left_retrieval_hash": "sha256:72df933cd2ba29cfd8d0d943260ed3e01526899c749d8a54783f38f25c7daa56",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+        "right_claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+        "right_retrieval_hash": "sha256:7e53742a3b839f5e6dd3401b5dee64e4f1453caf0ba100a6b421f59d27ea317a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims govern manager approval for order approval policy and their scopes overlap on orders above 1000 USD, with one requiring approval and the other saying it is never required.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:29458013a718260933bf2512defdfe9337b801919631ebc0f54ecf7961eed168",
+          "claim_kind": "behavior",
+          "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+          "claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+          "condition": "before a human manager explicitly approves the order",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C74391c45",
+          "evidence_end": 206,
+          "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+          "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+          "evidence_start": 99,
+          "scope": "orders whose total is above 1000 USD",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "order",
+          "target_aliases": [
+            "such an order",
+            "high-value order"
+          ],
+          "value": "held in pending state and not shipped"
+        },
+        {
+          "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+          "claim_kind": "constraint",
+          "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+          "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+          "condition": "including for orders above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+          "evidence_end": 165,
+          "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+          "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+          "evidence_start": 93,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "manager approval",
+          "target_aliases": [
+            "human approval",
+            "manual approval"
+          ],
+          "value": "never required"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-8af62999638986cc1343bbb85a300259680beb1734bfa6b19ae64dacbd6361b6",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "resolution": {
+        "applied_at": "1970-01-01T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+        "decision": "dismiss",
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "referenced_source_refs": [
+          {
+            "source_document_id": "docs/spec/checkout.md",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 9,
+              "end_offset": 312,
+              "start_line": 3,
+              "start_offset": 50
+            }
+          },
+          {
+            "source_document_id": "docs/spec/automation.md",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 8,
+              "end_offset": 271,
+              "start_line": 3,
+              "start_offset": 52
+            }
+          }
+        ],
+        "valid_scope": "global"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:8af62999638986cc1343bbb85a300259680beb1734bfa6b19ae64dacbd6361b6",
+        "claims": [
+          {
+            "claim_hash": "sha256:29458013a718260933bf2512defdfe9337b801919631ebc0f54ecf7961eed168",
+            "claim_kind": "behavior",
+            "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+            "claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+            "condition": "before a human manager explicitly approves the order",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C74391c45",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "scope": "orders whose total is above 1000 USD",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "order",
+            "target_aliases": [
+              "such an order",
+              "high-value order"
+            ],
+            "value": "held in pending state and not shipped"
+          },
+          {
+            "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+            "claim_kind": "constraint",
+            "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "condition": "including for orders above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "manager approval",
+            "target_aliases": [
+              "human approval",
+              "manual approval"
+            ],
+            "value": "never required"
+          }
+        ],
+        "display_id": "CC-00009",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:29458013a718260933bf2512defdfe9337b801919631ebc0f54ecf7961eed168",
+        "left_claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+        "left_retrieval_hash": "sha256:88e344461075eb30da696f836625ef5bcbb11902e4108ae455d1aa83f48716c6",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+        "right_claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+        "right_retrieval_hash": "sha256:7e53742a3b839f5e6dd3401b5dee64e4f1453caf0ba100a6b421f59d27ea317a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims concern overlapping order-approval behavior for orders above 1000 USD and state opposite requirements: one says the order stays pending until human manager approval, the other says manager approval is never required.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "dismissed",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+          "source_ref": "docs/spec/checkout.md#0003-refund-window"
+        },
+        {
+          "hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+          "source_ref": "docs/spec/automation.md#0003-refund-window"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:11bc276696bdb8d09d8f4dea94ce44d181e220e5dd57363bd29363b82534a32c",
+          "claim_kind": "constraint",
+          "claim_text": "There is no exception to this deadline.",
+          "claim_uid": "claim:sha256:106550c298f612e3e80dc41139d9f213a0597e615b5c3e6303525f4bf3b0cd68",
+          "condition": "for the 14-day refund deadline",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0003-refund-window:C106550c2",
+          "evidence_end": 208,
+          "evidence_hash": "sha256:597cb44b6ba09f838ff6bb4f37d95c64c59362aacf2660ecca8b64c846318f01",
+          "evidence_span": "There is no exception to this deadline.",
+          "evidence_start": 169,
+          "scope": "refund handling",
+          "source_hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+          "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+          "target": "refund deadline",
+          "target_aliases": [
+            "deadline",
+            "14-day window"
+          ],
+          "value": "no exceptions are allowed"
+        },
+        {
+          "claim_hash": "sha256:89ba322ec774c86d96ad8b7078930bf9381912d0a9f959af5530fe3012da7be6",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST allow a refund at any time after purchase with no deadline.",
+          "claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+          "condition": "after purchase",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0003-refund-window:C9934ed60",
+          "evidence_end": 189,
+          "evidence_hash": "sha256:d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+          "evidence_span": "The checkout service MUST allow a refund at any time after purchase with no\ndeadline. A refund request is never rejected because of the number of days that\nhave elapsed since the purchase.",
+          "evidence_start": 1,
+          "scope": "refund window",
+          "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+          "source_section_id": "docs/spec/automation.md#0003-refund-window",
+          "target": "checkout service",
+          "target_aliases": [
+            "service"
+          ],
+          "value": "no deadline; refund allowed at any time"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-8cc4d64dc82aa8e821d0f52fab646c4edaf4de1c4fc6cf65cb20e7474616c8ab",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+          "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+          "source_span": {
+            "end_line": 14,
+            "end_offset": 611,
+            "start_line": 10,
+            "start_offset": 402
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+          "source_section_id": "docs/spec/automation.md#0003-refund-window",
+          "source_span": {
+            "end_line": 13,
+            "end_offset": 478,
+            "start_line": 9,
+            "start_offset": 288
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:8cc4d64dc82aa8e821d0f52fab646c4edaf4de1c4fc6cf65cb20e7474616c8ab",
+        "claims": [
+          {
+            "claim_hash": "sha256:11bc276696bdb8d09d8f4dea94ce44d181e220e5dd57363bd29363b82534a32c",
+            "claim_kind": "constraint",
+            "claim_text": "There is no exception to this deadline.",
+            "claim_uid": "claim:sha256:106550c298f612e3e80dc41139d9f213a0597e615b5c3e6303525f4bf3b0cd68",
+            "condition": "for the 14-day refund deadline",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0003-refund-window:C106550c2",
+            "evidence_end": 208,
+            "evidence_hash": "sha256:597cb44b6ba09f838ff6bb4f37d95c64c59362aacf2660ecca8b64c846318f01",
+            "evidence_span": "There is no exception to this deadline.",
+            "evidence_start": 169,
+            "scope": "refund handling",
+            "source_hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+            "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+            "target": "refund deadline",
+            "target_aliases": [
+              "deadline",
+              "14-day window"
+            ],
+            "value": "no exceptions are allowed"
+          },
+          {
+            "claim_hash": "sha256:89ba322ec774c86d96ad8b7078930bf9381912d0a9f959af5530fe3012da7be6",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST allow a refund at any time after purchase with no deadline.",
+            "claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+            "condition": "after purchase",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0003-refund-window:C9934ed60",
+            "evidence_end": 189,
+            "evidence_hash": "sha256:d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+            "evidence_span": "The checkout service MUST allow a refund at any time after purchase with no\ndeadline. A refund request is never rejected because of the number of days that\nhave elapsed since the purchase.",
+            "evidence_start": 1,
+            "scope": "refund window",
+            "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+            "source_section_id": "docs/spec/automation.md#0003-refund-window",
+            "target": "checkout service",
+            "target_aliases": [
+              "service"
+            ],
+            "value": "no deadline; refund allowed at any time"
+          }
+        ],
+        "display_id": "CC-00021",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:106550c298f612e3e80dc41139d9f213a0597e615b5c3e6303525f4bf3b0cd68",
+            "evidence_end": 208,
+            "evidence_hash": "sha256:597cb44b6ba09f838ff6bb4f37d95c64c59362aacf2660ecca8b64c846318f01",
+            "evidence_span": "There is no exception to this deadline.",
+            "evidence_start": 169,
+            "section_uid": "docs/spec/checkout.md#0003-refund-window"
+          },
+          {
+            "claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+            "evidence_end": 189,
+            "evidence_hash": "sha256:d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+            "evidence_span": "The checkout service MUST allow a refund at any time after purchase with no\ndeadline. A refund request is never rejected because of the number of days that\nhave elapsed since the purchase.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0003-refund-window"
+          }
+        ],
+        "left_claim_hash": "sha256:11bc276696bdb8d09d8f4dea94ce44d181e220e5dd57363bd29363b82534a32c",
+        "left_claim_uid": "claim:sha256:106550c298f612e3e80dc41139d9f213a0597e615b5c3e6303525f4bf3b0cd68",
+        "left_retrieval_hash": "sha256:a43702c5df3763893e731f537063cf411b79f44f213989780ee938689ab450fb",
+        "left_section_uid": "docs/spec/checkout.md#0003-refund-window",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:89ba322ec774c86d96ad8b7078930bf9381912d0a9f959af5530fe3012da7be6",
+        "right_claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+        "right_retrieval_hash": "sha256:afd3a3e3adbfc9f848ea67e57c253bddb609a341b7d64c993b685e253396c155",
+        "right_section_uid": "docs/spec/automation.md#0003-refund-window",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+        "target_section_id": "docs/spec/automation.md#0003-refund-window",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims address the same refund-window policy for the checkout service and directly contradict each other: one imposes a strict 14-day no-exceptions deadline, while the other allows refunds at any time with no deadline.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:29458013a718260933bf2512defdfe9337b801919631ebc0f54ecf7961eed168",
+          "claim_kind": "behavior",
+          "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+          "claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+          "condition": "before a human manager explicitly approves the order",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C74391c45",
+          "evidence_end": 206,
+          "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+          "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+          "evidence_start": 99,
+          "scope": "orders whose total is above 1000 USD",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "order",
+          "target_aliases": [
+            "such an order",
+            "high-value order"
+          ],
+          "value": "held in pending state and not shipped"
+        },
+        {
+          "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "condition": "regardless of order total amount",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "automatically approve every order"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-925a70ecd49c0f41a37d2b8f0283a4ea6c5be41fe7c8fd1eeed4a067d8264290",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "resolution": {
+        "applied_at": "1970-01-01T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+        "decision": "dismiss",
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "referenced_source_refs": [
+          {
+            "source_document_id": "docs/spec/checkout.md",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 9,
+              "end_offset": 312,
+              "start_line": 3,
+              "start_offset": 50
+            }
+          },
+          {
+            "source_document_id": "docs/spec/automation.md",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 8,
+              "end_offset": 271,
+              "start_line": 3,
+              "start_offset": 52
+            }
+          }
+        ],
+        "valid_scope": "global"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:925a70ecd49c0f41a37d2b8f0283a4ea6c5be41fe7c8fd1eeed4a067d8264290",
+        "claims": [
+          {
+            "claim_hash": "sha256:29458013a718260933bf2512defdfe9337b801919631ebc0f54ecf7961eed168",
+            "claim_kind": "behavior",
+            "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+            "claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+            "condition": "before a human manager explicitly approves the order",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C74391c45",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "scope": "orders whose total is above 1000 USD",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "order",
+            "target_aliases": [
+              "such an order",
+              "high-value order"
+            ],
+            "value": "held in pending state and not shipped"
+          },
+          {
+            "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "condition": "regardless of order total amount",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "automatically approve every order"
+          }
+        ],
+        "display_id": "CC-00017",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:29458013a718260933bf2512defdfe9337b801919631ebc0f54ecf7961eed168",
+        "left_claim_uid": "claim:sha256:74391c456726929bc4540a9c36267665b47fb8b9b5164888f059d5952d3347f5",
+        "left_retrieval_hash": "sha256:88e344461075eb30da696f836625ef5bcbb11902e4108ae455d1aa83f48716c6",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+        "right_claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+        "right_retrieval_hash": "sha256:64ab3b5d34062b588aa0cf6c318dfcfd5a2804ae08089f0649178e2ffd10e74a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims overlap on order approval policy for the checkout flow, and the scopes can intersect because one applies to all orders while the other applies to high-value orders before manager approval. This is a plausible policy conflict worth review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "dismissed",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+          "claim_kind": "behavior",
+          "claim_text": "No order is ever held waiting for a human decision.",
+          "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+          "condition": "none",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+          "evidence_end": 217,
+          "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+          "evidence_span": "No order is ever held waiting for a human decision.",
+          "evidence_start": 166,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "order processing",
+          "target_aliases": [
+            "orders"
+          ],
+          "value": "never held waiting for a human decision"
+        },
+        {
+          "claim_hash": "sha256:5edc5e1da8d31a108a8114ad873c491c56c025acf587bd6ca41132c4fb1fdb53",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST require manager approval for every order whose total is above 1000 USD.",
+          "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+          "condition": "when an order total is above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C22855962",
+          "evidence_end": 98,
+          "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+          "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+          "evidence_start": 1,
+          "scope": "orders whose total is above 1000 USD",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "service",
+            "checkout"
+          ],
+          "value": "manager approval is required"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-a7b7c6ce1f76e230547b7f1d4a857d5df70f4cdcb55960a08a5f212e15f34a30",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "resolution": {
+        "applied_at": "1970-01-01T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+        "decision": "dismiss",
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "referenced_source_refs": [
+          {
+            "source_document_id": "docs/spec/automation.md",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 8,
+              "end_offset": 271,
+              "start_line": 3,
+              "start_offset": 52
+            }
+          },
+          {
+            "source_document_id": "docs/spec/checkout.md",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 9,
+              "end_offset": 312,
+              "start_line": 3,
+              "start_offset": 50
+            }
+          }
+        ],
+        "valid_scope": "global"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:a7b7c6ce1f76e230547b7f1d4a857d5df70f4cdcb55960a08a5f212e15f34a30",
+        "claims": [
+          {
+            "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+            "claim_kind": "behavior",
+            "claim_text": "No order is ever held waiting for a human decision.",
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "condition": "none",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "order processing",
+            "target_aliases": [
+              "orders"
+            ],
+            "value": "never held waiting for a human decision"
+          },
+          {
+            "claim_hash": "sha256:5edc5e1da8d31a108a8114ad873c491c56c025acf587bd6ca41132c4fb1fdb53",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST require manager approval for every order whose total is above 1000 USD.",
+            "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+            "condition": "when an order total is above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C22855962",
+            "evidence_end": 98,
+            "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+            "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+            "evidence_start": 1,
+            "scope": "orders whose total is above 1000 USD",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "service",
+              "checkout"
+            ],
+            "value": "manager approval is required"
+          }
+        ],
+        "display_id": "CC-00027",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+            "evidence_end": 98,
+            "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+            "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+        "left_claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+        "left_retrieval_hash": "sha256:b211bbc717d5b7bc484b4410ce8166db8940e18300d94f8bd14c279389523dbb",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:5edc5e1da8d31a108a8114ad873c491c56c025acf587bd6ca41132c4fb1fdb53",
+        "right_claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+        "right_retrieval_hash": "sha256:927ea660a5ee11c24c2d6a8169df90e1d18dbd4a747491b44f1125a74e789ff1",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims govern the same order-approval flow and overlap for high-value orders; one forbids any human wait while the other requires manager approval above $1000 USD.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "dismissed",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+          "source_ref": "docs/spec/checkout.md#0003-refund-window"
+        },
+        {
+          "hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+          "source_ref": "docs/spec/automation.md#0003-refund-window"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:f76591bc684864ece045ab2dc70183a7610bfcd47e8db81cb100e797386609f9",
+          "claim_kind": "requirement",
+          "claim_text": "After the 14-day window has elapsed, the service MUST reject the refund request.",
+          "claim_uid": "claim:sha256:1608b0983e011228374d3f8d9cf986564ee21598a703f23e7f1aa8d755fd3c34",
+          "condition": "after the 14-day window has elapsed",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0003-refund-window:C1608b098",
+          "evidence_end": 168,
+          "evidence_hash": "sha256:53d3289a8f63dd1c8d535f2c8ce50141e845bf5b44b73124804c948e0f2e68b3",
+          "evidence_span": "After the 14-day window has elapsed, the service MUST reject the\nrefund request.",
+          "evidence_start": 88,
+          "scope": "refund handling",
+          "source_hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+          "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+          "target": "checkout service",
+          "target_aliases": [
+            "service",
+            "checkout"
+          ],
+          "value": "refund requests must be rejected"
+        },
+        {
+          "claim_hash": "sha256:89ba322ec774c86d96ad8b7078930bf9381912d0a9f959af5530fe3012da7be6",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST allow a refund at any time after purchase with no deadline.",
+          "claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+          "condition": "after purchase",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0003-refund-window:C9934ed60",
+          "evidence_end": 189,
+          "evidence_hash": "sha256:d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+          "evidence_span": "The checkout service MUST allow a refund at any time after purchase with no\ndeadline. A refund request is never rejected because of the number of days that\nhave elapsed since the purchase.",
+          "evidence_start": 1,
+          "scope": "refund window",
+          "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+          "source_section_id": "docs/spec/automation.md#0003-refund-window",
+          "target": "checkout service",
+          "target_aliases": [
+            "service"
+          ],
+          "value": "no deadline; refund allowed at any time"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-b2497468a26420c954333f2c7df995c0bfc464132e71ad0e4422884f3881e8f1",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+          "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+          "source_span": {
+            "end_line": 14,
+            "end_offset": 611,
+            "start_line": 10,
+            "start_offset": 402
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+          "source_section_id": "docs/spec/automation.md#0003-refund-window",
+          "source_span": {
+            "end_line": 13,
+            "end_offset": 478,
+            "start_line": 9,
+            "start_offset": 288
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:b2497468a26420c954333f2c7df995c0bfc464132e71ad0e4422884f3881e8f1",
+        "claims": [
+          {
+            "claim_hash": "sha256:f76591bc684864ece045ab2dc70183a7610bfcd47e8db81cb100e797386609f9",
+            "claim_kind": "requirement",
+            "claim_text": "After the 14-day window has elapsed, the service MUST reject the refund request.",
+            "claim_uid": "claim:sha256:1608b0983e011228374d3f8d9cf986564ee21598a703f23e7f1aa8d755fd3c34",
+            "condition": "after the 14-day window has elapsed",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0003-refund-window:C1608b098",
+            "evidence_end": 168,
+            "evidence_hash": "sha256:53d3289a8f63dd1c8d535f2c8ce50141e845bf5b44b73124804c948e0f2e68b3",
+            "evidence_span": "After the 14-day window has elapsed, the service MUST reject the\nrefund request.",
+            "evidence_start": 88,
+            "scope": "refund handling",
+            "source_hash": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396",
+            "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+            "target": "checkout service",
+            "target_aliases": [
+              "service",
+              "checkout"
+            ],
+            "value": "refund requests must be rejected"
+          },
+          {
+            "claim_hash": "sha256:89ba322ec774c86d96ad8b7078930bf9381912d0a9f959af5530fe3012da7be6",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST allow a refund at any time after purchase with no deadline.",
+            "claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+            "condition": "after purchase",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0003-refund-window:C9934ed60",
+            "evidence_end": 189,
+            "evidence_hash": "sha256:d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+            "evidence_span": "The checkout service MUST allow a refund at any time after purchase with no\ndeadline. A refund request is never rejected because of the number of days that\nhave elapsed since the purchase.",
+            "evidence_start": 1,
+            "scope": "refund window",
+            "source_hash": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+            "source_section_id": "docs/spec/automation.md#0003-refund-window",
+            "target": "checkout service",
+            "target_aliases": [
+              "service"
+            ],
+            "value": "no deadline; refund allowed at any time"
+          }
+        ],
+        "display_id": "CC-00022",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:1608b0983e011228374d3f8d9cf986564ee21598a703f23e7f1aa8d755fd3c34",
+            "evidence_end": 168,
+            "evidence_hash": "sha256:53d3289a8f63dd1c8d535f2c8ce50141e845bf5b44b73124804c948e0f2e68b3",
+            "evidence_span": "After the 14-day window has elapsed, the service MUST reject the\nrefund request.",
+            "evidence_start": 88,
+            "section_uid": "docs/spec/checkout.md#0003-refund-window"
+          },
+          {
+            "claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+            "evidence_end": 189,
+            "evidence_hash": "sha256:d85d65beed3d59f179a85a3ba00fb3ec9bc8ab21146c4798f9a623b41882e19d",
+            "evidence_span": "The checkout service MUST allow a refund at any time after purchase with no\ndeadline. A refund request is never rejected because of the number of days that\nhave elapsed since the purchase.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0003-refund-window"
+          }
+        ],
+        "left_claim_hash": "sha256:f76591bc684864ece045ab2dc70183a7610bfcd47e8db81cb100e797386609f9",
+        "left_claim_uid": "claim:sha256:1608b0983e011228374d3f8d9cf986564ee21598a703f23e7f1aa8d755fd3c34",
+        "left_retrieval_hash": "sha256:f97488d5953c7b39b346a2ed0e020285aa4499e08653998eca19ec664dde30c6",
+        "left_section_uid": "docs/spec/checkout.md#0003-refund-window",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:89ba322ec774c86d96ad8b7078930bf9381912d0a9f959af5530fe3012da7be6",
+        "right_claim_uid": "claim:sha256:9934ed600bb935b48c73e4213239fa2dd44aadfccbb91cfd996b42e66d5ee187",
+        "right_retrieval_hash": "sha256:afd3a3e3adbfc9f848ea67e57c253bddb609a341b7d64c993b685e253396c155",
+        "right_section_uid": "docs/spec/automation.md#0003-refund-window",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "checkout service",
+        "signals": [
+          "semantic_same_target",
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+        "target_section_id": "docs/spec/automation.md#0003-refund-window",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims concern the checkout service refund window and directly disagree on whether refunds are rejected after 14 days or allowed at any time with no deadline, so this is worth conflict review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+          "claim_kind": "behavior",
+          "claim_text": "No order is ever held waiting for a human decision.",
+          "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+          "condition": "none",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+          "evidence_end": 217,
+          "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+          "evidence_span": "No order is ever held waiting for a human decision.",
+          "evidence_start": 166,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "order processing",
+          "target_aliases": [
+            "orders"
+          ],
+          "value": "never held waiting for a human decision"
+        },
+        {
+          "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+          "condition": "for high-value orders",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "automatic approval",
+          "target_aliases": [
+            "auto approval",
+            "automatic approval of high-value orders"
+          ],
+          "value": "forbidden"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-b7fb73e1a089369425dbd0008a34406cd163ce5aed088444da5f0e0c185f0568",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "resolution": {
+        "applied_at": "1970-01-01T00:00:00Z",
+        "auto_dismiss_reason": "source_update_recheck_pair_absent",
+        "decision": "dismiss",
+        "decision_origin": "auto_source_update",
+        "previous_status": "pending",
+        "reason": "Source update recheck no longer requires human conflict review.",
+        "referenced_source_refs": [
+          {
+            "source_document_id": "docs/spec/automation.md",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 8,
+              "end_offset": 271,
+              "start_line": 3,
+              "start_offset": 52
+            }
+          },
+          {
+            "source_document_id": "docs/spec/checkout.md",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "source_span": {
+              "end_line": 9,
+              "end_offset": 312,
+              "start_line": 3,
+              "start_offset": 50
+            }
+          }
+        ],
+        "valid_scope": "global"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 312,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:b7fb73e1a089369425dbd0008a34406cd163ce5aed088444da5f0e0c185f0568",
+        "claims": [
+          {
+            "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+            "claim_kind": "behavior",
+            "claim_text": "No order is ever held waiting for a human decision.",
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "condition": "none",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "order processing",
+            "target_aliases": [
+              "orders"
+            ],
+            "value": "never held waiting for a human decision"
+          },
+          {
+            "claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+            "claim_kind": "constraint",
+            "claim_text": "Automatic approval of high-value orders is forbidden.",
+            "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+            "condition": "for high-value orders",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cb1647ca9",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "scope": "high-value orders",
+            "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "automatic approval",
+            "target_aliases": [
+              "auto approval",
+              "automatic approval of high-value orders"
+            ],
+            "value": "forbidden"
+          }
+        ],
+        "display_id": "CC-00012",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+        "left_claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+        "left_retrieval_hash": "sha256:b211bbc717d5b7bc484b4410ce8166db8940e18300d94f8bd14c279389523dbb",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:30abe7ae7b10e4f76e735a16b7d89971c9e535b33940e9ec78c6bd4baba9557c",
+        "right_claim_uid": "claim:sha256:b1647ca9f66a50901e30884821d6eaca5ce92f78cff2dbcde406012a0ab08549",
+        "right_retrieval_hash": "sha256:13ae7f07ad31211d421c4960fd41ea659afe611eb74541b3be40a0b0e27c1a6d",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims concern the same order-approval flow: one says no order is ever held for human decision, while the other forbids automatic approval for high-value orders. That scope overlap is worth review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "dismissed",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+          "claim_kind": "constraint",
+          "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+          "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+          "condition": "including for orders above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+          "evidence_end": 165,
+          "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+          "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+          "evidence_start": 93,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "manager approval",
+          "target_aliases": [
+            "human approval",
+            "manual approval"
+          ],
+          "value": "never required"
+        },
+        {
+          "claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+          "condition": "when an order is above the approval threshold",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cef49f1ca",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "order approval policy",
+            "high-value orders"
+          ],
+          "value": "automatic approval is forbidden"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-11b7ca8538055df0c212cd4685863df09cb4e018213433236dc954d5b17e5988",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:11b7ca8538055df0c212cd4685863df09cb4e018213433236dc954d5b17e5988",
+        "claims": [
+          {
+            "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+            "claim_kind": "constraint",
+            "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "condition": "including for orders above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "manager approval",
+            "target_aliases": [
+              "human approval",
+              "manual approval"
+            ],
+            "value": "never required"
+          },
+          {
+            "claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+            "claim_kind": "constraint",
+            "claim_text": "Automatic approval of high-value orders is forbidden.",
+            "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+            "condition": "when an order is above the approval threshold",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cef49f1ca",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "scope": "high-value orders",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "order approval policy",
+              "high-value orders"
+            ],
+            "value": "automatic approval is forbidden"
+          }
+        ],
+        "display_id": "CC-00002",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+        "left_claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+        "left_retrieval_hash": "sha256:7e53742a3b839f5e6dd3401b5dee64e4f1453caf0ba100a6b421f59d27ea317a",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+        "right_claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+        "right_retrieval_hash": "sha256:a472553a99403ef88a0cc15c97106220aba9c1417d82250a96f322c0aef222c2",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims overlap on order approval policy and high-value orders: one says manager approval is never required, while the other forbids automatic approval above the threshold. The scopes can intersect, so this is worth conflict review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "condition": "regardless of order total amount",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "automatically approve every order"
+        },
+        {
+          "claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+          "condition": "when an order is above the approval threshold",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cef49f1ca",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "order approval policy",
+            "high-value orders"
+          ],
+          "value": "automatic approval is forbidden"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-2496742cced3a055623d85a47cb7f640b15559c4754acf7244c5dcb6fc521ddc",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:2496742cced3a055623d85a47cb7f640b15559c4754acf7244c5dcb6fc521ddc",
+        "claims": [
+          {
+            "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "condition": "regardless of order total amount",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "automatically approve every order"
+          },
+          {
+            "claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+            "claim_kind": "constraint",
+            "claim_text": "Automatic approval of high-value orders is forbidden.",
+            "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+            "condition": "when an order is above the approval threshold",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cef49f1ca",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "scope": "high-value orders",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "order approval policy",
+              "high-value orders"
+            ],
+            "value": "automatic approval is forbidden"
+          }
+        ],
+        "display_id": "CC-00007",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+        "left_claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+        "left_retrieval_hash": "sha256:64ab3b5d34062b588aa0cf6c318dfcfd5a2804ae08089f0649178e2ffd10e74a",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+        "right_claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+        "right_retrieval_hash": "sha256:a472553a99403ef88a0cc15c97106220aba9c1417d82250a96f322c0aef222c2",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "checkout service",
+        "signals": [
+          "semantic_same_target",
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims govern checkout order approval and their scopes can overlap: one requires automatic approval for every order, while the other forbids automatic approval for high-value orders.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+          "claim_kind": "behavior",
+          "claim_text": "No order is ever held waiting for a human decision.",
+          "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+          "condition": "none",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+          "evidence_end": 217,
+          "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+          "evidence_span": "No order is ever held waiting for a human decision.",
+          "evidence_start": 166,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "order processing",
+          "target_aliases": [
+            "orders"
+          ],
+          "value": "never held waiting for a human decision"
+        },
+        {
+          "claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+          "claim_kind": "behavior",
+          "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+          "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+          "condition": "after an order is above 1000 USD and awaiting approval",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C204dea98",
+          "evidence_end": 206,
+          "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+          "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+          "evidence_start": 99,
+          "scope": "order lifecycle after checkout decision",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "orders above 1000 USD",
+          "target_aliases": [
+            "high-value orders",
+            "such an order"
+          ],
+          "value": "pending state; not shipped until human manager approval"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-28638f3a59ae673ee1c564ac30cb92d35a49d85c704a2f895cc99ecfa0f33f4c",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:28638f3a59ae673ee1c564ac30cb92d35a49d85c704a2f895cc99ecfa0f33f4c",
+        "claims": [
+          {
+            "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+            "claim_kind": "behavior",
+            "claim_text": "No order is ever held waiting for a human decision.",
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "condition": "none",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "order processing",
+            "target_aliases": [
+              "orders"
+            ],
+            "value": "never held waiting for a human decision"
+          },
+          {
+            "claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+            "claim_kind": "behavior",
+            "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+            "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+            "condition": "after an order is above 1000 USD and awaiting approval",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C204dea98",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "scope": "order lifecycle after checkout decision",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "orders above 1000 USD",
+            "target_aliases": [
+              "high-value orders",
+              "such an order"
+            ],
+            "value": "pending state; not shipped until human manager approval"
+          }
+        ],
+        "display_id": "CC-00010",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+        "left_claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+        "left_retrieval_hash": "sha256:b211bbc717d5b7bc484b4410ce8166db8940e18300d94f8bd14c279389523dbb",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+        "right_claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+        "right_retrieval_hash": "sha256:e665d15a4123783865e48f03ad11e9b4c9f365de52b433f73d8105adc6e0e802",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "The claims address the same order-approval behavior and directly conflict on whether high-value orders can be held pending for human approval versus never held for a human decision.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+          "claim_kind": "behavior",
+          "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+          "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+          "condition": "after an order is above 1000 USD and awaiting approval",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C204dea98",
+          "evidence_end": 206,
+          "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+          "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+          "evidence_start": 99,
+          "scope": "order lifecycle after checkout decision",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "orders above 1000 USD",
+          "target_aliases": [
+            "high-value orders",
+            "such an order"
+          ],
+          "value": "pending state; not shipped until human manager approval"
+        },
+        {
+          "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+          "claim_kind": "constraint",
+          "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+          "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+          "condition": "including for orders above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+          "evidence_end": 165,
+          "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+          "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+          "evidence_start": 93,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "manager approval",
+          "target_aliases": [
+            "human approval",
+            "manual approval"
+          ],
+          "value": "never required"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-4cfcbbed05cf4b098f1880175c0bcceaf5673ea42b82e2c48d96d8380963d887",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:4cfcbbed05cf4b098f1880175c0bcceaf5673ea42b82e2c48d96d8380963d887",
+        "claims": [
+          {
+            "claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+            "claim_kind": "behavior",
+            "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+            "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+            "condition": "after an order is above 1000 USD and awaiting approval",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C204dea98",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "scope": "order lifecycle after checkout decision",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "orders above 1000 USD",
+            "target_aliases": [
+              "high-value orders",
+              "such an order"
+            ],
+            "value": "pending state; not shipped until human manager approval"
+          },
+          {
+            "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+            "claim_kind": "constraint",
+            "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "condition": "including for orders above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "manager approval",
+            "target_aliases": [
+              "human approval",
+              "manual approval"
+            ],
+            "value": "never required"
+          }
+        ],
+        "display_id": "CC-00003",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+        "left_claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+        "left_retrieval_hash": "sha256:e665d15a4123783865e48f03ad11e9b4c9f365de52b433f73d8105adc6e0e802",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+        "right_claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+        "right_retrieval_hash": "sha256:7e53742a3b839f5e6dd3401b5dee64e4f1453caf0ba100a6b421f59d27ea317a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims address the same order-approval policy for orders above 1000 USD and directly disagree on whether manager approval is required, so the pair is worth conflict review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+          "claim_kind": "behavior",
+          "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+          "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+          "condition": "after an order is above 1000 USD and awaiting approval",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C204dea98",
+          "evidence_end": 206,
+          "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+          "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+          "evidence_start": 99,
+          "scope": "order lifecycle after checkout decision",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "orders above 1000 USD",
+          "target_aliases": [
+            "high-value orders",
+            "such an order"
+          ],
+          "value": "pending state; not shipped until human manager approval"
+        },
+        {
+          "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "condition": "regardless of order total amount",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "automatically approve every order"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-95b9a28fd816139985a559353fa7ddad3f72b0429c986ce59e9fd0c20f282f4a",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:95b9a28fd816139985a559353fa7ddad3f72b0429c986ce59e9fd0c20f282f4a",
+        "claims": [
+          {
+            "claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+            "claim_kind": "behavior",
+            "claim_text": "Such an order is held in a pending state and is never shipped until a human manager explicitly approves it.",
+            "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+            "condition": "after an order is above 1000 USD and awaiting approval",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C204dea98",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "scope": "order lifecycle after checkout decision",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "orders above 1000 USD",
+            "target_aliases": [
+              "high-value orders",
+              "such an order"
+            ],
+            "value": "pending state; not shipped until human manager approval"
+          },
+          {
+            "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "condition": "regardless of order total amount",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "automatically approve every order"
+          }
+        ],
+        "display_id": "CC-00009",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+            "evidence_end": 206,
+            "evidence_hash": "sha256:f4e0315448354cece52a7a54ea84fb0e4e25983a3d49ca9519f95107c36cc798",
+            "evidence_span": "Such an order is held in a pending state and is never\nshipped until a human manager explicitly approves it.",
+            "evidence_start": 99,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:775ebb1de9e437595c71976244fb85f6667c9a0664f694e0be3d182ae79e56d9",
+        "left_claim_uid": "claim:sha256:204dea98310186a98c343a2e2affb0b2daa7c5ce4d81a475db62a45cadce77c8",
+        "left_retrieval_hash": "sha256:e665d15a4123783865e48f03ad11e9b4c9f365de52b433f73d8105adc6e0e802",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+        "right_claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+        "right_retrieval_hash": "sha256:64ab3b5d34062b588aa0cf6c318dfcfd5a2804ae08089f0649178e2ffd10e74a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims concern order approval policy for the checkout flow and overlap on the same approval state, but one says every order is auto-approved while the other says orders above 1000 USD stay pending until human approval. That is a plausible conflict worth review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+          "claim_kind": "behavior",
+          "claim_text": "No order is ever held waiting for a human decision.",
+          "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+          "condition": "none",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+          "evidence_end": 217,
+          "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+          "evidence_span": "No order is ever held waiting for a human decision.",
+          "evidence_start": 166,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "order processing",
+          "target_aliases": [
+            "orders"
+          ],
+          "value": "never held waiting for a human decision"
+        },
+        {
+          "claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+          "claim_kind": "constraint",
+          "claim_text": "Automatic approval of high-value orders is forbidden.",
+          "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+          "condition": "when an order is above the approval threshold",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cef49f1ca",
+          "evidence_end": 260,
+          "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+          "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+          "evidence_start": 207,
+          "scope": "high-value orders",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "order approval policy",
+            "high-value orders"
+          ],
+          "value": "automatic approval is forbidden"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-bf5ffb720a8cf965cbbe5d491672c79eec9976e771f9a6e5e194fdbcc9a89d9f",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        },
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:bf5ffb720a8cf965cbbe5d491672c79eec9976e771f9a6e5e194fdbcc9a89d9f",
+        "claims": [
+          {
+            "claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+            "claim_kind": "behavior",
+            "claim_text": "No order is ever held waiting for a human decision.",
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "condition": "none",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C1e57c211",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "order processing",
+            "target_aliases": [
+              "orders"
+            ],
+            "value": "never held waiting for a human decision"
+          },
+          {
+            "claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+            "claim_kind": "constraint",
+            "claim_text": "Automatic approval of high-value orders is forbidden.",
+            "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+            "condition": "when an order is above the approval threshold",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:Cef49f1ca",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "scope": "high-value orders",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "order approval policy",
+              "high-value orders"
+            ],
+            "value": "automatic approval is forbidden"
+          }
+        ],
+        "display_id": "CC-00011",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+            "evidence_end": 217,
+            "evidence_hash": "sha256:3aa47f9d28bd86bfea07054bad023f9d447b0bcbbd856f41b55b3fc3546dc055",
+            "evidence_span": "No order is ever held waiting for a human decision.",
+            "evidence_start": 166,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+            "evidence_end": 260,
+            "evidence_hash": "sha256:4ad814e5c25dac4212672c8d02c052838b72400df16edc5d0fcc0a5596f6a758",
+            "evidence_span": "Automatic approval of\nhigh-value orders is forbidden.",
+            "evidence_start": 207,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:c95d96976453942328c9f1c14c7beabad4468c8bac257771f56c4739b42d8790",
+        "left_claim_uid": "claim:sha256:1e57c2115c75221675c48c082bd822d06c65f503ff1dafd0967c9a96ac6d012c",
+        "left_retrieval_hash": "sha256:b211bbc717d5b7bc484b4410ce8166db8940e18300d94f8bd14c279389523dbb",
+        "left_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:ce902cf4682a85e82d046e51d160b1b79802f722d551c8359c105e391f3de81f",
+        "right_claim_uid": "claim:sha256:ef49f1cad8aaae56aad1433c39185e8e698ba8fce635c55859d3535e92fe11eb",
+        "right_retrieval_hash": "sha256:a472553a99403ef88a0cc15c97106220aba9c1417d82250a96f322c0aef222c2",
+        "right_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims concern the same order-approval flow and can overlap: one says orders are never held for human decision, while the other forbids automatic approval for high-value orders. That makes the pair worth conflict review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:c3711febd566acfc0e406180e978ebb960f8e4e44cccc33396c7d5aaab2f7681",
+          "claim_kind": "scope_rule",
+          "claim_text": "This rule applies to all storefront channels.",
+          "claim_uid": "claim:sha256:5d2ac043fadf70c87cb34d9289325817817ea601a26e7a19e606e9a17eef4d0d",
+          "condition": "for every storefront channel",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C5d2ac043",
+          "evidence_end": 333,
+          "evidence_hash": "sha256:1afe342c5a0363716425174220385aed53e5f2192cd5315e7cefeee63abbae14",
+          "evidence_span": "(E2E edit: clarified that this rule applies to all storefront channels.)",
+          "evidence_start": 261,
+          "scope": "all storefront channels",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "order approval policy",
+          "target_aliases": [
+            "this rule",
+            "checkout approval rule"
+          ],
+          "value": "the policy is not channel-limited"
+        },
+        {
+          "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+          "claim_kind": "constraint",
+          "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+          "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+          "condition": "including for orders above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+          "evidence_end": 165,
+          "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+          "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+          "evidence_start": 93,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "manager approval",
+          "target_aliases": [
+            "human approval",
+            "manual approval"
+          ],
+          "value": "never required"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-d0fb64a99df68a4d9e95ea1bb9f53d1dc58c99bc26331dfc41cc4a20548c1c47",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:d0fb64a99df68a4d9e95ea1bb9f53d1dc58c99bc26331dfc41cc4a20548c1c47",
+        "claims": [
+          {
+            "claim_hash": "sha256:c3711febd566acfc0e406180e978ebb960f8e4e44cccc33396c7d5aaab2f7681",
+            "claim_kind": "scope_rule",
+            "claim_text": "This rule applies to all storefront channels.",
+            "claim_uid": "claim:sha256:5d2ac043fadf70c87cb34d9289325817817ea601a26e7a19e606e9a17eef4d0d",
+            "condition": "for every storefront channel",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C5d2ac043",
+            "evidence_end": 333,
+            "evidence_hash": "sha256:1afe342c5a0363716425174220385aed53e5f2192cd5315e7cefeee63abbae14",
+            "evidence_span": "(E2E edit: clarified that this rule applies to all storefront channels.)",
+            "evidence_start": 261,
+            "scope": "all storefront channels",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "order approval policy",
+            "target_aliases": [
+              "this rule",
+              "checkout approval rule"
+            ],
+            "value": "the policy is not channel-limited"
+          },
+          {
+            "claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+            "claim_kind": "constraint",
+            "claim_text": "Manager approval is never required, including for orders above 1000 USD.",
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "condition": "including for orders above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C87da8e38",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "manager approval",
+            "target_aliases": [
+              "human approval",
+              "manual approval"
+            ],
+            "value": "never required"
+          }
+        ],
+        "display_id": "CC-00016",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:5d2ac043fadf70c87cb34d9289325817817ea601a26e7a19e606e9a17eef4d0d",
+            "evidence_end": 333,
+            "evidence_hash": "sha256:1afe342c5a0363716425174220385aed53e5f2192cd5315e7cefeee63abbae14",
+            "evidence_span": "(E2E edit: clarified that this rule applies to all storefront channels.)",
+            "evidence_start": 261,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+            "evidence_end": 165,
+            "evidence_hash": "sha256:5b53652f0debfe58683bc73b631a911870f6263d1385d94373992cbcad541371",
+            "evidence_span": "Manager approval is never required, including for orders above\n1000 USD.",
+            "evidence_start": 93,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:c3711febd566acfc0e406180e978ebb960f8e4e44cccc33396c7d5aaab2f7681",
+        "left_claim_uid": "claim:sha256:5d2ac043fadf70c87cb34d9289325817817ea601a26e7a19e606e9a17eef4d0d",
+        "left_retrieval_hash": "sha256:ca8d0a2ac833c4ccc8b7e5ab9b1ad4ef40e195f85695491bd03a4c5ef2a64e46",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:b7c294a9996c328b0f33aa58626bf51d37e2749ff571725ebd9e1e63d5a6c395",
+        "right_claim_uid": "claim:sha256:87da8e38f8029f80034706cc816d7804769c7c67f2080a77c535db9e2966eb58",
+        "right_retrieval_hash": "sha256:7e53742a3b839f5e6dd3401b5dee64e4f1453caf0ba100a6b421f59d27ea317a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "",
+        "signals": [
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims concern the order approval policy and can overlap in storefront checkout flows; one expands channel scope while the other removes manager approval even for high-value orders, so the pair is worth conflict review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    },
+    {
+      "base_source_hashes": [
+        {
+          "hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "claims": [
+        {
+          "claim_hash": "sha256:bdf8452834cbd4d04d573d6460a9c178acdd02ad3c609b8623e66adbd8f72960",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST require manager approval for every order whose total is above 1000 USD.",
+          "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+          "condition": "when an order total is above 1000 USD",
+          "confidence": "high",
+          "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C22855962",
+          "evidence_end": 98,
+          "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+          "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+          "evidence_start": 1,
+          "scope": "orders whose total is above 1000 USD",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "manager approval is required"
+        },
+        {
+          "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+          "claim_kind": "requirement",
+          "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+          "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+          "condition": "regardless of order total amount",
+          "confidence": "high",
+          "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+          "evidence_end": 92,
+          "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+          "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+          "evidence_start": 1,
+          "scope": "order approval policy",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "target": "checkout service",
+          "target_aliases": [
+            "checkout"
+          ],
+          "value": "automatically approve every order"
+        }
+      ],
+      "conflict_id": "conflict-candidate-sha256-d68981dfd6a5428da3fb1134c203aa2a4707ae7882f89254acac917be13585cb",
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "Ask a human to decide this conflict.",
+      "related_sections": [],
+      "severity": "high",
+      "source_refs": [
+        {
+          "source_document_id": "docs/spec/checkout.md",
+          "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+          "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 9,
+            "end_offset": 385,
+            "start_line": 3,
+            "start_offset": 50
+          }
+        },
+        {
+          "source_document_id": "docs/spec/automation.md",
+          "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+          "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 271,
+            "start_line": 3,
+            "start_offset": 52
+          }
+        }
+      ],
+      "spec_claim_pair": {
+        "candidate_uid": "candidate:sha256:d68981dfd6a5428da3fb1134c203aa2a4707ae7882f89254acac917be13585cb",
+        "claims": [
+          {
+            "claim_hash": "sha256:bdf8452834cbd4d04d573d6460a9c178acdd02ad3c609b8623e66adbd8f72960",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST require manager approval for every order whose total is above 1000 USD.",
+            "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+            "condition": "when an order total is above 1000 USD",
+            "confidence": "high",
+            "display_id": "docs/spec/checkout.md#0002-order-approval-policy:C22855962",
+            "evidence_end": 98,
+            "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+            "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+            "evidence_start": 1,
+            "scope": "orders whose total is above 1000 USD",
+            "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+            "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "manager approval is required"
+          },
+          {
+            "claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+            "claim_kind": "requirement",
+            "claim_text": "The checkout service MUST automatically approve every order regardless of its total amount.",
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "condition": "regardless of order total amount",
+            "confidence": "high",
+            "display_id": "docs/spec/automation.md#0002-order-approval-policy:C8cc30a5c",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "scope": "order approval policy",
+            "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+            "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+            "target": "checkout service",
+            "target_aliases": [
+              "checkout"
+            ],
+            "value": "automatically approve every order"
+          }
+        ],
+        "display_id": "CC-00008",
+        "evidence": [
+          {
+            "claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+            "evidence_end": 98,
+            "evidence_hash": "sha256:1d4525a998b7730b6fe8fd4c33cd27658493f856e8959cc98603cb6fac7bfec6",
+            "evidence_span": "The checkout service MUST require manager approval for every order whose total\nis above 1000 USD.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/checkout.md#0002-order-approval-policy"
+          },
+          {
+            "claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+            "evidence_end": 92,
+            "evidence_hash": "sha256:9514c2eaf99e8cb60064df6be96061cdd78f1a2d770344626ace2fa8b080cd92",
+            "evidence_span": "The checkout service MUST automatically approve every order regardless of its\ntotal amount.",
+            "evidence_start": 1,
+            "section_uid": "docs/spec/automation.md#0002-order-approval-policy"
+          }
+        ],
+        "left_claim_hash": "sha256:bdf8452834cbd4d04d573d6460a9c178acdd02ad3c609b8623e66adbd8f72960",
+        "left_claim_uid": "claim:sha256:228559623fa1b686dae6bee1bf2dfe07884a91a65d7b74247ded8e23bfaa0e70",
+        "left_retrieval_hash": "sha256:72df933cd2ba29cfd8d0d943260ed3e01526899c749d8a54783f38f25c7daa56",
+        "left_section_uid": "docs/spec/checkout.md#0002-order-approval-policy",
+        "primary_route": "claim_retrieval",
+        "retrieval_sources": [
+          "dense_claim_retrieval",
+          "sparse_key_claim_retrieval",
+          "conflict_probe_claim_retrieval"
+        ],
+        "right_claim_hash": "sha256:15d3d202b641e6f39f81cb5bc37260b18c7a26ca9edfa5a2496055aa363429d8",
+        "right_claim_uid": "claim:sha256:8cc30a5c551d487468c81dc07a327de48f91640728775c1507bda1739bb50041",
+        "right_retrieval_hash": "sha256:64ab3b5d34062b588aa0cf6c318dfcfd5a2804ae08089f0649178e2ffd10e74a",
+        "right_section_uid": "docs/spec/automation.md#0002-order-approval-policy",
+        "routes": [
+          {
+            "is_primary_route": true,
+            "route": "claim_retrieval"
+          }
+        ],
+        "shared_target": "checkout",
+        "signals": [
+          "semantic_same_target",
+          "llm_triage_send_to_review"
+        ],
+        "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+        "target_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+        "triage": {
+          "confidence": "high",
+          "reason": "Both claims govern the same checkout order-approval policy and their scopes overlap directly: one requires manager approval above 1000 USD, the other auto-approves every order regardless of amount. This is worth conflict review.",
+          "send_to_review": true
+        }
+      },
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "global",
+      "why_conflicting": "Potential source specifications conflict.",
+      "why_llm_cannot_decide": "Existing evidence does not establish a safe priority."
+    }
+  ]
+}

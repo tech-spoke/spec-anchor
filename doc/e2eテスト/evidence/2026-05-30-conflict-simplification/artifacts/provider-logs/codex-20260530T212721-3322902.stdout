@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-6fb3-77b3-98cd-07ae1ef3e63f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims govern manager approval for order approval policy and their scopes overlap on orders above 1000 USD, with one requiring approval and the other saying it is never required.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13176,"cached_input_tokens":10624,"output_tokens":86,"reasoning_output_tokens":27}}

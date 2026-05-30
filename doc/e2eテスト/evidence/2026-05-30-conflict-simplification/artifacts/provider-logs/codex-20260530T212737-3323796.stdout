@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-af3a-7ee1-b898-4b574c33db83"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims describe the same high-value order approval policy from the same source and are compatible: one states approval is required, the other describes the pending state until approval. There is no clear conflict to review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13185,"cached_input_tokens":10624,"output_tokens":144,"reasoning_output_tokens":78}}

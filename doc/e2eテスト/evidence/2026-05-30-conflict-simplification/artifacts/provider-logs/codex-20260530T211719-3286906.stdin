@@ -1,0 +1,35 @@
+You are the SPEC-anchor /spec-core generation provider. Return only one JSON object. No markdown, no prose. The JSON object must include array field "sections". Each item must include string field "section_id", string field "summary", and array field "search_keys". Return exactly one item in "sections" for every section in the input "sections" array. Use the exact "section_id" value from the input. Do not omit, add, rename, or merge sections. If a section is unclear, return an empty "summary" and empty "search_keys" for that item but keep the item in the output.
+
+Request JSON:
+{
+  "context_hashes": {
+    "artifact_role": "9f273810421587f730f5d5ccb215d2027458101f2a788e5aca87a58d99339103",
+    "identifier_extractor_version": "dda190c8ce6460af3574fe73dcc343c9b81b44e2a857a24bd51137dfaf3b2ab6"
+  },
+  "effort": "low",
+  "input_hashes": {
+    "docs/spec/automation.md#0001-automation-service-spec": "7a73ff4d040abe625166ffa54949366e588505ef399d4ec12b745706928b0789",
+    "docs/spec/automation.md#0002-order-approval-policy": "21d672e7165dbdf5184e29284c86f14c0c554ff8c7265dc51f956d1072e9ee16",
+    "docs/spec/automation.md#0003-refund-window": "076512a9540ada46dac34882932698c747927394a6420ea6369d5d3506a7f2bb",
+    "docs/spec/checkout.md#0001-checkout-service-spec": "c7772e855b01082759a3e6213db1a6067ca52b895fec70f981bd84b951d42126",
+    "docs/spec/checkout.md#0002-order-approval-policy": "d77dd4048fc8b411b79e6d2012d17e85f9e766d52f8697665cdd5ea6cf2b25f8",
+    "docs/spec/checkout.md#0003-refund-window": "58d458236e1b21310e68626d2d320a19213e50036104aa9faa2e33a7ed4d9ec5"
+  },
+  "metadata_version": 1,
+  "model": "gpt-5.4-mini",
+  "prompt": "{\"artifact_role\":\"retrieval_aid_not_evidence\",\"batch_completeness_rule\":\"Return exactly one item in output sections[] for every item in input sections[]. Use the exact section_id string from the input. Do not omit, add, rename, or merge sections. If a section is unclear, return empty summary and empty search_keys for that item but keep it in the output.\",\"instructions\":\"search_keys must be NATURAL LANGUAGE keywords for retrieval recall. Output domain concept phrases, chapter themes, synonyms, and the natural-language side of feature/state/warning names. Do NOT output code symbols, API names, function names, class names, CLI commands, CLI options (e.g. --rebuild), file paths, ALL_CAPS constants, PascalCase type names, or dotted technical names. Code symbols are tracked separately under `identifiers` and must not appear in `search_keys` (the two lists are disjoint by contract). If a phrase contains an identifier-shaped token, prefer the natural-language paraphrase (e.g. use 'config replace' instead of 'productStoreGroup.replace').\",\"limits\":{\"search_keys_enabled\":true,\"search_keys_max\":32,\"section_summary_max_chars\":480,\"summary_enabled\":true},\"return_shape\":{\"sections\":[{\"search_keys\":[\"string\"],\"section_id\":\"string\",\"summary\":\"string\"}]},\"sections\":[{\"heading_path\":[\"Automation Service Spec\"],\"identifiers\":[],\"section_id\":\"docs/spec/automation.md#0001-automation-service-spec\",\"stable_section_uid\":\"e393aaaa7a86e593\",\"text\":\"\\n\"},{\"heading_path\":[\"Automation Service Spec\",\"Order Approval Policy\"],\"identifiers\":[\"MUST\",\"USD\",\"required\"],\"section_id\":\"docs/spec/automation.md#0002-order-approval-policy\",\"stable_section_uid\":\"697186647f600ba9\",\"text\":\"\\nThe checkout service MUST automatically approve every order regardless of its\\ntotal amount. Manager approval is never required, including for orders above\\n1000 USD. No order is ever held waiting for a human decision.\\n\\n\"},{\"heading_path\":[\"Automation Service Spec\",\"Refund Window\"],\"identifiers\":[\"MUST\"],\"section_id\":\"docs/spec/automation.md#0003-refund-window\",\"stable_section_uid\":\"8be5dbc1c3f1ef2c\",\"text\":\"\\nThe checkout service MUST allow a refund at any time after purchase with no\\ndeadline. A refund request is never rejected because of the number of days that\\nhave elapsed since the purchase.\\n\"},{\"heading_path\":[\"Checkout Service Spec\"],\"identifiers\":[],\"section_id\":\"docs/spec/checkout.md#0001-checkout-service-spec\",\"stable_section_uid\":\"72a92af2dbb3190b\",\"text\":\"\\n\"},{\"heading_path\":[\"Checkout Service Spec\",\"Order Approval Policy\"],\"identifiers\":[\"MUST\",\"USD\",\"pending\"],\"section_id\":\"docs/spec/checkout.md#0002-order-approval-policy\",\"stable_section_uid\":\"428641a2371a3a02\",\"text\":\"\\nThe checkout service MUST require manager approval for every order whose total\\nis above 1000 USD. Such an order is held in a pending state and is never\\nshipped until a human manager explicitly approves it. Automatic approval of\\nhigh-value orders is forbidden.\\n\\n\"},{\"heading_path\":[\"Checkout Service Spec\",\"Refund Window\"],\"identifiers\":[\"MUST\"],\"section_id\":\"docs/spec/checkout.md#0003-refund-window\",\"stable_section_uid\":\"94154ebc62bf7b73\",\"text\":\"\\nThe checkout service MUST allow a refund only within 14 days of the original\\npurchase. After the 14-day window has elapsed, the service MUST reject the\\nrefund request. There is no exception to this deadline.\\n\"}],\"summary_search_keys_are_evidence\":false,\"task\":\"section_metadata\"}",
+  "prompt_version": "section-metadata-v3",
+  "section_hashes": {
+    "docs/spec/automation.md#0001-automation-service-spec": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/spec/automation.md#0002-order-approval-policy": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+    "docs/spec/automation.md#0003-refund-window": "06f0f4a2a158fb969f1b36f76bfa56ecfff8246ad3ea22a6ca3a8e387e3199c2",
+    "docs/spec/checkout.md#0001-checkout-service-spec": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/spec/checkout.md#0002-order-approval-policy": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+    "docs/spec/checkout.md#0003-refund-window": "dde0da55a13e445da882461eeb5ff20537ec899602e6055bfab66b09f6d78396"
+  },
+  "section_id": null,
+  "semantic_hash": "bc0c8a9f94bae4ba25ed372c31e3da5caf4a81ffbf7ba327ee1e5ca01381b510",
+  "source_hash": "0b6058cb41cbd9d5fe5ef0bc28a5a20547bad150eda4d4e6fe2be64c9f69df38",
+  "stage": "section_metadata",
+  "task": "section_metadata"
+}

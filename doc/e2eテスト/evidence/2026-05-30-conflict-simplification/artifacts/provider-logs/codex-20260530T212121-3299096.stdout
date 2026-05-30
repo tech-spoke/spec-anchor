@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d4-eff4-79c0-a675-64546257f54f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different behaviors and scopes within the checkout spec: refund rejection after 14 days versus approval handling for high-value orders. They share the same service area but do not describe overlapping conditions or a direct policy clash.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13138,"cached_input_tokens":2432,"output_tokens":128,"reasoning_output_tokens":59}}

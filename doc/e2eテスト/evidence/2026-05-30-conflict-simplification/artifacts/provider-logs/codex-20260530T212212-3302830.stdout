@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-b11b-7d61-9ecc-5d68a64b7da3"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims concern overlapping order-approval behavior for orders above 1000 USD and state opposite requirements: one says the order stays pending until human manager approval, the other says manager approval is never required.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13170,"cached_input_tokens":10624,"output_tokens":97,"reasoning_output_tokens":32}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-952d-7290-9fb4-32d71764af65"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address different dimensions: the left states the 14-day refund deadline has no exceptions, while the right says the rule applies to all storefront channels. Their scopes can coexist without conflict.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13101,"cached_input_tokens":10624,"output_tokens":126,"reasoning_output_tokens":63}}

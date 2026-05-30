@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-5683-74e2-96b0-d1bb519491be"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address the same refund deadline and are consistent: one states refunds are allowed only within 14 days, and the other says there are no exceptions to that deadline. There is no substantive conflict to escalate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13125,"cached_input_tokens":10624,"output_tokens":116,"reasoning_output_tokens":49}}

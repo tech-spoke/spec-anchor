@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-089b-7441-87ee-bd468c4fc027"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address different targets and scopes: one is a refund deadline exception rule, the other is an order-approval policy above 1000 USD. Their conditions do not overlap, so this pair is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13141,"cached_input_tokens":10624,"output_tokens":113,"reasoning_output_tokens":43}}

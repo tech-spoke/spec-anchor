@@ -1,0 +1,45 @@
+{
+  "conflict_id": "conflict-candidate-sha256-054b3634b2409d30df4a558758422954294292b059949c694b1c1e29f76fac1f",
+  "source_refs": [
+    {
+      "source_document_id": "docs/spec/automation.md",
+      "source_hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+      "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 271,
+        "start_line": 3,
+        "start_offset": 52
+      }
+    },
+    {
+      "source_document_id": "docs/spec/checkout.md",
+      "source_hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+      "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+      "source_span": {
+        "end_line": 9,
+        "end_offset": 312,
+        "start_line": 3,
+        "start_offset": 50
+      }
+    }
+  ],
+  "base_source_hashes": [
+    {
+      "hash": "b1de5f99b6fef073641d36e4f4bc2d87e0433d673657134a8dccecd9e2d05e7b",
+      "source_ref": "docs/spec/automation.md#0002-order-approval-policy"
+    },
+    {
+      "hash": "c38f670c3bc9c9230a74ec9de11ea09a9ff5fc6733eb8da2a7c4ef95c4a9a33d",
+      "source_ref": "docs/spec/checkout.md#0002-order-approval-policy"
+    },
+    {
+      "hash": "ae457e052b8ffb0005e3b3dfdb027d0fd8e0b2825301439b1bbfc5bc21f55bf8",
+      "source_ref": "docs/core/purpose.md"
+    },
+    {
+      "hash": "f74685b01f6842b6282ba716a85971de98b57f7d34ce2c41293bf5fa1129e082",
+      "source_ref": "docs/core/concept.md"
+    }
+  ]
+}

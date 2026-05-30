@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-4429-7723-a1bb-d858eb70794c"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address different targets and scopes: high-value order approval policy versus refund request handling after a 14-day window. They do not appear to overlap or compete on the same behavior.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13168,"cached_input_tokens":10624,"output_tokens":112,"reasoning_output_tokens":50}}

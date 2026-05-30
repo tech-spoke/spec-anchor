@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-c54a-7821-b398-903ced1add87"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims address the same refund-window policy for the checkout service and directly contradict each other: one imposes a strict 14-day no-exceptions deadline, while the other allows refunds at any time with no deadline.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13141,"cached_input_tokens":10624,"output_tokens":115,"reasoning_output_tokens":47}}

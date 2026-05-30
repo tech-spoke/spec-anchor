@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-8ddb-7071-9594-7f10e1d059bb"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims describe the same high-value order policy and are compatible: one requires manager approval, the other adds the pending/unshipped behavior before approval. This is not a meaningful conflict candidate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13208,"cached_input_tokens":2432,"output_tokens":115,"reasoning_output_tokens":52}}

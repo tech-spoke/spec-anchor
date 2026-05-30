@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-a575-7281-bbdc-451e5bf59b35"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address different targets and scopes: a 14-day refund deadline versus order-processing approval behavior. Their evidence spans do not create a meaningful overlap, so conflict review is unlikely to add value.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13092,"cached_input_tokens":10624,"output_tokens":133,"reasoning_output_tokens":69}}

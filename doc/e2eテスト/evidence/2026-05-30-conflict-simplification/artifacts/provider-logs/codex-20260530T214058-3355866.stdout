@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-e779-79b0-a3d5-d7d8dce501df"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same target, but the claims govern different scopes: refund timing versus order approval. They can coexist without direct overlap, so this is not a worthwhile conflict review candidate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13254,"cached_input_tokens":10624,"output_tokens":129,"reasoning_output_tokens":71}}

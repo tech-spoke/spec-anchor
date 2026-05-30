@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-d535-7043-8b16-91f4c741edb5"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims address the same order-approval policy and overlap in scope: one says high-value orders stay pending until human approval, while the other says every order is auto-approved. That is a plausible policy conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13195,"cached_input_tokens":10624,"output_tokens":129,"reasoning_output_tokens":60}}

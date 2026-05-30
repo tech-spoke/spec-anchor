@@ -1,0 +1,23 @@
+You are the SPEC-anchor /spec-core generation provider. Return only one JSON object. No markdown, no prose. The JSON object must include exactly one top-level array field "claims". Each item must include claim_text, target, target_aliases, claim_kind, evidence_span, evidence_start, evidence_end, evidence_hash, confidence, and retrieval. The retrieval object must include sparse_keys, embedding_text, and conflict_probes. Use an empty claims array when the section contains no grounded specification claim.
+
+Request JSON:
+{
+  "context_hashes": {},
+  "effort": "low",
+  "input_hashes": {
+    "semantic_hash": "02d63bff217607095a90370f593ef3302a75622947a4469bf87051be51b5910d",
+    "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b"
+  },
+  "metadata_version": 1,
+  "model": "gpt-5.4-mini",
+  "prompt": "{\n  \"instructions\": [\n    \"Extract only specification claims explicitly supported by the section.\",\n    \"Return strict JSON with exactly one top-level key: claims.\",\n    \"Each claim must contain claim_text, target, target_aliases, claim_kind, evidence_span, evidence_start, evidence_end, evidence_hash, confidence, and retrieval.\",\n    \"Each claim may also contain scope, condition, value, and claim_kind_confidence.\",\n    \"retrieval must contain sparse_keys, embedding_text, and conflict_probes.\",\n    \"Do not infer conflicts; only extract grounded claims.\",\n    \"Use an empty claims array when the section contains no specification claim.\"\n  ],\n  \"max_claims_per_section\": 20,\n  \"output_shape\": {\n    \"claims\": [\n      {\n        \"claim_kind\": \"requirement|constraint|behavior|status|fallback|deprecation|source_of_truth|scope_rule|freshness_rule|cache_rule|unknown|other\",\n        \"claim_kind_confidence\": \"high|medium|low\",\n        \"claim_text\": \"string\",\n        \"condition\": \"string\",\n        \"confidence\": \"high|medium|low\",\n        \"evidence_end\": 0,\n        \"evidence_hash\": \"sha256:<normalized evidence hash>\",\n        \"evidence_span\": \"exact source excerpt or whitespace-normalized excerpt\",\n        \"evidence_start\": 0,\n        \"retrieval\": {\n          \"conflict_probes\": [\n            \"string\"\n          ],\n          \"embedding_text\": \"string\",\n          \"sparse_keys\": [\n            \"string\"\n          ]\n        },\n        \"scope\": \"string\",\n        \"target\": \"string\",\n        \"target_aliases\": [\n          \"string\"\n        ],\n        \"value\": \"string\"\n      }\n    ]\n  },\n  \"prompt_version\": \"spec-claim-prompt-v1\",\n  \"retrieval_schema_version\": \"spec-claim-retrieval-v1\",\n  \"schema_version\": \"spec-claim-schema-v1\",\n  \"source_section\": {\n    \"semantic_hash\": \"02d63bff217607095a90370f593ef3302a75622947a4469bf87051be51b5910d\",\n    \"source_hash\": \"0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b\",\n    \"source_section_id\": \"docs/spec/checkout.md#0002-order-approval-policy\",\n    \"text\": \"\\nThe checkout service MUST require manager approval for every order whose total\\nis above 1000 USD. Such an order is held in a pending state and is never\\nshipped until a human manager explicitly approves it. Automatic approval of\\nhigh-value orders is forbidden. (E2E edit: clarified that this rule applies to all storefront channels.)\\n\\n\"\n  },\n  \"task\": \"extract_spec_claims\"\n}",
+  "prompt_version": "spec-claim-prompt-v1",
+  "section_hashes": {
+    "docs/spec/checkout.md#0002-order-approval-policy": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b"
+  },
+  "section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+  "semantic_hash": "02d63bff217607095a90370f593ef3302a75622947a4469bf87051be51b5910d",
+  "source_hash": "0da175647aeb012d87853b502f07f26cad0efac9f2b0516c743651170d65c89b",
+  "stage": "spec_claims",
+  "task": "spec_claims"
+}

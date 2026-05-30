@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-556e-7df1-84c6-3570571d4347"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims cover different checkout rules: one forbids automatic approval for high-value orders, the other limits refunds to within 14 days. Their targets and scopes do not meaningfully overlap, so conflict review is not worthwhile.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13167,"cached_input_tokens":10624,"output_tokens":116,"reasoning_output_tokens":47}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-9f35-7a33-a1e9-fc702e193be7"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address overlapping checkout approval policy, but one sets the behavior for high-value orders and the other only broadens the channel scope; they can both be true together with no apparent conflict.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13171,"cached_input_tokens":10624,"output_tokens":138,"reasoning_output_tokens":75}}

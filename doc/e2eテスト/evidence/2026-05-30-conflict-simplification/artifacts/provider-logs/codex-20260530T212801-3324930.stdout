@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-0c48-73e0-9010-022107b6aa05"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims concern order approval policy for the checkout flow and overlap on the same approval state, but one says every order is auto-approved while the other says orders above 1000 USD stay pending until human approval. That is a plausible conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13188,"cached_input_tokens":10624,"output_tokens":103,"reasoning_output_tokens":28}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-aebc-7042-82f1-38be8ccb83fb"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims overlap on the same order-processing target and are directly incompatible: one says high-value orders wait for human approval, while the other says no order is ever held for a human decision.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13183,"cached_input_tokens":10624,"output_tokens":120,"reasoning_output_tokens":57}}

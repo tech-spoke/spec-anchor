@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-7c1c-7280-90fe-9c1c29fe31f0"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same target, but the claims govern different scopes: refund eligibility versus manager approval for high-value orders. Their requirements can coexist without overlap.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13261,"cached_input_tokens":10624,"output_tokens":120,"reasoning_output_tokens":68}}

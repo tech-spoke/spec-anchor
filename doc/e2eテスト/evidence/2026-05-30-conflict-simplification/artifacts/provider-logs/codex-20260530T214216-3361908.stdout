@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-159e-74b2-a5ab-5c6a149de315"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different policies in the checkout service: a 14-day refund deadline versus automatic order approval. Their targets and scopes do not meaningfully overlap, so this is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13108,"cached_input_tokens":10624,"output_tokens":124,"reasoning_output_tokens":60}}

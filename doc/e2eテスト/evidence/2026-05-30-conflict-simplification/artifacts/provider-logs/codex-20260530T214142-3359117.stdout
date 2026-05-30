@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-93b3-7dc0-b236-9eacf7f122de"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different targets and scopes: manager approval for order approval policy versus refund timing in checkout. Their scopes do not overlap, so this pair is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13145,"cached_input_tokens":10624,"output_tokens":115,"reasoning_output_tokens":55}}

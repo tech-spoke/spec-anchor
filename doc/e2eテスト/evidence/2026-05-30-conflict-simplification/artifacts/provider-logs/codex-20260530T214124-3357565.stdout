@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-4c6b-70a1-8cf4-73f1179d21a3"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims address approval for high-value orders and can overlap: one says manager approval is never required, while the other forbids automatic approval for high-value orders. This is a plausible policy conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13149,"cached_input_tokens":10624,"output_tokens":102,"reasoning_output_tokens":36}}

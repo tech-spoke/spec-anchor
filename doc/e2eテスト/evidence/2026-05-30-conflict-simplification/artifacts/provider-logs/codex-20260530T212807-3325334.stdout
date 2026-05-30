@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-2456-7b93-bf79-79f36768b2f7"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same target but the claims cover distinct checkout behaviors: order approval above $1000 versus refund window limits. Their scopes do not overlap, so conflict review is not worthwhile.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13159,"cached_input_tokens":10624,"output_tokens":113,"reasoning_output_tokens":54}}

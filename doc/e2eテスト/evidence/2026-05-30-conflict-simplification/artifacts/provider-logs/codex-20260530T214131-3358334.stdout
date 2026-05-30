@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-68ec-7ed3-9e21-d9ae119ddc69"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same checkout service, but the claims cover different scopes: order approval for totals above 1000 USD versus refund rejection after a 14-day window. Their conditions do not overlap, so this pair is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13242,"cached_input_tokens":10624,"output_tokens":114,"reasoning_output_tokens":44}}

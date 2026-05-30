@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-164d-75e1-a22a-5d925c945d4b"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims govern the same order-approval flow and overlap for high-value orders; one forbids any human wait while the other requires manager approval above $1000 USD.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13177,"cached_input_tokens":10624,"output_tokens":117,"reasoning_output_tokens":58}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-36d6-7ce0-813a-78e157df42ff"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims govern the checkout service refund window and make incompatible time limits: one allows refunds any time after purchase, the other restricts refunds to within 14 days.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13237,"cached_input_tokens":10624,"output_tokens":82,"reasoning_output_tokens":24}}

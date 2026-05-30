@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-73cc-7793-b726-e3e2cc2ed66d"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims concern the order approval policy and can overlap in storefront checkout flows; one expands channel scope while the other removes manager approval even for high-value orders, so the pair is worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13166,"cached_input_tokens":10624,"output_tokens":167,"reasoning_output_tokens":103}}

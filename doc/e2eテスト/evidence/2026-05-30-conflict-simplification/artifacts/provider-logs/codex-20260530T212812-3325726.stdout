@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-3768-7dc2-aa67-da49408d2341"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same checkout service target, but the claims cover different scopes: order approval above 1000 USD versus refund timing after purchase. Their scopes do not overlap, so this pair is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13194,"cached_input_tokens":10624,"output_tokens":149,"reasoning_output_tokens":84}}

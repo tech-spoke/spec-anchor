@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78db-46e3-7bd1-b6ad-b2e4a3bfa2a8"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"Both claims concern the same order-approval flow and can overlap: one says orders are never held for human decision, while the other forbids automatic approval for high-value orders. That makes the pair worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13135,"cached_input_tokens":10624,"output_tokens":156,"reasoning_output_tokens":88}}

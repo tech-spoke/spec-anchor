@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-c533-7d60-9d9d-02083bf6633d"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern nearby checkout behavior but different scopes: high-value order approval/shipping versus refund timing after purchase. They can coexist without overlap, so this is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13207,"cached_input_tokens":10624,"output_tokens":146,"reasoning_output_tokens":85}}

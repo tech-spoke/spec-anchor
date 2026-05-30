@@ -1,0 +1,1 @@
+/home/kazuki/.nvm/versions/node/v24.11.1/bin/codex --version

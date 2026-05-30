@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e6-9f1c-79e1-94e7-4adb5ca9bcb4"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims address the same approval policy and their scopes overlap: one requires automatic approval for every order, while the other forbids automatic approval for high-value orders. That is a plausible conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13156,"cached_input_tokens":10624,"output_tokens":102,"reasoning_output_tokens":37}}

@@ -1,0 +1,452 @@
+{
+  "collection": "spec_anchor_section_conflict_e2e_20260530",
+  "command": "/spec-inject inject-search",
+  "hits": [
+    {
+      "heading_path": [
+        "Automation Service Spec",
+        "Order Approval Policy"
+      ],
+      "identifiers": [
+        "MUST",
+        "USD",
+        "required"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "must",
+            "high-value orders",
+            "orders above one thousand dollars",
+            "order approval policy"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "must",
+            "automation service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/automation.md#0003-refund-window"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "must"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/checkout.md#0003-refund-window"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "automation service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/automation.md#0001-automation-service-spec"
+        }
+      ],
+      "score": 0.03252247488101534,
+      "search_keys": [
+        "automatic order approval",
+        "high-value orders",
+        "manager approval not required",
+        "orders above one thousand dollars",
+        "no waiting for human decision",
+        "instant approval",
+        "Automation Service Spec",
+        "Order Approval Policy"
+      ],
+      "source_document_id": "docs/spec/automation.md",
+      "source_section_id": "docs/spec/automation.md#0002-order-approval-policy",
+      "source_span": {
+        "end_line": 8,
+        "end_offset": 271,
+        "start_line": 3,
+        "start_offset": 52
+      },
+      "summary": "All orders are auto-approved, including high-value orders above 1000 USD; no human approval or waiting state is ever used."
+    },
+    {
+      "heading_path": [
+        "Checkout Service Spec",
+        "Order Approval Policy"
+      ],
+      "identifiers": [
+        "MUST",
+        "USD",
+        "pending"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "must",
+            "high-value orders",
+            "orders above one thousand dollars",
+            "order approval policy"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "must",
+            "checkout service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/checkout.md#0003-refund-window"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "must"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/automation.md#0003-refund-window"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "checkout service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/checkout.md#0001-checkout-service-spec"
+        }
+      ],
+      "score": 0.03252247488101534,
+      "search_keys": [
+        "manager approval required",
+        "high-value orders",
+        "pending approval state",
+        "orders above one thousand dollars",
+        "held until approved",
+        "no automatic approval",
+        "Checkout Service Spec",
+        "Order Approval Policy"
+      ],
+      "source_document_id": "docs/spec/checkout.md",
+      "source_section_id": "docs/spec/checkout.md#0002-order-approval-policy",
+      "source_span": {
+        "end_line": 9,
+        "end_offset": 312,
+        "start_line": 3,
+        "start_offset": 50
+      },
+      "summary": "Orders over 1000 USD require manager approval, stay pending, and must not ship until explicitly approved; automatic approval of high-value orders is prohibited."
+    },
+    {
+      "heading_path": [
+        "Checkout Service Spec",
+        "Refund Window"
+      ],
+      "identifiers": [
+        "MUST"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "must",
+            "refund window"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/automation.md#0003-refund-window"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "must",
+            "checkout service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "must"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "checkout service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/checkout.md#0001-checkout-service-spec"
+        }
+      ],
+      "score": 0.03149801587301587,
+      "search_keys": [
+        "refund within fourteen days",
+        "refund deadline",
+        "after fourteen days rejected",
+        "purchase date limit",
+        "limited refund window",
+        "no exceptions to deadline",
+        "Checkout Service Spec",
+        "Refund Window"
+      ],
+      "source_document_id": "docs/spec/checkout.md",
+      "source_section_id": "docs/spec/checkout.md#0003-refund-window",
+      "source_span": {
+        "end_line": 14,
+        "end_offset": 538,
+        "start_line": 10,
+        "start_offset": 329
+      },
+      "summary": "Refunds are only allowed within 14 days of purchase; requests after that deadline must be rejected."
+    },
+    {
+      "heading_path": [
+        "Automation Service Spec",
+        "Refund Window"
+      ],
+      "identifiers": [
+        "MUST"
+      ],
+      "related_sections": [
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "must",
+            "refund window"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "same_policy",
+          "target_section_id": "docs/spec/checkout.md#0003-refund-window"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "search_key_match",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "medium",
+          "evidence_terms": [
+            "must",
+            "automation service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "shared_identifier",
+            "qdrant_section_hybrid"
+          ],
+          "confidence": "low",
+          "evidence_terms": [
+            "must"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "see_also",
+          "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "automation service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "depends_on",
+          "target_section_id": "docs/spec/automation.md#0001-automation-service-spec"
+        }
+      ],
+      "score": 0.030776515151515152,
+      "search_keys": [
+        "refunds with no deadline",
+        "any time after purchase",
+        "no refund window",
+        "elapsed days never matter",
+        "refunds always allowed",
+        "no time limit for refunds",
+        "Automation Service Spec",
+        "Refund Window"
+      ],
+      "source_document_id": "docs/spec/automation.md",
+      "source_section_id": "docs/spec/automation.md#0003-refund-window",
+      "source_span": {
+        "end_line": 13,
+        "end_offset": 478,
+        "start_line": 9,
+        "start_offset": 288
+      },
+      "summary": "Refunds are allowed at any time after purchase and are never denied because of elapsed time."
+    },
+    {
+      "heading_path": [
+        "Checkout Service Spec"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "checkout service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/checkout.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "checkout service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/checkout.md#0003-refund-window"
+        }
+      ],
+      "score": 0.015873015873015872,
+      "search_keys": [
+        "Checkout Service Spec"
+      ],
+      "source_document_id": "docs/spec/checkout.md",
+      "source_section_id": "docs/spec/checkout.md#0001-checkout-service-spec",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 25,
+        "start_line": 1,
+        "start_offset": 24
+      },
+      "summary": "Checkout Service Spec"
+    },
+    {
+      "heading_path": [
+        "Automation Service Spec"
+      ],
+      "identifiers": [],
+      "related_sections": [
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "automation service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/automation.md#0002-order-approval-policy"
+        },
+        {
+          "channels": [
+            "search_key_match"
+          ],
+          "confidence": "high",
+          "evidence_terms": [
+            "automation service spec"
+          ],
+          "generated_at": "1970-01-01T00:00:00Z",
+          "relation_hint": "prerequisite",
+          "target_section_id": "docs/spec/automation.md#0003-refund-window"
+        }
+      ],
+      "score": 0.015384615384615385,
+      "search_keys": [
+        "Automation Service Spec"
+      ],
+      "source_document_id": "docs/spec/automation.md",
+      "source_section_id": "docs/spec/automation.md#0001-automation-service-spec",
+      "source_span": {
+        "end_line": 2,
+        "end_offset": 27,
+        "start_line": 1,
+        "start_offset": 26
+      },
+      "summary": "Automation Service Spec"
+    }
+  ],
+  "project_root": "/tmp/spec-anchor-e2e-2026-05-30-conflict/project",
+  "query": "order approval threshold for high value orders",
+  "top_k": 8,
+  "warnings": []
+}

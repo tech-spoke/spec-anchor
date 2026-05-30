@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-326c-7cb3-b3c9-b9cd15b3d8e8"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims concern different targets and scopes: manager approval for order approvals versus refund rejection after a 14-day window in checkout service. Their operational overlap is too weak to warrant conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13172,"cached_input_tokens":2432,"output_tokens":101,"reasoning_output_tokens":39}}

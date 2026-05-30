@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d5-422d-73e3-9a58-eda5703cd505"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address different targets and scopes: a refund deadline rule versus order approval workflow. Their evidence does not indicate overlapping behavior or a plausible conflict worth review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13096,"cached_input_tokens":2432,"output_tokens":108,"reasoning_output_tokens":52}}

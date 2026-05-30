@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d9-e9c2-7452-8703-082f10c77ec5"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims address the same checkout approval policy, but one sets a threshold-based approval requirement and the other broadens channel scope; they can both be true at once, so this is not a review-worthy conflict candidate.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13151,"cached_input_tokens":2432,"output_tokens":143,"reasoning_output_tokens":75}}

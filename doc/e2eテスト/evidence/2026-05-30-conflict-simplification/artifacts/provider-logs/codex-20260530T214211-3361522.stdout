@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e8-0483-7a40-8b28-91bbc61d168f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same checkout service, but the claims govern different behaviors: manager approval for high-value orders versus a 14-day refund window. Their scopes do not overlap, so this is not worth conflict review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13175,"cached_input_tokens":10624,"output_tokens":112,"reasoning_output_tokens":48}}

@@ -1,0 +1,2 @@
+{"name": "setup-system-check-only", "cwd": "/home/kazuki/public_html/spec-anchor", "command": ["/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-system", "--check-only"], "returncode": 0, "duration_sec": 0.477}
+{"name": "setup-project", "cwd": "/home/kazuki/public_html/spec-anchor", "command": ["/home/kazuki/public_html/spec-anchor/.venv/bin/spec-anchor-setup-project", "--target", "/tmp/spec-anchor-e2e-2026-05-30-conflict/project", "--agent", "both"], "returncode": 0, "duration_sec": 0.074}

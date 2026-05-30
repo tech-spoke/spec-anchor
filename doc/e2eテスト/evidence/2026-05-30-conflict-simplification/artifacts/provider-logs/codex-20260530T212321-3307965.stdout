@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78d6-c64d-7192-bf25-de0ba9d49e18"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"Same target service, but the claims govern different scopes: refund requests after a 14-day window versus manager approval for orders above 1000 USD. They do not appear to overlap or compete.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13174,"cached_input_tokens":10624,"output_tokens":101,"reasoning_output_tokens":37}}

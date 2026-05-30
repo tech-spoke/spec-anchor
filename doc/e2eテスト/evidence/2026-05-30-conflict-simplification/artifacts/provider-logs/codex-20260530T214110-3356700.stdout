@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78e7-1417-7543-aabc-91afe95b2a25"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":false,\"reason\":\"The claims describe the same high-value order approval policy from the same source section and are complementary: one requires manager approval above 1000 USD, the other says the order stays pending and unshipped until approval. No apparent conflict to review.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13220,"cached_input_tokens":10624,"output_tokens":142,"reasoning_output_tokens":68}}

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019e78da-1262-7900-ab62-a9ccfbb1abd7"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"send_to_review\":true,\"reason\":\"The claims address the same order-approval behavior and directly conflict on whether high-value orders can be held pending for human approval versus never held for a human decision.\",\"confidence\":\"high\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":13181,"cached_input_tokens":10624,"output_tokens":120,"reasoning_output_tokens":63}}
