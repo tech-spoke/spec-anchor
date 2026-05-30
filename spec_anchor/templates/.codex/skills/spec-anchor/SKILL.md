@@ -81,7 +81,7 @@ CLI が `should_stop=true`、`status="blocked"`、`status="failed"`、または 
 
 - `.spec-anchor/config.toml not found under {root}` のときは `spec-anchor-setup-project --target <project_root>` を提案する。
 - `blocking_reasons` に dirty / stale / watcher 系 (`dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending`) があるときは、CLI の `recommended_next_action` を日本語で伝え、`/spec-core` を自動実行しない。
-- `pending_conflict_items` がある場合は停止理由ではなく注入情報である。各 item について `conflict_id` / `severity` / `claims` / `why_conflicting` / `why_llm_cannot_decide` / `source_refs` / item 側の `recommended_next_action` を人間向け見出しに翻訳して提示する。item 側が `"Ask a human to decide this conflict."` なら、「人間判断で衝突を解消してください」と訳す。矛盾の省略を contract violation として扱う。矛盾ではないと人間が明示したときだけ `spec-anchor core --dismiss-conflict <conflict_id> --reason "..."` で却下を永続化し、実行した CLI と結果を会話に出す。
+- `pending_conflict_items` がある場合は停止理由ではなく注入情報である。各 item について `conflict_id` / `severity` / `conflict_points` (各 `left_excerpt` / `right_excerpt` / `why_conflicting`) / `why_conflicting` / `why_llm_cannot_decide` / `source_refs` / item 側の `recommended_next_action` を人間向け見出しに翻訳して提示する。item 側が `"Ask a human to decide this conflict."` なら、「人間判断で衝突を解消してください」と訳す。矛盾の省略を contract violation として扱う。矛盾ではないと人間が明示したときだけ `spec-anchor core --dismiss-conflict <conflict_id> --reason "..."` で却下を永続化し、実行した CLI と結果を会話に出す。
 - `blocking_reasons=["failed_required_artifact"]` のときは、CLI の `recommended_next_action` を日本語で伝え、`warnings` の失敗詳細を提示する。
 - `stop_reason="needs_agent_answer"` のときは、4 区分 answer candidate が必要であることを日本語で伝える。
 
@@ -91,7 +91,7 @@ freshness blocker または tool error で停止する場合は、停止した c
 
 ## pending conflict の本文展開フォーマット
 
-pending conflict がある場合は件数だけで済ませず、各 item の `conflict_id`、`severity`、`claims`、`why_conflicting`、`why_llm_cannot_decide`、`source_refs`、`recommended_next_action` の値を人間向け見出しへ置き換えて提示する。課題に関連する pending conflict がある `/spec-realign` では答案を生成しない。
+pending conflict がある場合は件数だけで済ませず、各 item の `conflict_id`、`severity`、`conflict_points` (各 `left_excerpt` / `right_excerpt` / `why_conflicting`)、`why_conflicting`、`why_llm_cannot_decide`、`source_refs`、`recommended_next_action` の値を人間向け見出しへ置き換えて提示する。課題に関連する pending conflict がある `/spec-realign` では答案を生成しない。
 
 ## 答案なし呼び出しの自動再実行
 

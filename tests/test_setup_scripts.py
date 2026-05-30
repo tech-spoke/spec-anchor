@@ -564,7 +564,7 @@ def test_t_conflict_source_update_flow_agent_templates_are_in_sync() -> None:
         for expected in (
             "conflict_id",
             "severity",
-            "claims",
+            "conflict_points",
             "why_conflicting",
             "why_llm_cannot_decide",
             "source_refs",
