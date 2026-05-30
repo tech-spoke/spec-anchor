@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import time
+import tomllib
 import uuid
 from collections.abc import Callable, Mapping, MutableMapping, Sequence
 from copy import deepcopy
@@ -961,14 +962,28 @@ def run_dismiss_conflict(
             "--reason is required and must be a non-empty dismissal reason",
             "missing_reason",
         )
-    try:
-        config = _load_project_config(root)
-    except config_api.ConfigError as exc:
+    # Read only the context storage path. Dismissal does not need the full
+    # strict project config (which requires a [sources] table); it only locates
+    # and rewrites conflict_review_items.json.
+    config_path = root / ".spec-anchor" / "config.toml"
+    if not config_path.is_file():
         return _dismiss_error_result(
-            root, command, str(exc), "command_error", exc_type=type(exc).__name__
+            root,
+            command,
+            f".spec-anchor/config.toml not found under {root.as_posix()}",
+            "command_error",
+            exc_type="ConfigError",
         )
-
-    context_dir = root / _config_get(config, ("context", "storage"), ".spec-anchor/context")
+    try:
+        raw_config = tomllib.loads(config_path.read_text())
+    except tomllib.TOMLDecodeError as exc:
+        return _dismiss_error_result(
+            root, command, f"invalid config.toml: {exc}", "command_error",
+            exc_type="ConfigError",
+        )
+    context_table = raw_config.get("context") if isinstance(raw_config.get("context"), Mapping) else {}
+    storage = context_table.get("storage") if isinstance(context_table, Mapping) else None
+    context_dir = root / str(storage or ".spec-anchor/context")
     store = ContextArtifactStore(context_dir)
     payload = _read_artifact(store, "conflict_review_items")
     items = [
@@ -4479,8 +4494,20 @@ def _merge_conflict_items(
 
     for item in existing:
         current = dict(item)
-        merged[str(item.get("conflict_id"))] = current
-        if current.get("status") in {"dismissed"}:
+        conflict_id = str(item.get("conflict_id"))
+        if current.get("status") == "dismissed" and _pending_conflict_sources_changed(
+            current, current_hashes
+        ):
+            # Dismissal evidence changed: reopen for re-triage instead of
+            # suppressing the pair (TODO #4). Inserted before the suppression
+            # set is built so the reopened pending item is replaced by a fresh
+            # conflict (or auto-dismissed) later in this function.
+            merged[conflict_id] = _reopen_dismissed_conflict(
+                current, generated_at=generated_at
+            )
+            continue
+        merged[conflict_id] = current
+        if current.get("status") == "dismissed":
             pair_key = _conflict_pair_key_from_item(current)
             if pair_key is not None:
                 resolved_pair_keys.add(pair_key)
@@ -4563,6 +4590,39 @@ def _pending_conflict_sources_changed(
             changed = True
             break
     return changed
+
+
+def _reopen_dismissed_conflict(
+    item: Mapping[str, Any],
+    *,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Reopen a dismissed conflict whose evidence sections changed.
+
+    When `/spec-core` re-runs and a dismissed Conflict Review Item's
+    ``base_source_hashes`` no longer match the current Source Specs, the human
+    dismissal is treated as stale: the item returns to ``pending`` so the next
+    conflict evaluation re-triages it. If the pair no longer conflicts, the
+    later auto-dismiss pass (or a fresh non-pending signal) removes it again.
+    """
+
+    updated = deepcopy(dict(item))
+    now = generated_at or _nowish()
+    previous_resolution = (
+        deepcopy(updated.get("resolution"))
+        if isinstance(updated.get("resolution"), Mapping)
+        else None
+    )
+    updated["status"] = "pending"
+    updated["reflection_status"] = "unreflected"
+    updated["stale_dismissal"] = False
+    updated["updated_at"] = now
+    updated["reopened_at"] = now
+    if previous_resolution is not None:
+        updated["previous_resolution"] = previous_resolution
+    updated.pop("resolution", None)
+    updated.pop("last_decision", None)
+    return updated
 
 
 def _auto_dismiss_pending_conflict(

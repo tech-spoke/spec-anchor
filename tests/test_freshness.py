@@ -22,17 +22,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-PRIORITY_ORDER = [
-    "dirty_or_stale_source",
-    "watcher_running",
-    "watcher_queue_pending",
-    "stale_config_or_schema",
-    "failed_required_artifact",
-    "pending_conflict",
-    "degraded_optional_artifact",
-]
-
-
 def _module() -> Any:
     try:
         return importlib.import_module("spec_anchor.freshness")
@@ -234,6 +223,25 @@ def _base_state(**overrides: Any) -> dict[str, Any]:
     return state
 
 
+def _pending_conflict(conflict_id: str = "conflict-1") -> dict[str, Any]:
+    return {
+        "conflict_id": conflict_id,
+        "status": "pending",
+        "severity": "medium",
+        "source_refs": [
+            {
+                "source_section_id": "docs/spec/main.md#freshness-gate",
+                "source_hash": "source-hash-a",
+            }
+        ],
+        "claims": [{"claim_text": "A", "source": "docs/spec/main.md#a"}],
+        "why_conflicting": "two sections disagree",
+        "why_llm_cannot_decide": "no safe priority",
+        "decision_options": [{"id": "dismiss", "label": "Dismiss as not a conflict"}],
+        "recommended_next_action": "Ask a human to decide this conflict.",
+    }
+
+
 def _freshness(state: dict[str, Any]) -> Any:
     return _call(_freshness_function(), state)
 
@@ -357,14 +365,20 @@ def test_t_u03_stale_config_or_schema_blocks(state: dict[str, Any]) -> None:
     assert "stale_config_or_schema" in _reasons(report)
 
 
-def test_t_u03_pending_conflict_blocks() -> None:
+def test_t_u03_pending_conflict_does_not_block() -> None:
+    # TODO #1: pending Conflict Review Items are surfaced as information, not a
+    # freshness blocking reason. A project whose only signal is pending
+    # conflicts is still `fresh`.
     report = _freshness(_base_state(conflict_review_items=[_pending_conflict()]))
 
-    assert _status(report) == "blocked"
-    assert "pending_conflict" in _reasons(report)
+    assert _status(report) == "fresh"
+    assert "pending_conflict" not in _reasons(report)
 
 
-def test_t_u03_optional_artifact_degraded_continues_with_warning() -> None:
+def test_t_u07_artifact_failure_status_blocks_as_failed() -> None:
+    # TODO #7: there is no `degraded` status. Any non-success artifact status
+    # (including the historical `degraded`) is a required-artifact failure that
+    # stops the gate with status="failed".
     report = _freshness(
         _base_state(
             artifact_statuses={
@@ -375,13 +389,11 @@ def test_t_u03_optional_artifact_degraded_continues_with_warning() -> None:
         )
     )
 
-    assert _status(report) == "degraded"
-    assert "degraded_optional_artifact" in _reasons(report)
-    assert _warnings(report), "degraded optional artifacts must be surfaced as warnings"
+    assert _status(report) == "failed"
+    assert "failed_required_artifact" in _reasons(report)
 
     decision = _gate("/spec-inject", report)
-    assert _continue_allowed(decision) is True
-    assert "degraded_optional_artifact" in _string_blob(decision)
+    assert _continue_allowed(decision) is False
 
 
 def test_t_u03_required_artifact_failure_fails_and_stops() -> None:
@@ -438,16 +450,16 @@ def test_t_u03_dirty_plus_pending_reasons_are_priority_sorted_and_core_first() -
 
     report = _freshness(state)
 
+    # TODO #1: with both a dirty source and pending conflicts, the gate blocks
+    # on the dirty source only; pending is not a blocking reason.
     assert _status(report) == "blocked"
-    assert _reasons(report) == ["dirty_or_stale_source", "pending_conflict"]
-    assert _reasons(report) == sorted(_reasons(report), key=PRIORITY_ORDER.index)
+    assert _reasons(report) == ["dirty_or_stale_source"]
+    assert "pending_conflict" not in _reasons(report)
 
     decision = _gate("/spec-inject", report)
     text = _string_blob(decision)
     assert _continue_allowed(decision) is False
     assert "/spec-core" in text
-    assert "pending_conflict" in text
-    assert text.index("/spec-core") < text.index("pending_conflict")
 
 
 @pytest.mark.parametrize("command", ("/spec-inject", "/spec-realign"))
@@ -455,14 +467,6 @@ def test_t_u03_dirty_plus_pending_reasons_are_priority_sorted_and_core_first() -
     ("report", "should_continue"),
     (
         ({"status": "fresh", "blocking_reasons": [], "warnings": []}, True),
-        (
-            {
-                "status": "degraded",
-                "blocking_reasons": ["degraded_optional_artifact"],
-                "warnings": [{"reason_code": "degraded_optional_artifact"}],
-            },
-            True,
-        ),
         (
             {
                 "status": "blocked",
@@ -489,11 +493,13 @@ def test_t_u04_command_gate_continue_or_stop(
     assert _continue_allowed(decision) is should_continue
 
 
-def test_t_u04_pending_only_stop_includes_pending_conflict_items() -> None:
+def test_t_u04_pending_only_gate_continues_and_surfaces_items() -> None:
+    # TODO #1: a pending-only gate does not stop; it continues (fresh) while
+    # still surfacing the pending conflict items for the Agent to present.
     pending = _pending_conflict("conflict-pending-only")
     report = {
-        "status": "blocked",
-        "blocking_reasons": ["pending_conflict"],
+        "status": "fresh",
+        "blocking_reasons": [],
         "warnings": [],
         "pending_conflict_items": [pending],
         "conflict_review_items": [pending],
@@ -502,8 +508,7 @@ def test_t_u04_pending_only_stop_includes_pending_conflict_items() -> None:
     decision = _gate("/spec-inject", report)
     text = _string_blob(decision)
 
-    assert _continue_allowed(decision) is False
-    assert "pending_conflict" in text
+    assert _continue_allowed(decision) is True
     for expected in (
         "conflict-pending-only",
         "severity",
@@ -518,17 +523,17 @@ def test_t_u04_pending_only_stop_includes_pending_conflict_items() -> None:
 
 
 @pytest.mark.parametrize("item_key", ("pending_conflict_items", "conflict_review_items"))
-def test_t_u04_pending_only_gate_copies_report_conflicts_to_top_level(item_key: str) -> None:
+def test_t_u04_pending_gate_copies_report_conflicts_to_top_level(item_key: str) -> None:
     pending = _pending_conflict(f"conflict-from-{item_key}")
     report = {
-        "status": "blocked",
-        "blocking_reasons": ["pending_conflict"],
+        "status": "fresh",
+        "blocking_reasons": [],
         "warnings": [],
         item_key: [pending],
     }
 
     decision = _gate("/spec-inject", report)
 
-    assert _continue_allowed(decision) is False
+    assert _continue_allowed(decision) is True
     assert _value(decision, "pending_conflict_items") == [pending]
     assert _value(decision, "pending_conflict_count") == 1
