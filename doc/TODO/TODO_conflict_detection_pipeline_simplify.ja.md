@@ -3,7 +3,9 @@
 **起票日**: 2026-05-30
 **起票者**: Human (設計判断) + GPT (レビュー) + Claude main (調査・記述)
 **最終更新**: 2026-05-30
-**ステータス**: 実装着手可能（CODEX 設計レビュー CR-001〜CR-011 反映済み・人間判断点は詳細仕様まで確定。#1 は実装/テスト済み・コミット待ち。末尾「設計レビュー指摘と disposition」「人間判断点」参照）
+**ステータス**: 実装・実機検証ほぼ完了（#1〜#4・#6 完了、#5 実装完了・人間レビュー待ち、#7 実機計測 + production E2E 一巡 PASS）。残: #9-s10 evidence 再生成 / min_dense_score 実 Qdrant キャリブレーション / 人間レビュー。コミット列 2285c49→ce69820→e44a558→73ca0c7→3aebc46→feba231→992eca5→21c6384→96b5822
+
+> **実機検証サマリー（2026-05-31）**: 実 provider（codex gpt-5.4-mini / claude sonnet-4-6 / Qdrant :6333 / FlagEmbedding BGE-M3）で `docs/spec/sample.md`（6 section）を検証。full rebuild 124〜143s（conflict_evaluation 62s / 21 calls = all_pairs 15 cross + 6 self）、no-change incremental 1s（A案 skip 機能・judge 0 calls）。production E2E 一巡 PASS: 既知矛盾検出（recall 維持、4〜5件）→ conflict_points が実 LLM で populate（21c6384 で LLM 出力契約を item schema に整合する defect 修正後に確認。修正前は空 + 汎用文言で、fake test が隠していた）→ `--dismiss-conflict` で却下永続化 → 参照 section hash 変更で reopen。`pytest --skip-external` 661 passed/22 skipped。詳細は `doc/性能測定/METRICS.md` 第12回。
 **関連設計書**: `doc/EXTERNAL_DESIGN.ja.md`（§4.1 保持物の物理配置 / decision payload 節 / freshness / Agentic Search path）、`doc/EXTERNAL_SPEC_DRAFT.ja.md`、`spec_anchor/core.py`（`_spec_claims_enabled` L2872-2876・stale artifact read L622-640・spec_claims 経路 L1919 付近）、`spec_anchor/conflict_review.py`（`select_conflict_judging_pairs` L336・`evaluate_conflicts`）、`spec_anchor/claim_retrieval.py` / `spec_anchor/spec_claims.py` / `spec_anchor/conflict_candidates.py`（廃止対象）、`doc/TODO/TODO_conflict_resolution_simplification.ja.md`（本課題が supersede するゲート）、`doc/性能測定/METRICS.md`（性能根拠）
 
 ## 全体目的
@@ -68,13 +70,13 @@ sections
 
 | # | sub task ID | 概要 | 状態 | 残作業 | 最終更新 | 完了 commit |
 |---|---|---|---|---|---|---|
-| 1 | T-stale-artifact-guard | GPT-01: detection disabled/failed 時に stale な `conflict_candidate_pairs.jsonl` / `spec_claims.jsonl` を無条件 read して評価するバグを修正（status ガード追加） | 実装済み・テスト未検証 | test 観測点修正 + pytest + production E2E | 2026-05-30 | — |
-| 2 | T-section-pair-judge | section ペアを直接 judge する dedicated 検出器を新設（責務分離）。候補生成は非LLM retrieval/rank・非永続(A案)。`conflict_points[]` を出力契約に含める | ST-1/ST-2 実装済(additive・未配線) | ST-3 配線 + no-change skip + diagnostics + test | 2026-05-31 | — |
-| 3 | T-conflict-item-redesign | `conflict_review_item` を section_pair_id + conflict_points[] に再設計し、dismiss/reopen を section_pair 単位へ | 未着手 | 実装 + test（方針承認済み） | 2026-05-30 | — |
-| 4 | T-claim-pipeline-eradicate | `spec_claims` / `claim_retrieval` / `triage` / claim_uid 単位 dismiss/reopen を根絶（GPT-02 enable バグも消滅） | 未着手 | 実装 + grep 検証 + test | 2026-05-30 | — |
-| 5 | T-contract-realign | 外部設計書 / 仕様 draft / 内部設計書 / テンプレ / §4.1 配置表を新検出経路へ整合（実装監査後） | 未着手 | docs 反映 + 人間レビュー | 2026-05-30 | — |
-| 6 | T-judge-concurrency | section_pair judge の並列化を最後に入れる | 未着手 | 実装 + test | 2026-05-30 | — |
-| 7 | T-perf-measure | docs 簡易サンプルで per-stage 計測を新ステージ構成に合わせて取り直し、性能ガード（大幅悪化なし・目標短縮）を確認 | 未着手 | 計測 + METRICS.md 更新 | 2026-05-30 | — |
+| 1 | T-stale-artifact-guard | GPT-01: detection disabled/failed 時の stale read ガード + auto-dismiss 抑止 | 完了 | — | 2026-05-31 | 2285c49 |
+| 2 | T-section-pair-judge | section ペアを直接 judge する dedicated 検出器（非LLM 候補生成 + 単段 judge・grounding 維持） | 完了 | — | 2026-05-31 | ce69820 / e44a558 / 73ca0c7 |
+| 3 | T-conflict-item-redesign | `conflict_review_item` を section_pair_id + conflict_points[] へ再設計、dismiss/reopen を section_pair 単位へ | 完了 | — | 2026-05-31 | ce69820 / 73ca0c7（LLM 出力契約は 21c6384 で修正） |
+| 4 | T-claim-pipeline-eradicate | `spec_claims` / `claim_retrieval` / `triage` / claim 系を根絶（GPT-02 消滅） | 完了 | — | 2026-05-31 | 3aebc46 |
+| 5 | T-contract-realign | 外部/内部設計・仕様 draft・テンプレ・§4.1 を新経路へ整合 | 実装完了・人間レビュー待ち | 人間レビュー / #9-s10 evidence 再生成 | 2026-05-31 | 992eca5 / 96b5822 |
+| 6 | T-judge-concurrency | section_pair judge の並列化（ThreadPoolExecutor、入力順保持） | 完了 | — | 2026-05-31 | feba231 |
+| 7 | T-perf-measure | 実 provider で per-stage 計測（full 124〜143s / no-change 1s）+ production E2E 一巡 PASS + #9-s01 再生成 | 実機計測・E2E 完了 | #9-s10 evidence 再生成（要 load-count run）/ min_dense_score 実 Qdrant キャリブレーション / 人間レビュー | 2026-05-31 | 96b5822 |
 
 ## sub task 詳細
 
