@@ -957,15 +957,21 @@ claim 多段パイプライン（spec_claims → claim_retrieval → triage → 
 
 #### full rebuild（`spec-anchor core --rebuild`）per-stage
 
-| ステージ | wall (s) | calls | 備考 |
-|---|---|---|---|
-| section_metadata | 11.7 | 1 | codex |
-| section_collection_upsert | 10.9 | — | BGE-M3 embedding |
-| related_sections | 30.9 | 1 | claude |
-| **section_pair_candidate_generation** | **0.0** | **0** | **非LLM（retrieval/rank/cap）。瞬時** |
-| **conflict_evaluation（section_pair judge）** | **62.3** | **21** | **all_pairs: 15 cross + 6 self、claude_judge、concurrency 4** |
-| chapter_anchors | 5.8 | 1 | codex |
-| 総 wall | **124〜143 s** | | conflict_points 修正後の richな出力 run は 143 s |
+クリーン rebuild（mode=full、4 conflict 検出、conflict_points 修正後）の per-stage 計測（`.spec-anchor/state/core_progress.json`）:
+
+| ステージ | wall (s) | LLM calls | token_count | output_tok | provider / 備考 |
+|---|---|---|---|---|---|
+| start + inputs/sections_loaded | 0.7 | 0 | 0 | — | 起動・入力ロード |
+| section_metadata | 9.9 | 1 | 19,045 | 448 | codex gpt-5.4-mini（batch 1 call） |
+| section_collection_upsert | 10.2 | 0 | 0 | — | **BGE-M3 embedding（model load を含む。cache warm 時）** |
+| related_sections | 29.4 | 1 | 1,978 | 1,974 | claude sonnet-4-6 |
+| **section_pair_candidate_generation** | **0.0** | **0** | **0** | **—** | **非LLM（retrieval / rank / cap）。瞬時** |
+| **conflict_evaluation（section_pair judge）** | **67.9** | **21** | **6,959** | **6,875** | **claude_judge、all_pairs = 15 cross + 6 self、concurrency 4** |
+| chapter_anchors | 6.0 | 1 | 19,468 | 244 | codex gpt-5.4-mini |
+| artifact_write | 0.0 | 0 | — | — | — |
+| **総 wall** | **124〜143 s** | **24 calls** | | | conflict_points 修正後の richな出力 run は最大 143 s |
+
+支配ステージは **conflict_evaluation 67.9s / 21 calls**（all_pairs judge）と **related_sections 29.4s**。BGE-M3 の model load は section_collection_upsert（10.2s、cache warm 時）に含まれる。`spec-anchor-watch` / cold cache 時は BGE-M3 初回 load がさらに数十秒加算される。
 
 #### no-change incremental（`spec-anchor core`、source 不変）
 
