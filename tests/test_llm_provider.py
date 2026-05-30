@@ -452,6 +452,98 @@ def test_conflict_review_prompt_and_schema_match_item_builder_contract(
     assert "Beta forbids FEATURE_X." in prompt
 
 
+def test_conflict_review_batch_prompt_and_schema_match_batch_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        command = list(args[0])
+        schema_path = Path(command[command.index("--output-schema") + 1])
+        schema = json.loads(schema_path.read_text())
+        calls.append({"schema": schema, "kwargs": kwargs})
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "results": [
+                        {
+                            "pair_index": 0,
+                            "pair_id": "pair-a-b",
+                            "outcome": "needs_human_review",
+                            "severity": "high",
+                            "conflict_points": [
+                                {
+                                    "left_excerpt": "Alpha requires FEATURE_X.",
+                                    "right_excerpt": "Beta forbids FEATURE_X.",
+                                    "why_conflicting": "Required and forbidden cannot both hold.",
+                                    "severity": "high",
+                                }
+                            ],
+                            "why_conflicting": "FEATURE_X is both required and forbidden.",
+                            "why_llm_cannot_decide": "Purpose and Core Concept do not set priority.",
+                            "recommended_next_action": "Ask a human to choose the applicable rule.",
+                        }
+                    ]
+                },
+                ensure_ascii=False,
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr("spec_anchor.llm_provider.subprocess.run", fake_run)
+    provider = SubprocessLlmProvider(["codex"], real_smoke_enabled=True)
+    request = LlmRequest(
+        task="conflict_review",
+        stage="conflict_review_batch",
+        prompt=json.dumps(
+            {
+                "purpose": {"text": "Ship reliable behavior."},
+                "core_concept": {"text": "Source Specs are authoritative."},
+                "pairs": [
+                    {
+                        "pair_index": 0,
+                        "pair_id": "pair-a-b",
+                        "section_a": {"text": "Alpha requires FEATURE_X."},
+                        "section_b": {"text": "Beta forbids FEATURE_X."},
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        prompt_version="conflict-review-batch-v1",
+        model="gpt-test",
+        source_hash="conflict-batch-hash",
+        section_hashes={"docs/spec/a.md#a": "ha", "docs/spec/b.md#b": "hb"},
+    )
+
+    output = provider.generate(request, timeout_sec=3)
+
+    prompt = calls[0]["kwargs"]["input"]
+    schema = calls[0]["schema"]
+    result_schema = schema["properties"]["results"]["items"]
+    assert output["results"][0]["pair_index"] == 0
+    assert schema["required"] == ["results"]
+    assert schema["additionalProperties"] is False
+    assert result_schema["required"] == ["pair_index", "outcome", "severity"]
+    assert set(result_schema["properties"]) == {
+        "pair_index",
+        "pair_id",
+        "outcome",
+        "severity",
+        "conflict_points",
+        "why_conflicting",
+        "why_llm_cannot_decide",
+        "recommended_next_action",
+        "why_not_pending",
+    }
+    assert 'array field "results"' in prompt
+    assert 'shared "purpose" and "core_concept" once' in prompt
+    assert "Alpha requires FEATURE_X." in prompt
+    assert "Beta forbids FEATURE_X." in prompt
+
+
 def test_conflict_review_fake_provider_returns_full_representative_payload() -> None:
     request = LlmRequest(
         task="conflict_review",
@@ -486,6 +578,48 @@ def test_conflict_review_fake_provider_returns_full_representative_payload() -> 
     assert output["why_llm_cannot_decide"]
     assert output["recommended_next_action"]
     assert "summary" not in output
+
+
+def test_conflict_review_batch_fake_provider_returns_per_pair_results() -> None:
+    request = LlmRequest(
+        task="conflict_review",
+        stage="conflict_review_batch",
+        prompt=json.dumps(
+            {
+                "purpose": {"text": "Ship reliable behavior."},
+                "core_concept": {"text": "Source Specs are authoritative."},
+                "pairs": [
+                    {
+                        "pair_index": 0,
+                        "pair_id": "pair-a-b",
+                        "section_a": {"text": "Alpha requires FEATURE_X."},
+                        "section_b": {"text": "Beta forbids FEATURE_X."},
+                    },
+                    {
+                        "pair_index": 1,
+                        "pair_id": "pair-c-d",
+                        "section_a": {"text": "Gamma enables CACHE_MODE."},
+                        "section_b": {"text": "Delta disables CACHE_MODE."},
+                    },
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        prompt_version="conflict-review-batch-v1",
+        model="fake-model",
+        source_hash="conflict-batch-hash",
+    )
+
+    output = FakeLlmProvider().generate(request, timeout_sec=3)
+
+    assert [item["pair_index"] for item in output["results"]] == [0, 1]
+    assert [item["pair_id"] for item in output["results"]] == ["pair-a-b", "pair-c-d"]
+    assert output["results"][0]["conflict_points"][0]["left_excerpt"] == (
+        "Alpha requires FEATURE_X."
+    )
+    assert output["results"][1]["conflict_points"][0]["right_excerpt"] == (
+        "Delta disables CACHE_MODE."
+    )
 
 
 def test_t_u26_claude_provider_uses_print_and_structured_output(

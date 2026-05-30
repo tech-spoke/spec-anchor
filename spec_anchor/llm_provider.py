@@ -30,6 +30,7 @@ SPEC_CORE_GENERATION_STAGES = {
     "related_section_selection",
     "chapter_key_anchor",
     "conflict_review",
+    "conflict_review_batch",
 }
 
 
@@ -519,6 +520,29 @@ def _provider_prompt(payload: Mapping[str, Any]) -> str:
             "and \"recommended_next_action\". "
             "When \"outcome\" is \"not_a_conflict\" or \"false_positive\", include string field \"why_not_pending\"."
         )
+    elif stage == "conflict_review_batch":
+        output_contract = (
+            "You are reviewing a batch of potential conflicts between specification section pairs. "
+            "The request JSON contains shared \"purpose\" and \"core_concept\" once, plus array field "
+            "\"pairs\". Return exactly one JSON object with array field \"results\". "
+            "Return exactly one result for every input pair, in the same order. "
+            "Each result must include integer field \"pair_index\" matching the input pair's "
+            "\"pair_index\" and string field \"pair_id\" when the input pair provides it. "
+            "Each result must include string field \"outcome\" and string field \"severity\". "
+            "\"outcome\" must be one of: \"needs_human_review\" (a real conflict requiring human decision), "
+            "\"not_a_conflict\" (sections are compatible), or \"false_positive\" (no actual conflict). "
+            "\"severity\" must be one of: \"low\", \"medium\", \"high\". "
+            "When \"outcome\" is \"needs_human_review\", include array field \"conflict_points\". "
+            "Each conflict_points item must include string fields \"left_excerpt\", \"right_excerpt\", "
+            "\"why_conflicting\", and string field \"severity\" with one of: \"low\", \"medium\", \"high\". "
+            "Quote \"left_excerpt\" from that pair's \"section_a\" text and \"right_excerpt\" from "
+            "that pair's \"section_b\" text. "
+            "Also include string fields \"why_conflicting\" (pair-level summary), "
+            "\"why_llm_cannot_decide\" (why the existing evidence, shared Purpose, and shared Core Concept "
+            "cannot resolve it), and \"recommended_next_action\". "
+            "When \"outcome\" is \"not_a_conflict\" or \"false_positive\", include string field \"why_not_pending\". "
+            "Do not omit, add, rename, or merge pair results."
+        )
     elif stage == "chapter_key_anchor":
         output_contract = (
             "The JSON object must include string field \"summary\" (2-3 sentence description of the "
@@ -563,6 +587,8 @@ def _spec_core_output_schema(request: LlmRequest) -> dict[str, Any]:
         return _chapter_key_anchor_output_schema()
     if request.stage == "conflict_review":
         return _conflict_review_output_schema()
+    if request.stage == "conflict_review_batch":
+        return _conflict_review_batch_output_schema()
     section_hashes = request.section_hashes
     is_batch = len(section_hashes) > 1
     section_item_schema = {
@@ -622,10 +648,8 @@ def _chapter_key_anchor_output_schema() -> dict[str, Any]:
     }
 
 
-def _conflict_review_output_schema() -> dict[str, Any]:
-    """JSON schema for the conflict_review LLM stage."""
-
-    conflict_point_schema = {
+def _conflict_point_output_schema() -> dict[str, Any]:
+    return {
         "type": "object",
         "properties": {
             "left_excerpt": {"type": "string"},
@@ -641,6 +665,12 @@ def _conflict_review_output_schema() -> dict[str, Any]:
         ],
         "additionalProperties": False,
     }
+
+
+def _conflict_review_output_schema() -> dict[str, Any]:
+    """JSON schema for the conflict_review LLM stage."""
+
+    conflict_point_schema = _conflict_point_output_schema()
     return {
         "type": "object",
         "properties": {
@@ -659,6 +689,42 @@ def _conflict_review_output_schema() -> dict[str, Any]:
             "why_not_pending": {"type": "string"},
         },
         "required": ["outcome", "severity"],
+        "additionalProperties": False,
+    }
+
+
+def _conflict_review_batch_output_schema() -> dict[str, Any]:
+    """JSON schema for the conflict_review_batch LLM stage."""
+
+    conflict_point_schema = _conflict_point_output_schema()
+    result_schema = {
+        "type": "object",
+        "properties": {
+            "pair_index": {"type": "integer"},
+            "pair_id": {"type": "string"},
+            "outcome": {
+                "type": "string",
+                "enum": ["needs_human_review", "not_a_conflict", "false_positive"],
+            },
+            "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+            },
+            "conflict_points": {"type": "array", "items": conflict_point_schema},
+            "why_conflicting": {"type": "string"},
+            "why_llm_cannot_decide": {"type": "string"},
+            "recommended_next_action": {"type": "string"},
+            "why_not_pending": {"type": "string"},
+        },
+        "required": ["pair_index", "outcome", "severity"],
+        "additionalProperties": False,
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "results": {"type": "array", "items": result_schema},
+        },
+        "required": ["results"],
         "additionalProperties": False,
     }
 
@@ -1179,9 +1245,56 @@ def _fake_conflict_review_response(request: LlmRequest) -> dict[str, Any]:
     }
 
 
+def _fake_conflict_review_batch_response(request: LlmRequest) -> dict[str, Any]:
+    prompt_payload = _try_json_loads(request.prompt)
+    if not isinstance(prompt_payload, Mapping):
+        prompt_payload = {}
+    results: list[dict[str, Any]] = []
+    for fallback_index, pair in enumerate(prompt_payload.get("pairs", []) or []):
+        if not isinstance(pair, Mapping):
+            continue
+        pair_index_value = pair.get("pair_index", fallback_index)
+        try:
+            pair_index = int(pair_index_value)
+        except (TypeError, ValueError):
+            pair_index = fallback_index
+        left_excerpt = _fake_section_excerpt(pair.get("section_a"), "section_a")
+        right_excerpt = _fake_section_excerpt(pair.get("section_b"), "section_b")
+        result = {
+            "pair_index": pair_index,
+            "outcome": "needs_human_review",
+            "severity": "high",
+            "conflict_points": [
+                {
+                    "left_excerpt": left_excerpt,
+                    "right_excerpt": right_excerpt,
+                    "why_conflicting": (
+                        "The two provided specification sections require incompatible behavior."
+                    ),
+                    "severity": "high",
+                }
+            ],
+            "why_conflicting": (
+                "The two provided specification sections require incompatible behavior."
+            ),
+            "why_llm_cannot_decide": (
+                "The provided Purpose and Core Concept do not establish which section has priority."
+            ),
+            "recommended_next_action": (
+                "Ask a human to choose which specification section should take priority."
+            ),
+        }
+        if pair.get("pair_id"):
+            result["pair_id"] = str(pair.get("pair_id"))
+        results.append(result)
+    return {"results": results}
+
+
 def _fake_response_for(request: LlmRequest) -> dict[str, Any]:
     if request.stage == "conflict_review":
         return _fake_conflict_review_response(request)
+    if request.stage == "conflict_review_batch":
+        return _fake_conflict_review_batch_response(request)
     seed = request.section_id or request.task
     search_key = seed.replace("/", " ").replace("_", " ").strip() or "fake"
     section_ids = list(request.section_hashes) or ([request.section_id] if request.section_id else [])

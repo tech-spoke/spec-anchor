@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Mapping
 
 import pytest
 
@@ -57,6 +57,7 @@ def _call(func: Any, **kwargs: Any) -> Any:
 def _config(
     *,
     llm_batch_concurrency: int = 4,
+    judge_batch_size: int = 5,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         llm=SimpleNamespace(model="fake-model", effort="low", timeout_sec=5, max_retries=0),
@@ -68,6 +69,9 @@ def _config(
             llm_batch_max_sections=8,
             llm_batch_max_chars=12000,
             llm_batch_concurrency=llm_batch_concurrency,
+        ),
+        conflict_candidate_detection=SimpleNamespace(
+            judge_batch_size=judge_batch_size,
         ),
     )
 
@@ -299,6 +303,27 @@ class FakeSectionPairJudge:
             "why_not_pending": "Core Concept says Beta overrides Alpha.",
         }
 
+    def judge_conflict_batch(
+        self,
+        requests: list[dict[str, Any]],
+        *,
+        timeout_sec: int = 5,
+    ) -> dict[str, Any]:
+        results = []
+        for index, request in enumerate(requests):
+            single_request = {
+                "section_a": request["section_a"],
+                "section_b": request["section_b"],
+                "source_refs": request["source_refs"],
+            }
+            results.append(
+                {
+                    "pair_index": index,
+                    **self.judge_conflict(single_request, timeout_sec=timeout_sec),
+                }
+            )
+        return {"results": results}
+
 
 def test_section_pair_id_is_order_independent_and_handles_self_pair() -> None:
     module = _module()
@@ -477,15 +502,283 @@ def test_evaluate_section_pair_conflicts_reports_call_budget_counts() -> None:
         section_pairs,
         judge,
         sections=_sections(),
-        config=_config(llm_batch_concurrency=1),
+        config=_config(llm_batch_concurrency=1, judge_batch_size=1),
         generated_at="2026-05-06T00:00:00Z",
     )
 
     assert len(judge.calls) == 3
     assert result.judge_pair_count == 3
+    assert result.batch_count == 0
+    assert result.fallback_count == 0
     assert result.llm_call_count == 3
     assert result.to_dict()["judge_pair_count"] == 3
+    assert result.to_dict()["batch_count"] == 0
+    assert result.to_dict()["fallback_count"] == 0
     assert result.to_dict()["llm_call_count"] == 3
+
+
+def _batch_sections(count: int) -> list[dict[str, Any]]:
+    return [
+        _section(
+            f"docs/spec/conflict.md#batch-{index:02d}",
+            text=f"Batch {index}: FEATURE_X rule {index}.",
+            identifiers=["FEATURE_X"],
+            ordinal=10 + index,
+        )
+        for index in range(count)
+    ]
+
+
+def _self_section_pairs(sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "left_section_id": str(section["source_section_id"]),
+            "right_section_id": str(section["source_section_id"]),
+            "candidate_origin": "all_pairs",
+        }
+        for section in sections
+    ]
+
+
+class BatchCountingJudge:
+    def __init__(self) -> None:
+        self.batch_calls: list[list[dict[str, Any]]] = []
+        self.single_calls: list[dict[str, Any]] = []
+
+    def judge_conflict_batch(
+        self,
+        requests: list[dict[str, Any]],
+        *,
+        timeout_sec: int = 5,
+    ) -> dict[str, Any]:
+        del timeout_sec
+        self.batch_calls.append([dict(request) for request in requests])
+        return {"results": [self._payload(request, index) for index, request in enumerate(requests)]}
+
+    def judge_conflict(
+        self,
+        request: dict[str, Any],
+        *,
+        timeout_sec: int = 5,
+    ) -> dict[str, Any]:
+        del timeout_sec
+        self.single_calls.append(dict(request))
+        return self._payload(request, 0)
+
+    def _payload(self, request: Mapping[str, Any], pair_index: int) -> dict[str, Any]:
+        left_text = str(request["section_a"].get("text") or "")
+        right_text = str(request["section_b"].get("text") or "")
+        payload = {
+            "pair_index": pair_index,
+            "outcome": "needs_human_review",
+            "severity": "high",
+            "conflict_points": [
+                {
+                    "left_excerpt": left_text,
+                    "right_excerpt": right_text,
+                    "why_conflicting": f"pair {pair_index} conflicts",
+                    "severity": "high",
+                }
+            ],
+            "why_conflicting": f"pair {pair_index} conflicts",
+            "why_llm_cannot_decide": "No shared priority evidence is present.",
+            "recommended_next_action": "Ask a human to choose the applicable rule.",
+        }
+        if request.get("pair_id"):
+            payload["pair_id"] = str(request.get("pair_id"))
+        return payload
+
+
+def test_evaluate_section_pair_conflicts_batches_twelve_pairs_without_recall_loss() -> None:
+    module = _module()
+    sections = _batch_sections(12)
+    section_pairs = _self_section_pairs(sections)
+    judge = BatchCountingJudge()
+
+    result = module.evaluate_section_pair_conflicts(
+        section_pairs,
+        judge,
+        sections=sections,
+        config=_config(llm_batch_concurrency=1, judge_batch_size=5),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    expected_pair_ids = [
+        module.section_pair_id(pair["left_section_id"], pair["right_section_id"])
+        for pair in section_pairs
+    ]
+    items = _items(result)
+    assert [len(batch) for batch in judge.batch_calls] == [5, 5, 2]
+    assert judge.single_calls == []
+    assert result.judge_pair_count == 12
+    assert result.batch_count == 3
+    assert result.fallback_count == 0
+    assert result.llm_call_count == 3
+    assert [item["section_pair"]["section_pair_id"] for item in items] == expected_pair_ids
+    assert [item["conflict_points"][0]["left_excerpt"] for item in items] == [
+        section["text"] for section in sections
+    ]
+
+
+def test_evaluate_section_pair_conflicts_falls_back_per_pair_for_short_batch() -> None:
+    module = _module()
+    sections = _batch_sections(7)
+    section_pairs = _self_section_pairs(sections)
+
+    class ShortFirstBatchJudge(BatchCountingJudge):
+        def judge_conflict_batch(
+            self,
+            requests: list[dict[str, Any]],
+            *,
+            timeout_sec: int = 5,
+        ) -> dict[str, Any]:
+            self.batch_calls.append([dict(request) for request in requests])
+            if len(self.batch_calls) == 1:
+                return {
+                    "results": [
+                        self._payload(request, index)
+                        for index, request in enumerate(requests[:-1])
+                    ]
+                }
+            return {
+                "results": [
+                    self._payload(request, index)
+                    for index, request in enumerate(requests)
+                ]
+            }
+
+    judge = ShortFirstBatchJudge()
+    result = module.evaluate_section_pair_conflicts(
+        section_pairs,
+        judge,
+        sections=sections,
+        config=_config(llm_batch_concurrency=1, judge_batch_size=5),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    expected_pair_ids = [
+        module.section_pair_id(pair["left_section_id"], pair["right_section_id"])
+        for pair in section_pairs
+    ]
+    items = _items(result)
+    assert [len(batch) for batch in judge.batch_calls] == [5, 2]
+    assert len(judge.single_calls) == 5
+    assert result.judge_pair_count == 7
+    assert result.batch_count == 2
+    assert result.fallback_count == 5
+    assert result.llm_call_count == 7
+    assert [item["section_pair"]["section_pair_id"] for item in items] == expected_pair_ids
+    assert len(items) == 7
+    assert result.selection_diagnostics[0]["kind"] == "conflict_batch_fallback"
+    assert result.selection_diagnostics[0]["pair_count"] == 5
+
+
+def test_evaluate_section_pair_conflicts_batch_size_lte_one_uses_per_pair_path() -> None:
+    module = _module()
+    sections = _batch_sections(3)
+    judge = BatchCountingJudge()
+
+    result = module.evaluate_section_pair_conflicts(
+        _self_section_pairs(sections),
+        judge,
+        sections=sections,
+        config=_config(llm_batch_concurrency=1, judge_batch_size=0),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    assert judge.batch_calls == []
+    assert len(judge.single_calls) == 3
+    assert result.judge_pair_count == 3
+    assert result.batch_count == 0
+    assert result.fallback_count == 0
+    assert result.llm_call_count == 3
+
+
+def test_evidence_grounded_conflict_judge_injects_shared_grounding_for_batch() -> None:
+    core = importlib.import_module("spec_anchor.core")
+
+    class RecordingProvider:
+        provider_id = "recording-provider"
+
+        def __init__(self) -> None:
+            self.calls: list[Any] = []
+
+        def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+            del timeout_sec
+            self.calls.append(request)
+            payload = json.loads(request.prompt)
+            return {
+                "results": [
+                    {
+                        "pair_index": index,
+                        "pair_id": str(pair.get("pair_id") or ""),
+                        "outcome": "needs_human_review",
+                        "severity": "high",
+                        "conflict_points": [
+                            {
+                                "left_excerpt": str(pair["section_a"]["text"]),
+                                "right_excerpt": str(pair["section_b"]["text"]),
+                                "why_conflicting": "Required and forbidden cannot both hold.",
+                                "severity": "high",
+                            }
+                        ],
+                        "why_conflicting": "Required and forbidden cannot both hold.",
+                        "why_llm_cannot_decide": "Shared grounding does not set priority.",
+                        "recommended_next_action": "Ask a human to choose the applicable rule.",
+                    }
+                    for index, pair in enumerate(payload["pairs"])
+                ]
+            }
+
+    provider = RecordingProvider()
+    judge = core._EvidenceGroundedConflictJudge(
+        provider,
+        purpose_ref="PURPOSE.md",
+        purpose_text="Purpose text",
+        purpose_hash="purpose-hash",
+        concept_ref="CONCEPT.md",
+        concept_text="Core Concept text",
+        concept_hash="concept-hash",
+        llm_config={"model": "fake-model", "effort": "low"},
+    )
+    requests = [
+        {
+            "section_a": {
+                "source_section_id": "docs/spec/a.md#a",
+                "text": "Alpha requires FEATURE_X.",
+            },
+            "section_b": {
+                "source_section_id": "docs/spec/b.md#b",
+                "text": "Beta forbids FEATURE_X.",
+            },
+            "source_refs": [
+                {"source_section_id": "docs/spec/a.md#a", "source_hash": "hash-a"},
+                {"source_section_id": "docs/spec/b.md#b", "source_hash": "hash-b"},
+            ],
+            "pair_id": "pair-a-b",
+        }
+    ]
+
+    outputs = judge.judge_conflict_batch(requests, timeout_sec=5)
+
+    assert outputs[0]["outcome"] == "needs_human_review"
+    assert len(provider.calls) == 1
+    llm_request = provider.calls[0]
+    payload = json.loads(llm_request.prompt)
+    assert llm_request.stage == "conflict_review_batch"
+    assert payload["purpose"] == {
+        "source_ref": "PURPOSE.md",
+        "hash": "purpose-hash",
+        "text": "Purpose text",
+    }
+    assert payload["core_concept"] == {
+        "source_ref": "CONCEPT.md",
+        "hash": "concept-hash",
+        "text": "Core Concept text",
+    }
+    assert "purpose" not in payload["pairs"][0]
+    assert "core_concept" not in payload["pairs"][0]
+    assert payload["pairs"][0]["pair_index"] == 0
 
 
 def test_build_conflict_review_llm_request_preserves_section_text_for_quotes() -> None:

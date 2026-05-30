@@ -56,6 +56,8 @@ class ConflictReviewResult:
     selection_diagnostics: list[dict[str, Any]] = field(default_factory=list)
     non_pending_conflict_signals: list[dict[str, Any]] = field(default_factory=list)
     judge_pair_count: int = 0
+    batch_count: int = 0
+    fallback_count: int = 0
     llm_call_count: int = 0
     # Token usage collected from each _call_judge invocation.
     # Each entry is the __spec_anchor_usage dict returned by the LLM provider.
@@ -71,6 +73,8 @@ class ConflictReviewResult:
             "freshness_report": self.freshness_report,
             "pending_conflict_count": self.pending_conflict_count,
             "judge_pair_count": self.judge_pair_count,
+            "batch_count": self.batch_count,
+            "fallback_count": self.fallback_count,
             "llm_call_count": self.llm_call_count,
         }
 
@@ -139,6 +143,71 @@ def _call_judge(conflict_judge: Any, request: dict[str, Any], timeout_sec: int =
     raise TypeError("conflict_judge must expose judge_conflict, judge, generate, or be callable")
 
 
+def _coerce_batch_judge_output(output: Any, *, expected_count: int) -> list[dict[str, Any]]:
+    if isinstance(output, Mapping):
+        for key in ("results", "outputs", "judgements", "judgments"):
+            value = output.get(key)
+            if isinstance(value, list):
+                output = value
+                break
+        else:
+            raise ValueError("batch conflict judge output missing results array")
+    if not isinstance(output, list):
+        raise ValueError("batch conflict judge output must be a list or results object")
+    if len(output) != expected_count:
+        raise ValueError(
+            "batch conflict judge output count mismatch: "
+            f"expected {expected_count}, got {len(output)}"
+        )
+
+    coerced: list[dict[str, Any]] = []
+    for index, entry in enumerate(output):
+        if not isinstance(entry, Mapping):
+            raise ValueError(f"batch conflict judge entry {index} is not an object")
+        payload = dict(entry)
+        if "pair_index" in payload:
+            try:
+                pair_index = int(payload["pair_index"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"batch conflict judge entry {index} has invalid pair_index"
+                ) from exc
+            if pair_index != index:
+                raise ValueError(
+                    "batch conflict judge entry order mismatch: "
+                    f"entry {index} reported pair_index {pair_index}"
+                )
+        if not isinstance(payload.get("outcome"), str) or not payload.get("outcome"):
+            raise ValueError(f"batch conflict judge entry {index} missing outcome")
+        if not isinstance(payload.get("severity"), str) or not payload.get("severity"):
+            raise ValueError(f"batch conflict judge entry {index} missing severity")
+        coerced.append(payload)
+    return coerced
+
+
+def _call_judge_batch(
+    conflict_judge: Any,
+    requests: list[dict[str, Any]],
+    *,
+    timeout_sec: int = 5,
+) -> list[dict[str, Any]]:
+    if conflict_judge is None:
+        return [
+            {"outcome": "needs_human_review", "severity": "medium"}
+            for _request in requests
+        ]
+
+    for method_name in ("judge_conflict_batch", "judge_batch"):
+        method = getattr(conflict_judge, method_name, None)
+        if callable(method):
+            try:
+                output = method(requests, timeout_sec=timeout_sec)
+            except TypeError:
+                output = method(requests)
+            return _coerce_batch_judge_output(output, expected_count=len(requests))
+    raise TypeError("conflict_judge must expose judge_conflict_batch or judge_batch for batching")
+
+
 def _config_get(config: Any, path: tuple[str, ...], default: Any = None) -> Any:
     current: Any = config
     for key in path:
@@ -163,6 +232,14 @@ def _llm_batch_concurrency_from_config(config: Any) -> int:
         return max(1, int(value or 4))
     except (TypeError, ValueError):
         return 4
+
+
+def _judge_batch_size_from_config(config: Any) -> int:
+    value = _config_get(config, ("conflict_candidate_detection", "judge_batch_size"), 5)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 5
 
 
 def section_pair_id(left_section_id: str, right_section_id: str) -> str:
@@ -331,12 +408,16 @@ def evaluate_section_pair_conflicts(
     ) or 120)
     sections_by_id = _section_map(sections)
     concurrency = _llm_batch_concurrency_from_config(config)
+    judge_batch_size = _judge_batch_size_from_config(config)
 
     items: list[dict[str, Any]] = []
     diagnostics: list[dict[str, Any]] = []
+    selection_diagnostics: list[dict[str, Any]] = []
     non_pending_signals: list[dict[str, Any]] = []
     call_usages: list[dict[str, Any]] = []
     llm_call_count = 0
+    batch_count = 0
+    fallback_count = 0
     llm_call_count_lock = Lock()
 
     valid_pairs: list[Mapping[str, Any]] = []
@@ -349,7 +430,32 @@ def evaluate_section_pair_conflicts(
             continue
         valid_pairs.append(pair)
 
-    def _judge_pair(pair: Mapping[str, Any]) -> tuple[
+    prepared_pairs: list[dict[str, Any]] = []
+    for index, pair in enumerate(valid_pairs):
+        a_id = str(pair.get("left_section_id") or "")
+        b_id = str(pair.get("right_section_id") or "")
+        candidate_origin = str(pair.get("candidate_origin") or "all_pairs")
+        section_a = deepcopy(sections_by_id.get(a_id, {"source_section_id": a_id}))
+        section_b = deepcopy(sections_by_id.get(b_id, {"source_section_id": b_id}))
+        source_refs = _section_pair_source_refs(section_a, section_b, a_id, b_id)
+        prepared_pairs.append(
+            {
+                "index": index,
+                "a_id": a_id,
+                "b_id": b_id,
+                "candidate_origin": candidate_origin,
+                "section_a": section_a,
+                "section_b": section_b,
+                "source_refs": source_refs,
+                "request": {
+                    "section_a": section_a,
+                    "section_b": section_b,
+                    "source_refs": source_refs,
+                },
+            }
+        )
+
+    def _judge_prepared_pair(prepared: Mapping[str, Any]) -> tuple[
         str,
         str,
         str,
@@ -358,28 +464,114 @@ def evaluate_section_pair_conflicts(
         list[dict[str, Any]],
         dict[str, Any],
     ]:
-        a_id = str(pair.get("left_section_id") or "")
-        b_id = str(pair.get("right_section_id") or "")
-        candidate_origin = str(pair.get("candidate_origin") or "all_pairs")
-        section_a = deepcopy(sections_by_id.get(a_id, {"source_section_id": a_id}))
-        section_b = deepcopy(sections_by_id.get(b_id, {"source_section_id": b_id}))
-        source_refs = _section_pair_source_refs(section_a, section_b, a_id, b_id)
-        request = {
-            "section_a": section_a,
-            "section_b": section_b,
-            "source_refs": source_refs,
-        }
         nonlocal llm_call_count
         with llm_call_count_lock:
             llm_call_count += 1
-        payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
-        return a_id, b_id, candidate_origin, section_a, section_b, source_refs, payload
+        payload = _call_judge(
+            active_judge,
+            dict(prepared["request"]),
+            timeout_sec=timeout_sec,
+        )
+        return (
+            str(prepared["a_id"]),
+            str(prepared["b_id"]),
+            str(prepared["candidate_origin"]),
+            dict(prepared["section_a"]),
+            dict(prepared["section_b"]),
+            list(prepared["source_refs"]),
+            payload,
+        )
 
-    if concurrency > 1 and len(valid_pairs) > 1:
+    def _judge_prepared_batch(batch: list[dict[str, Any]]) -> list[tuple[
+        str,
+        str,
+        str,
+        dict[str, Any],
+        dict[str, Any],
+        list[dict[str, Any]],
+        dict[str, Any],
+    ]]:
+        nonlocal batch_count, fallback_count, llm_call_count
+        batch_requests: list[dict[str, Any]] = []
+        for pair_index, prepared in enumerate(batch):
+            request = dict(prepared["request"])
+            request["pair_index"] = pair_index
+            request["pair_id"] = section_pair_id(str(prepared["a_id"]), str(prepared["b_id"]))
+            batch_requests.append(request)
+        try:
+            with llm_call_count_lock:
+                batch_count += 1
+                llm_call_count += 1
+            payloads = _call_judge_batch(
+                active_judge,
+                batch_requests,
+                timeout_sec=timeout_sec,
+            )
+        except Exception as exc:  # noqa: BLE001
+            with llm_call_count_lock:
+                fallback_count += len(batch)
+                selection_diagnostics.append(
+                    {
+                        "kind": "conflict_batch_fallback",
+                        "level": "warning",
+                        "pair_count": len(batch),
+                        "reason": f"{type(exc).__name__}: {exc}",
+                        "section_pair_ids": [
+                            section_pair_id(str(entry["a_id"]), str(entry["b_id"]))
+                            for entry in batch
+                        ],
+                    }
+                )
+            return [_judge_prepared_pair(prepared) for prepared in batch]
+
+        outputs: list[tuple[
+            str,
+            str,
+            str,
+            dict[str, Any],
+            dict[str, Any],
+            list[dict[str, Any]],
+            dict[str, Any],
+        ]] = []
+        for prepared, payload in zip(batch, payloads, strict=True):
+            outputs.append(
+                (
+                    str(prepared["a_id"]),
+                    str(prepared["b_id"]),
+                    str(prepared["candidate_origin"]),
+                    dict(prepared["section_a"]),
+                    dict(prepared["section_b"]),
+                    list(prepared["source_refs"]),
+                    payload,
+                )
+            )
+        return outputs
+
+    can_batch = (
+        judge_batch_size > 1
+        and len(prepared_pairs) > 0
+        and callable(getattr(active_judge, "judge_conflict_batch", None))
+    )
+    if can_batch:
+        batches = [
+            prepared_pairs[index : index + judge_batch_size]
+            for index in range(0, len(prepared_pairs), judge_batch_size)
+        ]
+        if concurrency > 1 and len(batches) > 1:
+            with ThreadPoolExecutor(max_workers=concurrency) as ex:
+                batch_outputs = list(ex.map(_judge_prepared_batch, batches))
+        else:
+            batch_outputs = [_judge_prepared_batch(batch) for batch in batches]
+        judge_outputs = [
+            output
+            for batch_output in batch_outputs
+            for output in batch_output
+        ]
+    elif concurrency > 1 and len(prepared_pairs) > 1:
         with ThreadPoolExecutor(max_workers=concurrency) as ex:
-            judge_outputs = list(ex.map(_judge_pair, valid_pairs))
+            judge_outputs = list(ex.map(_judge_prepared_pair, prepared_pairs))
     else:
-        judge_outputs = [_judge_pair(pair) for pair in valid_pairs]
+        judge_outputs = [_judge_prepared_pair(pair) for pair in prepared_pairs]
 
     for (
         a_id,
@@ -434,9 +626,11 @@ def evaluate_section_pair_conflicts(
         diagnostics=diagnostics,
         freshness_report=summary["freshness_report"],
         pending_conflict_count=summary["pending_conflict_count"],
-        selection_diagnostics=[],
+        selection_diagnostics=selection_diagnostics,
         non_pending_conflict_signals=non_pending_signals,
         judge_pair_count=len(valid_pairs),
+        batch_count=batch_count,
+        fallback_count=fallback_count,
         llm_call_count=llm_call_count,
         usage_list=call_usages,
     )

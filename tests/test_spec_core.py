@@ -71,9 +71,10 @@ class FakeSpecCoreProvider:
 
     def generate(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
         self.calls.append(request)
+        stage = str(getattr(request, "stage", ""))
         section_hashes = getattr(request, "section_hashes", None)
         if (
-            str(getattr(request, "stage", "")) == "section_metadata"
+            stage == "section_metadata"
             and isinstance(section_hashes, dict)
             and section_hashes
         ):
@@ -88,6 +89,24 @@ class FakeSpecCoreProvider:
                     for section_id in section_hashes
                 ]
             }
+        if stage == "conflict_review_batch":
+            try:
+                payload = json.loads(str(getattr(request, "prompt", "{}") or "{}"))
+            except json.JSONDecodeError:
+                payload = {}
+            return {
+                "results": [
+                    {
+                        "pair_index": index,
+                        "pair_id": str(pair.get("pair_id") or ""),
+                        **self._conflict_payload(),
+                    }
+                    for index, pair in enumerate(payload.get("pairs", []) or [])
+                    if isinstance(pair, dict)
+                ]
+            }
+        if stage == "conflict_review":
+            return self._conflict_payload()
         text = _request_text(request)
         section_id = _request_section_id(request)
         if "conflict" in text.lower() or "judge" in text.lower():
@@ -922,8 +941,7 @@ class EvidenceGroundedConflictProvider(FakeSpecCoreProvider):
         super().__init__("resolved")
         self.conflict_requests: list[Any] = []
 
-    def judge_conflict(self, pair: Any, **_: Any) -> dict[str, Any]:
-        self.conflict_requests.append(pair)
+    def _assert_grounding(self, pair: Any) -> None:
         request_text = _request_text(pair)
         has_grounding = (
             "Ship reliable behavior" in request_text
@@ -936,7 +954,26 @@ class EvidenceGroundedConflictProvider(FakeSpecCoreProvider):
             "warning-only conflict resolution must be grounded in Purpose/Core "
             "Concept text or explicit refs"
         )
+
+    def judge_conflict(self, pair: Any, **_: Any) -> dict[str, Any]:
+        self.conflict_requests.append(pair)
+        self._assert_grounding(pair)
         return self._conflict_payload()
+
+    def judge_conflict_batch(self, batch: Any, **_: Any) -> dict[str, Any]:
+        self.conflict_requests.append(batch)
+        self._assert_grounding(batch)
+        pairs = batch.get("pairs", []) if isinstance(batch, dict) else []
+        return {
+            "results": [
+                {
+                    "pair_index": index,
+                    **self._conflict_payload(),
+                }
+                for index, pair in enumerate(pairs)
+                if isinstance(pair, dict)
+            ]
+        }
 
 
 def test_t_i02_all_mode_regenerates_all_artifacts_and_returns_fresh(
@@ -2161,7 +2198,10 @@ def test_conflict_budget_diagnostics_surface_in_core_result_and_progress(
     assert candidate_diagnostics["self_pair_count"] > 0
     assert candidate_diagnostics["self_pair_count"] <= candidate_diagnostics["generated_count"]
     assert conflict_diagnostics["judge_pair_count"] == candidate_diagnostics["generated_count"]
-    assert conflict_diagnostics["llm_call_count"] == conflict_diagnostics["judge_pair_count"]
+    expected_batch_count = (conflict_diagnostics["judge_pair_count"] + 4) // 5
+    assert conflict_diagnostics["batch_count"] == expected_batch_count
+    assert conflict_diagnostics["fallback_count"] == 0
+    assert conflict_diagnostics["llm_call_count"] == expected_batch_count
 
     progress = read_progress(project_root)
     assert progress is not None
@@ -2169,6 +2209,8 @@ def test_conflict_budget_diagnostics_surface_in_core_result_and_progress(
     conflict_stage = progress["stages"]["conflict_evaluation"]
     assert candidate_stage["self_pair_count"] == candidate_diagnostics["self_pair_count"]
     assert conflict_stage["judge_pair_count"] == conflict_diagnostics["judge_pair_count"]
+    assert conflict_stage["batch_count"] == conflict_diagnostics["batch_count"]
+    assert conflict_stage["fallback_count"] == conflict_diagnostics["fallback_count"]
     assert conflict_stage["llm_call_count"] == conflict_diagnostics["llm_call_count"]
 
 

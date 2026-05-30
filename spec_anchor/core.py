@@ -586,6 +586,8 @@ def _run_spec_core_unlocked(
     conflict_selection_diagnostics: list[dict[str, Any]] = []
     conflict_evaluation_diagnostics: dict[str, Any] = {
         "judge_pair_count": 0,
+        "batch_count": 0,
+        "fallback_count": 0,
         "llm_call_count": 0,
     }
     if not detection_enabled:
@@ -658,6 +660,22 @@ def _run_spec_core_unlocked(
                     conflict_result,
                     "judge_pair_count",
                     conflict_payload.get("judge_pair_count", 0),
+                )
+                or 0
+            ),
+            "batch_count": int(
+                getattr(
+                    conflict_result,
+                    "batch_count",
+                    conflict_payload.get("batch_count", 0),
+                )
+                or 0
+            ),
+            "fallback_count": int(
+                getattr(
+                    conflict_result,
+                    "fallback_count",
+                    conflict_payload.get("fallback_count", 0),
                 )
                 or 0
             ),
@@ -3180,6 +3198,7 @@ def _merge_related_sections_by_source(
 
 
 CONFLICT_REVIEW_PROMPT_VERSION = "conflict-review-v1"
+CONFLICT_REVIEW_BATCH_PROMPT_VERSION = "conflict-review-batch-v1"
 
 
 class _EvidenceGroundedConflictJudge:
@@ -3234,6 +3253,38 @@ class _EvidenceGroundedConflictJudge:
             llm_config=self._llm_config,
         )
 
+    def judge_conflict_batch(
+        self,
+        requests: list[Mapping[str, Any]],
+        *,
+        timeout_sec: int = 5,
+    ) -> list[dict[str, Any]]:
+        grounded_request = {
+            "purpose": {
+                "source_ref": self.purpose_ref,
+                "hash": self.purpose_hash,
+                "text": self.purpose_text,
+            },
+            "core_concept": {
+                "source_ref": self.concept_ref,
+                "hash": self.concept_hash,
+                "text": self.concept_text,
+            },
+            "pairs": [
+                {
+                    **dict(request),
+                    "pair_index": index,
+                }
+                for index, request in enumerate(requests)
+            ],
+        }
+        return _call_conflict_judge_batch(
+            self.delegate,
+            grounded_request,
+            timeout_sec=timeout_sec,
+            llm_config=self._llm_config,
+        )
+
 
 def _call_conflict_judge(
     delegate: Any,
@@ -3276,6 +3327,46 @@ def _call_conflict_judge(
     raise TypeError("conflict_judge must expose judge_conflict, judge, generate, or be callable")
 
 
+def _call_conflict_judge_batch(
+    delegate: Any,
+    request: dict[str, Any],
+    *,
+    timeout_sec: int,
+    llm_config: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    if delegate is None:
+        return [
+            {"outcome": "needs_human_review", "severity": "medium"}
+            for _pair in request.get("pairs", []) or []
+        ]
+    for method_name in ("judge_conflict_batch", "judge_batch"):
+        method = getattr(delegate, method_name, None)
+        if not callable(method):
+            continue
+        try:
+            raw_output = method(request, timeout_sec=timeout_sec)
+        except TypeError:
+            raw_output = method(request)
+        return _coerce_conflict_judge_batch_output(
+            raw_output,
+            expected_count=len(request.get("pairs", []) or []),
+        )
+    generate = getattr(delegate, "generate", None)
+    if callable(generate):
+        llm_request = _build_conflict_review_batch_llm_request(request, llm_config or {})
+        raw_output = generate(llm_request, timeout_sec=timeout_sec)
+        return _coerce_conflict_judge_batch_output(
+            raw_output,
+            expected_count=len(request.get("pairs", []) or []),
+        )
+    if callable(delegate):
+        return _coerce_conflict_judge_batch_output(
+            delegate(request),
+            expected_count=len(request.get("pairs", []) or []),
+        )
+    raise TypeError("conflict_judge must expose judge_conflict_batch, judge_batch, generate, or be callable")
+
+
 def _build_conflict_review_llm_request(
     request: Mapping[str, Any],
     llm_config: Mapping[str, Any],
@@ -3315,6 +3406,48 @@ def _build_conflict_review_llm_request(
     )
 
 
+def _build_conflict_review_batch_llm_request(
+    request: Mapping[str, Any],
+    llm_config: Mapping[str, Any],
+) -> llm_provider_api.LlmRequest:
+    """Wrap a grounded batch as a stage='conflict_review_batch' LlmRequest."""
+
+    serialized = json.dumps(dict(request), ensure_ascii=False, sort_keys=True, default=str)
+    source_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    section_hashes: dict[str, str] = {}
+    for pair in request.get("pairs", []) or []:
+        if not isinstance(pair, Mapping):
+            continue
+        for ref in pair.get("source_refs", []) or []:
+            if isinstance(ref, Mapping):
+                sid = ref.get("source_section_id") or ref.get("source_ref") or ref.get("ref")
+                shash = ref.get("source_hash") or ref.get("hash")
+                if isinstance(sid, str) and isinstance(shash, str):
+                    section_hashes[sid] = shash
+    purpose = request.get("purpose")
+    if isinstance(purpose, Mapping):
+        ref = str(purpose.get("source_ref") or "")
+        h = str(purpose.get("hash") or "")
+        if ref and h:
+            section_hashes[ref] = h
+    concept = request.get("core_concept")
+    if isinstance(concept, Mapping):
+        ref = str(concept.get("source_ref") or "")
+        h = str(concept.get("hash") or "")
+        if ref and h:
+            section_hashes[ref] = h
+    return llm_provider_api.LlmRequest(
+        task="conflict_review",
+        stage="conflict_review_batch",
+        prompt=serialized,
+        prompt_version=CONFLICT_REVIEW_BATCH_PROMPT_VERSION,
+        model=str(llm_config.get("model") or "fake"),
+        source_hash=source_hash,
+        section_hashes=section_hashes,
+        effort=llm_config.get("effort"),
+    )
+
+
 def _coerce_conflict_judge_output(output: Any) -> dict[str, Any]:
     if isinstance(output, Mapping):
         result = dict(output)
@@ -3347,6 +3480,60 @@ def _coerce_conflict_judge_output(output: Any) -> dict[str, Any]:
         "severity": "medium",
         "reason": f"conflict_review LlmProvider returned non-mapping: {type(output).__name__}",
     }
+
+
+def _coerce_conflict_judge_batch_output(
+    output: Any,
+    *,
+    expected_count: int,
+) -> list[dict[str, Any]]:
+    usage_key = getattr(llm_provider_api, "USAGE_META_KEY", "__spec_anchor_usage")
+    usage: Any = None
+    if isinstance(output, Mapping):
+        result = dict(output)
+        usage = result.get(usage_key)
+        for key in ("results", "outputs", "judgements", "judgments"):
+            value = result.get(key)
+            if isinstance(value, list):
+                output = value
+                break
+        else:
+            raise ValueError("conflict_review_batch LlmProvider output missing results array")
+    if not isinstance(output, list):
+        raise ValueError(
+            f"conflict_review_batch LlmProvider returned non-list: {type(output).__name__}"
+        )
+    if len(output) != expected_count:
+        raise ValueError(
+            "conflict_review_batch LlmProvider output count mismatch: "
+            f"expected {expected_count}, got {len(output)}"
+        )
+
+    coerced: list[dict[str, Any]] = []
+    for index, entry in enumerate(output):
+        if not isinstance(entry, Mapping):
+            raise ValueError(f"conflict_review_batch entry {index} is not an object")
+        payload = dict(entry)
+        if "pair_index" in payload:
+            try:
+                pair_index = int(payload["pair_index"])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"conflict_review_batch entry {index} has invalid pair_index"
+                ) from exc
+            if pair_index != index:
+                raise ValueError(
+                    "conflict_review_batch entry order mismatch: "
+                    f"entry {index} reported pair_index {pair_index}"
+                )
+        if not isinstance(payload.get("outcome"), str) or not payload.get("outcome"):
+            raise ValueError(f"conflict_review_batch entry {index} missing outcome")
+        if not isinstance(payload.get("severity"), str) or not payload.get("severity"):
+            raise ValueError(f"conflict_review_batch entry {index} missing severity")
+        coerced.append(payload)
+    if usage is not None and coerced:
+        coerced[0][usage_key] = usage
+    return coerced
 
 
 def _ensure_context_base_hashes(

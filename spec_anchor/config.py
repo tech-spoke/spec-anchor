@@ -118,6 +118,7 @@ class ConflictCandidateDetectionConfig:
     section_pair_top_k: int = 8
     global_pair_cap: int = 80
     min_dense_score: float = 0.55
+    judge_batch_size: int = 5
     allow_same_source_file_pair: bool = True
     allow_same_section_pair: bool = True
 
@@ -522,6 +523,7 @@ def _load_conflict_candidate_detection(
         section_pair_top_k=_int(table, "conflict_candidate_detection", "section_pair_top_k", 8),
         global_pair_cap=_int(table, "conflict_candidate_detection", "global_pair_cap", 80),
         min_dense_score=_float(table, "conflict_candidate_detection", "min_dense_score", 0.55),
+        judge_batch_size=_int(table, "conflict_candidate_detection", "judge_batch_size", 5),
         allow_same_source_file_pair=_bool(
             table, "conflict_candidate_detection", "allow_same_source_file_pair", True
         ),
