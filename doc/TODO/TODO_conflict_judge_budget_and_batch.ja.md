@@ -3,7 +3,7 @@
 **起票日**: 2026-05-31
 **起票者**: GPT (設計指摘) + Human (同意) + Claude main (記述)
 **最終更新**: 2026-05-31
-**ステータス**: 計画中（設計方針は概ね合意・実装着手前に recall トレードオフを確定）
+**ステータス**: 計画中（設計方針は概ね合意・CODEX 設計レビュー CR-B01〜B05 反映済み・実装着手前に recall トレードオフを確定）
 **関連設計書**: `doc/TODO/TODO_conflict_detection_pipeline_simplify.ja.md`（本体課題・機能は完了、本 TODO はその性能/設計 follow-up）、`doc/性能測定/METRICS.md` 第12回
 
 **起票時点のソース pin（commit `db39a0d`、行番号 drift 防止用 permalink）**:
@@ -80,10 +80,17 @@ Phase 4: self-pair 見直し (#3)
 
 小規模で候補数が cap 以下なら全件 judge され recall 同等。`exhaustive` は通常 default にせず、検証用 config (`conflict_candidate_mode = "exhaustive"` 等) として明示有効化する。
 
+> CR-B01 反映(rule 15 根絶・High): 「分岐廃止」を実装する場合、`small_section_all_pairs_threshold` を **コードだけでなく config.py(`ConflictCandidateDetectionConfig`)/ `doc/EXTERNAL_DESIGN.ja.md`(§4.1・config table・L261/L1119 付近)/ `doc/DESIGN.ja.md`(L926 付近)/ 初期 config template / test** から全て根絶する(grep 0)。コードだけ変えて設計書・設定 key が残るのは根絶漏れ。廃止せず残す判断なら、その理由を本 TODO に明記する。
+
+> CR-B02 反映(既存 conflict の cap-exempt 再評価・High・最重要): budget-first の cap は **新規候補 pair にのみ適用**する。本体課題 CR-001(`TODO_conflict_detection_pipeline_simplify.ja.md` の absence reliable)で確定済みの通り、**既存 Conflict Review Item が参照する section_pair は cap/top_k 対象外で必ず再評価対象へ union する(cap 後)**。現コード `section_pair_candidates.py` の `existing_conflict_recheck`(cap-exempt union)を壊さない。cap 外に落ちただけで auto-dismiss しない。judge_targets = `capped_new_candidates ∪ existing_conflict_pairs_requiring_recheck(cap 免除)`。
+
+> CR-B04 反映(新 key/用語の定義・Medium・rule 6/16): `max_judge_pairs` と既存 `global_pair_cap` の関係を実装前に確定する — **置換 / 併存 / 別軸**のどれか。現状 `global_pair_cap`(=retrieval_cap の上限)が既にあるので、budget-first では `global_pair_cap` を「judge に送る最終上限」として**流用(rename ではなく意味拡張)**するのが既存との整合上有力(新 key を増やさない)。`conflict_candidate_mode = "exhaustive"` は **新規 config key**であり、含むもの(全 pair を cap 無視で judge)/含まないもの(通常 budget 経路)/既定値(budget)/検証用途を明記してから追加する。
+
 #### 残作業 / 人間判断点
 
-- budget-first の ranking 信号(dense score / 制約密度 / 見出し類似など)と `max_judge_pairs` 既定値の確定（recall トレードオフ）。
-- `small_section_all_pairs_threshold` の廃止可否(GPT・Human は廃止寄り)。exhaustive モードを残すか。
+- budget-first の ranking 信号(dense score / 制約密度 / 見出し類似など)と judge 上限の既定値の確定（recall トレードオフ）。`global_pair_cap` 流用 vs 新 `max_judge_pairs`(CR-B04)。
+- `small_section_all_pairs_threshold` の廃止可否(GPT・Human は廃止寄り)。廃止なら CR-B01 の全 surface 根絶。exhaustive モードを残すか。
+- 既存 conflict の cap-exempt 再評価を必ず維持(CR-B02)。
 
 ### #2 T-batch-judge: judge を batch 化
 
@@ -104,9 +111,23 @@ Phase 4: self-pair 見直し (#3)
 
 self-pair は今回 21 calls 中 6 件(~29%)を占めるが価値が低い。`allow_same_section_pair = true` は維持しつつ、default では self-pair を LLM judge 全投入せず lightweight internal check に回す、または config で明示有効化する。即 `allow_same_section_pair=false` は recall 影響があるため避ける。
 
+> CR-B03 反映(同一 section 内矛盾 scope との整合・High): 本体課題は `allow_same_section_pair = true` で self-pair を必ず**生成**すると確定済み(`TODO_conflict_detection_pipeline_simplify.ja.md` CR-002、現コード `section_pair_candidates.py` の self-pair cap-exempt 追加)。本 sub task は「生成は維持、LLM judge への投入だけ見直す」もの。実装前に次を定義する:
+> - lightweight internal check が **何を検出するか**(例: 同一 section 内の単純な相反語/数値矛盾の構文的検知)と **何を LLM judge に回すか**(検出できない深い矛盾)。
+> - **recall 維持条件**: lightweight 化で既知の同一 section 内矛盾(あれば)を取りこぼさないこと。現 sample(6 section)に self 矛盾が無いなら、recall 影響は「なし(実測)」と記録する。判断できる材料が無いまま lightweight 化しない。
+> - 候補: (a) self-pair を config で明示有効化(`allow_same_section_pair` の意味を「生成して judge する」に保ち、別 flag で self だけ off)、(b) self-pair は構文 prefilter で明らかな矛盾兆候がある時だけ LLM judge。どちらも `allow_same_section_pair=true` の生成契約は壊さない。
+
 ### #4 T-judge-budget-diagnostics: call budget の可視化
 
-`CoreResult` / `core_progress` の section_pair_candidate_generation / conflict_evaluation diagnostics に judge_pair_count / batch_count / fallback_count / capped_out_count を出し、call budget を監査可能にする。
+`CoreResult` / `core_progress` の section_pair_candidate_generation / conflict_evaluation diagnostics に call budget を出し、各 phase の before/after を数値比較可能にする。
+
+> CR-B05 反映(field 定義・既存命名との整合・Medium): 既存 diagnostics は `generated_count`(生成候補数)/ `truncated_count`(cap で落とした数)/ `recheck_count`(既存 conflict 強制再評価数)(`section_pair_candidate_generation`)。新規 field は意味を明記し既存と整合させる:
+> - `judge_pair_count`: 実際に LLM judge に渡した pair 数(= cap 後 union 後の judge_targets 数)。
+> - `batch_count`: batch judge で発行した batch 数(Phase 2)。
+> - `fallback_count`: parse failure / 欠落で per-pair fallback に落ちた pair 数(Phase 2)。
+> - `capped_out_count`: budget cap で judge から外した新規候補数(= 既存 `truncated_count` と重複するなら統合し新設しない。新設する場合は差分を明記)。
+> - `self_pair_count`: self-pair の数(うち lightweight 処理 / LLM judge の内訳)。
+> - `llm_call_count`: 実 LLM 呼び出し回数(batch + fallback の合計。batch 化前は judge_pair_count と一致、batch 化後は減る)。
+> 既存 field と意味が重なるものは**新設せず流用**する(rule 16)。新設するものだけ追加し、命名は snake_case で既存に揃える。
 
 ## 課題全体の完了条件
 
@@ -115,7 +136,20 @@ self-pair は今回 21 calls 中 6 件(~29%)を占めるが価値が低い。`al
 - docs サンプル(6 section)の conflict_evaluation call 数 / wall が削減される(METRICS で before/after)。
 - `pytest --skip-external` 回帰なし + 実 provider で recall 維持確認。
 
+## 設計レビュー指摘と disposition（2026-05-31 CODEX 監査）
+
+実装着手前の TODO に対する CODEX 監査。全件採用し対象 sub task へ反映済み(CLAUDE.md ルール 9)。
+
+| ID | 重要度 | 対象 | 指摘要約 | 判定 | 反映 |
+|---|---|---|---|---|---|
+| CR-B01 | High | #1 | 「分岐廃止」が config.py / 外部・内部設計 / template / test の根絶対象を挙げておらず、コードだけ変えて key/docs が残る事故(rule 15) | 採用 | #1 に CR-B01: `small_section_all_pairs_threshold` を全 surface で根絶(grep 0)。残すなら理由明記。 |
+| CR-B02 | High | #1 | budget-first 手順に既存 conflict の cap-exempt 再評価 / absence reliable(本体 CR-001)が欠落。実装者が既存 pending を落とす恐れ | 採用 | #1 に CR-B02: cap は新規候補のみ。既存 conflict pair は cap 免除で union(cap 後)。cap 外≠auto-dismiss。 |
+| CR-B03 | High | #3 | self-pair lightweight 化が「同一 section 内矛盾を含める」確定(本体 CR-002)と未整合。検出範囲・recall 維持条件が未定義 | 採用 | #3 に CR-B03: 生成は維持、judge 投入のみ見直し。検出範囲と recall 維持条件を実装前に定義。 |
+| CR-B04 | Medium | #1 | `max_judge_pairs` / `conflict_candidate_mode="exhaustive"` が既存 `global_pair_cap` との関係未定義(rule 6/16) | 採用 | #1 に CR-B04: `global_pair_cap` 流用(意味拡張)を有力、`exhaustive` は新 key として含む/含まない/既定を定義。 |
+| CR-B05 | Medium | #4 | diagnostics field の意味が曖昧、既存 `generated_count`/`truncated_count`/`recheck_count` と命名不整合 | 採用 | #4 に CR-B05: 各 field の意味を定義、既存と重複は流用、新設のみ追加。 |
+
 ## 依存 / scope 外
 
 - 本体課題 `TODO_conflict_detection_pipeline_simplify.ja.md`(機能完了)の性能 follow-up。機能契約(section_pair / conflict_points / dismiss-reopen)は変えない。
-- recall に影響する判断(max_judge_pairs / batch size / self-pair 方針)は実装着手前に人間と確定する。
+- recall に影響する判断(judge 上限値 / batch size / self-pair 方針)は実装着手前に人間と確定する。
+- **本体課題の確定決定を覆さない**: `allow_same_section_pair=true`(生成は維持)、既存 conflict の cap-exempt 再評価、conflict_points schema は本 TODO で変更しない。
