@@ -35,6 +35,82 @@ def _origins(result: SectionPairCandidateResult) -> dict[str, str]:
     }
 
 
+class _FakeHit:
+    def __init__(self, sid: str, *, dense_score: float | None) -> None:
+        self._sid = sid
+        self.score = 0.03  # RRF-fused score is always small (rank-based)
+        self.dense_score = dense_score
+
+    @property
+    def source_section_id(self) -> str:
+        return self._sid
+
+
+class _FakeResult:
+    def __init__(self, hits: list[_FakeHit]) -> None:
+        self.hits = hits
+
+
+def test_retrieval_cap_min_dense_score_gates_on_dense_not_fused_score(monkeypatch) -> None:
+    """min_dense_score must gate hit.dense_score (real cosine ~0.3-0.9), NOT the
+    RRF-fused hit.score (~0.03). Otherwise a 0.55 threshold drops every candidate
+    (confirmed on real Qdrant/BGE-M3: fused ~0.03, dense 0.30-0.59)."""
+
+    from spec_anchor import section_pair_candidates as spc
+
+    sections = [_section(f"doc.md#s{i}", source_hash=f"h{i}") for i in range(16)]
+
+    # For every source, the fake retriever returns: one high-dense neighbour
+    # (kept), one low-dense neighbour (dropped), one sparse-only/None (kept).
+    def _fake_search(query, **kwargs):  # noqa: ANN001
+        return _FakeResult(
+            [
+                _FakeHit("doc.md#s0", dense_score=0.60),
+                _FakeHit("doc.md#s1", dense_score=0.40),
+                _FakeHit("doc.md#s2", dense_score=None),
+            ]
+        )
+
+    class _FakeRetriever:
+        search = staticmethod(_fake_search)
+
+    monkeypatch.setattr(spc, "_build_retriever", lambda *a, **k: _FakeRetriever())
+
+    config = {
+        "conflict_candidate_detection": {
+            "min_dense_score": 0.55,
+            "section_pair_top_k": 8,
+            "global_pair_cap": 200,
+            "allow_same_section_pair": False,
+        }
+    }
+    result = generate_section_pair_candidates(sections, config=config)
+
+    # Every section is a source; the fake returns the same 3 hits (s0/s1/s2) for
+    # each. So s0/s1/s2 also pair via being a SOURCE. To check TARGET gating,
+    # look at who each of s0/s1/s2 pairs with: a section sX (X not in 0,1,2) can
+    # only be paired with s0/s1/s2 by appearing as sX's retrieval TARGET.
+    def partners(sid: str) -> set[str]:
+        out: set[str] = set()
+        for c in result.candidates:
+            if c["candidate_origin"] != "section_pair_retrieval":
+                continue
+            ids = {c["left_section_id"], c["right_section_id"]}
+            if sid in ids:
+                out |= ids - {sid}
+        return out
+
+    other_sources = {f"doc.md#s{i}" for i in range(3, 16)}
+    # s0 (dense 0.60 >= 0.55): kept as a target -> paired with many other sources.
+    assert partners("doc.md#s0") & other_sources, "high-dense target must be kept"
+    # s2 (dense None -> not gated by dense threshold): also kept as a target.
+    assert partners("doc.md#s2") & other_sources, "sparse-only (None dense) target must be kept"
+    # s1 (dense 0.40 < 0.55): dropped as a target -> never paired with s3..s15.
+    assert not (partners("doc.md#s1") & other_sources), (
+        "low-dense target must be dropped (gated on dense_score, not fused score)"
+    )
+
+
 def test_all_pairs_mode_small_set_produces_all_ij_pairs_plus_self_pairs() -> None:
     sections = [_section(f"doc.md#s{i}") for i in range(4)]
 

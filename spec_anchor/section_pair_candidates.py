@@ -323,7 +323,14 @@ def generate_section_pair_candidates(
                     continue
                 if hit_id not in section_by_id:
                     continue
-                if float(hit.score) < min_dense_score:
+                # min_dense_score gates the DENSE channel cosine (hit.dense_score),
+                # NOT the RRF-fused hit.score. Real BGE-M3 dense cosine is ~0.3-0.9
+                # while the RRF-fused score is rank-based (~0.03), so comparing the
+                # threshold against hit.score would drop every candidate. A hit with
+                # no dense_score (sparse-only match) is not gated by the dense
+                # threshold (kept, to preserve recall).
+                dense_score = hit.dense_score
+                if dense_score is not None and float(dense_score) < min_dense_score:
                     continue
                 if not allow_same_source_file_pair and _same_file(source_id, hit_id):
                     continue
