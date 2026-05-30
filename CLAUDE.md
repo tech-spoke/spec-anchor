@@ -598,9 +598,12 @@ GPT (ChatGPT) からの指摘で初めて output file を最後まで読み、Cl
 
 詳細は `feedback_codex_invocation_protocol.md` に保存。
 
-### ルール 20: CODEX へ実装を委譲する場合は委譲・監査ガイドに従う
+### ルール 20: 実装を他 Agent へ委譲する場合は委譲・監査ガイドに従う
 
-Agent (Claude main / 人間) が `codex:codex-rescue` 経由で CODEX へ実装を委譲する場合、`agent_doc/CODEX_DELEGATION_GUIDE.ja.md` の依頼ルールと受け取り後の監査チェックリストに従う。CODEX の自己申告 (「完了しました」「テスト通過」) を完了の根拠にしない。
+Agent (Claude main / 人間) が他の Agent へ実装を委譲する場合、委譲先に応じて次のガイドの依頼ルールと受け取り後の監査チェックリストに従う。委譲先の自己申告 (「完了しました」「テスト通過」) を完了の根拠にせず、必ず実 diff・実コードで裏取りする。
+
+- `codex:codex-rescue` 経由の CODEX: `agent_doc/CODEX_DELEGATION_GUIDE.ja.md`
+- `Agent` tool 経由の CLAUDE サブエージェント: `agent_doc/CLAUDE_SUBAGENT_DELEGATION_GUIDE.ja.md` (CODEX ガイドと共通部分が多く、Claude 特有の傾向 = TODO/placeholder 完了・推論カットによる調査不足・サマリー≠実変更 を追加でカバー)
 
 特に次を必須とする (詳細と理由は同ガイド参照)。
 
