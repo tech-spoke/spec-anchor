@@ -718,11 +718,8 @@ def _run_spec_core_unlocked(
         failed_required_artifacts.append("retrieval_index")
     if related_sections_status == "failed":
         # AUD-007: Qdrant 設定済みなのに retriever 初期化失敗時、Related Sections は
-        # required artifact failure として扱う (degraded ではない)。
+        # required artifact failure として扱う。
         failed_required_artifacts.append("related_sections")
-    degraded_optional_artifacts = []
-    if generation_status == "degraded":
-        degraded_optional_artifacts.append("section_metadata")
     generation_warnings = list(metadata_generation_summary.get("warnings") or [])
     if retrieval_index_status == "failed":
         if _verify_index_has_issues(verify_index_diagnostics):
@@ -851,7 +848,6 @@ def _run_spec_core_unlocked(
     freshness_report = build_freshness_report(
         conflict_review_items=conflict_review_items,
         failed_required_artifacts=failed_required_artifacts,
-        degraded_optional_artifacts=degraded_optional_artifacts,
         warnings=generation_warnings,
         diagnostics=generation_diagnostics,
     )
@@ -890,7 +886,6 @@ def _run_spec_core_unlocked(
     return {
         "status": (
             "failed" if freshness_report["status"] == "failed"
-            else "degraded" if freshness_report["status"] == "degraded"
             else "updated"
         ),
         "mode": mode_name,
@@ -3870,19 +3865,15 @@ def _summarize_metadata_generation(
     *,
     failed_section_ids: set[str],
 ) -> dict[str, Any]:
-    generated_ids = {str(section_id) for section_id in generation.generated_section_ids}
+    # TODO #7: section_metadata generation failure (full or partial) is a
+    # required-artifact failure that stops the gate. There is no `degraded`
+    # status — a partial batch failure is `failed` like a full failure.
     failed = sorted(failed_section_ids)
-    if generated_ids and failed_section_ids >= generated_ids:
-        freshness_status = "failed"
-        blocking_reasons = ["failed_required_artifact"]
-    else:
-        freshness_status = "degraded"
-        blocking_reasons = ["degraded_optional_artifact"]
     return {
         "failed_sections": failed,
         "warnings": [f"LLM generation failed for {section_id}" for section_id in failed],
-        "freshness_status": freshness_status,
-        "blocking_reasons": blocking_reasons,
+        "freshness_status": "failed",
+        "blocking_reasons": ["failed_required_artifact"],
     }
 
 

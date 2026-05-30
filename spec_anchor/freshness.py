@@ -16,18 +16,15 @@ from spec_anchor.conflict_review import summarize_conflict_review_state
 
 FRESH = "fresh"
 BLOCKED = "blocked"
-DEGRADED = "degraded"
 FAILED = "failed"
 
-STATUSES = {FRESH, BLOCKED, DEGRADED, FAILED}
+STATUSES = {FRESH, BLOCKED, FAILED}
 
 DIRTY_OR_STALE_SOURCE = "dirty_or_stale_source"
 WATCHER_RUNNING = "watcher_running"
 WATCHER_QUEUE_PENDING = "watcher_queue_pending"
 STALE_CONFIG_OR_SCHEMA = "stale_config_or_schema"
 FAILED_REQUIRED_ARTIFACT = "failed_required_artifact"
-PENDING_CONFLICT = "pending_conflict"
-DEGRADED_OPTIONAL_ARTIFACT = "degraded_optional_artifact"
 
 REASON_PRIORITY = (
     DIRTY_OR_STALE_SOURCE,
@@ -35,8 +32,6 @@ REASON_PRIORITY = (
     WATCHER_QUEUE_PENDING,
     STALE_CONFIG_OR_SCHEMA,
     FAILED_REQUIRED_ARTIFACT,
-    PENDING_CONFLICT,
-    DEGRADED_OPTIONAL_ARTIFACT,
 )
 REASON_PRIORITIES = REASON_PRIORITY
 BLOCKING_REASON_PRIORITY = REASON_PRIORITY
@@ -47,7 +42,6 @@ BLOCKED_REASONS = {
     WATCHER_RUNNING,
     WATCHER_QUEUE_PENDING,
     STALE_CONFIG_OR_SCHEMA,
-    PENDING_CONFLICT,
 }
 DIRTY_WATCHER_OR_STALE_REASONS = {
     DIRTY_OR_STALE_SOURCE,
@@ -55,7 +49,6 @@ DIRTY_WATCHER_OR_STALE_REASONS = {
     WATCHER_QUEUE_PENDING,
     STALE_CONFIG_OR_SCHEMA,
 }
-PENDING_CONFLICT_DETAIL_KEYS = ("pending_conflict_items", "conflict_review_items")
 
 SUPPORTED_GATE_COMMANDS = {"inject", "realign", "/spec-inject", "/spec-realign"}
 
@@ -99,9 +92,6 @@ def build_freshness_report(
     failed_required_artifacts: Sequence[Any] | None = None,
     missing_required_artifacts: Sequence[Any] | None = None,
     required_artifacts_missing: Sequence[Any] | None = None,
-    degraded_optional_artifact: bool = False,
-    optional_artifact_degraded: bool = False,
-    degraded_optional_artifacts: Sequence[Any] | None = None,
     conflict_review_items: Sequence[Mapping[str, Any]] | Mapping[str, Any] | None = None,
     pending_conflict_count: int | None = None,
     pending_conflicts: int | Sequence[Mapping[str, Any]] | None = None,
@@ -206,7 +196,7 @@ def build_freshness_report(
 
     failed_required = _as_list(failed_required_artifacts)
     missing_required = _as_list(missing_required_artifacts) + _as_list(required_artifacts_missing)
-    state_required, state_degraded = _artifact_problem_names(artifacts, artifact_statuses)
+    state_required = _artifact_problem_names(artifacts, artifact_statuses)
     _extend_unique(failed_required, state_required)
     required_problem_count = len(failed_required) + len(missing_required)
     if required_problem_count:
@@ -225,20 +215,10 @@ def build_freshness_report(
     ):
         _add_reason(reasons, FAILED_REQUIRED_ARTIFACT)
 
-    degraded_optional = _as_list(degraded_optional_artifacts)
-    _extend_unique(degraded_optional, state_degraded)
-    if degraded_optional:
-        counts_payload["degraded_optional_artifact_count"] = len(degraded_optional)
-        diagnostics_payload.setdefault("degraded_optional_artifacts", degraded_optional)
-    if _any_true(
-        degraded_optional_artifact,
-        optional_artifact_degraded,
-        bool(degraded_optional),
-        extra_inputs.get("optional_artifact_failed"),
-        extra_inputs.get("optional_artifact_missing"),
-    ):
-        _add_reason(reasons, DEGRADED_OPTIONAL_ARTIFACT)
-
+    # Pending Conflict Review Items are surfaced as information, not as a
+    # freshness blocking reason (TODO #1). `/spec-inject` returns the pending
+    # count/items so the Agent can present constraints + conflict info, but a
+    # project with only pending conflicts is still `fresh`.
     pending_items = pending_conflict_items(conflict_review_items)
     explicit_pending_count = _pending_count_from_inputs(pending_conflict_count, pending_conflicts)
     pending_count = max(len(pending_items), explicit_pending_count)
@@ -246,14 +226,11 @@ def build_freshness_report(
         summary = summarize_conflict_review_state(conflict_review_items=list(_coerce_items(conflict_review_items)))
         pending_count = max(pending_count, _optional_count(summary.get("pending_conflict_count")) or 0)
     if pending_count:
-        _add_reason(reasons, PENDING_CONFLICT)
         counts_payload["pending_conflict_count"] = pending_count
 
     ordered_reasons = order_blocking_reasons(reasons)
     status = classify_freshness_status(ordered_reasons)
     warning_items = _ordered_warnings(warnings)
-    if status == DEGRADED and DEGRADED_OPTIONAL_ARTIFACT not in warning_items:
-        warning_items.append(DEGRADED_OPTIONAL_ARTIFACT)
 
     report: dict[str, Any] = {
         "status": status,
@@ -305,8 +282,6 @@ def classify_freshness_status(blocking_reasons: Sequence[str] | None = None) -> 
         return FAILED
     if reasons & BLOCKED_REASONS:
         return BLOCKED
-    if reasons == {DEGRADED_OPTIONAL_ARTIFACT}:
-        return DEGRADED
     return BLOCKED
 
 
@@ -349,13 +324,6 @@ def _pending_payload_for_decision(
     return []
 
 
-def _without_pending_conflict_details(report: Mapping[str, Any]) -> dict[str, Any]:
-    sanitized = deepcopy(dict(report))
-    for key in PENDING_CONFLICT_DETAIL_KEYS:
-        sanitized.pop(key, None)
-    return sanitized
-
-
 def build_freshness_gate_decision(
     freshness_report: Mapping[str, Any] | Any | None = None,
     *,
@@ -377,14 +345,8 @@ def build_freshness_gate_decision(
     status = str(current_report["status"])
     reasons = list(current_report.get("blocking_reasons", []))
     warnings = list(current_report.get("warnings", []))
-    can_continue = status in {FRESH, DEGRADED}
+    can_continue = status == FRESH
     should_stop = not can_continue
-    pending_only = status == BLOCKED and reasons == [PENDING_CONFLICT]
-    decision_report = (
-        current_report
-        if pending_only
-        else _without_pending_conflict_details(current_report)
-    )
 
     decision = {
         "command": command_name,
@@ -395,26 +357,28 @@ def build_freshness_gate_decision(
         "can_continue": can_continue,
         "should_stop": should_stop,
         "stops": should_stop,
-        "freshness_report": decision_report,
+        "freshness_report": current_report,
     }
-    if pending_only:
-        pending_payload = _pending_payload_for_decision(
-            current_report,
-            pending_items=pending_items,
-            conflict_review_items=conflict_review_items,
-        )
-        pending_count = (
-            len(pending_payload)
-            or _optional_count(current_report.get("pending_conflict_count"))
-            or 0
-        )
-        decision["stop_reason"] = PENDING_CONFLICT
+    if should_stop:
+        decision["stop_reason"] = reasons[0] if reasons else status
+
+    # Pending Conflict Review Items are information, not a blocking reason
+    # (TODO #1). Surface the items/count whenever any exist — even on a `fresh`
+    # gate — so `/spec-inject` and `/spec-realign` can present constraints plus
+    # conflict info before the Agent stops.
+    pending_payload = _pending_payload_for_decision(
+        current_report,
+        pending_items=pending_items,
+        conflict_review_items=conflict_review_items,
+    )
+    pending_count = (
+        len(pending_payload)
+        or _optional_count(current_report.get("pending_conflict_count"))
+        or 0
+    )
+    if pending_payload or pending_count:
         decision["pending_conflict_items"] = pending_payload
         decision["pending_conflict_count"] = pending_count
-    elif should_stop:
-        decision["stop_reason"] = reasons[0] if reasons else status
-    if status == DEGRADED:
-        decision["continues_with_warnings"] = True
     return decision
 
 
@@ -443,8 +407,6 @@ def recommend_next_action(
 
     if status == FRESH:
         return f"continue {command_label}"
-    if status == DEGRADED:
-        return f"continue {command_label} with warnings"
     if DIRTY_OR_STALE_SOURCE in reasons:
         return f"run /spec-core before {command_label}"
     if WATCHER_RUNNING in reasons or WATCHER_QUEUE_PENDING in reasons:
@@ -453,8 +415,6 @@ def recommend_next_action(
         return f"run /spec-core --all before {command_label}"
     if FAILED_REQUIRED_ARTIFACT in reasons:
         return f"run /spec-core or /spec-core --all before {command_label}"
-    if reasons == [PENDING_CONFLICT] or PENDING_CONFLICT in reasons:
-        return "resolve pending Conflict Review Items"
     return f"stop before {command_label}"
 
 
@@ -705,9 +665,16 @@ def _nested_get(value: Any, *path: str) -> Any:
 def _artifact_problem_names(
     artifacts: Mapping[str, Any] | None,
     artifact_statuses: Mapping[str, Any] | None,
-) -> tuple[list[str], list[str]]:
-    required: list[str] = []
-    degraded: list[str] = []
+) -> list[str]:
+    """Return artifact names whose status is a failure.
+
+    Any non-success artifact status (failed / missing / error / unavailable /
+    degraded) is treated as a required-artifact failure that stops the gate
+    (TODO #7: there is no separate degraded status). The caller adds these to
+    `failed_required_artifacts`.
+    """
+
+    problems: list[str] = []
     statuses: dict[str, Any] = {}
     if isinstance(artifact_statuses, Mapping):
         statuses.update(artifact_statuses)
@@ -719,20 +686,9 @@ def _artifact_problem_names(
 
     for artifact_name, status in statuses.items():
         normalized = str(status).strip().lower()
-        if normalized in {"failed", "missing", "error", "unavailable"}:
-            if _is_required_artifact(str(artifact_name)):
-                required.append(str(artifact_name))
-            else:
-                degraded.append(str(artifact_name))
-        elif normalized == "degraded":
-            degraded.append(str(artifact_name))
-    return required, degraded
-
-
-def _is_required_artifact(artifact_name: str) -> bool:
-    return artifact_name in {
-        "section_manifest",
-    }
+        if normalized in {"failed", "missing", "error", "unavailable", "degraded"}:
+            problems.append(str(artifact_name))
+    return problems
 
 
 def _extend_unique(target: list[Any], values: Sequence[Any]) -> None:
@@ -856,7 +812,6 @@ gate_command = build_freshness_gate_decision
 __all__ = [
     "FRESH",
     "BLOCKED",
-    "DEGRADED",
     "FAILED",
     "STATUSES",
     "REASON_PRIORITY",
@@ -867,8 +822,6 @@ __all__ = [
     "WATCHER_QUEUE_PENDING",
     "STALE_CONFIG_OR_SCHEMA",
     "FAILED_REQUIRED_ARTIFACT",
-    "PENDING_CONFLICT",
-    "DEGRADED_OPTIONAL_ARTIFACT",
     "build_freshness_report",
     "evaluate_freshness",
     "freshness_report",
