@@ -441,7 +441,6 @@ def test_related_sections_output_has_no_retired_conflict_flag_field() -> None:
             "generated_at": "2026-05-06T00:00:00Z",
         }
     ]
-    flag_name = "possible" + "_conflict"
     llm_output = {
         "related_sections": [
             {
@@ -451,7 +450,7 @@ def test_related_sections_output_has_no_retired_conflict_flag_field() -> None:
                 "reason": "Alpha depends on Beta's auth policy.",
                 "evidence_terms": ["AUTH_TOKEN"],
                 "channels": ["shared_identifier"],
-                flag_name: True,
+                "unexpected_field": True,
             }
         ],
     }
@@ -473,7 +472,7 @@ def test_related_sections_output_has_no_retired_conflict_flag_field() -> None:
     selected = _related_sections(payload, "docs/spec/main.md#alpha")
 
     assert selected
-    assert flag_name not in selected[0]
+    assert "unexpected_field" not in selected[0]
 
 
 def test_related_sections_prompt_does_not_request_conflict_judgment() -> None:
@@ -533,7 +532,6 @@ def test_related_sections_prompt_does_not_request_conflict_judgment() -> None:
     prompt = provider.calls[0].prompt.lower()
 
     assert "conflict" not in prompt
-    assert ("possible" + "_conflict") not in prompt
     assert "cannot be simultaneously satisfied" not in prompt
 
 

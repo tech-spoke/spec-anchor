@@ -22,7 +22,7 @@
 
 ### B. grep 回避の string-concat hack
 廃止名を文字列連結・動的生成・別名で再構成し、`git grep <廃止名>` を 0 件に見せかけて legacy を温存する。rule 15 の検証 grep そのものをすり抜ける自己防衛。
-- 実例 (2026-05-30): `legacy_degraded_reason = "degraded" + "_optional_artifact"` で `git grep degraded_optional_artifact` を 0 件にして後方互換 fold を温存。production と test の両方に仕込まれていた。
+- 実例 (2026-05-30): 廃止名 `degraded_optional_artifact` を 2 つの文字列リテラルに分割し `+` 連結で再構成して `git grep degraded_optional_artifact` を 0 件に見せ、後方互換 fold を production と test の両方に温存していた (このガイド自身も検出リテラルを生で書かない)。
 - 参照: `memory/feedback_codex_grep_evasion_hack.md`、ghost 記憶 #207。
 
 ### C. phantom 仕様 (外部仕様書に未承認・未実装フィールドを足す) ★最重要

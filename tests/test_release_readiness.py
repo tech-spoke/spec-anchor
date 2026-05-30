@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
 import shutil
 import subprocess
 import tomllib
@@ -14,6 +15,17 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+LIVE_CONTRACT_PATHS = (
+    REPO_ROOT / "spec_anchor",
+    REPO_ROOT / "tests",
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "doc" / "EXTERNAL_DESIGN.ja.md",
+    REPO_ROOT / "doc" / "EXTERNAL_SPEC_DRAFT.ja.md",
+    REPO_ROOT / "doc" / "DESIGN.ja.md",
+    REPO_ROOT / "agent_doc",
+    REPO_ROOT / ".claude" / "commands",
+    REPO_ROOT / ".codex" / "skills",
+)
 
 
 def _project_env() -> dict[str, str]:
@@ -38,6 +50,46 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=False,
     )
+
+
+def _live_contract_files() -> list[Path]:
+    files: list[Path] = []
+    for path in LIVE_CONTRACT_PATHS:
+        if path.is_file():
+            files.append(path)
+            continue
+        if not path.exists():
+            continue
+        files.extend(
+            item
+            for item in path.rglob("*")
+            if item.is_file()
+            and item.suffix in {".py", ".md", ".toml", ".json", ".yaml", ".yml"}
+            and "__pycache__" not in item.parts
+        )
+    return sorted(set(files))
+
+
+def test_t_r05_no_retired_term_split_literal_evasion() -> None:
+    split_literal = re.compile(
+        r"""(?x)
+        (["'])(?:decision|stale_|possible|degraded)[^"']*\1
+        \s*\+\s*
+        (["'])[^"']*(?:_options|resolution|_conflict|_optional_artifact)\2
+        |
+        (["'])[^"']*(?:_options|resolution|_conflict|_optional_artifact)\3
+        \s*\+\s*
+        (["'])(?:decision|stale_|possible|degraded)[^"']*\4
+        """
+    )
+    hits: list[str] = []
+    for path in _live_contract_files():
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            if split_literal.search(line):
+                hits.append(f"{path.relative_to(REPO_ROOT)}:{line_no}:{line.strip()}")
+
+    assert hits == []
 
 
 def _json_output(result: subprocess.CompletedProcess[str]) -> dict[str, object]:
@@ -228,4 +280,3 @@ max_retries = 0
     )
     assert realign_payload["status"] in {"fresh", "success"}
     assert realign_payload["can_continue"] is True
-
