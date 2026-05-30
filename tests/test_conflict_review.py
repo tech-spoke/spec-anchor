@@ -321,8 +321,6 @@ def _pending_item(conflict_id: str = "conflict-feature-x") -> dict[str, Any]:
             {"source_ref": "docs/spec/conflict.md#beta", "hash": "hash-b"},
         ],
         "valid_scope": "global",
-        "reflection_status": "unreflected",
-        "reflected_refs": [],
         "stale_dismissal": False,
         "created_at": "2026-05-06T00:00:00Z",
         "updated_at": "2026-05-06T00:00:00Z",
@@ -361,9 +359,6 @@ def test_t_i04_unresolved_spec_claim_pair_creates_pending_item() -> None:
         module,
         (
             "evaluate_conflicts",
-            "evaluate_conflict_review_items",
-            "run_conflict_review",
-            "generate_conflict_review_items",
         ),
     )
     judge = FakeConflictJudge("unresolved")
@@ -396,9 +391,6 @@ def test_t_i04_resolvable_spec_claim_pair_is_warning_not_pending() -> None:
         module,
         (
             "evaluate_conflicts",
-            "evaluate_conflict_review_items",
-            "run_conflict_review",
-            "generate_conflict_review_items",
         ),
     )
     judge = FakeConflictJudge("resolved")
@@ -433,8 +425,6 @@ def test_t_u14_pending_item_required_schema_fields() -> None:
         module,
         (
             "validate_conflict_review_item",
-            "normalize_conflict_review_item",
-            "validate_conflict_review_items",
         ),
     )
 
@@ -459,15 +449,30 @@ def test_t_u14_pending_item_required_schema_fields() -> None:
         "recommended_next_action",
         "base_source_hashes",
         "valid_scope",
-        "reflection_status",
         "created_at",
         "updated_at",
     }
     assert required_fields.issubset(item)
+    assert set(item).issubset(module.CONFLICT_REVIEW_ITEM_FIELDS)
     assert item["status"] == "pending"
     assert item["source_refs"]
-    assert ("decision" + "_options") not in item
     assert item["recommended_next_action"]
+
+
+def test_conflict_review_item_rejects_unknown_fields() -> None:
+    module = _module()
+    validate = _required_function(
+        module,
+        (
+            "validate_conflict_review_item",
+            "build_conflict_review_item",
+        ),
+    )
+    item = _pending_item()
+    item["unexpected_contract_field"] = True
+
+    with pytest.raises(ValueError, match="unknown conflict review item field"):
+        _call(validate, item=item, generated_at="2026-05-06T00:00:00Z")
 
 
 def test_t_u20_conflict_pair_selection_uses_triaged_spec_claim_pairs() -> None:
@@ -476,8 +481,6 @@ def test_t_u20_conflict_pair_selection_uses_triaged_spec_claim_pairs() -> None:
         module,
         (
             "select_conflict_judging_pairs",
-            "build_conflict_judging_pairs",
-            "candidate_conflict_pairs",
         ),
     )
     claims, pairs = _spec_claim_fixture()
@@ -510,21 +513,16 @@ def test_conflict_review_accepts_only_spec_claim_pair_input() -> None:
         module,
         (
             "evaluate_conflicts",
-            "evaluate_conflict_review_items",
-            "run_conflict_review",
-            "generate_conflict_review_items",
         ),
     )
     judge = FakeConflictJudge("unresolved")
     claims, pairs = _spec_claim_fixture()
-    retired_flag = "possible" + "_conflict"
     previous_shape = {
         "docs/spec/conflict.md#alpha": [
             {
                 "source_section_id": "docs/spec/conflict.md#alpha",
                 "target_section_id": "docs/spec/conflict.md#beta",
                 "relation_hint": "depends_on",
-                retired_flag: True,
             }
         ]
     }
@@ -554,9 +552,6 @@ def test_conflict_review_concurrency_uses_config_limits() -> None:
         module,
         (
             "evaluate_conflicts",
-            "evaluate_conflict_review_items",
-            "run_conflict_review",
-            "generate_conflict_review_items",
         ),
     )
     active = 0

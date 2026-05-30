@@ -4607,18 +4607,9 @@ def _reopen_dismissed_conflict(
 
     updated = deepcopy(dict(item))
     now = generated_at or _nowish()
-    previous_resolution = (
-        deepcopy(updated.get("resolution"))
-        if isinstance(updated.get("resolution"), Mapping)
-        else None
-    )
     updated["status"] = "pending"
-    updated["reflection_status"] = "unreflected"
     updated["stale_dismissal"] = False
     updated["updated_at"] = now
-    updated["reopened_at"] = now
-    if previous_resolution is not None:
-        updated["previous_resolution"] = previous_resolution
     updated.pop("resolution", None)
     updated.pop("last_decision", None)
     return updated
@@ -4633,11 +4624,6 @@ def _auto_dismiss_pending_conflict(
 ) -> dict[str, Any]:
     updated = deepcopy(dict(item))
     now = generated_at or _nowish()
-    previous_resolution = (
-        deepcopy(updated.get("resolution"))
-        if isinstance(updated.get("resolution"), Mapping)
-        else None
-    )
     source_refs = [
         deepcopy(ref)
         for ref in updated.get("source_refs", [])
@@ -4653,12 +4639,9 @@ def _auto_dismiss_pending_conflict(
         "applied_at": now,
         "auto_dismiss_reason": reason,
     }
-    if previous_resolution is not None:
-        resolution["previous_resolution"] = previous_resolution
     updated["status"] = "dismissed"
     updated["valid_scope"] = "global"
     updated["resolution"] = resolution
-    updated["reflection_status"] = "not_required"
     updated["stale_dismissal"] = False
     updated["updated_at"] = now
     updated["base_source_hashes"] = _current_base_source_hashes(

@@ -2,12 +2,13 @@
 
 A dismissed Conflict Review Item is reopened to ``pending`` when its evidence
 sections change (hash drift on `base_source_hashes`); an unchanged dismissal is
-kept. The legacy resolution-staleness symbol is renamed to ``stale_dismissal``.
+kept. Stale dismissals are reported through ``stale_dismissal``.
 """
 
 from __future__ import annotations
 
 from spec_anchor.conflict_review import (
+    CONFLICT_REVIEW_ITEM_FIELDS,
     refresh_conflict_dismissal_staleness,
     summarize_conflict_review_state,
 )
@@ -29,7 +30,6 @@ def _dismissed_item(conflict_id: str = "cnf-1", base_hash: str = "old") -> dict:
             {"source_ref": "sec-2", "hash": "h2"},
         ],
         "valid_scope": "global",
-        "reflection_status": "not_required",
         "resolution": {"decision": "dismiss", "decision_origin": "human"},
     }
 
@@ -44,7 +44,6 @@ def test_reopen_when_dismissal_evidence_changes() -> None:
     )
     result = {i["conflict_id"]: i for i in merged}["cnf-1"]
     assert result["status"] == "pending"
-    assert "reopened_at" in result
     assert result.get("stale_dismissal") is False
 
 
@@ -89,7 +88,6 @@ def test_reopen_helper_clears_resolution() -> None:
     reopened = _reopen_dismissed_conflict(_dismissed_item(), generated_at="2026-05-30T00:00:00Z")
     assert reopened["status"] == "pending"
     assert "resolution" not in reopened
-    assert reopened["previous_resolution"]["decision"] == "dismiss"
 
 
 def test_refresh_marks_stale_dismissal_field() -> None:
@@ -98,7 +96,9 @@ def test_refresh_marks_stale_dismissal_field() -> None:
         current_source_hashes={"sec-1": "NEW", "sec-2": "h2"},
     )
     assert changed[0]["stale_dismissal"] is True
-    assert ("stale_" + "resolution") not in changed[0]
+    assert set(changed[0]).issubset(
+        CONFLICT_REVIEW_ITEM_FIELDS | {"source_section_id", "target_section_id"}
+    )
 
     unchanged = refresh_conflict_dismissal_staleness(
         conflict_review_items=[_dismissed_item()],

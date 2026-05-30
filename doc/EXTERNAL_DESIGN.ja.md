@@ -783,7 +783,7 @@ Conflict Review Item は、少なくとも次を人間に提示する。
 
 - [ ] 却下された Conflict Review Item には、却下理由と、却下時点で参照していた Source Specs / Purpose / Core Concept のハッシュ (`base_source_hashes[]`) が記録される。
 - [ ] 却下根拠にしたセクションのハッシュが後で変化した場合、`/spec-core` の再生成でその却下は失効 (`stale_dismissal`) し、矛盾は再び `status = "pending"` として提示対象に戻る (§2.8 の状態遷移)。
-- [ ] `/spec-core` の CoreResult は、ハッシュ失効で却下が破棄された Conflict Review Item の件数を `stale_dismissal_count`、そのうち pending に戻された件数を `reopened_dismissal_count` として返す。
+- [ ] `/spec-core` の CoreResult は、ハッシュ失効で却下が破棄された Conflict Review Item の件数を `stale_dismissal_count` として返す。
 - [ ] `/spec-core` は、ソース変更後の再評価で同じ矛盾が消えた pending item を自動的に `dismissed` (`resolution.decision_origin="auto_source_update"`) として件数 `auto_dismissed_conflict_count` / id 一覧 `auto_dismissed_conflict_ids[]` で返す。これは人間の却下とは別経路である。
 
 - [ ] Conflict Candidate Detection は SpecClaim 抽出 (`.spec-anchor/context/spec_claims.jsonl` の生成) の後に実行される別 stage であり、Claim Retrieval と LLM triage を含む。対象は Claim Retrieval が絞り込んだ少数の SpecClaim pair に限定される (全 SpecClaim pair の総当たり LLM 判定は行わない)。
@@ -973,7 +973,7 @@ Agent CLI が提示する出力は、次を必ず含む。各 conflict item は 
 - [ ] ② 外部サービスへの接続が必要: 検索やモデル呼び出しに必要なサービスへ接続できない。サービス起動 / 接続情報の確認を促す。
 - [ ] ③ 保持物の更新が必要: 仕様または設定が変更され保持情報が古い。`/spec-core` の実行を促す。
 - [ ] ④ 保持物の更新中・待機: 別プロセスが更新中、または更新待ちがある。完了を待つよう促す。
-- [ ] ⑤ 人間判断が必要な仕様の衝突: 未解決の衝突がある。各衝突を本文展開し (8.7.2)、人間が採用案を決めるよう促す。
+- [ ] ⑤ 人間判断が必要な仕様の衝突: 未解決の衝突がある。各衝突を本文展開し (8.7.2)、人間が矛盾の意味を判断（説明、または矛盾でなければ却下）できるよう提示する。
 - [ ] ⑥ ツール側のエラー: 想定外のエラーで、利用者操作では解消できない。開発元への報告を促す。
 - [ ] ◇ 情報通知 (続行可能): 補助的な保持情報のみが古いが処理は続行できる。停止せず、通常出力の末尾に参考情報を 1 行添える。
 - [ ] ✕ 非表示: 回答候補の組み立てをコマンド側が待っている内部状態。利用者には見せず、コマンドを実行している Agent が回答候補を組み立てて自動的に再実行する。

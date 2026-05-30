@@ -17,7 +17,24 @@ from typing import Any
 
 STATUSES = {"pending", "dismissed"}
 SCOPES = {"global", "source_pair", "section_pair", "task_scope"}
-REFLECTION_STATUSES = {"unreflected", "reflected", "not_required"}
+CONFLICT_REVIEW_ITEM_FIELDS = {
+    "base_source_hashes",
+    "claims",
+    "conflict_id",
+    "created_at",
+    "recommended_next_action",
+    "related_sections",
+    "resolution",
+    "severity",
+    "source_refs",
+    "spec_claim_pair",
+    "stale_dismissal",
+    "status",
+    "updated_at",
+    "valid_scope",
+    "why_conflicting",
+    "why_llm_cannot_decide",
+}
 
 @dataclass
 class ConflictReviewResult:
@@ -422,8 +439,6 @@ def _build_conflict_item(
         ),
         "base_source_hashes": _base_source_hash(source_refs),
         "valid_scope": "global",
-        "reflection_status": "unreflected",
-        "reflected_refs": [],
         "stale_dismissal": False,
         "created_at": now,
         "updated_at": now,
@@ -572,22 +587,20 @@ def validate_conflict_review_item(
     normalized.setdefault("why_conflicting", "")
     normalized.setdefault("why_llm_cannot_decide", "")
     normalized.setdefault("related_sections", [])
-    normalized.pop("decision" + "_options", None)
     normalized.setdefault("recommended_next_action", "Ask a human to decide this conflict.")
     normalized.setdefault("base_source_hashes", _base_source_hash(normalized.get("source_refs", [])))
     normalized.setdefault("valid_scope", "global")
-    normalized.setdefault("reflection_status", "unreflected")
-    normalized.setdefault("reflected_refs", [])
     normalized.setdefault("stale_dismissal", False)
     normalized.setdefault("created_at", now)
     normalized.setdefault("updated_at", now)
 
+    unknown_fields = sorted(set(normalized) - CONFLICT_REVIEW_ITEM_FIELDS)
+    if unknown_fields:
+        raise ValueError(f"unknown conflict review item field: {unknown_fields[0]}")
     if normalized["status"] not in STATUSES:
         raise ValueError(f"invalid conflict review status: {normalized['status']}")
     if normalized["valid_scope"] not in SCOPES:
         raise ValueError(f"invalid conflict review scope: {normalized['valid_scope']}")
-    if normalized["reflection_status"] not in REFLECTION_STATUSES:
-        raise ValueError(f"invalid reflection status: {normalized['reflection_status']}")
     return normalized
 
 
@@ -641,9 +654,7 @@ def apply_conflict_dismissal(
         if updated["valid_scope"] not in SCOPES:
             raise ValueError(f"invalid conflict review scope: {updated['valid_scope']}")
         updated["resolution"] = _resolution_from_payload(dismissal_payload)
-        updated["reflection_status"] = "not_required"
         updated["updated_at"] = now
-        updated.setdefault("reflected_refs", [])
         current_items[index] = updated
         return current_items
 
@@ -712,16 +723,3 @@ def refresh_conflict_dismissal_staleness(
                 break
         item["stale_dismissal"] = stale
     return current_items
-
-
-evaluate_conflict_review_items = evaluate_conflicts
-run_conflict_review = evaluate_conflicts
-generate_conflict_review_items = evaluate_conflicts
-normalize_conflict_review_item = validate_conflict_review_item
-validate_conflict_review_items = validate_conflict_review_item
-build_conflict_freshness_report = summarize_conflict_review_state
-conflict_review_freshness_report = summarize_conflict_review_state
-mark_stale_conflict_resolutions = refresh_conflict_dismissal_staleness
-validate_conflict_resolution_freshness = refresh_conflict_dismissal_staleness
-build_conflict_judging_pairs = select_conflict_judging_pairs
-candidate_conflict_pairs = select_conflict_judging_pairs

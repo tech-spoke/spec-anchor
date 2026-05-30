@@ -44,7 +44,6 @@ def _pending_item(conflict_id: str = "cnf-1") -> dict:
             {"source_ref": "sec-2", "hash": "h2"},
         ],
         "valid_scope": "global",
-        "reflection_status": "unreflected",
         "created_at": "2026-05-30T00:00:00Z",
         "updated_at": "2026-05-30T00:00:00Z",
     }
