@@ -607,6 +607,193 @@ def test_conflict_review_concurrency_uses_mapping_config_limits() -> None:
     assert get_concurrency(limits={"llm_batch_concurrency": 3}) == 3
 
 
+@dataclass
+class FakeSectionPairJudge:
+    """Judge that judges two whole sections directly (no claim extraction)."""
+
+    outcome: str
+
+    def __post_init__(self) -> None:
+        self.calls: list[Any] = []
+
+    def judge_conflict(self, request: Any, *, timeout_sec: int = 5) -> dict[str, Any]:
+        del timeout_sec
+        self.calls.append(request)
+        if self.outcome == "unresolved":
+            return {
+                "outcome": "needs_human_review",
+                "severity": "high",
+                "conflict_points": [
+                    {
+                        "left_excerpt": "FEATURE_X is required for all requests.",
+                        "right_excerpt": "FEATURE_X is forbidden for guest requests.",
+                        "why_conflicting": "Required and forbidden cannot both hold.",
+                        "severity": "high",
+                    }
+                ],
+                "why_conflicting": "FEATURE_X is simultaneously required and forbidden.",
+                "why_llm_cannot_decide": "No Purpose or Core Concept priority exists.",
+                "recommended_next_action": "Ask a human to choose the applicable rule.",
+            }
+        return {
+            "outcome": "resolved_by_existing_evidence",
+            "severity": "medium",
+            "warning": "Potential conflict is resolved by explicit Core Concept priority.",
+            "why_not_pending": "Core Concept says Beta overrides Alpha.",
+        }
+
+
+def test_section_pair_id_is_order_independent_and_handles_self_pair() -> None:
+    module = _module()
+    section_pair_id = module.section_pair_id
+
+    assert section_pair_id("a", "b") == section_pair_id("b", "a")
+    assert section_pair_id("a", "b").startswith("section_pair:sha256:v1:")
+    # different unordered pairs must not collide
+    assert section_pair_id("a", "b") != section_pair_id("a", "c")
+    # self-pair is stable and distinct from a cross-pair
+    assert section_pair_id("a", "a") == section_pair_id("a", "a")
+    assert section_pair_id("a", "a") != section_pair_id("a", "b")
+
+
+def test_build_section_pair_conflict_item_matches_schema_and_validates() -> None:
+    module = _module()
+    builder = module._build_section_pair_conflict_item
+    sections = _sections()
+    # pass sections in non-sorted order to verify canonical left/right ordering
+    section_a = sections[1]  # ...#beta
+    section_b = sections[0]  # ...#alpha
+    judge_payload = {
+        "outcome": "needs_human_review",
+        "severity": "high",
+        "conflict_points": [
+            {
+                "left_excerpt": "alpha excerpt",
+                "right_excerpt": "beta excerpt",
+                "why_conflicting": "they disagree",
+                "severity": "high",
+            }
+        ],
+        "why_conflicting": "summary level",
+        "why_llm_cannot_decide": "no priority",
+    }
+
+    item = builder(
+        section_a,
+        section_b,
+        judge_payload,
+        candidate_origin="section_pair_retrieval",
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    expected_id = module.section_pair_id(
+        section_a["source_section_id"], section_b["source_section_id"]
+    )
+    assert item["conflict_id"] == expected_id
+    assert item["valid_scope"] == "section_pair"
+    assert item["status"] == "pending"
+    # The section_pair builder never emits claim-era payloads. The shared
+    # validator still setdefaults the transitional claims/related_sections keys
+    # to empty during the additive migration (a later task removes them), so we
+    # assert they are empty rather than absent.
+    assert "spec_claim_pair" not in item
+    assert item.get("claims", []) == []
+    assert item.get("related_sections", []) == []
+    section_pair = item["section_pair"]
+    assert section_pair["section_pair_id"] == expected_id
+    # canonical sorted order: alpha < beta lexicographically
+    assert section_pair["left_section_id"] == "docs/spec/conflict.md#alpha"
+    assert section_pair["right_section_id"] == "docs/spec/conflict.md#beta"
+    assert section_pair["candidate_origin"] == "section_pair_retrieval"
+    assert len(item["source_refs"]) == 2
+    assert item["conflict_points"] == judge_payload["conflict_points"]
+    assert item["base_source_hashes"]
+    # validates without raising and round-trips through the validator
+    revalidated = module.validate_conflict_review_item(
+        item=item, generated_at="2026-05-06T00:00:00Z"
+    )
+    assert revalidated["conflict_id"] == expected_id
+
+
+def test_build_section_pair_conflict_item_self_pair_single_ref() -> None:
+    module = _module()
+    builder = module._build_section_pair_conflict_item
+    section = _sections()[0]
+
+    item = builder(section, section, {"outcome": "needs_human_review"})
+
+    pair = item["section_pair"]
+    assert pair["left_section_id"] == pair["right_section_id"]
+    assert pair["candidate_origin"] == "all_pairs"
+    assert len(item["source_refs"]) == 1
+
+
+def test_evaluate_section_pair_conflicts_pending_item_with_conflict_points() -> None:
+    module = _module()
+    evaluate = module.evaluate_section_pair_conflicts
+    judge = FakeSectionPairJudge("unresolved")
+    section_pairs = [
+        {
+            "left_section_id": "docs/spec/conflict.md#alpha",
+            "right_section_id": "docs/spec/conflict.md#beta",
+            "candidate_origin": "all_pairs",
+        }
+    ]
+
+    result = evaluate(
+        section_pairs,
+        judge,
+        sections=_sections(),
+        config=_config(),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+    items = _items(result)
+
+    assert judge.calls, "section pair must be judged"
+    # request carries section_a/section_b/source_refs (grounding added by wrapper)
+    request = judge.calls[0]
+    assert set(request) == {"section_a", "section_b", "source_refs"}
+    assert len(items) == 1
+    assert items[0]["status"] == "pending"
+    assert items[0]["valid_scope"] == "section_pair"
+    assert items[0]["conflict_points"]
+    assert items[0]["section_pair"]["candidate_origin"] == "all_pairs"
+    assert result.pending_conflict_count == 1
+
+
+def test_evaluate_section_pair_conflicts_resolved_is_non_pending_signal() -> None:
+    module = _module()
+    evaluate = module.evaluate_section_pair_conflicts
+    judge = FakeSectionPairJudge("resolved")
+    section_pairs = [
+        {
+            "left_section_id": "docs/spec/conflict.md#alpha",
+            "right_section_id": "docs/spec/conflict.md#beta",
+            "candidate_origin": "existing_conflict_recheck",
+        }
+    ]
+
+    result = evaluate(
+        section_pairs,
+        judge,
+        sections=_sections(),
+        config=_config(),
+        generated_at="2026-05-06T00:00:00Z",
+    )
+
+    assert judge.calls, "section pair must still be judged"
+    assert _items(result) == []
+    assert result.non_pending_conflict_signals
+    signal = result.non_pending_conflict_signals[0]
+    assert "spec_claim_pair" not in signal
+    assert signal["conflict_id"] == module.section_pair_id(
+        "docs/spec/conflict.md#alpha", "docs/spec/conflict.md#beta"
+    )
+    assert signal["outcome"] == "resolved_by_existing_evidence"
+    diagnostics = _diagnostics(result)
+    assert any(item.get("kind") == "potential_conflict" for item in diagnostics)
+
+
 def test_core_does_not_route_related_sections_to_conflict_review() -> None:
     core = importlib.import_module("spec_anchor.core")
     source = inspect.getsource(core._run_spec_core_unlocked)

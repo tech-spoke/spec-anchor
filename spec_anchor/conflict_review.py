@@ -7,6 +7,8 @@ human dismissals, freshness counts, and diagnostics.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -21,10 +23,12 @@ CONFLICT_REVIEW_ITEM_FIELDS = {
     "base_source_hashes",
     "claims",
     "conflict_id",
+    "conflict_points",
     "created_at",
     "recommended_next_action",
     "related_sections",
     "resolution",
+    "section_pair",
     "severity",
     "source_refs",
     "spec_claim_pair",
@@ -34,6 +38,14 @@ CONFLICT_REVIEW_ITEM_FIELDS = {
     "valid_scope",
     "why_conflicting",
     "why_llm_cannot_decide",
+}
+
+# candidate_origin values produced by the section_pair candidate generator
+# (built in a later task) and accepted by the section_pair conflict path.
+SECTION_PAIR_CANDIDATE_ORIGINS = {
+    "all_pairs",
+    "section_pair_retrieval",
+    "existing_conflict_recheck",
 }
 
 @dataclass
@@ -410,6 +422,144 @@ def _source_refs_for_pair(
     ]
 
 
+def section_pair_id(left_section_id: str, right_section_id: str) -> str:
+    """Return a canonical, order-independent id for a pair of sections.
+
+    The canonical pair is the two section ids sorted lexicographically when
+    they differ, or ``[left, left]`` for a self-pair. The hash input is
+    ``json.dumps(["v1", canonical_pair], sort_keys=True)`` (identity_version
+    "v1" followed by the canonical pair list).
+    """
+
+    left = str(left_section_id)
+    right = str(right_section_id)
+    if left == right:
+        canonical_pair = [left, left]
+    else:
+        canonical_pair = sorted([left, right])
+    payload = json.dumps(["v1", canonical_pair], sort_keys=True)
+    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return "section_pair:sha256:v1:" + digest
+
+
+def _section_pair_source_refs(
+    section_a: dict[str, Any],
+    section_b: dict[str, Any],
+    left_section_id: str,
+    right_section_id: str,
+) -> list[dict[str, Any]]:
+    """Build one source_ref per section (a and b; one entry when a == b).
+
+    Reuses the existing ``_source_ref`` helper. Adds ``heading_path`` when the
+    section dict carries it (``_source_ref`` does not include it by default).
+    """
+
+    sections = (
+        [(section_a, left_section_id)]
+        if left_section_id == right_section_id
+        else [(section_a, left_section_id), (section_b, right_section_id)]
+    )
+    refs: list[dict[str, Any]] = []
+    for section, fallback_id in sections:
+        ref = _source_ref(section, fallback_id)
+        ref.setdefault("source_ref", ref.get("source_section_id", fallback_id))
+        heading_path = section.get("heading_path")
+        if heading_path:
+            ref["heading_path"] = deepcopy(heading_path)
+        refs.append(ref)
+    return refs
+
+
+def _build_section_pair_conflict_item(
+    section_a: dict[str, Any],
+    section_b: dict[str, Any],
+    judge_payload: dict[str, Any],
+    *,
+    candidate_origin: str = "all_pairs",
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Build a section_pair Conflict Review Item (claim-free schema)."""
+
+    a_id = _section_id(section_a)
+    b_id = _section_id(section_b)
+    pair_id = section_pair_id(a_id, b_id)
+    # Use the SORTED canonical order so left/right match the id derivation.
+    if a_id == b_id:
+        left_section_id, right_section_id = a_id, a_id
+        left_section, right_section = section_a, section_a
+    else:
+        if a_id <= b_id:
+            left_section_id, right_section_id = a_id, b_id
+            left_section, right_section = section_a, section_b
+        else:
+            left_section_id, right_section_id = b_id, a_id
+            left_section, right_section = section_b, section_a
+
+    source_refs = _section_pair_source_refs(
+        left_section, right_section, left_section_id, right_section_id
+    )
+    origin = str(judge_payload.get("candidate_origin") or candidate_origin or "all_pairs")
+    conflict_points = deepcopy(judge_payload.get("conflict_points") or [])
+    now = _timestamp(generated_at)
+
+    item = {
+        "conflict_id": pair_id,
+        "status": "pending",
+        "severity": str(judge_payload.get("severity") or "medium"),
+        "source_refs": source_refs,
+        "section_pair": {
+            "section_pair_id": pair_id,
+            "left_section_id": left_section_id,
+            "right_section_id": right_section_id,
+            "candidate_origin": origin,
+        },
+        "conflict_points": conflict_points,
+        "why_conflicting": str(
+            judge_payload.get("why_conflicting")
+            or "Potential source specifications conflict."
+        ),
+        "why_llm_cannot_decide": str(
+            judge_payload.get("why_llm_cannot_decide")
+            or judge_payload.get("why_unresolved")
+            or "Existing evidence does not establish a safe priority."
+        ),
+        "recommended_next_action": str(
+            judge_payload.get("recommended_next_action")
+            or "Ask a human to decide this conflict."
+        ),
+        "base_source_hashes": _base_source_hash(source_refs),
+        "valid_scope": "section_pair",
+        "stale_dismissal": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+    return validate_conflict_review_item(item=item, generated_at=generated_at)
+
+
+def _build_section_pair_non_pending_signal(
+    left_section_id: str,
+    right_section_id: str,
+    source_refs: list[dict[str, Any]],
+    judge_payload: Mapping[str, Any],
+    *,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "conflict_id": section_pair_id(left_section_id, right_section_id),
+        "left_section_id": left_section_id,
+        "right_section_id": right_section_id,
+        "source_refs": source_refs,
+        "base_source_hashes": _base_source_hash(source_refs),
+        "outcome": str(judge_payload.get("outcome") or ""),
+        "reason": str(
+            judge_payload.get("why_not_pending")
+            or judge_payload.get("warning")
+            or "Potential conflict resolved by existing evidence."
+        ),
+        "generated_at": _timestamp(generated_at),
+    }
+
+
 def _build_conflict_item(
     pair: dict[str, Any],
     sections_by_id: dict[str, dict[str, Any]],
@@ -564,6 +714,107 @@ def evaluate_conflicts(
     )
 
 
+def evaluate_section_pair_conflicts(
+    section_pairs: Any = None,
+    conflict_judge: Any = None,
+    *,
+    sections: list[dict[str, Any]] | None = None,
+    config: Any = None,
+    limits: Any = None,
+    generated_at: str | None = None,
+) -> ConflictReviewResult:
+    """Judge whole section pairs directly and return pending review items.
+
+    Each entry of ``section_pairs`` is a dict shaped like
+    ``{"left_section_id", "right_section_id", "candidate_origin"}``. The judge
+    request carries ``section_a`` / ``section_b`` / ``source_refs`` only; the
+    injected judge wrapper adds Purpose / Core Concept grounding itself, so this
+    function must not strip grounding. Runs sequentially (concurrency is added
+    in a later task).
+    """
+
+    active_judge = conflict_judge
+    _llm_cfg = getattr(config, "llm", None)
+    if _llm_cfg is None and isinstance(config, dict):
+        _llm_cfg = config.get("llm") or {}
+    timeout_sec = int(getattr(_llm_cfg, "timeout_sec", None) or (
+        _llm_cfg.get("timeout_sec") if isinstance(_llm_cfg, dict) else None
+    ) or 120)
+    sections_by_id = _section_map(sections)
+
+    items: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, Any]] = []
+    non_pending_signals: list[dict[str, Any]] = []
+    call_usages: list[dict[str, Any]] = []
+
+    for pair in section_pairs or []:
+        if not isinstance(pair, Mapping):
+            continue
+        a_id = str(pair.get("left_section_id") or "")
+        b_id = str(pair.get("right_section_id") or "")
+        if not a_id or not b_id:
+            continue
+        candidate_origin = str(pair.get("candidate_origin") or "all_pairs")
+        section_a = deepcopy(sections_by_id.get(a_id, {"source_section_id": a_id}))
+        section_b = deepcopy(sections_by_id.get(b_id, {"source_section_id": b_id}))
+        source_refs = _section_pair_source_refs(section_a, section_b, a_id, b_id)
+        request = {
+            "section_a": section_a,
+            "section_b": section_b,
+            "source_refs": source_refs,
+        }
+        payload = _call_judge(active_judge, request, timeout_sec=timeout_sec)
+
+        call_usage = dict(payload.pop("__spec_anchor_usage", None) or {})
+        if call_usage:
+            call_usages.append(call_usage)
+
+        outcome = str(payload.get("outcome", "")).lower()
+        if outcome in {"needs_human_review", "unresolved", "pending"}:
+            items.append(
+                _build_section_pair_conflict_item(
+                    section_a,
+                    section_b,
+                    payload,
+                    candidate_origin=candidate_origin,
+                    generated_at=generated_at,
+                )
+            )
+        else:
+            non_pending_signals.append(
+                _build_section_pair_non_pending_signal(
+                    a_id,
+                    b_id,
+                    source_refs,
+                    payload,
+                    generated_at=generated_at,
+                )
+            )
+            diagnostics.append(
+                {
+                    "kind": "potential_conflict",
+                    "level": "warning",
+                    "left_section_id": a_id,
+                    "right_section_id": b_id,
+                    "warning": payload.get("warning")
+                    or payload.get("why_not_pending")
+                    or "Potential conflict resolved by existing evidence.",
+                    "outcome": payload.get("outcome"),
+                }
+            )
+
+    summary = summarize_conflict_review_state(items=items, existing_blocking_reasons=[])
+    return ConflictReviewResult(
+        conflict_review_items=items,
+        diagnostics=diagnostics,
+        freshness_report=summary["freshness_report"],
+        pending_conflict_count=summary["pending_conflict_count"],
+        selection_diagnostics=[],
+        non_pending_conflict_signals=non_pending_signals,
+        usage_list=call_usages,
+    )
+
+
 def validate_conflict_review_item(
     item: dict[str, Any] | None = None,
     *,
@@ -584,6 +835,7 @@ def validate_conflict_review_item(
     normalized.setdefault("severity", "medium")
     normalized.setdefault("source_refs", [])
     normalized.setdefault("claims", [])
+    normalized.setdefault("conflict_points", [])
     normalized.setdefault("why_conflicting", "")
     normalized.setdefault("why_llm_cannot_decide", "")
     normalized.setdefault("related_sections", [])
