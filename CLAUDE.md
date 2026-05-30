@@ -448,6 +448,12 @@ Source retrieval は degraded 状態です。
 
 「将来戻すかもしれない」は理由にしない。Git history で戻せる前提で削除する。
 
+TODO / 設計書 / 依頼文に「廃止」「削除」「根絶」「完全削除」「旧経路を残さない」と書かれている対象について、後方互換 shim、legacy fold、deprecated alias、旧入力の読み替え、旧 enum / 旧 reason の受理、旧 CLI flag の no-op 化を残してはいけない。これらは fallback の一種であり、根絶漏れとして扱う。
+
+廃止対象の外部互換を本当に残す必要がある場合は、実装してから完了扱いにしてはいけない。先に人間へ「根絶条件に反する互換経路を残す契約変更が必要」と明示し、TODO / 設計書の scope を変更する。人間承認がない限り、互換 shim を残した状態は未完了である。
+
+grep 検証をすり抜けるために、廃止対象名や禁止語を文字列連結、部分文字列、動的生成、別名化で残してはいけない。例: `"degraded" + "_optional_artifact"` のように `git grep degraded_optional_artifact` を 0 件に見せる書き方は禁止する。test でも production code でも同じく禁止する。
+
 廃止後の必須検証:
 
 ```text
@@ -463,6 +469,8 @@ git grep -nE "stub|dormant|legacy|disabled|deprecated|fallback"
 - 関数本体を `pass` または「disabled」コメントだけにして残す
 - `@pytest.mark.skip(reason="...dormant...")` で test を残す (削除する)
 - ドキュメントに「廃止された ○○」を後置きで残す (削除して history に任せる)
+- 旧入力・旧 status・旧 reason を受け付ける後方互換 shim を、TODO の根絶条件に反して残す
+- 廃止対象名を文字列連結や動的生成で隠し、grep 0 件を装う
 
 ### ルール 16: 新規追加時は既存責務との整合を先に確認する
 

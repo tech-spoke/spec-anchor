@@ -252,11 +252,6 @@ def normalize_freshness_report(report: Mapping[str, Any] | Any) -> dict[str, Any
 
     payload = _extract_report(report)
     raw_reasons = _as_list(payload.get("blocking_reasons"))
-    if str(payload.get("status") or "").strip().lower() == "degraded":
-        raw_reasons.append(FAILED_REQUIRED_ARTIFACT)
-    legacy_degraded_reason = "degraded" + "_optional_artifact"
-    if any(str(reason) == legacy_degraded_reason for reason in raw_reasons):
-        raw_reasons.append(FAILED_REQUIRED_ARTIFACT)
     reasons = order_blocking_reasons(raw_reasons)
     status = str(payload.get("status") or "")
     if reasons:

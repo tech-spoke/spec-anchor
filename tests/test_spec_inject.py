@@ -578,30 +578,6 @@ def test_t_u18_blocked_or_failed_inject_stops_without_running_spec_core(
     assert "recommended_next_action" in text
 
 
-def test_t_u03_legacy_partial_artifact_reason_stops_as_failed(tmp_path: Path) -> None:
-    project_root = tmp_path / "project"
-    _write_project(project_root)
-
-    legacy_partial_artifact_reason = "degraded" + "_optional_artifact"
-    result = _result_dict(
-        _run_spec_inject(
-            project_root,
-            freshness_report={
-                "status": "degraded",
-                "blocking_reasons": [legacy_partial_artifact_reason],
-                "warnings": [{"reason_code": legacy_partial_artifact_reason, "artifact": "section_metadata"}],
-            },
-        )
-    )
-    text = _text_blob(result)
-
-    assert _stopped(result) is True
-    assert result["status"] == "failed"
-    assert result["blocking_reasons"] == ["failed_required_artifact"]
-    assert "failed_required_artifact" in text
-    assert "warnings" in text
-
-
 def test_spec_inject_reads_freshness_artifact_without_recomputing_core(tmp_path: Path) -> None:
     project_root = tmp_path / "project"
     _write_project(project_root)
