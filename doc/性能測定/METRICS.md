@@ -995,36 +995,89 @@ provider / model は `.spec-anchor/config.toml` の `[llm.stage_routing]`(sectio
 
 ### 第13回・batch judge + budget-first 後（follow-up Phase 1-3）
 
-測定日: 2026-05-31　ソース: `docs/spec/sample.md`（6 section）　実 provider: codex gpt-5.4-mini + claude sonnet-4-6 + Qdrant :6333 + FlagEmbedding BGE-M3。
+測定日: 2026-05-31　ソース: `docs/spec/sample.md`（6 section）　実 provider: codex gpt-5.4-mini + claude sonnet-4-6 + Qdrant :6333 + FlagEmbedding BGE-M3　各シナリオの per-stage は `doc/性能測定/core_progress_13_{rebuild,all,inc_unchanged,inc_changed}.json` に保存。
 
-follow-up TODO Phase 1（diagnostics）/ Phase 2（batch judge、judge_batch_size=5）/ Phase 3（budget-first 統一）後の 4 シナリオ計測。conflict_evaluation が batch 化で 21 call → **5 call**（21 pair / batch 5 = 5 batch、fallback 0）。recall は 5 conflict 維持・conflict_points 全 populated。
+follow-up TODO Phase 1（diagnostics）/ Phase 2（batch judge、judge_batch_size=5）/ Phase 3（budget-first 統一）後の 4 シナリオ計測。conflict_evaluation が batch 化で 21 call → **5 call**（21 pair / batch 5 = 5 batch、fallback 0）。全 judge シナリオで judge_pair=21 / batch_count=5 / fallback_count=0 / llm_call_count=5 / self_pair=6、mode=all_pairs（15 cross + 6 self、cross 15 ≤ global_pair_cap 80）、conflict_candidate_mode=budget。
 
-#### 総 wall サマリー（第12回 = batch 前との比較）
+`総 wall` は `/usr/bin/time` のプロセス実測値。各表の stage wall 合計より数秒大きいのは CLI プロセス起動 + FlagEmbedding import の overhead（stage 計測外）。provider / model 列は `.spec-anchor/config.toml` の `[llm.stage_routing]`（section_metadata=codex、related_sections=claude_typing、conflict_review=claude_judge、chapter_key_anchor=codex）と `[embedding]`（flagembedding/BAAI/bge-m3）に対応。conflict_evaluation の model は usage の `models_seen` が空のため括弧付きで補記。
 
-| シナリオ | 第12回(batch前) | 第13回(batch後) | 差分 |
+#### rebuild（`spec-anchor core --rebuild`）
+
+総 wall: 97.2 s（stage 合計 87.1 s、差分 ~10 s は起動 + import）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 8.86 | 1 | 18,597 | 486 | 31 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 1.27 | 0 | — | — | — | — | — | flagembedding | BAAI/bge-m3 |
+| related_sections | 25.96 | 1 | 4 | 2,021 | 0 | 22,692 | 34,226 | claude_typing | claude-sonnet-4-6 |
+| section_pair_candidate_generation | 0.00 | 0 | — | — | — | — | — | — | —（非LLM） |
+| **conflict_evaluation（batch judge）** | **40.06** | **5** | 20 | 6,466 | 0 | 120,648 | 182,415 | claude_judge | (claude-sonnet-4-6) |
+| chapter_anchors | 10.45 | 1 | 19,250 | 267 | 22 | 0 | 0 | codex | gpt-5.4-mini |
+| artifact_write | 0.01 | 0 | — | — | — | — | — | — | — |
+
+#### ALL（`spec-anchor core --all`）
+
+総 wall: 93.9 s（stage 合計 82.9 s）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 7.81 | 1 | 18,597 | 525 | 13 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 1.24 | 0 | — | — | — | — | — | flagembedding | BAAI/bge-m3 |
+| related_sections | 25.32 | 1 | 4 | 2,016 | 0 | 22,724 | 34,263 | claude_typing | claude-sonnet-4-6 |
+| section_pair_candidate_generation | 0.00 | 0 | — | — | — | — | — | — | —（非LLM） |
+| **conflict_evaluation（batch judge）** | **39.86** | **5** | 20 | 5,491 | 0 | 167,544 | 132,594 | claude_judge | (claude-sonnet-4-6) |
+| chapter_anchors | 8.10 | 1 | 19,308 | 231 | 14 | 0 | 0 | codex | gpt-5.4-mini |
+| artifact_write | 0.01 | 0 | — | — | — | — | — | — | — |
+
+#### 未修整インクリメント（`spec-anchor core`、source 不変）
+
+総 wall: 9.7 s（stage 合計 0.6 s、差分 ~9 s は CLI 起動 + FlagEmbedding import。LLM / embedding は一切実行されない）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 0.01 | 0 | 0 | 0 | — | — | — | — | — |
+| section_collection_upsert | 0.02 | 0 | — | — | — | — | — | — | — |
+| related_sections | 0.00 | 0 | 0 | 0 | 0 | — | — | — | — |
+| section_pair_candidate_generation | 0.00 | 0 | — | — | — | — | — | — | — |
+| conflict_evaluation | 0.00 | 0 | 0 | 0 | 0 | — | — | — | — |
+| chapter_anchors | 0.00 | 0 | 0 | 0 | — | — | — | — | — |
+| artifact_write | 0.01 | 0 | — | — | — | — | — | — | — |
+
+`section_pair_candidate_generation_status = skipped_unchanged`、conflict judge は 0 call（judge_pair=0 / llm_call=0）。A案（候補非永続）の no-change skip が機能し、all_pairs O(N²) judge コストは変更がある run でのみ支払う。
+
+#### 修正後インクリメント
+
+ソース変更: `docs/spec/sample.md` の Account Lockout セクションに 1 文追記（計測後 `git checkout` で復元）　総 wall: 90.0 s（stage 合計 78.7 s）
+
+| ステージ | wall (s) | calls | input_tok | output_tok | reasoning_tok | cache_create_tok | cache_read_tok | provider | model |
+|---|---|---|---|---|---|---|---|---|---|
+| section_metadata | 15.14 | 1 | 17,465 | 112 | 19 | 0 | 0 | codex | gpt-5.4-mini |
+| section_collection_upsert | 0.03 | 0 | — | — | — | — | — | flagembedding | BAAI/bge-m3 |
+| related_sections | 9.56 | 1 | 4 | 326 | 0 | 19,764 | 32,823 | claude_typing | claude-sonnet-4-6 |
+| section_pair_candidate_generation | 0.00 | 0 | — | — | — | — | — | — | —（非LLM） |
+| **conflict_evaluation（batch judge）** | **46.84** | **5** | 20 | 5,821 | 0 | 120,618 | 183,110 | claude_judge | (claude-sonnet-4-6) |
+| chapter_anchors | 6.54 | 1 | 19,267 | 244 | 18 | 0 | 0 | codex | gpt-5.4-mini |
+| artifact_write | 0.01 | 0 | — | — | — | — | — | — | — |
+
+1 section 変更でも A案は候補を全再計算するため conflict_evaluation は rebuild と同じ all_pairs 21 pair（5 batch）を再 judge する。related_sections は変更 1 section の partial 再生成で 9.56 s（rebuild 25.96 s 比で短い）。section_metadata 15.14 s は 1 call だが codex 応答遅延のばらつきで rebuild の 8.86 s より大きい。
+
+#### 第12回（batch 前）との比較
+
+| シナリオ / 指標 | 第12回(batch前) | 第13回(batch後) | 差分 |
 |---|---|---|---|
-| rebuild (`--rebuild`) | 124〜127 s | **99 s** | −25〜28 s |
-| ALL (`--all`) | (未計測) | **105 s** | — |
-| 未修整インクリメント | (未計測) | **12 s** | judge skip (A案) |
-| 修正後インクリメント | (未計測) | **83 s** | — |
-| conflict_evaluation | 67.9 s / 21 call | **46.9 s / 5 call** | call −16、wall −21 s |
+| rebuild 総 wall | 124〜127 s | 97 s | −27〜30 s |
+| rebuild conflict_evaluation | 67.9 s / 21 call | 40.1 s / 5 call | call −16、wall −28 s |
+| ALL 総 wall | (未計測) | 94 s | — |
+| 未修整インクリメント 総 wall | ~1 s（前回 stage 計測のみ） | 9.7 s（プロセス実測） | 計測基準を起動込みに統一 |
+| 修正後インクリメント 総 wall | (未計測) | 90 s | — |
 
-#### per-stage（4 シナリオ）
+batch judge により conflict_evaluation の LLM call が 21→5 に減少。wall は ~40 s（1 batch が複数 pair 分の出力を生成するため per-call の output / cache token は増えるが、call 数削減の効果が上回る）。rebuild 総 wall は 127→97 s に短縮。
 
-| ステージ | rebuild | ALL | 未修整inc | 修正後inc | calls(judge時) | provider | model |
-|---|---|---|---|---|---|---|---|
-| section_metadata | 9.6 | 8.8 | skip | 7.5 | 1 | codex | gpt-5.4-mini |
-| section_collection_upsert | 1.2 | 1.1 | skip | 1.1 | 0 | flagembedding | BAAI/bge-m3 |
-| related_sections | 23.5 | 20.2 | skip | 9.1 | 1 | claude_typing | claude-sonnet-4-6 |
-| section_pair_candidate_generation | 0.0 | 0.0 | 0.0 | 0.0 | 0 | — | — (非LLM) |
-| **conflict_evaluation (batch judge)** | **46.9** | **52.4** | **0.0(skip)** | **45.7** | **5 (=batch_count)** | claude_judge | claude-sonnet-4-6 |
-| chapter_anchors | 6.0 | 9.1 | skip | 6.7 | 1 | codex | gpt-5.4-mini |
-| **総 wall (s)** | **99** | **105** | **12** | **83** | | | |
+#### recall / conflict_points（要注意・production E2E 取り直しで再確認）
 
-注:
-- 単位は wall 秒。未修整インクリメント（source 不変）は section_pair_candidate_generation / conflict_evaluation とも skip（judge_pair=0 / llm_call=0、A案 no-change skip）。総 12 s は CLI プロセス起動 + FlagEmbedding import の overhead（LLM/embedding 実行なし）。
-- 全 judge シナリオで judge_pair=21 / batch_count=5 / fallback_count=0 / llm_call_count=5 / self_pair=6。mode=all_pairs（15 cross ≤ global_pair_cap 80）。recall=5 conflict・conflict_points 全 populated。
-- batch judge により conflict_evaluation の LLM call が 21→5 に減ったが wall は ~47 s（1 batch が複数 pair 分の出力を生成するため per-call の output token が増える）。それでも総 wall は rebuild 127→99 s に短縮。
+- この run 後の `conflict_review_items.json` は **7 件**（pending 3 + dismissed 4）。全件 `conflict_points` が populated。
+- ただし dismissed 4 件はいずれも `decision_origin=auto_source_update`（reason `source_update_recheck_non_pending`）の**自動 dismiss** であり、**過去セッションから蓄積した残存状態**を含む（一部 item は現 `sample.md` と一致しない過去内容を参照）。この計測は性能を見る目的で state を clean にせず実行したため、**recall の確定値と dismiss/reopen の妥当性はこの数字では判断しない**。
+- クリーンな recall + 人間 dismiss → source hash 変更 → reopen の一巡は、現コード（batch + budget-first 後）に対する **production E2E 取り直し**で確認する（後続手順）。
 
 ## incremental vs full の差分を見るポイント
 
