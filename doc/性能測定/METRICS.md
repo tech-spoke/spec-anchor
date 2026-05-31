@@ -993,6 +993,39 @@ provider / model は `.spec-anchor/config.toml` の `[llm.stage_routing]`(sectio
 - dismiss: `--dismiss-conflict <section_pair_id> --reason` → status=dismissed / resolution.decision_origin=human で永続化。
 - reopen: 却下 conflict の参照 section hash 変化（authentication 24h→48h）→ 再実行で status=pending へ reopen。
 
+### 第13回・batch judge + budget-first 後（follow-up Phase 1-3）
+
+測定日: 2026-05-31　ソース: `docs/spec/sample.md`（6 section）　実 provider: codex gpt-5.4-mini + claude sonnet-4-6 + Qdrant :6333 + FlagEmbedding BGE-M3。
+
+follow-up TODO Phase 1（diagnostics）/ Phase 2（batch judge、judge_batch_size=5）/ Phase 3（budget-first 統一）後の 4 シナリオ計測。conflict_evaluation が batch 化で 21 call → **5 call**（21 pair / batch 5 = 5 batch、fallback 0）。recall は 5 conflict 維持・conflict_points 全 populated。
+
+#### 総 wall サマリー（第12回 = batch 前との比較）
+
+| シナリオ | 第12回(batch前) | 第13回(batch後) | 差分 |
+|---|---|---|---|
+| rebuild (`--rebuild`) | 124〜127 s | **99 s** | −25〜28 s |
+| ALL (`--all`) | (未計測) | **105 s** | — |
+| 未修整インクリメント | (未計測) | **12 s** | judge skip (A案) |
+| 修正後インクリメント | (未計測) | **83 s** | — |
+| conflict_evaluation | 67.9 s / 21 call | **46.9 s / 5 call** | call −16、wall −21 s |
+
+#### per-stage（4 シナリオ）
+
+| ステージ | rebuild | ALL | 未修整inc | 修正後inc | calls(judge時) | provider | model |
+|---|---|---|---|---|---|---|---|
+| section_metadata | 9.6 | 8.8 | skip | 7.5 | 1 | codex | gpt-5.4-mini |
+| section_collection_upsert | 1.2 | 1.1 | skip | 1.1 | 0 | flagembedding | BAAI/bge-m3 |
+| related_sections | 23.5 | 20.2 | skip | 9.1 | 1 | claude_typing | claude-sonnet-4-6 |
+| section_pair_candidate_generation | 0.0 | 0.0 | 0.0 | 0.0 | 0 | — | — (非LLM) |
+| **conflict_evaluation (batch judge)** | **46.9** | **52.4** | **0.0(skip)** | **45.7** | **5 (=batch_count)** | claude_judge | claude-sonnet-4-6 |
+| chapter_anchors | 6.0 | 9.1 | skip | 6.7 | 1 | codex | gpt-5.4-mini |
+| **総 wall (s)** | **99** | **105** | **12** | **83** | | | |
+
+注:
+- 単位は wall 秒。未修整インクリメント（source 不変）は section_pair_candidate_generation / conflict_evaluation とも skip（judge_pair=0 / llm_call=0、A案 no-change skip）。総 12 s は CLI プロセス起動 + FlagEmbedding import の overhead（LLM/embedding 実行なし）。
+- 全 judge シナリオで judge_pair=21 / batch_count=5 / fallback_count=0 / llm_call_count=5 / self_pair=6。mode=all_pairs（15 cross ≤ global_pair_cap 80）。recall=5 conflict・conflict_points 全 populated。
+- batch judge により conflict_evaluation の LLM call が 21→5 に減ったが wall は ~47 s（1 batch が複数 pair 分の出力を生成するため per-call の output token が増える）。それでも総 wall は rebuild 127→99 s に短縮。
+
 ## incremental vs full の差分を見るポイント
 
 - `incremental` 実行では変更セクションのみ LLM を呼ぶ。`section_metadata.llm_calls` がスキップ数の目安になる。

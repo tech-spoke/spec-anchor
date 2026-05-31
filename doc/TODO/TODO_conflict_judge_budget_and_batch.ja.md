@@ -3,7 +3,7 @@
 **起票日**: 2026-05-31
 **起票者**: GPT (設計指摘) + Human (同意) + Claude main (記述)
 **最終更新**: 2026-05-31
-**ステータス**: 計画中（設計方針は概ね合意・CODEX 設計レビュー CR-B01〜B05 反映済み・実装着手前に recall トレードオフを確定）
+**ステータス**: Phase 1/2/3 完了・Phase 4 据え置き（実質完了）。実機 rebuild で llm_call 21→5・総 wall 127s→91s・recall 5 conflict 維持を確認。残: 4シナリオ再計測 + 人間レビュー。コミット e6bc616(P1)/aba7d52(P2)/86fb655+237f7cd(P3)
 **関連設計書**: `doc/TODO/TODO_conflict_detection_pipeline_simplify.ja.md`（本体課題・機能は完了、本 TODO はその性能/設計 follow-up）、`doc/性能測定/METRICS.md` 第12回
 
 **起票時点のソース pin（commit `db39a0d`、行番号 drift 防止用 permalink）**:
@@ -58,10 +58,10 @@ Phase 4: self-pair 見直し (#3)
 
 | Phase | # | sub task ID | 概要 | 状態 | 残作業 | 最終更新 | 完了 commit |
 |---|---|---|---|---|---|---|---|
-| **1** | 4 | T-judge-budget-diagnostics | call budget を diagnostics に可視化(judge_pair_count / batch_count / fallback_count / capped_out_count / self_pair_count / llm_call_count)。以降の before/after 比較基盤 | 計画中 | 実装 + test | 2026-05-31 | — |
-| **2** | 2 | T-batch-judge | section_pair judge を batch 化(3〜5 pair/1 call)+ parse failure/欠落時の per-pair fallback。recall 安全な本丸 | 計画中 | batch size 確定 + 実装 + test + 実機 recall 確認 | 2026-05-31 | — |
-| **3** | 1 | T-budget-first-unify | section 数分岐(small_section_all_pairs_threshold)を廃止し budget-first 単一 pipeline へ。exhaustive は検証用 config に退避 | 計画中 | recall トレードオフ確定 + 実装 + test | 2026-05-31 | — |
-| **4** | 3 | T-self-pair-lightweight | self-pair を lightweight internal check 化 or config 明示。`allow_same_section_pair` は維持(=false へ即変更しない) | 計画中 | 方針確定 + 実装 + test | 2026-05-31 | — |
+| **1** | 4 | T-judge-budget-diagnostics | call budget を diagnostics に可視化(judge_pair_count / batch_count / fallback_count / self_pair_count / llm_call_count)。capped_out は truncated_count に流用 | **完了** | — | 2026-05-31 | e6bc616 |
+| **2** | 2 | T-batch-judge | section_pair judge を batch 化(judge_batch_size 既定5)+ parse failure/欠落時の per-pair fallback + grounding 維持 | **完了** | — | 2026-05-31 | aba7d52 |
+| **3** | 1 | T-budget-first-unify | section 数分岐(small_section_all_pairs_threshold)を廃止し budget-first(global_pair_cap ベース)へ統一。conflict_candidate_mode (budget/exhaustive) | **完了** | — | 2026-05-31 | 86fb655 / 237f7cd(docs) |
+| **4** | 3 | T-self-pair-lightweight | self-pair を lightweight internal check 化 or config 明示。`allow_same_section_pair` は維持(=false へ即変更しない) | **据え置き(2026-05-31 Human 判断)** | — | 2026-05-31 | — |
 
 ## sub task 詳細
 
@@ -111,7 +111,9 @@ Phase 4: self-pair 見直し (#3)
 - batch size 既定値(JSON 崩れリスクと call 削減のバランス)。
 - 実機 recall 確認: batch 化前後で既知矛盾の検出件数が落ちないこと(real provider)。
 
-### #3 T-self-pair-lightweight: self-pair の扱い見直し
+### #3 T-self-pair-lightweight: self-pair の扱い見直し（据え置き）
+
+> **据え置き判断(2026-05-31 Human)**: Phase 2 の batch 化で self-pair も cross-pair も同一 batch に吸収されたため、self-pair 軽量化の削減効果は ~2 batch call まで縮小(batch 化前は 6 call 削減見込みだった)。recall リスクを冒して lightweight 化する費用対効果が低いと判断し、本 sub task は据え置く。将来 self-pair を別扱いする必要が出たら再開する。`allow_same_section_pair=true`(生成して judge する)は維持。
 
 self-pair は今回 21 calls 中 6 件(~29%)を占めるが価値が低い。`allow_same_section_pair = true` は維持しつつ、default では self-pair を LLM judge 全投入せず lightweight internal check に回す、または config で明示有効化する。即 `allow_same_section_pair=false` は recall 影響があるため避ける。
 
