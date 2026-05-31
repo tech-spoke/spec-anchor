@@ -137,7 +137,7 @@ pending conflict があるとき、件数だけを伝えてはいけない。各
 
 - 制御 flag: `should_stop` / `stop_reason` / `blocking_reasons` / `can_continue` / `status="blocked"` / `="failed"` / `="error"` / `="fresh"`
 - freshness の理由 (enum): `dirty_or_stale_source` / `stale_config_or_schema` / `watcher_running` / `watcher_queue_pending` / `failed_required_artifact`
-- 正常完了系の field 名: `updated_sources` / `failed_sources` / `failed_sections` / `retrieval_index_status` / `pending_conflict_count` / `stale_dismissal_count` / `auto_dismissed_conflict_count` / `auto_dismissed_conflict_ids` / `regenerated_chapter_anchors`
+- 正常完了系の field 名: `updated_sources` / `failed_sources` / `failed_sections` / `retrieval_index_status` / `pending_conflict_count` / `stale_dismissal_count` / `auto_resolved_conflict_count` / `auto_resolved_conflict_ids` / `regenerated_chapter_anchors`
 - パイプライン段階名: `section_metadata_generation` / `related_sections` / `retrieval_index` / `chapter_anchors` / `section_pair_candidate_generation_status`
 - 内部 path / 答案 field 名: `inject_result.<...>` / `freshness_report` / `evidence_origin` / `support_refs`
 - conflict の raw field 名: `conflict_id` / `why_conflicting` / `why_llm_cannot_decide` / `source_refs` (= 上記の人間向け見出しへ置換する)

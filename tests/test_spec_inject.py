@@ -210,22 +210,6 @@ def _pending_conflict(conflict_id: str = "conflict-auth-session") -> dict[str, A
     }
 
 
-def _auto_dismissed_conflict(conflict_id: str = "auto-dismissed-conflict") -> dict[str, Any]:
-    item = _pending_conflict(conflict_id)
-    item["status"] = "dismissed"
-    item["resolution"] = {
-        "decision": "dismiss",
-        "reason": "Source update recheck no longer requires human conflict review.",
-        "valid_scope": "global",
-        "referenced_source_refs": list(item["source_refs"]),
-        "decision_origin": "auto_source_update",
-        "previous_status": "pending",
-        "applied_at": "2026-05-06T00:00:00Z",
-        "auto_dismiss_reason": "source_update_recheck_pair_absent",
-    }
-    return item
-
-
 def _write_conflict_review_state(project_root: Path, items: list[dict[str, Any]]) -> None:
     from spec_anchor.freshness import build_freshness_report
 

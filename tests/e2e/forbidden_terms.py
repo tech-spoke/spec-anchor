@@ -62,8 +62,8 @@ _NORMAL_COMPLETION_FIELDS = (
     "failed_sections",
     "pending_conflict_count",
     "stale_dismissal_count",
-    "auto_dismissed_conflict_count",
-    "auto_dismissed_conflict_ids",
+    "auto_resolved_conflict_count",
+    "auto_resolved_conflict_ids",
     "regenerated_chapter_anchors",
 )
 

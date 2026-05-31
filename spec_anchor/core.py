@@ -593,7 +593,7 @@ def _run_spec_core_unlocked(
     if not detection_enabled:
         # Detection off: do not generate candidates or call the judge. Existing
         # Conflict Review Items are preserved (absence is not reliable, so no
-        # auto-dismiss on pair absence).
+        # auto-remove on pair absence).
         section_pair_candidate_diagnostics = {
             "status": "disabled",
             "section_count": len(sections),
@@ -603,13 +603,13 @@ def _run_spec_core_unlocked(
             "recheck_count": 0,
             "self_pair_count": 0,
         }
-        allow_pair_absent_auto_dismiss = False
+        allow_pair_absent_auto_remove = False
     elif not changed_this_run:
         # No-change incremental skip: no section source_hash changed and the
         # Purpose / Core-Concept hashes are unchanged, so skip candidate
         # generation and the judge. The merge still runs (over existing items +
         # empty new) so dismiss/reopen staleness bookkeeping stays correct, but
-        # absence is not reliable here (nothing was judged) -> no auto-dismiss.
+        # absence is not reliable here (nothing was judged) -> no auto-remove.
         section_pair_candidate_diagnostics = {
             "status": "skipped_unchanged",
             "section_count": len(sections),
@@ -619,7 +619,7 @@ def _run_spec_core_unlocked(
             "recheck_count": 0,
             "self_pair_count": 0,
         }
-        allow_pair_absent_auto_dismiss = False
+        allow_pair_absent_auto_remove = False
     else:
         emit("core_section_pair_candidate_generation_start")
         cand = generate_section_pair_candidates(
@@ -710,9 +710,9 @@ def _run_spec_core_unlocked(
         # absence-reliable redefinition (CR-001): a pair's absence is only
         # trustworthy when every pair was judged, i.e. all_pairs mode with no
         # truncation. retrieval_cap / truncation -> not reliable -> do not
-        # auto-dismiss on absence. Changed existing conflicts are still
+        # auto-remove on absence. Changed existing conflicts are still
         # force-rechecked via the generator's recheck union regardless.
-        allow_pair_absent_auto_dismiss = (
+        allow_pair_absent_auto_remove = (
             cand.diagnostics.get("mode") == "all_pairs"
             and int(cand.diagnostics.get("truncated_count") or 0) == 0
         )
@@ -740,13 +740,13 @@ def _run_spec_core_unlocked(
                     for u in conflict_usage_list
                 ],
             )
-    conflict_review_items, auto_dismissed_conflict_ids = _merge_conflict_items(
+    conflict_review_items, auto_resolved_conflict_ids = _merge_conflict_items(
         existing_conflict_items,
         new_items,
         non_pending_signals=non_pending_conflict_signals,
         current_source_hashes=current_hashes,
         generated_at=generated_at,
-        allow_pair_absent_auto_dismiss=allow_pair_absent_auto_dismiss,
+        allow_pair_absent_auto_remove=allow_pair_absent_auto_remove,
     )
     conflict_review_items = _ensure_context_base_hashes(
         conflict_review_items,
@@ -952,8 +952,8 @@ def _run_spec_core_unlocked(
         "potential_conflicts": potential_conflicts,
         "conflict_review_items": conflict_review_items,
         "pending_conflict_count": pending_conflict_count,
-        "auto_dismissed_conflict_count": len(auto_dismissed_conflict_ids),
-        "auto_dismissed_conflict_ids": auto_dismissed_conflict_ids,
+        "auto_resolved_conflict_count": len(auto_resolved_conflict_ids),
+        "auto_resolved_conflict_ids": auto_resolved_conflict_ids,
         "stale_dismissal_count": stale_dismissal_count,
         "freshness_report": freshness_report,
         "warnings": result_warnings,
@@ -1332,8 +1332,8 @@ def _blocked_core_result(
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
-        "auto_dismissed_conflict_count": 0,
-        "auto_dismissed_conflict_ids": [],
+        "auto_resolved_conflict_count": 0,
+        "auto_resolved_conflict_ids": [],
         "stale_dismissal_count": 0,
         "freshness_report": report,
         "warnings": list(report.get("warnings") or []),
@@ -1380,8 +1380,8 @@ def _config_error_core_result(
         "potential_conflicts": [],
         "conflict_review_items": [],
         "pending_conflict_count": 0,
-        "auto_dismissed_conflict_count": 0,
-        "auto_dismissed_conflict_ids": [],
+        "auto_resolved_conflict_count": 0,
+        "auto_resolved_conflict_ids": [],
         "stale_dismissal_count": 0,
         "freshness_report": report,
         "warnings": list(report.get("warnings") or []),
@@ -3574,7 +3574,7 @@ def _merge_conflict_items(
     non_pending_signals: Sequence[Mapping[str, Any]] | None = None,
     current_source_hashes: Mapping[str, str] | None = None,
     generated_at: str | None = None,
-    allow_pair_absent_auto_dismiss: bool = False,
+    allow_pair_absent_auto_remove: bool = False,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     merged: dict[str, dict[str, Any]] = {}
     resolved_pair_keys: set[tuple[str, str]] = set()
@@ -3590,7 +3590,7 @@ def _merge_conflict_items(
     signal_ids = {str(signal.get("conflict_id") or "") for signal in signals}
     active_ids = {conflict_id for conflict_id in signal_ids if conflict_id}
     new_ids = {str(item.get("conflict_id") or "") for item in new if isinstance(item, Mapping)}
-    auto_dismissed_conflict_ids: list[str] = []
+    auto_resolved_conflict_ids: list[str] = []
 
     for item in existing:
         current = dict(item)
@@ -3598,10 +3598,11 @@ def _merge_conflict_items(
         if current.get("status") == "dismissed" and _pending_conflict_sources_changed(
             current, current_hashes
         ):
-            # Dismissal evidence changed: reopen for re-triage instead of
+            # Human dismissal evidence changed: reopen for re-triage instead of
             # suppressing the pair (TODO #4). Inserted before the suppression
             # set is built so the reopened pending item is replaced by a fresh
-            # conflict (or auto-dismissed) later in this function.
+            # conflict (if still conflicting) or deleted (if the recheck now
+            # resolves it) later in this function.
             merged[conflict_id] = _reopen_dismissed_conflict(
                 current, generated_at=generated_at
             )
@@ -3634,20 +3635,19 @@ def _merge_conflict_items(
             continue
         if not _pending_conflict_sources_changed(item, current_hashes):
             continue
-        if conflict_id in signal_ids:
-            reason = "source_update_recheck_non_pending"
-        elif allow_pair_absent_auto_dismiss and conflict_id not in active_ids:
-            reason = "source_update_recheck_pair_absent"
-        else:
+        resolved_by_recheck = conflict_id in signal_ids
+        pair_absent = allow_pair_absent_auto_remove and conflict_id not in active_ids
+        if not (resolved_by_recheck or pair_absent):
             continue
-        merged[conflict_id] = _auto_dismiss_pending_conflict(
-            item,
-            current_source_hashes=current_hashes,
-            reason=reason,
-            generated_at=generated_at,
-        )
-        auto_dismissed_conflict_ids.append(conflict_id)
-    return list(merged.values()), auto_dismissed_conflict_ids
+        # A source update either resolved the conflict (judge returned a
+        # non-pending signal) or removed the pair (section deleted / renamed).
+        # Delete the item instead of retaining it as dismissed: `dismissed` is
+        # reserved for human decisions, which reopen on source change. An
+        # auto-resolved conflict carries no human judgment to preserve, and
+        # retaining it would accumulate and inflate force-recheck cost.
+        del merged[conflict_id]
+        auto_resolved_conflict_ids.append(conflict_id)
+    return list(merged.values()), auto_resolved_conflict_ids
 
 
 def _pending_conflict_sources_changed(
@@ -3685,7 +3685,7 @@ def _reopen_dismissed_conflict(
     ``base_source_hashes`` no longer match the current Source Specs, the human
     dismissal is treated as stale: the item returns to ``pending`` so the next
     conflict evaluation re-triages it. If the pair no longer conflicts, the
-    later auto-dismiss pass (or a fresh non-pending signal) removes it again.
+    later auto-resolve pass deletes it again.
     """
 
     updated = deepcopy(dict(item))
@@ -3696,80 +3696,6 @@ def _reopen_dismissed_conflict(
     updated.pop("resolution", None)
     updated.pop("last_decision", None)
     return updated
-
-
-def _auto_dismiss_pending_conflict(
-    item: Mapping[str, Any],
-    *,
-    current_source_hashes: Mapping[str, str],
-    reason: str,
-    generated_at: str | None = None,
-) -> dict[str, Any]:
-    updated = deepcopy(dict(item))
-    now = generated_at or _nowish()
-    source_refs = [
-        deepcopy(ref)
-        for ref in updated.get("source_refs", [])
-        if isinstance(ref, Mapping)
-    ]
-    resolution: dict[str, Any] = {
-        "decision": "dismiss",
-        "reason": "Source update recheck no longer requires human conflict review.",
-        "valid_scope": "global",
-        "referenced_source_refs": source_refs,
-        "decision_origin": "auto_source_update",
-        "previous_status": "pending",
-        "applied_at": now,
-        "auto_dismiss_reason": reason,
-    }
-    updated["status"] = "dismissed"
-    updated["valid_scope"] = "global"
-    updated["resolution"] = resolution
-    updated["stale_dismissal"] = False
-    updated["updated_at"] = now
-    updated["base_source_hashes"] = _current_base_source_hashes(
-        updated,
-        current_source_hashes=current_source_hashes,
-    )
-    return updated
-
-
-def _current_base_source_hashes(
-    item: Mapping[str, Any],
-    *,
-    current_source_hashes: Mapping[str, str],
-) -> list[dict[str, str]]:
-    refs: list[str] = []
-    for base in item.get("base_source_hashes", []):
-        if isinstance(base, Mapping):
-            source_ref = str(
-                base.get("source_ref")
-                or base.get("source_section_id")
-                or base.get("ref")
-                or ""
-            )
-            if source_ref:
-                refs.append(source_ref)
-    for ref in item.get("source_refs", []):
-        if isinstance(ref, Mapping):
-            source_ref = str(
-                ref.get("source_section_id")
-                or ref.get("source_ref")
-                or ref.get("ref")
-                or ""
-            )
-            if source_ref:
-                refs.append(source_ref)
-    result: list[dict[str, str]] = []
-    seen: set[str] = set()
-    for source_ref in refs:
-        if source_ref in seen:
-            continue
-        seen.add(source_ref)
-        current_hash = current_source_hashes.get(source_ref)
-        if current_hash is not None:
-            result.append({"source_ref": source_ref, "hash": str(current_hash)})
-    return result
 
 
 def _conflict_pair_key_from_item(item: Mapping[str, Any]) -> tuple[str, str] | None:

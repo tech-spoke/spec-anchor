@@ -40,7 +40,7 @@ def test_reopen_when_dismissal_evidence_changes() -> None:
         [item],
         [],
         current_source_hashes={"sec-1": "NEW", "sec-2": "h2"},
-        allow_pair_absent_auto_dismiss=False,
+        allow_pair_absent_auto_remove=False,
     )
     result = {i["conflict_id"]: i for i in merged}["cnf-1"]
     assert result["status"] == "pending"
@@ -53,7 +53,7 @@ def test_dismissal_kept_when_sources_unchanged() -> None:
         [item],
         [],
         current_source_hashes={"sec-1": "old", "sec-2": "h2"},
-        allow_pair_absent_auto_dismiss=False,
+        allow_pair_absent_auto_remove=False,
     )
     result = {i["conflict_id"]: i for i in merged}["cnf-1"]
     assert result["status"] == "dismissed"

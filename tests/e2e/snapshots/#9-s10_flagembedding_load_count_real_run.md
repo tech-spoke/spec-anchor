@@ -35,7 +35,7 @@
 | **`FlagEmbeddingBgeM3Provider.__init__` 呼び出し回数** | **修正前 2 → 修正後 1** | ✅ provider 共有で 1 回に |
 | **`BGEM3FlagModel(...)` 構築 (実 weights load) 回数** | **修正前 2 → 修正後 1** | ✅ **1 回の core 実行で 1 回 load (修正済み)** |
 | stdout の構造 | `json.load()` が成功し top-level **21 keys** を持つ単一 JSON object | ✅ Agent が `json.loads(stdout)` 直呼び可 |
-| stdout の top-level keys (代表) | `auto_dismissed_conflict_count` / `conflict_review_items` / `pending_conflict_count` / `section_pair_candidate_generation_status` / `related_sections_status` / `retrieval_index_status` / `status` / ... 計 21 keys (claim 系 status は廃止済み) | CLI の正常応答スキーマ |
+| stdout の top-level keys (代表) | `auto_resolved_conflict_count` / `conflict_review_items` / `pending_conflict_count` / `section_pair_candidate_generation_status` / `related_sections_status` / `retrieval_index_status` / `status` / ... 計 21 keys (claim 系 status は廃止済み) | CLI の正常応答スキーマ |
 | `Loading weights:` 進捗バー出現 (stdout) | 0 | ✅ 進捗バー抑制は有効 |
 
 ## 【修正前】BGE-M3 が 2 回 load されていた call site

@@ -2009,9 +2009,13 @@ def test_t_i04_non_pending_conflicts_with_becomes_potential_conflict_warning(
     assert _freshness(result)["status"] == "fresh"
 
 
-def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
+def test_t_conflict_source_update_removes_resolved_recheck(
     tmp_path: Path,
 ) -> None:
+    """A pending conflict whose sources change and re-judge as resolved is
+    deleted from the Conflict Review Items, not retained as dismissed.
+    `dismissed` is reserved for human decisions (T-auto-resolve-delete)."""
+
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
@@ -2035,18 +2039,14 @@ def test_t_conflict_source_update_auto_dismisses_non_pending_recheck(
         _run_spec_core(project_root, provider=FixedConflictIdResolvedProvider("resolved"))
     )
 
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "dismissed"
-    assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert item["resolution"]["previous_status"] == "pending"
-    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_non_pending"
-    assert item["resolution"]["applied_at"]
-    assert item["resolution"]["referenced_source_refs"]
+    assert all(
+        item["conflict_id"] != conflict_id for item in result["conflict_review_items"]
+    ), "auto-resolved conflict must be deleted, not retained as dismissed"
     assert result["pending_conflict_count"] == (
-        pending_count_before - result["auto_dismissed_conflict_count"]
+        pending_count_before - result["auto_resolved_conflict_count"]
     )
-    assert result["auto_dismissed_conflict_count"] >= 1
-    assert conflict_id in result["auto_dismissed_conflict_ids"]
+    assert result["auto_resolved_conflict_count"] >= 1
+    assert conflict_id in result["auto_resolved_conflict_ids"]
 
 
 def test_t_conflict_recheck_without_source_change_keeps_pending(
@@ -2077,23 +2077,19 @@ def test_t_conflict_recheck_without_source_change_keeps_pending(
     item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
     assert item["status"] == "pending"
     assert result["pending_conflict_count"] == pending_count_before
-    assert result["auto_dismissed_conflict_count"] == 0
-    assert result["auto_dismissed_conflict_ids"] == []
+    assert result["auto_resolved_conflict_count"] == 0
+    assert result["auto_resolved_conflict_ids"] == []
     assert _freshness(result)["status"] == "fresh"
     assert "pending_conflict" not in _freshness(result).get("blocking_reasons", [])
 
 
-def test_t_conflict_source_update_auto_dismisses_on_recheck(
+def test_t_conflict_source_update_removes_on_recheck(
     tmp_path: Path,
 ) -> None:
     """Section_pair path: when a pending conflict's sources change, the pair is
     force-rechecked (recheck union). If the judge now resolves it, the existing
-    pending item is auto-dismissed with reason ``source_update_recheck_non_pending``.
-
-    (Under the prior claim path this surfaced as ``source_update_recheck_pair_absent``
-    because the changed pair simply dropped out of the candidate set. With the
-    section_pair generator the changed conflict is always rejudged, so the
-    non-pending recheck path is the one that fires.)"""
+    pending item is deleted from the Conflict Review Items (not retained as
+    dismissed). dismissed is reserved for human decisions (T-auto-resolve-delete)."""
 
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
@@ -2108,17 +2104,16 @@ def test_t_conflict_source_update_auto_dismisses_on_recheck(
 
     paths["main"].write_text(paths["main"].read_text().replace("forbids FEATURE_X", "allows FEATURE_X"))
     # Resolved judge (conflict_outcome defaults to "resolved") -> the rechecked
-    # pair yields a non-pending signal, so the existing pending item is dismissed.
+    # pair yields a non-pending signal, so the existing pending item is deleted.
     result = _result_dict(
         _run_spec_core(project_root, provider=FakeSpecCoreProvider())
     )
 
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "dismissed"
-    assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_non_pending"
-    assert result["auto_dismissed_conflict_count"] >= 1
-    assert conflict_id in result["auto_dismissed_conflict_ids"]
+    assert all(
+        item["conflict_id"] != conflict_id for item in result["conflict_review_items"]
+    ), "auto-resolved conflict must be deleted, not retained as dismissed"
+    assert result["auto_resolved_conflict_count"] >= 1
+    assert conflict_id in result["auto_resolved_conflict_ids"]
 
 
 def test_t_conflict_detection_disabled_does_not_call_judge(
@@ -2173,7 +2168,7 @@ def test_t_conflict_detection_disabled_does_not_call_judge(
         "detection disabled の run は conflict judge を呼んではならない"
     )
     assert result["section_pair_candidate_generation_status"] == "disabled"
-    assert result["auto_dismissed_conflict_count"] == 0
+    assert result["auto_resolved_conflict_count"] == 0
     item = next(
         item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id
     )
@@ -2214,9 +2209,55 @@ def test_conflict_budget_diagnostics_surface_in_core_result_and_progress(
     assert conflict_stage["llm_call_count"] == conflict_diagnostics["llm_call_count"]
 
 
-def test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_ref(
+def test_t_conflict_source_update_still_conflicting_keeps_pending(
     tmp_path: Path,
 ) -> None:
+    """Safety-core (T-auto-resolve-delete): when a pending conflict's source
+    changes but the re-judge STILL reports a conflict (the human's edit did not
+    resolve it), the item must stay pending and must NOT be auto-removed. A
+    failed fix must never silently drop the conflict."""
+
+    project_root = tmp_path / "project"
+    paths = _write_project(project_root)
+    paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
+    pending = _result_dict(
+        _run_spec_core(project_root, all_mode=True, provider=FakeSpecCoreProvider("unresolved"))
+    )
+    pending_count_before = pending["pending_conflict_count"]
+    conflict_id = _conflict_item_touching_source(
+        pending["conflict_review_items"],
+        "#0003-beta",
+    )["conflict_id"]
+
+    # Drift the beta section hash but keep it conflicting; judge stays unresolved.
+    paths["main"].write_text(
+        paths["main"].read_text().replace(
+            "Beta forbids FEATURE_X when enabled by config.",
+            "Beta strictly forbids FEATURE_X when enabled by config.",
+        )
+    )
+    result = _result_dict(
+        _run_spec_core(project_root, provider=FakeSpecCoreProvider("unresolved"))
+    )
+
+    item = next(
+        item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id
+    )
+    assert item["status"] == "pending", (
+        "a still-conflicting pair after a source change must stay pending"
+    )
+    assert result["auto_resolved_conflict_count"] == 0
+    assert conflict_id not in result["auto_resolved_conflict_ids"]
+    assert result["pending_conflict_count"] == pending_count_before
+
+
+def test_t_conflict_source_update_removes_heading_slug_change_dangling_ref(
+    tmp_path: Path,
+) -> None:
+    """A pending conflict whose referenced section is renamed (heading slug
+    change) becomes a dangling pair: in all_pairs mode it is auto-removed
+    (deleted), not retained as dismissed (T-auto-resolve-delete)."""
+
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
@@ -2244,17 +2285,19 @@ def test_t_conflict_source_update_auto_dismisses_heading_slug_change_dangling_re
         _run_spec_core(project_root, provider=FakeSpecCoreProvider("resolved"))
     )
 
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "dismissed"
-    assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_pair_absent"
-    assert conflict_id in result["auto_dismissed_conflict_ids"]
-    assert not any(ref.endswith("#0003-beta") for ref in _base_source_refs(item))
+    assert all(
+        item["conflict_id"] != conflict_id for item in result["conflict_review_items"]
+    ), "dangling-pair conflict must be deleted, not retained as dismissed"
+    assert conflict_id in result["auto_resolved_conflict_ids"]
 
 
-def test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref(
+def test_t_conflict_source_update_removes_deleted_section_dangling_ref(
     tmp_path: Path,
 ) -> None:
+    """A pending conflict whose referenced section is deleted becomes a dangling
+    pair: in all_pairs mode it is auto-removed (deleted), not retained as
+    dismissed (T-auto-resolve-delete)."""
+
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
     paths["main"].write_text(paths["main"].read_text().replace("allows FEATURE_X", "forbids FEATURE_X"))
@@ -2280,17 +2323,18 @@ def test_t_conflict_source_update_auto_dismisses_deleted_section_dangling_ref(
         _run_spec_core(project_root, provider=FakeSpecCoreProvider("resolved"))
     )
 
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "dismissed"
-    assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert item["resolution"]["auto_dismiss_reason"] == "source_update_recheck_pair_absent"
-    assert conflict_id in result["auto_dismissed_conflict_ids"]
-    assert not any(ref.endswith("#0003-beta") for ref in _base_source_refs(item))
+    assert all(
+        item["conflict_id"] != conflict_id for item in result["conflict_review_items"]
+    ), "dangling-pair conflict must be deleted, not retained as dismissed"
+    assert conflict_id in result["auto_resolved_conflict_ids"]
 
 
-def test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api(
+def test_t_conflict_source_update_removes_through_watcher_internal_api(
     tmp_path: Path,
 ) -> None:
+    """Auto-resolve deletion also fires through the watcher core entry point
+    (T-auto-resolve-delete)."""
+
     project_root = tmp_path / "project"
     paths = _write_project(project_root)
     watcher_core = _required_function(
@@ -2326,11 +2370,11 @@ def test_t_conflict_source_update_auto_dismisses_through_watcher_internal_api(
         )
     )
 
-    item = next(item for item in result["conflict_review_items"] if item["conflict_id"] == conflict_id)
-    assert item["status"] == "dismissed"
-    assert item["resolution"]["decision_origin"] == "auto_source_update"
-    assert result["auto_dismissed_conflict_count"] >= 1
-    assert conflict_id in result["auto_dismissed_conflict_ids"]
+    assert all(
+        item["conflict_id"] != conflict_id for item in result["conflict_review_items"]
+    ), "auto-resolved conflict must be deleted, not retained as dismissed"
+    assert result["auto_resolved_conflict_count"] >= 1
+    assert conflict_id in result["auto_resolved_conflict_ids"]
 
 
 def test_t_i15_spec_core_uses_atomic_context_update_and_writes_freshness_last(

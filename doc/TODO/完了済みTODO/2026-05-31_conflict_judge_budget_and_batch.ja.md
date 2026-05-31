@@ -3,8 +3,9 @@
 **起票日**: 2026-05-31
 **起票者**: GPT (設計指摘) + Human (同意) + Claude main (記述)
 **最終更新**: 2026-05-31
-**ステータス**: Phase 1/2/3 完了・Phase 4 据え置き（実質完了）。実機 rebuild で llm_call 21→5・総 wall 127s→91s・recall 5 conflict 維持を確認。残: 4シナリオ再計測 + 人間レビュー。コミット e6bc616(P1)/aba7d52(P2)/86fb655+237f7cd(P3)
-**関連設計書**: `doc/TODO/TODO_conflict_detection_pipeline_simplify.ja.md`（本体課題・機能は完了、本 TODO はその性能/設計 follow-up）、`doc/性能測定/METRICS.md` 第12回
+**ステータス**: **CLOSE（2026-05-31 Human 指示）**。Phase 1/2/3 完了・Phase 4 据え置き。実機 rebuild で llm_call 21→5・総 wall 127s→97s・recall 5 conflict 維持を確認。4シナリオ再計測完了（`doc/性能測定/METRICS.md` 第13回・per-scenario 表）。コミット e6bc616(P1)/aba7d52(P2)/86fb655+237f7cd(P3)。
+> **close 範囲の限定**: 本 TODO の scope は性能最適化であり、metrics + recall 維持 + unit/integration で完結。batch + budget-first でコードが変わったことの **behavioral 再確認（dismiss/reopen 一巡の production E2E 取り直し）は本 TODO の scope 外**で、後続 `TODO_conflict_detection_pipeline_simplify.ja.md` #8 実装後の production E2E 取り直し（= #2/#1 の gate）に畳む。Phase 4（self-pair lightweight 化）は Human 判断で据え置き（batch 化後は低価値）。
+**関連設計書**: `doc/TODO/TODO_conflict_detection_pipeline_simplify.ja.md`（本体課題・機能は完了、本 TODO はその性能/設計 follow-up）、`doc/性能測定/METRICS.md` 第13回
 
 **起票時点のソース pin（commit `db39a0d`、行番号 drift 防止用 permalink）**:
 - `spec_anchor/section_pair_candidates.py`: https://github.com/tech-spoke/spec-anchor/blob/db39a0d/spec_anchor/section_pair_candidates.py

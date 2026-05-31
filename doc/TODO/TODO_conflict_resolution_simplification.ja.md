@@ -6,6 +6,8 @@
 **ステータス**: 実装・pytest 検証済み / production E2E ゲートは後続課題が先決のため保留（superseded）
 
 > **2026-05-30 supersede メモ**: 本 TODO の残ゲート（production E2E + 人間レビュー）に着手したところ、矛盾の **検出経路**（`spec_claims → claim_retrieval → triage → conflict_evaluation` の claim 多段）が「簡素化」課題内で逆に重くなっていたことが判明した（実 provider 56 section で総 wall 353 秒、`doc/性能測定/METRICS.md` 第9回）。検出経路を section_pair 単段へ切り直すまで production E2E を回しても作り直し前のコードを検証することになるため、**production E2E は後続課題 `doc/TODO/TODO_conflict_detection_pipeline_simplify.ja.md` の完了後に実施する**（このゲートは後続課題へ superseded）。本 TODO で確定済みの方針（矛盾 = 注入情報、pending/dismissed の 2 値、dismiss CLI が唯一の却下口、freshness 簡素化）は維持され、後続課題は検出 **経路** のみを作り直す。
+
+> **2026-05-31 cross-ref メモ（dismiss=human-only の確定）**: 後続課題 `TODO_conflict_detection_pipeline_simplify.ja.md` #8（T-auto-resolve-delete）で、source 更新により自動解消した矛盾を **dismissed 化せず item 削除** へ変更する（auto 解消 2 reason `source_update_recheck_non_pending` / `pair_absent` 対象、human dismiss は現状維持）。これにより本 TODO 成功条件 #4「却下口は `--dismiss-conflict` の 1 つだけ」が**実装上も真**になる（`dismissed` 箱に入るのは人間判断だけ）。本 TODO の close は #8 完了 + production E2E 取り直し（現コードで人間 dismiss→reopen / auto 解消→削除 / 修正失敗→pending 維持 を実 LLM で確認）+ 人間レビューの後。
 **関連設計書**: `doc/EXTERNAL_DESIGN.ja.md`（decision payload 節 L801-826 / freshness の `pending_conflict` / §8.7 停止カテゴリ⑤）、`doc/EXTERNAL_SPEC_DRAFT.ja.md`（§2.7 / §4 core 出力 / §5・§6 停止出力 / §6.1.6 inject-conflicts / §11 全体）、`spec_anchor/conflict_review.py`、`spec_anchor/core.py`、`spec_anchor/freshness.py`、`spec_anchor/section_metadata.py`（#7 degraded 源）、`spec_anchor/cli.py`、`tests/e2e/`（#8）、`.claude/commands/spec-inject.md` / `spec-realign.md` / `spec-core.md`、`CLAUDE.md` ルール 4 / ルール 5（完全削除）
 
 ## 全体目的

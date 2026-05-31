@@ -2,10 +2,10 @@
 
 **起票日**: 2026-05-30
 **起票者**: Human (設計判断) + GPT (レビュー) + Claude main (調査・記述)
-**最終更新**: 2026-05-30
-**ステータス**: 実装・実機検証ほぼ完了（#1〜#4・#6 完了、#5 実装完了・人間レビュー待ち、#7 実機計測 + production E2E 一巡 PASS）。残: #9-s10 evidence 再生成 / min_dense_score 実 Qdrant キャリブレーション / 人間レビュー。コミット列 2285c49→ce69820→e44a558→73ca0c7→3aebc46→feba231→992eca5→21c6384→96b5822
+**最終更新**: 2026-05-31
+**ステータス**: 実装・実機検証ほぼ完了（#1〜#4・#6 完了、#5 実装完了・人間レビュー待ち、#7 実機計測 + production E2E 一巡 PASS）。**#8（auto 解消 → item 削除）を 2026-05-31 追加（設計判断確定・未着手）**。残: #8 実装 + テスト書換 + doc 同期 / production E2E 取り直し（batch+budget-first+#8 後の現コードで dismiss/reopen/削除を再確認）/ #9-s10 evidence 再生成 / min_dense_score 実 Qdrant キャリブレーション / 人間レビュー。コミット列 2285c49→ce69820→e44a558→73ca0c7→3aebc46→feba231→992eca5→21c6384→96b5822
 
-> **性能/設計 follow-up（2026-05-31・未完了）**: 機能 correctness(検出・conflict_points・dismiss/reopen)は緑だが、conflict judge が **1 pair 1 LLM call の brute-force**(6 section=21 calls、12 section=78 calls)で suite/CI/実運用に重い。section 数分岐(`small_section_all_pairs_threshold`)廃止 + budget-first 統一 + batch judge + self-pair 軽量化を `doc/TODO/TODO_conflict_judge_budget_and_batch.ja.md` に起票。**本体の機能は完了だが性能面は当該 follow-up TODO 完了まで未完了扱い**。
+> **性能/設計 follow-up（2026-05-31・CLOSE 済み）**: 機能 correctness(検出・conflict_points・dismiss/reopen)は緑だが、conflict judge が **1 pair 1 LLM call の brute-force**(6 section=21 calls、12 section=78 calls)で suite/CI/実運用に重かった。section 数分岐(`small_section_all_pairs_threshold`)廃止 + budget-first 統一 + batch judge を `doc/TODO/完了済みTODO/2026-05-31_conflict_judge_budget_and_batch.ja.md`（旧 `TODO_conflict_judge_budget_and_batch.ja.md`、2026-05-31 close）で実施。実機 rebuild で llm_call 21→5・総 wall 127s→97s・recall 維持（`doc/性能測定/METRICS.md` 第13回）。self-pair 軽量化(Phase 4)は据え置き。**性能面の follow-up は完了。残るは本 TODO #8（auto 解消 → item 削除）と production E2E 取り直し**。
 >
 > **実機検証サマリー（2026-05-31）**: 実 provider（codex gpt-5.4-mini / claude sonnet-4-6 / Qdrant :6333 / FlagEmbedding BGE-M3）で `docs/spec/sample.md`（6 section）を検証。full rebuild 124〜143s（conflict_evaluation 62s / 21 calls = all_pairs 15 cross + 6 self）、no-change incremental 1s（A案 skip 機能・judge 0 calls）。production E2E 一巡 PASS: 既知矛盾検出（recall 維持、4〜5件）→ conflict_points が実 LLM で populate（21c6384 で LLM 出力契約を item schema に整合する defect 修正後に確認。修正前は空 + 汎用文言で、fake test が隠していた）→ `--dismiss-conflict` で却下永続化 → 参照 section hash 変更で reopen。`pytest --skip-external` 661 passed/22 skipped。詳細は `doc/性能測定/METRICS.md` 第12回。
 **関連設計書**: `doc/EXTERNAL_DESIGN.ja.md`（§4.1 保持物の物理配置 / decision payload 節 / freshness / Agentic Search path）、`doc/EXTERNAL_SPEC_DRAFT.ja.md`、`spec_anchor/core.py`（`_spec_claims_enabled` L2872-2876・stale artifact read L622-640・spec_claims 経路 L1919 付近）、`spec_anchor/conflict_review.py`（`select_conflict_judging_pairs` L336・`evaluate_conflicts`）、`spec_anchor/claim_retrieval.py` / `spec_anchor/spec_claims.py` / `spec_anchor/conflict_candidates.py`（廃止対象）、`doc/TODO/TODO_conflict_resolution_simplification.ja.md`（本課題が supersede するゲート）、`doc/性能測定/METRICS.md`（性能根拠）
@@ -79,6 +79,7 @@ sections
 | 5 | T-contract-realign | 外部/内部設計・仕様 draft・テンプレ・§4.1 を新経路へ整合 | 実装完了・人間レビュー待ち | 人間レビュー / #9-s10 evidence 再生成 | 2026-05-31 | 992eca5 / 96b5822 |
 | 6 | T-judge-concurrency | section_pair judge の並列化（ThreadPoolExecutor、入力順保持） | 完了 | — | 2026-05-31 | feba231 |
 | 7 | T-perf-measure | 実 provider で per-stage 計測（full 124〜143s / no-change 1s）+ production E2E 一巡 PASS + #9-s01 再生成 | 実機計測・E2E 完了 | #9-s10 evidence 再生成（要 load-count run）/ min_dense_score 実 Qdrant キャリブレーション / 人間レビュー | 2026-05-31 | 96b5822 |
+| 8 | T-auto-resolve-delete | auto 解消（`source_update_recheck_non_pending` / `pair_absent`）を dismissed 化でなく **item 削除** へ。`auto_dismissed_conflict_*` → `auto_resolved_conflict_*` 改名。human dismiss は現状維持 | 実装・テスト・doc 完了（fake/`--skip-external` 緑） | production E2E 取り直しで実機確認 / 人間レビュー | 2026-05-31 | (未コミット) |
 
 ## sub task 詳細
 
@@ -514,6 +515,56 @@ doc 記載の field / status / config key が実 emit / 実コードと突合し
 #### 依存 / scope 外
 
 #2〜#6 の検出経路が確定してから測る。#6 並列化の前後で測る。
+
+### #8 T-auto-resolve-delete: auto 解消を dismissed 化でなく item 削除へ
+
+**状態**: 実装・テスト・doc 完了（fake provider / `pytest --skip-external` 緑）。残: production E2E 取り直しで実機確認 + 人間レビュー
+**担当**: Claude main（2026-05-31 実装）
+**最終更新**: 2026-05-31
+
+#### 実装結果（2026-05-31・未コミット）
+
+- `spec_anchor/core.py`: `_merge_conflict_items` の auto 経路を「dismissed 化」→「`del merged[conflict_id]`（削除）」へ。`_auto_dismiss_pending_conflict` / `_current_base_source_hashes`（auto 専用 helper）を削除。診断変数・外部フィールドを `auto_dismissed_conflict_*` → `auto_resolved_conflict_*` へ改名。内部 predicate `allow_pair_absent_auto_dismiss` → `allow_pair_absent_auto_remove` へ改名し、関連コメントを「dismiss」→「remove」へ更新。reopen / human dismiss / force-recheck は不変。
+- テスト: `test_spec_core.py` の auto-dismiss assert 6 本を削除 assert へ書換・関数名を `..._removes_*` へ改名。新設 `test_t_conflict_source_update_still_conflicting_keeps_pending`（source 変更 + まだ不整合 → pending 維持・`auto_resolved_conflict_count==0`、= (A) 欠落テスト）。`test_dismiss_staleness.py` / `test_spec_inject.py`（未使用 `_auto_dismissed_conflict` helper 削除）/ `tests/e2e/forbidden_terms.py` / snapshot `#9-s01`・`#9-s10` を新フィールド名へ更新。
+- doc: `EXTERNAL_DESIGN.ja.md`（§矛盾再評価の挙動 + CoreResult フィールド一覧 + §7.2.2 相当の auto 解消記述）、`spec-core.md`（template + installed）の field 名を更新。
+- 検証: `git grep auto_dismissed_conflict` = spec_anchor/ + tests/ + active docs で 0 件。targeted + 影響 suite 190 passed。
+
+#### 背景（当初・実装前）
+
+section_pair 経路では、pending conflict の参照 section が変更され、再 judge で「もう矛盾でない」と判定された場合、その item を `status=dismissed` / `resolution.decision_origin=auto_source_update` で **自動 dismiss** している（`core.py` の `_auto_dismiss_pending_conflict` L3701、reason は `source_update_recheck_non_pending` と `source_update_recheck_pair_absent` の 2 種）。
+
+これには次の問題がある（2026-05-31 Human 指摘）。
+
+1. **意味論の混同**: `dismissed` は本来「人間がこれは矛盾でないと判断して抑制した」状態（旧 TODO `TODO_conflict_resolution_simplification.ja.md` の dismiss=human-only 契約）。auto 解消は「客観的にもう矛盾でない」だけで、守るべき人間判断が無い。両者を同じ `dismissed` 箱に同居させると、dismissed の意味が二重になる。
+2. **特別扱いの不整合**: dismissed item は `existing_conflict_items` に残り force-recheck（cap 免除）の watch list に乗る（`section_pair_candidates.py:385`）。だが**一度も flag されていない新規矛盾は retrieval_cap で順位が低ければ見逃される**。過去に解消したペアだけ recall 保証を与えるのは一貫性が無い。retrieval_cap の recall を上げたいなら候補生成を直すのが筋で、解消済みの死蔵ではない。
+3. **蓄積による性能劣化**: 削除しないと auto-dismissed item が `conflict_review_items.json` に無限に溜まる。(a) 毎 run の O(n) hash 比較 + context 注入の肥大、(b) auto-dismiss 時に base hash を現状へ更新するため（`core.py:3730`）、そのセクションを次に編集するたび、過去にそこで解消した dismissed が全部 force-recheck = LLM judge call に化け、batch/budget-first で抑えた判定コストを侵食する。
+
+#### 設計判断（2026-05-31 Human 確定）
+
+- **auto 解消 2 reason（`source_update_recheck_non_pending` / `source_update_recheck_pair_absent`）→ item を削除**（dismissed 化しない）。
+- **human dismiss（`decision_origin=human`）→ 現状維持**（dismissed のまま + 参照 hash 変化で reopen）。これは旧 TODO の #4/#5 契約で、人間判断を再訪するための watch list。auto と違い守るべき判断がある。
+- 結果: status は引き続き pending/dismissed の 2 値。**dismissed は human 判断だけが入る箱**になり、「dismissed に 2 つの意味が同居」が解消される。
+
+#### 対応方針（実装）
+
+- `_merge_conflict_items`（`core.py:3630-3650`）の auto 経路を「`_auto_dismiss_pending_conflict` で dismissed 化」→「**merged から item を除去**」へ。`_auto_dismiss_pending_conflict`（`core.py:3701`）は削除。reopen / human dismiss / force-recheck は触らない。
+- 外部診断フィールド `auto_dismissed_conflict_count` / `auto_dismissed_conflict_ids`（`core.py:955-956` ほか init / 0-default 計 4 箇所）→ **`auto_resolved_conflict_count` / `auto_resolved_conflict_ids` へ改名**（UX「修正で N 件の矛盾が解消されました」を残す）。CLAUDE.md ルール 15 に従い旧名を残さない。
+- doc 同期: `EXTERNAL_DESIGN.ja.md` + `spec_anchor/templates/.claude/commands/spec-core.md`（+ installed `.claude/commands/spec-core.md`）の field 名・挙動記述を更新（実装監査後。ルール 20）。
+
+#### 検証条件
+
+- **削除の観測**: source 変更 + 再 judge が解消 → 当該 conflict_id が `conflict_review_items` から**消えている**（dismissed で残らない）。`auto_resolved_conflict_ids` に id が載る。
+- **pair_absent の削除**: section 削除 / heading slug rename でペア消滅 → 当該 item が消える。
+- **修正失敗 → pending 維持（(A) 欠落テストの新設）**: source 変更 + 再 judge が**まだ不整合** → item は `pending` のまま・削除されない・`auto_resolved_conflict_count==0`。section_pair 経路の安全性中核プロパティで、現状この専用テストが無い。
+- **human dismiss 不変**: `--dismiss-conflict` の dismissed が残り、参照 hash 変化で reopen する既存テスト（`test_dismiss_staleness.py`）が緑のまま。
+- 既存 auto-dismiss assert テスト（`test_t_conflict_source_update_auto_dismisses_*` 等、`test_spec_core.py` に約 28 参照）を削除 assert へ書き換え。
+- grep: `git grep auto_dismissed_conflict` が live コード / test / active docs で 0 件。
+
+#### 依存 / scope 外
+
+- **挙動変更**なので production E2E 取り直し（#7 の再実施）**より前**に実装する。順序: budget/batch TODO close → 本 #8 → production E2E 取り直し → #2 close → #1（resolution_simplification）close。
+- dismiss の意味論を確定させるため、`TODO_conflict_resolution_simplification.ja.md`（#1）の dismiss 契約へ cross-ref（dismiss=human-only が真になる）。
+- human dismiss 側の reopen / retention の見直しは scope 外（#1 の契約議論として別扱い）。
 
 ## 課題全体の完了条件
 
