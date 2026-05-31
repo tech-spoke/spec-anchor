@@ -80,11 +80,16 @@ def test_retrieval_cap_min_dense_score_gates_on_dense_not_fused_score(monkeypatc
         "conflict_candidate_detection": {
             "min_dense_score": 0.55,
             "section_pair_top_k": 8,
-            "global_pair_cap": 200,
+            # 16 sections have 120 cross-pairs; keep the cap just below that
+            # so budget mode uses retrieval_cap without truncating fake hits.
+            "global_pair_cap": 119,
             "allow_same_section_pair": False,
         }
     }
     result = generate_section_pair_candidates(sections, config=config)
+
+    assert result.diagnostics["mode"] == "retrieval_cap"
+    assert result.diagnostics["conflict_candidate_mode"] == "budget"
 
     # Every section is a source; the fake returns the same 3 hits (s0/s1/s2) for
     # each. So s0/s1/s2 also pair via being a SOURCE. To check TARGET gating,
@@ -111,23 +116,24 @@ def test_retrieval_cap_min_dense_score_gates_on_dense_not_fused_score(monkeypatc
     )
 
 
-def test_all_pairs_mode_small_set_produces_all_ij_pairs_plus_self_pairs() -> None:
-    sections = [_section(f"doc.md#s{i}") for i in range(4)]
+def test_budget_mode_default_cap_produces_docs_sample_all_pairs_plus_self_pairs() -> None:
+    sections = [_section(f"doc.md#s{i}") for i in range(6)]
 
     result = generate_section_pair_candidates(sections)
 
     assert result.diagnostics["mode"] == "all_pairs"
-    assert result.diagnostics["section_count"] == 4
-    # 4 choose 2 = 6 cross pairs + 4 self-pairs = 10
-    assert len(result.candidates) == 10
+    assert result.diagnostics["conflict_candidate_mode"] == "budget"
+    assert result.diagnostics["section_count"] == 6
+    # 6 choose 2 = 15 cross pairs + 6 self-pairs = 21
+    assert len(result.candidates) == 21
     cross = [
         c for c in result.candidates if c["left_section_id"] != c["right_section_id"]
     ]
     self_pairs = [
         c for c in result.candidates if c["left_section_id"] == c["right_section_id"]
     ]
-    assert len(cross) == 6
-    assert len(self_pairs) == 4
+    assert len(cross) == 15
+    assert len(self_pairs) == 6
     assert all(c["candidate_origin"] == "all_pairs" for c in result.candidates)
     # canonical order: left <= right for every cross pair.
     for c in cross:
@@ -166,25 +172,38 @@ def test_all_pairs_mode_drops_same_file_pairs_when_disallowed() -> None:
     assert len(self_pairs) == 3
 
 
-def test_retrieval_cap_mode_produces_retrieval_pairs_respects_cap_and_self_pairs() -> None:
-    # > threshold(12) sections -> retrieval_cap mode. Give each a meaningful
-    # metadata summary so build_section_payloads produces dense embedding text.
+def test_budget_mode_tiny_global_pair_cap_uses_retrieval_cap_even_for_small_set(
+    monkeypatch,
+) -> None:
+    from spec_anchor import section_pair_candidates as spc
+
+    # 4 sections have 6 cross-pairs. A cap of 1 forces retrieval_cap even
+    # though the section set is small.
     sections = []
     metadata: dict[str, Any] = {}
-    for i in range(16):
+    for i in range(4):
         sid = f"doc.md#s{i}"
         sections.append(_section(sid, source_hash=f"h{i}"))
         metadata[sid] = {
             "summary": "authentication token session expiry retry rule",
             "search_keys": ["auth", "token", "session", f"rule{i % 3}"],
         }
+
+    hit_ids = [section["source_section_id"] for section in sections]
+
+    def _fake_search(query, **kwargs):  # noqa: ANN001
+        return _FakeResult([_FakeHit(sid, dense_score=1.0) for sid in hit_ids])
+
+    class _FakeRetriever:
+        search = staticmethod(_fake_search)
+
+    monkeypatch.setattr(spc, "_build_retriever", lambda *a, **k: _FakeRetriever())
+
     config = {
         "conflict_candidate_detection": {
-            # RRF fused scores are small (~0.03); use a low threshold so the
-            # in-memory retriever surfaces neighbours in the unit test.
             "min_dense_score": 0.0,
-            "section_pair_top_k": 4,
-            "global_pair_cap": 5,
+            "section_pair_top_k": 3,
+            "global_pair_cap": 1,
         }
     }
 
@@ -193,18 +212,44 @@ def test_retrieval_cap_mode_produces_retrieval_pairs_respects_cap_and_self_pairs
     )
 
     assert result.diagnostics["mode"] == "retrieval_cap"
-    assert result.diagnostics["section_count"] == 16
+    assert result.diagnostics["conflict_candidate_mode"] == "budget"
+    assert result.diagnostics["section_count"] == 4
     retrieval = [
         c for c in result.candidates if c["candidate_origin"] == "section_pair_retrieval"
     ]
-    # cap is 5; retrieval candidates must not exceed it.
-    assert len(retrieval) <= 5
+    # cap is 1; retrieval candidates must not exceed it.
+    assert len(retrieval) <= 1
     assert result.diagnostics["truncated_count"] > 0
-    # self-pairs are cap-exempt: one per section, all 16 present.
+    # self-pairs are cap-exempt: one per section, all 4 present.
     self_pairs = [
         c for c in result.candidates if c["left_section_id"] == c["right_section_id"]
     ]
-    assert len(self_pairs) == 16
+    assert len(self_pairs) == 4
+
+
+def test_exhaustive_conflict_candidate_mode_forces_all_pairs_over_cap() -> None:
+    sections = [_section(f"doc.md#s{i}") for i in range(4)]
+    config = {
+        "conflict_candidate_detection": {
+            "conflict_candidate_mode": "exhaustive",
+            "global_pair_cap": 1,
+        }
+    }
+
+    result = generate_section_pair_candidates(sections, config=config)
+
+    assert result.diagnostics["mode"] == "all_pairs"
+    assert result.diagnostics["conflict_candidate_mode"] == "exhaustive"
+    assert result.diagnostics["truncated_count"] == 0
+    cross = [
+        c for c in result.candidates if c["left_section_id"] != c["right_section_id"]
+    ]
+    self_pairs = [
+        c for c in result.candidates if c["left_section_id"] == c["right_section_id"]
+    ]
+    assert len(cross) == 6
+    assert len(self_pairs) == 4
+    assert all(c["candidate_origin"] == "all_pairs" for c in result.candidates)
 
 
 def test_existing_conflict_recheck_force_included_when_hash_changed_even_over_cap() -> None:
@@ -246,10 +291,16 @@ def test_existing_conflict_recheck_force_included_when_hash_changed_even_over_ca
         section_metadata=metadata,
     )
 
+    assert result.diagnostics["mode"] == "retrieval_cap"
+    assert result.diagnostics["conflict_candidate_mode"] == "budget"
     origins = _origins(result)
     pid = section_pair_id("doc.md#s14", "doc.md#s15")
     assert origins.get(pid) == "existing_conflict_recheck"
     assert result.diagnostics["recheck_count"] == 1
+    self_pairs = [
+        c for c in result.candidates if c["left_section_id"] == c["right_section_id"]
+    ]
+    assert len(self_pairs) == 16
     # cap was 0, so no retrieval pair survived, proving recheck is cap-exempt.
     assert all(
         c["candidate_origin"] != "section_pair_retrieval" for c in result.candidates

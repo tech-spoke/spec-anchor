@@ -10,10 +10,12 @@ Responsibility split (CLAUDE.md rule 3): this generator is the candidate
 not wired into ``core.py`` (a later task does both). It only decides which
 section pairs are worth judging, using:
 
-* an exhaustive ``all_pairs`` enumeration for small section sets, or
-* a retrieval-capped ``section_pair_retrieval`` enumeration (top-k nearest
-  sections per source via the in-memory or Qdrant hybrid retriever) for large
-  sets, plus
+* budget mode, which enumerates every cross-pair only when the full cross-pair
+  set fits ``global_pair_cap`` and otherwise uses retrieval-capped
+  ``section_pair_retrieval`` (top-k nearest sections per source via the
+  in-memory or Qdrant hybrid retriever),
+* exhaustive verification mode, which forces ``all_pairs`` regardless of
+  ``global_pair_cap``, plus
 * self-pairs (cap-exempt) and existing-conflict rechecks (cap-exempt).
 """
 
@@ -35,7 +37,7 @@ from spec_anchor.retrieval_index import (
 
 # Defaults for the [conflict_candidate_detection] config table. Read with
 # `_config_get(config, ("conflict_candidate_detection", <key>), <default>)`.
-DEFAULT_SMALL_SECTION_ALL_PAIRS_THRESHOLD = 12
+DEFAULT_CONFLICT_CANDIDATE_MODE = "budget"
 DEFAULT_SECTION_PAIR_TOP_K = 8
 DEFAULT_GLOBAL_PAIR_CAP = 80
 DEFAULT_MIN_DENSE_SCORE = 0.55
@@ -240,11 +242,6 @@ def generate_section_pair_candidates(
             section_ids.append(sid)
         section_by_id[sid] = section
 
-    threshold = _config_int(
-        config,
-        ("conflict_candidate_detection", "small_section_all_pairs_threshold"),
-        DEFAULT_SMALL_SECTION_ALL_PAIRS_THRESHOLD,
-    )
     section_pair_top_k = _config_int(
         config,
         ("conflict_candidate_detection", "section_pair_top_k"),
@@ -255,6 +252,16 @@ def generate_section_pair_candidates(
         ("conflict_candidate_detection", "global_pair_cap"),
         DEFAULT_GLOBAL_PAIR_CAP,
     )
+    conflict_candidate_mode = str(
+        _config_get(
+            config,
+            ("conflict_candidate_detection", "conflict_candidate_mode"),
+            DEFAULT_CONFLICT_CANDIDATE_MODE,
+        )
+        or DEFAULT_CONFLICT_CANDIDATE_MODE
+    ).strip().lower()
+    if conflict_candidate_mode not in {"budget", "exhaustive"}:
+        conflict_candidate_mode = DEFAULT_CONFLICT_CANDIDATE_MODE
     min_dense_score = _config_float(
         config,
         ("conflict_candidate_detection", "min_dense_score"),
@@ -270,9 +277,6 @@ def generate_section_pair_candidates(
         ("conflict_candidate_detection", "allow_same_section_pair"),
         DEFAULT_ALLOW_SAME_SECTION_PAIR,
     )
-
-    # Algorithm step 2: mode selection.
-    mode = "all_pairs" if len(sections) <= threshold else "retrieval_cap"
 
     truncated_count = 0
     # capped_pairs maps pair_id -> {left, right, origin}; these are subject to
@@ -299,11 +303,23 @@ def generate_section_pair_candidates(
                 "candidate_origin": origin,
             }
 
+    all_pairs_cross_pairs = [
+        (a_id, b_id)
+        for a_id, b_id in combinations(section_ids, 2)
+        if allow_same_source_file_pair or not _same_file(a_id, b_id)
+    ]
+    if conflict_candidate_mode == "exhaustive":
+        mode = "all_pairs"
+    else:
+        mode = (
+            "all_pairs"
+            if global_pair_cap < 0 or len(all_pairs_cross_pairs) <= global_pair_cap
+            else "retrieval_cap"
+        )
+
     if mode == "all_pairs":
         # Algorithm step 3: all i<j combinations.
-        for a_id, b_id in combinations(section_ids, 2):
-            if not allow_same_source_file_pair and _same_file(a_id, b_id):
-                continue
+        for a_id, b_id in all_pairs_cross_pairs:
             _record(capped_pairs, a_id, b_id, "all_pairs")
     else:
         # Algorithm step 4: retrieval_cap.
@@ -402,6 +418,7 @@ def generate_section_pair_candidates(
     diagnostics = {
         "section_count": len(sections),
         "mode": mode,
+        "conflict_candidate_mode": conflict_candidate_mode,
         "generated_count": len(candidates),
         "truncated_count": truncated_count,
         "recheck_count": recheck_count,

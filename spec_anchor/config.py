@@ -114,7 +114,7 @@ class RetrievalConfig:
 @dataclass(frozen=True)
 class ConflictCandidateDetectionConfig:
     enabled: bool = True
-    small_section_all_pairs_threshold: int = 12
+    conflict_candidate_mode: str = "budget"
     section_pair_top_k: int = 8
     global_pair_cap: int = 80
     min_dense_score: float = 0.55
@@ -515,11 +515,17 @@ def _load_conflict_candidate_detection(
     raw_value: Any,
 ) -> ConflictCandidateDetectionConfig:
     table = _optional_table(raw_value, "conflict_candidate_detection")
+    conflict_candidate_mode = (
+        _optional_str(table, "conflict_candidate_detection", "conflict_candidate_mode")
+        or "budget"
+    )
+    if conflict_candidate_mode not in {"budget", "exhaustive"}:
+        raise ConfigError(
+            "conflict_candidate_detection.conflict_candidate_mode must be budget or exhaustive"
+        )
     return ConflictCandidateDetectionConfig(
         enabled=_bool(table, "conflict_candidate_detection", "enabled", True),
-        small_section_all_pairs_threshold=_int(
-            table, "conflict_candidate_detection", "small_section_all_pairs_threshold", 12
-        ),
+        conflict_candidate_mode=conflict_candidate_mode,
         section_pair_top_k=_int(table, "conflict_candidate_detection", "section_pair_top_k", 8),
         global_pair_cap=_int(table, "conflict_candidate_detection", "global_pair_cap", 80),
         min_dense_score=_float(table, "conflict_candidate_detection", "min_dense_score", 0.55),

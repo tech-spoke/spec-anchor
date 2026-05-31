@@ -585,10 +585,11 @@ class _CoreFakeQdrantClient:
         limit: int,
     ) -> _CoreFakeQueryResult:
         # Used by QdrantHybridRetriever.search, which the section_pair conflict
-        # candidate generator drives in retrieval_cap mode (section count over
-        # the all_pairs threshold). Return stored points with a passing score so
-        # neighbour pairs survive the generator's min_dense_score filter; the
-        # generator drops the source section itself and dedupes pairs.
+        # candidate generator drives in retrieval_cap mode when the full
+        # cross-pair set is larger than global_pair_cap. Return stored points
+        # with a passing score so neighbour pairs survive the generator's
+        # min_dense_score filter; the generator drops the source section itself
+        # and dedupes pairs.
         points = [
             _CoreFakePoint(
                 point_id,
@@ -1294,9 +1295,8 @@ section_candidate_top_k = 2
 section_final_top_n = 1
 
 [conflict_candidate_detection]
-small_section_all_pairs_threshold = 1
 section_pair_top_k = 2
-global_pair_cap = 20
+global_pair_cap = 1
 min_dense_score = 0.0
 """
     )
