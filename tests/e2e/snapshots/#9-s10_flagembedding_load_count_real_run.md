@@ -56,7 +56,7 @@ spec_anchor/core.py:471  (_run_spec_core_unlocked → _generate_related_sections
 
 `FlagEmbeddingBgeM3Provider(...)` の構築点は現状 3 箇所 (`spec_anchor/inject.py:586` は `/spec-inject` 用、`spec_anchor/retrieval_index.py:390` / `:1010` が retrieval 用)。1 回の `/spec-core` では section_collection_upsert と related_sections がそれぞれ独自に retriever を構築するため **2 回 load** になる。
 
-> 補足: section 数 > 12 の retrieval_cap mode では section_pair candidate generation も独自に retriever を構築するため、その場合は **3 回 load** になりうる (本計測の sample は 6 section = all_pairs mode で candidate generation は retrieval を呼ばない)。
+> 補足 (2026-05-31 再計測で訂正): この「retrieval_cap mode では 3 回 load」懸念は **shared provider 化で解消済み**。`core.py` は `_build_shared_embedding_provider_for_core` で 1 回だけ provider を構築し、section_collection_upsert / related_sections / section_pair candidate generation の全 retriever へ注入する (`generate_section_pair_candidates(..., embedding_provider=shared)`)。下記「2026-05-31 再計測 (現コード)」のとおり retrieval_cap mode でも load = 1。
 
 ## per-stage 所要時間 (どこで load が起きるか)
 
@@ -70,6 +70,17 @@ spec_anchor/core.py:471  (_run_spec_core_unlocked → _generate_related_sections
 | コマンド本体実行中 stdout を stderr へ redirect | `spec_anchor/cli.py` `_stdout_reserved_for_result()` context manager | ライブラリが何かを書いても stdout は汚染されない |
 
 これらにより stdout は valid JSON 単体に保たれる (#9 = stdout を valid JSON 単体にする契約は満たされている)。
+
+## 2026-05-31 再計測 (現コード = section_pair + batch + budget-first + #8 後)
+
+`FlagEmbedding.BGEM3FlagModel.__init__` を wrap して構築回数を数え、`spec-anchor core --rebuild` を in-process 実行する probe を 2 構成で再実施した。
+
+| 構成 | section 数 | candidate mode | BGEM3FlagModel 構築回数 | 構築 call site |
+|---|---|---|---|---|
+| `docs/spec/sample.md` | 6 | all_pairs | **1** | `core.py:_build_shared_embedding_provider_for_core` → `retrieval_index.py:211` |
+| temp(29_api + 30_矛盾例 + 23_fields) | 21 | **retrieval_cap** | **1** | 同上 (候補生成も shared provider を注入され独自 load しない) |
+
+両構成とも 1 回の `/spec-core` で BGE-M3 load = 1。retrieval_cap mode でも candidate generation は shared provider を使うため、旧版が懸念した「3 回 load」は発生しない。stdout は 21 keys の valid JSON 単体、`Loading weights:` の stdout 混入 0。
 
 ## 結論
 
