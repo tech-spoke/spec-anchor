@@ -1,0 +1,1215 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{
+  "auto_resolved_conflict_count": 3,
+  "auto_resolved_conflict_ids": [
+    "section_pair:sha256:v1:43bcd5b08da14fdac838298a88ae0fbb3bce313831d935a9a79c90376df8420f",
+    "section_pair:sha256:v1:82384a4015ee312181087d08fa6c7058cfe86243db5e36c700ddb78ca69d6d75",
+    "section_pair:sha256:v1:ba084ef7f58f8bf00bff1cb69a629e48c021314cc02083af4f83ffb3ad463152"
+  ],
+  "conflict_review_items": [
+    {
+      "base_source_hashes": [
+        {
+          "hash": "7bf4082da66932b57938194321bfe346733d96ef46ac3e6fd1b882d258bfa546",
+          "source_ref": "docs/spec/sample.md#0002-authentication"
+        },
+        {
+          "hash": "3f4a7e5094a0ca51eeaf30da2a50d05fb2cd177a9ee6d303552882ecd37f49de",
+          "source_ref": "docs/spec/sample.md#0004-session-termination"
+        },
+        {
+          "hash": "990acca6acc83466e32ea730efba95ff4f5cadddb716751355ba26615a18f48b",
+          "source_ref": "docs/core/purpose.md"
+        },
+        {
+          "hash": "b5c8c7e3e58676afe4837cb64a7715467f7f3d4cbd098a5c0f4cb7f8b499d3e5",
+          "source_ref": "docs/core/concept.md"
+        }
+      ],
+      "conflict_id": "section_pair:sha256:v1:6b8d7987c31ccfaed3489b0bc6a9bda1449ac407fbab771d320f8692fcfcd02d",
+      "conflict_points": [
+        {
+          "left_excerpt": "A successful login establishes a session that expires after 48 hours of inactivity.",
+          "right_excerpt": "Sessions that exceed the 24-hour inactivity window are automatically purged by a background sweep that runs every five minutes.",
+          "severity": "high",
+          "why_conflicting": "Authentication states sessions expire after 48 hours of inactivity; Session Termination states sessions are purged after 24 hours of inactivity. The two sections specify different numeric thresholds for the same inactivity-expiry rule, making the effective timeout undefined."
+        }
+      ],
+      "created_at": "1970-01-01T00:00:00Z",
+      "recommended_next_action": "A human author must decide the canonical inactivity timeout value and update one of the two sections to match. Once reconciled, the section hashes will change and this pair should be re-evaluated.",
+      "related_sections": [],
+      "section_pair": {
+        "candidate_origin": "all_pairs",
+        "left_section_id": "docs/spec/sample.md#0002-authentication",
+        "right_section_id": "docs/spec/sample.md#0004-session-termination",
+        "section_pair_id": "section_pair:sha256:v1:6b8d7987c31ccfaed3489b0bc6a9bda1449ac407fbab771d320f8692fcfcd02d"
+      },
+      "severity": "high",
+      "source_refs": [
+        {
+          "heading_path": [
+            "Sample Specification",
+            "Authentication"
+          ],
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "7bf4082da66932b57938194321bfe346733d96ef46ac3e6fd1b882d258bfa546",
+          "source_ref": "docs/spec/sample.md#0002-authentication",
+          "source_section_id": "docs/spec/sample.md#0002-authentication",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 484,
+            "start_line": 5,
+            "start_offset": 173
+          }
+        },
+        {
+          "heading_path": [
+            "Sample Specification",
+            "Session Termination"
+          ],
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "3f4a7e5094a0ca51eeaf30da2a50d05fb2cd177a9ee6d303552882ecd37f49de",
+          "source_ref": "docs/spec/sample.md#0004-session-termination",
+          "source_section_id": "docs/spec/sample.md#0004-session-termination",
+          "source_span": {
+            "end_line": 16,
+            "end_offset": 907,
+            "start_line": 13,
+            "start_offset": 720
+          }
+        }
+      ],
+      "stale_dismissal": false,
+      "status": "pending",
+      "updated_at": "1970-01-01T00:00:00Z",
+      "valid_scope": "section_pair",
+      "why_conflicting": "Authentication specifies a 48-hour inactivity timeout for sessions, while Session Termination specifies a 24-hour inactivity window after which sessions are purged. These two values directly contradict each other for the same concept (session inactivity expiry), creating an ambiguous contract for implementors and auditors.",
+      "why_llm_cannot_decide": "Both values (48 hours and 24 hours) appear as authoritative specifications within the same document. Neither the shared Purpose (smoke-check fixture for spec-anchor CLI) nor the Core Concept (minimal sample designed not to fire LLM conflicts) clarifies which timeout is canonical. The Core Concept explicitly states the sample is designed to avoid LLM-detected conflicts, yet this numerical discrepancy is a real contradiction that cannot be resolved without a human authorship decision on the intended inactivity threshold."
+    }
+  ],
+  "diagnostics": {
+    "chapter_anchors": {
+      "failed_chapter_ids": [],
+      "failure_reasons_by_chapter": {},
+      "status": "success"
+    },
+    "conflict_evaluation": {
+      "batch_count": 5,
+      "fallback_count": 0,
+      "judge_pair_count": 21,
+      "llm_call_count": 5
+    },
+    "related_sections": {
+      "diagnostics": [
+        {
+          "candidate_generation_elapsed_sec": 0.0847150720001082,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "message": "Related Section candidates were generated for the selected source scope.",
+          "reason_code": "related_section_candidate_generation_scope",
+          "severity": "info",
+          "stage": "candidate_generation"
+        },
+        {
+          "action": "dropped",
+          "item_index": 2,
+          "message": "evidence_terms are not present in candidate information or snippets",
+          "reason_code": "unsupported_evidence_terms",
+          "severity": "warning",
+          "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+          "stage": "related_section_selection",
+          "target_section_id": "docs/spec/sample.md#0006-account-lockout"
+        },
+        {
+          "message": "Per-source validation counts after LLM selection.",
+          "raw_candidate_count": 5,
+          "reason_code": "related_selection_counts",
+          "severity": "warning",
+          "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+          "stage": "related_sections",
+          "valid_candidate_count": 4,
+          "validation_drop_reasons": {
+            "unsupported_evidence_terms": 1
+          },
+          "validation_dropped_count": 1
+        },
+        {
+          "cache_hits": 0,
+          "cache_misses": 5,
+          "cache_rejected_hits": 0,
+          "cache_size": 40,
+          "message": "pair-level relation typing cache statistics",
+          "reason_code": "related_typing_cache_stats",
+          "severity": "warning",
+          "stage": "related_section_selection"
+        },
+        {
+          "added_or_changed_source_section_ids": [
+            "docs/spec/sample.md#0005-session-retention-policy"
+          ],
+          "batch_count": 1,
+          "candidate_count": 5,
+          "candidate_count_for_selection": 5,
+          "candidate_generation_elapsed_sec": 0.0847150720001082,
+          "candidate_generation_partial_mode": "source_changed_only",
+          "candidate_generation_source_count": 1,
+          "changed_source_section_ids": [
+            "docs/spec/sample.md#0005-session-retention-policy"
+          ],
+          "changed_target_relations_inherited": true,
+          "changed_target_section_ids": [
+            "docs/spec/sample.md#0005-session-retention-policy"
+          ],
+          "fallback_regenerated": false,
+          "inherited_source_count": 5,
+          "inherited_source_section_ids": [
+            "docs/spec/sample.md#0001-sample-specification",
+            "docs/spec/sample.md#0002-authentication",
+            "docs/spec/sample.md#0003-authorization",
+            "docs/spec/sample.md#0004-session-termination",
+            "docs/spec/sample.md#0006-account-lockout"
+          ],
+          "llm_calls": 1,
+          "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+          "partial_mode": "source_changed_only",
+          "partial_regeneration": true,
+          "reason_code": "related_sections_partial_regenerated",
+          "removed_source_count": 0,
+          "removed_source_exclusion": true,
+          "removed_source_section_ids": [],
+          "requires_full_regeneration_for_complete_target_recheck": true,
+          "selection_elapsed_sec": 11.37326132000453,
+          "selection_source_count": 1,
+          "severity": "info",
+          "source_centric_partial": true,
+          "source_centric_partial_regeneration": true,
+          "stage": "related_sections",
+          "unchanged_source_inheritance": true
+        }
+      ],
+      "qdrant_backend_failure": null,
+      "status": "success"
+    },
+    "retrieval_index": {
+      "status": "success"
+    },
+    "section_metadata": {
+      "artifact_role": "retrieval_aid_not_evidence",
+      "diagnostics": [],
+      "generated_at": "1970-01-01T00:00:00Z",
+      "generation": {
+        "cache_key_inputs": [
+          "stable_section_uid",
+          "source_hash",
+          "prompt_version",
+          "model",
+          "provider",
+          "metadata_version",
+          "limits",
+          "enabled_fields"
+        ],
+        "enabled_fields": {
+          "related_sections": true,
+          "search_keys": true,
+          "summary": true
+        },
+        "identifier_extractor_version": "identifier-extractor-v1",
+        "limits": {
+          "llm_batch_max_chars": 12000,
+          "llm_batch_max_sections": 8,
+          "search_keys_max": 32,
+          "section_summary_max_chars": 480
+        },
+        "metadata_version": 1,
+        "model": "gpt-5.4-mini",
+        "prompt_version": "section-metadata-v3",
+        "provider": "codex",
+        "stage": "section_metadata"
+      },
+      "metadata_version": 1,
+      "prompt_version": "section-metadata-v3",
+      "sections": [
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Specification"
+          ],
+          "identifiers": [
+            "spec-anchor end-to-end",
+            "LLM"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample specification",
+                "spec-anchor",
+                "end-to-end"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample specification",
+                "spec-anchor",
+                "end-to-end"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample specification",
+                "spec-anchor",
+                "end-to-end"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample specification",
+                "spec-anchor",
+                "end-to-end"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0005-session-retention-policy"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "sample specification",
+                "spec-anchor",
+                "end-to-end"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0006-account-lockout"
+            }
+          ],
+          "search_keys": [
+            "end-to-end spec verification",
+            "real language model environment",
+            "retrieval environment",
+            "source spec fixture",
+            "minimal sample specification",
+            "Sample Specification"
+          ],
+          "section_id": "docs/spec/sample.md#0001-sample-specification",
+          "semantic_hash": "d38b23e149e533162e783439d275dbcd3dc2ad64eec73b60ccaeb90ec809cbbd",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "92df3c78db56dca9427628c132803723fc9d3f59f15804fb48948895883e4c2c",
+          "source_section_id": "docs/spec/sample.md#0001-sample-specification",
+          "stable_section_uid": "0550b74a869f95ec",
+          "summary": "Minimal source-spec fixture for end-to-end verification in a real large-language-model and retrieval environment."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Specification",
+            "Authentication"
+          ],
+          "identifiers": [
+            "IP",
+            "required"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "login",
+                "administrator",
+                "service accounts"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "inactivity",
+                "48 hours"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "inactivity",
+                "retention"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/sample.md#0005-session-retention-policy"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "login attempts",
+                "rate-limit",
+                "failed"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/sample.md#0006-account-lockout"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0001-sample-specification"
+            }
+          ],
+          "search_keys": [
+            "user login",
+            "email and password sign-in",
+            "session expiration",
+            "inactivity timeout",
+            "login rate limiting",
+            "attempt limits",
+            "remote IP protection",
+            "administrator account security",
+            "multi-factor authentication",
+            "service account exemption",
+            "account access control",
+            "authentication requirements",
+            "Sample Specification",
+            "Authentication"
+          ],
+          "section_id": "docs/spec/sample.md#0002-authentication",
+          "semantic_hash": "77bbbe8bf5bd4e683ce26f771194ccf85112a9e43bc34f32789c4cd2c41044cb",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "7bf4082da66932b57938194321bfe346733d96ef46ac3e6fd1b882d258bfa546",
+          "source_section_id": "docs/spec/sample.md#0002-authentication",
+          "stable_section_uid": "4f781fbcf17adcf4",
+          "summary": "Authentication flow for user sign-in with email and password, session creation and inactivity timeout, login rate limiting by remote IP, and stronger protection for administrator access through multi-factor authentication while service accounts are exempt."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Specification",
+            "Authorization"
+          ],
+          "identifiers": [
+            "API",
+            "UI"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "authenticate",
+                "API keys",
+                "service accounts"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "depends_on",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "administrator",
+                "accounts"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0006-account-lockout"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0005-session-retention-policy"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0001-sample-specification"
+            }
+          ],
+          "search_keys": [
+            "administrator privileges",
+            "resource ownership access",
+            "service account access",
+            "api key authentication",
+            "login interface exclusion",
+            "Sample Specification",
+            "Authorization"
+          ],
+          "section_id": "docs/spec/sample.md#0003-authorization",
+          "semantic_hash": "7ec34514e2fffc6ef22db023494765a608ece9e6101a7f53716243e032db8971",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "542918fb6eab4f5c26f74464c55022d0a85ce3c1917a0719959458152e647756",
+          "source_section_id": "docs/spec/sample.md#0003-authorization",
+          "stable_section_uid": "789420154d18ed9f",
+          "summary": "Administrators can manage any resource, regular users can only read and update resources they own, and service accounts use API keys instead of the login interface."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Specification",
+            "Session Termination"
+          ],
+          "identifiers": [],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "24-hour inactivity",
+                "purged"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "impacts",
+              "target_section_id": "docs/spec/sample.md#0005-session-retention-policy"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "inactivity",
+                "24 hours"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0006-account-lockout"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0001-sample-specification"
+            }
+          ],
+          "search_keys": [
+            "logout session invalidation",
+            "automatic session cleanup",
+            "background sweep",
+            "expired session removal",
+            "inactivity window",
+            "Sample Specification",
+            "Session Termination"
+          ],
+          "section_id": "docs/spec/sample.md#0004-session-termination",
+          "semantic_hash": "c5251240f1b9a8e099d5ee8d8a5f4650f5bd3c0d41fd9b01f4f731e255ca9ab1",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "3f4a7e5094a0ca51eeaf30da2a50d05fb2cd177a9ee6d303552882ecd37f49de",
+          "source_section_id": "docs/spec/sample.md#0004-session-termination",
+          "stable_section_uid": "5528aacff62867c8",
+          "summary": "Logging out ends the current session immediately, and expired sessions are removed automatically by a background sweep that runs every five minutes."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Specification",
+            "Session Retention Policy"
+          ],
+          "identifiers": [
+            "timeout"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "session",
+                "inactivity",
+                "terminated"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "session",
+                "inactivity timeout"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0001-sample-specification"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            }
+          ],
+          "search_keys": [
+            "session retention policy",
+            "archived audit log retention",
+            "read-only audit history",
+            "compliance audit records",
+            "terminated session records",
+            "minimum retention period",
+            "inactive session handling",
+            "session expiration rules",
+            "account lockout behavior",
+            "session termination rules",
+            "Sample Specification",
+            "Session Retention Policy"
+          ],
+          "section_id": "docs/spec/sample.md#0005-session-retention-policy",
+          "semantic_hash": "b889a9acb2b221f49f03191619b19ba2c91631621fd5713fd7660f57f355275e",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "67789ef140a1daaeb8854741973780d38968dcdfe874924a650871687faff427",
+          "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+          "stable_section_uid": "16fdbbc67321d785",
+          "summary": "Archived session records must be kept in a read-only audit log for at least 30 days for compliance and audit needs, without keeping any session active or changing timeout, lockout, or termination behavior."
+        },
+        {
+          "generated_at": "1970-01-01T00:00:00Z",
+          "heading_path": [
+            "Sample Specification",
+            "Account Lockout"
+          ],
+          "identifiers": [
+            "failed"
+          ],
+          "llm_generation_status": "success",
+          "llm_provider": "codex",
+          "metadata_version": 1,
+          "prompt_version": "section-metadata-v3",
+          "related_sections": [
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "high",
+              "evidence_terms": [
+                "login attempts",
+                "rate-limit",
+                "failed"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "same_policy",
+              "target_section_id": "docs/spec/sample.md#0002-authentication"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "administrator accounts",
+                "manual unlock"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0003-authorization"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0004-session-termination"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "low",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0005-session-retention-policy"
+            },
+            {
+              "channels": [
+                "search_key_match"
+              ],
+              "confidence": "medium",
+              "evidence_terms": [
+                "sample specification"
+              ],
+              "generated_at": "1970-01-01T00:00:00Z",
+              "relation_hint": "see_also",
+              "target_section_id": "docs/spec/sample.md#0001-sample-specification"
+            }
+          ],
+          "search_keys": [
+            "account lockout",
+            "failed login attempts",
+            "temporary lockout period",
+            "lockout rejection behavior",
+            "manual unlock for administrators",
+            "Sample Specification",
+            "Account Lockout"
+          ],
+          "section_id": "docs/spec/sample.md#0006-account-lockout",
+          "semantic_hash": "d3b0351c8b9f8b755610056d01c05edbf728ace0eff1e7e06d39e4fa5f78bce7",
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "1a3addf414634968c32e361e576a8ad06a84c0ef1a7a1170d35e9b22f8bf4756",
+          "source_section_id": "docs/spec/sample.md#0006-account-lockout",
+          "stable_section_uid": "8be0e57789a6d08c",
+          "summary": "An account locks after three consecutive failed logins for 30 minutes; during lockout, additional attempts are rejected without increasing the rate counter, and administrator accounts require manual unlock by a system operator."
+        }
+      ],
+      "summary_search_keys_are_evidence": false
+    },
+    "section_metadata_generation": {
+      "batch_sizes": [
+        1
+      ],
+      "blocking_reasons": [],
+      "cache_hits": 5,
+      "diagnostics": {},
+      "failed_sections": [],
+      "freshness_status": "fresh",
+      "generated_section_ids": [
+        "docs/spec/sample.md#0005-session-retention-policy"
+      ],
+      "llm_calls": 1,
+      "reused_section_ids": [
+        "docs/spec/sample.md#0001-sample-specification",
+        "docs/spec/sample.md#0002-authentication",
+        "docs/spec/sample.md#0003-authorization",
+        "docs/spec/sample.md#0004-session-termination",
+        "docs/spec/sample.md#0006-account-lockout"
+      ],
+      "warnings": []
+    },
+    "section_pair_candidate_generation": {
+      "conflict_candidate_mode": "budget",
+      "generated_count": 21,
+      "mode": "all_pairs",
+      "recheck_count": 3,
+      "section_count": 6,
+      "self_pair_count": 6,
+      "status": "success",
+      "truncated_count": 0
+    },
+    "verify_index": {
+      "executed": false,
+      "reason": "not_requested"
+    }
+  },
+  "failed_sections": [],
+  "failed_sources": [],
+  "freshness_report": {
+    "blocking_reasons": [],
+    "counts": {
+      "pending_conflict_count": 1
+    },
+    "diagnostics": {
+      "chapter_anchors": {
+        "failed_chapter_ids": [],
+        "failure_reasons_by_chapter": {},
+        "status": "success"
+      },
+      "conflict_evaluation": {
+        "batch_count": 5,
+        "fallback_count": 0,
+        "judge_pair_count": 21,
+        "llm_call_count": 5
+      },
+      "related_sections": {
+        "diagnostics": [
+          {
+            "candidate_generation_elapsed_sec": 0.0847150720001082,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 1,
+            "message": "Related Section candidates were generated for the selected source scope.",
+            "reason_code": "related_section_candidate_generation_scope",
+            "severity": "info",
+            "stage": "candidate_generation"
+          },
+          {
+            "action": "dropped",
+            "item_index": 2,
+            "message": "evidence_terms are not present in candidate information or snippets",
+            "reason_code": "unsupported_evidence_terms",
+            "severity": "warning",
+            "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+            "stage": "related_section_selection",
+            "target_section_id": "docs/spec/sample.md#0006-account-lockout"
+          },
+          {
+            "message": "Per-source validation counts after LLM selection.",
+            "raw_candidate_count": 5,
+            "reason_code": "related_selection_counts",
+            "severity": "warning",
+            "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+            "stage": "related_sections",
+            "valid_candidate_count": 4,
+            "validation_drop_reasons": {
+              "unsupported_evidence_terms": 1
+            },
+            "validation_dropped_count": 1
+          },
+          {
+            "cache_hits": 0,
+            "cache_misses": 5,
+            "cache_rejected_hits": 0,
+            "cache_size": 40,
+            "message": "pair-level relation typing cache statistics",
+            "reason_code": "related_typing_cache_stats",
+            "severity": "warning",
+            "stage": "related_section_selection"
+          },
+          {
+            "added_or_changed_source_section_ids": [
+              "docs/spec/sample.md#0005-session-retention-policy"
+            ],
+            "batch_count": 1,
+            "candidate_count": 5,
+            "candidate_count_for_selection": 5,
+            "candidate_generation_elapsed_sec": 0.0847150720001082,
+            "candidate_generation_partial_mode": "source_changed_only",
+            "candidate_generation_source_count": 1,
+            "changed_source_section_ids": [
+              "docs/spec/sample.md#0005-session-retention-policy"
+            ],
+            "changed_target_relations_inherited": true,
+            "changed_target_section_ids": [
+              "docs/spec/sample.md#0005-session-retention-policy"
+            ],
+            "fallback_regenerated": false,
+            "inherited_source_count": 5,
+            "inherited_source_section_ids": [
+              "docs/spec/sample.md#0001-sample-specification",
+              "docs/spec/sample.md#0002-authentication",
+              "docs/spec/sample.md#0003-authorization",
+              "docs/spec/sample.md#0004-session-termination",
+              "docs/spec/sample.md#0006-account-lockout"
+            ],
+            "llm_calls": 1,
+            "message": "Related Sections were regenerated for changed/added sources and inherited for unchanged sources. Target-side changes do not trigger re-typing; use --all for complete re-evaluation.",
+            "partial_mode": "source_changed_only",
+            "partial_regeneration": true,
+            "reason_code": "related_sections_partial_regenerated",
+            "removed_source_count": 0,
+            "removed_source_exclusion": true,
+            "removed_source_section_ids": [],
+            "requires_full_regeneration_for_complete_target_recheck": true,
+            "selection_elapsed_sec": 11.37326132000453,
+            "selection_source_count": 1,
+            "severity": "info",
+            "source_centric_partial": true,
+            "source_centric_partial_regeneration": true,
+            "stage": "related_sections",
+            "unchanged_source_inheritance": true
+          }
+        ],
+        "qdrant_backend_failure": null,
+        "status": "success"
+      },
+      "retrieval_index": {
+        "status": "success"
+      },
+      "section_metadata_generation": {
+        "batch_sizes": [
+          1
+        ],
+        "blocking_reasons": [],
+        "cache_hits": 5,
+        "diagnostics": {},
+        "failed_sections": [],
+        "freshness_status": "fresh",
+        "generated_section_ids": [
+          "docs/spec/sample.md#0005-session-retention-policy"
+        ],
+        "llm_calls": 1,
+        "reused_section_ids": [
+          "docs/spec/sample.md#0001-sample-specification",
+          "docs/spec/sample.md#0002-authentication",
+          "docs/spec/sample.md#0003-authorization",
+          "docs/spec/sample.md#0004-session-termination",
+          "docs/spec/sample.md#0006-account-lockout"
+        ],
+        "warnings": []
+      },
+      "section_pair_candidate_generation": {
+        "conflict_candidate_mode": "budget",
+        "generated_count": 21,
+        "mode": "all_pairs",
+        "recheck_count": 3,
+        "section_count": 6,
+        "self_pair_count": 6,
+        "status": "success",
+        "truncated_count": 0
+      },
+      "verify_index": {
+        "executed": false,
+        "reason": "not_requested"
+      }
+    },
+    "pending_conflict_count": 1,
+    "status": "fresh",
+    "warnings": []
+  },
+  "mode": "incremental",
+  "pending_conflict_count": 1,
+  "potential_conflicts": [
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0003-authorization",
+      "level": "warning",
+      "outcome": "false_positive",
+      "right_section_id": "docs/spec/sample.md#0003-authorization",
+      "warning": "section_a and section_b are identical (same section_id, same semantic_hash, same text). A section cannot conflict with itself."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0004-session-termination",
+      "warning": "section_a is a fixture-purpose preamble with no normative claims. section_b specifies session termination behavior. The two sections cover entirely different concerns and share no overlapping constraints."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0002-authentication",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0003-authorization",
+      "warning": "Authentication and Authorization are complementary sections. Authentication defines how identities are established (email+password, MFA for admins, API keys for service accounts). Authorization defines what each identity class may do. The service-account exemption from MFA in Authentication is consistent with service accounts using API keys and bypassing the login UI in Authorization. No normative contradiction exists."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0003-authorization",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0004-session-termination",
+      "warning": "Authorization defines access-control rules per identity class. Session Termination defines lifecycle rules for sessions. The sections govern independent concerns and share no overlapping constraints."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "level": "warning",
+      "outcome": "false_positive",
+      "right_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "warning": "section_a and section_b are identical (same section_id, same semantic_hash, same text). A section cannot conflict with itself."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0002-authentication",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "warning": "Authentication defines the inactivity timeout for active sessions (48 hours). Session Retention Policy explicitly states it applies only to archived audit logs of terminated sessions and does not override the inactivity timeout or session termination rules. The two sections govern different lifecycles (active session vs. post-termination audit record) and are fully compatible."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0004-session-termination",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "warning": "Session Termination governs inactivity-based purge and explicit logout. Account Lockout governs repeated failed login attempts. The two mechanisms address distinct trigger conditions and are additive rather than contradictory. Account Lockout's statement that rate-limit counters are not incremented during lockout is a refinement of the Authentication rate-limit rule, not a conflict with Session Termination."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "level": "warning",
+      "outcome": "false_positive",
+      "right_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "warning": "Both section_a and section_b are identical: same section_id (docs/spec/sample.md#0005-session-retention-policy), same semantic_hash, same text. A section cannot conflict with itself. This is a duplicate-pair artifact in the input."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0003-authorization",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "warning": "Authorization describes CRUD permissions by role (Admin, Regular user, Service account). Account Lockout describes what happens after consecutive failed login attempts and requires manual operator unlock for administrator accounts. These are complementary rules: Authorization governs what an authenticated account may do; Account Lockout governs how a locked account is reinstated. No logical contradiction exists between them."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "warning": "Section A is a preamble describing the document's purpose as a fixture. Section B specifies account lockout behavior. These sections address entirely different concerns and contain no overlapping or contradicting claims."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "warning": "Session Retention Policy explicitly states it does not override account lockout rules. Account Lockout defines lockout duration and unlock behavior. The retention section defers to lockout rules by name, making these sections complementary and consistent."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "warning": "Section A is a fixture preamble with no normative claims. Section B specifies session retention for audit logs. There is no overlap or contradiction between a meta-description of the document and a specific retention policy."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0002-authentication",
+      "warning": "Section A is a fixture preamble with no normative claims. Section B specifies authentication rules. There is no overlap or contradiction between a meta-description and authentication behavior."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "level": "warning",
+      "outcome": "false_positive",
+      "right_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "warning": "Both section_a and section_b are identical: same section_id, same semantic_hash, same text. A section cannot conflict with itself. This is a self-pair that should be filtered upstream."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0004-session-termination",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "warning": "Session Retention Policy explicitly states it 'does not keep any session active, nor does it override the inactivity timeout, account lockout, or session termination rules described above.' The 30-day archive and the 24-hour purge operate on different objects (audit log records vs active sessions) and the retention section self-declares compatibility with termination rules."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0003-authorization",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "warning": "Authorization governs resource-level permissions (read/create/update/delete by role). Session Retention Policy governs post-termination audit log archival. The two sections address orthogonal concerns with no overlapping claims."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0004-session-termination",
+      "level": "warning",
+      "outcome": "false_positive",
+      "right_section_id": "docs/spec/sample.md#0004-session-termination",
+      "warning": "Both section_a and section_b are the identical section (docs/spec/sample.md#0004-session-termination, stable_section_uid 5528aacff62867c8). A section cannot conflict with itself."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0002-authentication",
+      "level": "warning",
+      "outcome": "false_positive",
+      "right_section_id": "docs/spec/sample.md#0002-authentication",
+      "warning": "Both section_a and section_b are the identical section (docs/spec/sample.md#0002-authentication, stable_section_uid 4f781fbcf17adcf4). A section cannot conflict with itself."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0001-sample-specification",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0003-authorization",
+      "warning": "Section A is a fixture-purpose preamble with no normative rules. Section B is the Authorization rules section. There are no overlapping or contradictory claims between a descriptive introduction and a role-permission specification."
+    },
+    {
+      "kind": "potential_conflict",
+      "left_section_id": "docs/spec/sample.md#0002-authentication",
+      "level": "warning",
+      "outcome": "not_a_conflict",
+      "right_section_id": "docs/spec/sample.md#0006-account-lockout",
+      "warning": "The two sections describe complementary, non-overlapping security mechanisms. Authentication defines rate-limiting at the IP level (5 attempts/min) and session expiry; Account Lockout defines a per-account lockout (after 3 consecutive failures). The lockout section explicitly clarifies that locked-out attempts do not increment the rate-limit counter, showing the authors anticipated both mechanisms coexisting. The administrator requirements (MFA in Authentication, manual unlock in Account Lockout) are additive obligations on the same actor, not contradictory. No numeric threshold or behavioral rule in one section contradicts a rule in the other."
+    }
+  ],
+  "regenerated_chapter_anchors": [
+    "docs/spec/sample.md#sample-specification"
+  ],
+  "related_sections_status": "success",
+  "retrieval_index_status": "success",
+  "section_pair_candidate_generation_status": "success",
+  "skipped_sections": [
+    {
+      "section_id": "docs/spec/sample.md#0001-sample-specification",
+      "source_section_id": "docs/spec/sample.md#0001-sample-specification"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0002-authentication",
+      "source_section_id": "docs/spec/sample.md#0002-authentication"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0003-authorization",
+      "source_section_id": "docs/spec/sample.md#0003-authorization"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0004-session-termination",
+      "source_section_id": "docs/spec/sample.md#0004-session-termination"
+    },
+    {
+      "section_id": "docs/spec/sample.md#0006-account-lockout",
+      "source_section_id": "docs/spec/sample.md#0006-account-lockout"
+    }
+  ],
+  "skipped_sources": [],
+  "stale_dismissal_count": 0,
+  "status": "updated",
+  "updated_sections": [
+    {
+      "section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "source_section_id": "docs/spec/sample.md#0005-session-retention-policy"
+    }
+  ],
+  "updated_sources": [
+    "docs/spec/sample.md"
+  ],
+  "warnings": []
+}
+wall=85.11s

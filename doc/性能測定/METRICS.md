@@ -984,7 +984,7 @@ provider / model は `.spec-anchor/config.toml` の `[llm.stage_routing]`(sectio
 
 - claim era（第11回 5 section）は triage で pair を絞り conflict_evaluation **2 calls**。section_pair は all_pairs で **21 calls** に増加（triage 廃止のトレードオフ）。ただし claim era は別途 spec_claims（per-section LLM）+ triage（per-pair LLM）の overhead があった。
 - section_pair 候補生成は **0 s（非LLM）**で、claim era の spec_claims/claim_retrieval/triage stage（LLM 込み）を置換。
-- 注意点: all_pairs は section 数に対し O(N²) で judge call が増える。section > 12 では retrieval_cap mode（`section_pair_top_k` / `global_pair_cap`）で絞る。`min_dense_score` の閾値対象は実 Qdrant で要キャリブレーション（`TODO_conflict_detection_pipeline_simplify.ja.md` #2 の open item 参照）。
+- 注意点: all_pairs は section 数に対し O(N²) で judge call が増える。section > 12 では retrieval_cap mode（`section_pair_top_k` / `global_pair_cap`）で絞る。`min_dense_score` の閾値対象は実 Qdrant で要キャリブレーション（`doc/TODO/完了済みTODO/2026-05-31_conflict_detection_pipeline_simplify.ja.md` #2 の非ブロッキング follow-up 参照）。
 
 #### production E2E（実 provider 一巡・PASS）
 
@@ -1077,7 +1077,25 @@ batch judge により conflict_evaluation の LLM call が 21→5 に減少。wa
 
 - この run 後の `conflict_review_items.json` は **7 件**（pending 3 + dismissed 4）。全件 `conflict_points` が populated。
 - ただし dismissed 4 件はいずれも `decision_origin=auto_source_update`（reason `source_update_recheck_non_pending`）の**自動 dismiss** であり、**過去セッションから蓄積した残存状態**を含む（一部 item は現 `sample.md` と一致しない過去内容を参照）。この計測は性能を見る目的で state を clean にせず実行したため、**recall の確定値と dismiss/reopen の妥当性はこの数字では判断しない**。
-- クリーンな recall + 人間 dismiss → source hash 変更 → reopen の一巡は、現コード（batch + budget-first 後）に対する **production E2E 取り直し**で確認する（後続手順）。
+- クリーンな recall + 人間 dismiss → source hash 変更 → reopen の一巡は、現コード（batch + budget-first 後）に対する **production E2E 取り直し**で確認する（下記）。
+
+#### production E2E 取り直し（実 provider 一巡・PASS・2026-05-31）
+
+batch + budget-first（follow-up）+ #8（auto 解消 → 削除）後の現コードに対し、`docs/spec/sample.md`（6 section）で実 provider 一巡を実施（codex gpt-5.4-mini / claude sonnet-4-6 / Qdrant :6333 / FlagEmbedding BGE-M3）。state を clean（既存 `conflict_review_items.json` 退避）にしてから実行。各ステップ wall は incremental で 80〜100s。
+
+| # | ステップ | 操作 | 結果 |
+|---|---|---|---|
+| 1 | 検出 | clean `--rebuild` | **3 pending 矛盾**（すべて #0005-session-retention-policy が 24h失効 / 24h purge / lockout と矛盾）。全件 `conflict_points` populated |
+| 2 | 人間 dismiss | `--dismiss-conflict <auth↔retention>` | `status=dismissed` / `resolution.decision_origin=human` で永続化 |
+| 3 | reopen | authentication を 24h→48h 編集 → `core` | 却下していた auth↔retention が **pending へ reopen**（resolution 消去）。再 judge も矛盾と判定し pending 維持。48h 化で auth↔termination の新矛盾も検出（計 4 pending） |
+| 4 | **auto 解消 → 削除（#8）** | retention-policy を矛盾しない文へ編集 → `core` | retention 絡み 3 件が **削除**（`conflict_review_items` から消失、dismissed で残らない）。`auto_resolved_conflict_count=3`。retention 非依存の auth↔termination は pending 維持（計 1 pending） |
+| 5 | **修正失敗 → pending 維持（#8）** | session-termination の sweep 間隔のみ編集（24h purge 維持＝まだ不整合）→ `core` | auth↔termination は **削除されず pending 維持**。`auto_resolved_conflict_count=0`。人間が解消し損ねた矛盾を黙って消さないことを実機で確認 |
+
+計測後 `git checkout docs/spec/sample.md` で復元し、clean `--rebuild` で baseline（3 pending・conflict_points populated）を再生成。`.spec-anchor/` は git 非追跡（再生成可）。
+
+この一巡で、`doc/TODO/完了済みTODO/2026-05-31_conflict_detection_pipeline_simplify.ja.md`（#2）と `doc/TODO/完了済みTODO/2026-05-31_conflict_resolution_simplification.ja.md`（#1）の production E2E gate を **現コード**で満たし、2026-05-31 オーナー承認で両 TODO とも CLOSE。
+
+生証跡（各 step の CoreResult JSON + 生 stdout + FINDINGS + commands.log）は `doc/e2eテスト/evidence/2026-05-31-conflict-auto-resolve-delete/` に保存。オーナーレビューはまずこの FINDINGS.ja.md を入口にする。
 
 ## incremental vs full の差分を見るポイント
 

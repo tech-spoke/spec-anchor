@@ -178,7 +178,7 @@ test:
 ## 依存 / scope 外
 
 - **scope 外 (別課題候補)**: キューファイル本体の廃止と watcher run/idle 判断の snapshot-diff 一本化 (「②大」)、Qdrant retrieval index の atomic swap、更新中の stale-consistent snapshot 提示
-- **触らない**: `watcher_running` 停止理由、`pending_conflict` 経路 (別 TODO `TODO_conflict_resolution_simplification.ja.md` の管轄)
+- **触らない**: `watcher_running` 停止理由、`pending_conflict` 経路 (別 TODO `doc/TODO/完了済みTODO/2026-05-31_conflict_resolution_simplification.ja.md` (close 済み) の管轄)
 - freshness.py は矛盾解決軽量化 TODO も触っている領域。landing 時に該当 TODO の作業と衝突しないか確認する
 
 ## sub task / 課題完了時の更新手順

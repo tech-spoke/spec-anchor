@@ -1,0 +1,31 @@
+# production E2E 取り直し 実行コマンド (2026-05-31, 実 provider)
+# 開始前: 既存 .spec-anchor/context/conflict_review_items.json を退避して clean 化
+
+# Phase 1: クリーン検出
+spec-anchor core --rebuild
+#   -> 3 pending (retention-policy ↔ auth/termination/lockout), conflict_points populated
+
+# Phase 2: 人間 dismiss (auth↔retention)
+spec-anchor core --dismiss-conflict section_pair:sha256:v1:43bcd5b08da14fdac838298a88ae0fbb3bce313831d935a9a79c90376df8420f --reason "E2E retake: human dismiss probe"
+#   -> status=dismissed, decision_origin=human
+
+# Phase 3: reopen (authentication 24h -> 48h で参照 hash 変更)
+#   edit: "expires after 24 hours of inactivity." -> "expires after 48 hours of inactivity."
+spec-anchor core
+#   -> auth↔retention が pending へ reopen。auth↔termination の新矛盾も検出 (計 4 pending)
+
+# Phase 4: auto 解消 -> 削除 (#8)。retention-policy を矛盾しない文へ編集
+#   edit: "all session records must be retained and kept active ... must not be terminated before the 30-day ..."
+#      -> "terminated session records are archived in a read-only audit log ... does not keep any session active, nor override ..."
+spec-anchor core
+#   -> retention 絡み 3 件削除, auto_resolved_conflict_count=3, auth↔termination は pending 維持 (計 1 pending)
+
+# Phase 5: 修正失敗 -> pending 維持 (#8)。session-termination の sweep 間隔のみ編集 (24h purge 維持)
+#   edit: "background sweep that runs every five minutes." -> "... every ten minutes."
+spec-anchor core
+#   -> auth↔termination は pending 維持, auto_resolved_conflict_count=0
+
+# Phase 6: baseline 復元
+git checkout -- docs/spec/sample.md
+spec-anchor core --rebuild
+#   -> 3 pending (clean baseline), conflict_points populated

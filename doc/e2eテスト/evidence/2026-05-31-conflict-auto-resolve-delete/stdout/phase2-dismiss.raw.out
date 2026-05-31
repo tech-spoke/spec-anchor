@@ -1,0 +1,127 @@
+{
+  "command": "/spec-core --dismiss-conflict",
+  "conflict_id": "section_pair:sha256:v1:43bcd5b08da14fdac838298a88ae0fbb3bce313831d935a9a79c90376df8420f",
+  "conflict_review_item": {
+    "base_source_hashes": [
+      {
+        "hash": "e2a0b7d3be1efe6fd1a3c104df5f24e0acbb475b90f2d9fafc7d9fc40d3e63f9",
+        "source_ref": "docs/spec/sample.md#0002-authentication"
+      },
+      {
+        "hash": "d4eb3e64eb3f7967f68aa03b573494928d5b35d426155a3141a8f735770e5932",
+        "source_ref": "docs/spec/sample.md#0005-session-retention-policy"
+      },
+      {
+        "hash": "990acca6acc83466e32ea730efba95ff4f5cadddb716751355ba26615a18f48b",
+        "source_ref": "docs/core/purpose.md"
+      },
+      {
+        "hash": "b5c8c7e3e58676afe4837cb64a7715467f7f3d4cbd098a5c0f4cb7f8b499d3e5",
+        "source_ref": "docs/core/concept.md"
+      }
+    ],
+    "conflict_id": "section_pair:sha256:v1:43bcd5b08da14fdac838298a88ae0fbb3bce313831d935a9a79c90376df8420f",
+    "conflict_points": [
+      {
+        "left_excerpt": "A successful login establishes a session that expires after 24 hours of inactivity.",
+        "right_excerpt": "all session records must be retained and kept active for a minimum of 30 days regardless of inactivity. Sessions must not be terminated before the 30-day retention window has elapsed.",
+        "severity": "high",
+        "why_conflicting": "24-hour inactivity expiry directly contradicts the 30-day minimum retention with prohibition on early termination."
+      }
+    ],
+    "created_at": "1970-01-01T00:00:00Z",
+    "recommended_next_action": "Human owner must clarify whether Session Retention Policy refers to audit log records (compatible with 24h expiry) or to live authenticated sessions (incompatible). If the former, reword Session Retention Policy to use 'session records' explicitly distinct from 'active sessions'. If the latter, resolve the numeric contradiction between 24 hours and 30 days.",
+    "related_sections": [],
+    "resolution": {
+      "decision": "dismiss",
+      "decision_origin": "human",
+      "reason": "E2E retake: human dismiss probe (auth 24h vs retention 30d treated as acceptable for test)",
+      "referenced_source_refs": [
+        {
+          "heading_path": [
+            "Sample Specification",
+            "Authentication"
+          ],
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "e2a0b7d3be1efe6fd1a3c104df5f24e0acbb475b90f2d9fafc7d9fc40d3e63f9",
+          "source_ref": "docs/spec/sample.md#0002-authentication",
+          "source_section_id": "docs/spec/sample.md#0002-authentication",
+          "source_span": {
+            "end_line": 8,
+            "end_offset": 484,
+            "start_line": 5,
+            "start_offset": 173
+          }
+        },
+        {
+          "heading_path": [
+            "Sample Specification",
+            "Session Retention Policy"
+          ],
+          "source_document_id": "docs/spec/sample.md",
+          "source_hash": "d4eb3e64eb3f7967f68aa03b573494928d5b35d426155a3141a8f735770e5932",
+          "source_ref": "docs/spec/sample.md#0005-session-retention-policy",
+          "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+          "source_span": {
+            "end_line": 20,
+            "end_offset": 1156,
+            "start_line": 17,
+            "start_offset": 935
+          }
+        }
+      ],
+      "valid_scope": "global"
+    },
+    "section_pair": {
+      "candidate_origin": "all_pairs",
+      "left_section_id": "docs/spec/sample.md#0002-authentication",
+      "right_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+      "section_pair_id": "section_pair:sha256:v1:43bcd5b08da14fdac838298a88ae0fbb3bce313831d935a9a79c90376df8420f"
+    },
+    "severity": "high",
+    "source_refs": [
+      {
+        "heading_path": [
+          "Sample Specification",
+          "Authentication"
+        ],
+        "source_document_id": "docs/spec/sample.md",
+        "source_hash": "e2a0b7d3be1efe6fd1a3c104df5f24e0acbb475b90f2d9fafc7d9fc40d3e63f9",
+        "source_ref": "docs/spec/sample.md#0002-authentication",
+        "source_section_id": "docs/spec/sample.md#0002-authentication",
+        "source_span": {
+          "end_line": 8,
+          "end_offset": 484,
+          "start_line": 5,
+          "start_offset": 173
+        }
+      },
+      {
+        "heading_path": [
+          "Sample Specification",
+          "Session Retention Policy"
+        ],
+        "source_document_id": "docs/spec/sample.md",
+        "source_hash": "d4eb3e64eb3f7967f68aa03b573494928d5b35d426155a3141a8f735770e5932",
+        "source_ref": "docs/spec/sample.md#0005-session-retention-policy",
+        "source_section_id": "docs/spec/sample.md#0005-session-retention-policy",
+        "source_span": {
+          "end_line": 20,
+          "end_offset": 1156,
+          "start_line": 17,
+          "start_offset": 935
+        }
+      }
+    ],
+    "stale_dismissal": false,
+    "status": "dismissed",
+    "updated_at": "1970-01-01T00:00:00Z",
+    "valid_scope": "global",
+    "why_conflicting": "Authentication mandates session expiry after 24 hours of inactivity, while Session Retention Policy mandates sessions must not be terminated before a 30-day window. These rules directly contradict each other: a session idle for more than 24 hours would be expired by the authentication rule but must remain active per the retention policy.",
+    "why_llm_cannot_decide": "Whether the 30-day retention applies to the session object in storage (audit record) or to the live authenticated session is a business/compliance design decision. The Purpose and Core Concept do not specify the scope of 'session' across these two sections. Only the project owner can determine whether 'retained and kept active' means a live login session or an audit log record."
+  },
+  "pending_conflict_count": 2,
+  "project_root": "/home/kazuki/public_html/spec-anchor",
+  "reason": "E2E retake: human dismiss probe (auth 24h vs retention 30d treated as acceptable for test)",
+  "status": "dismissed"
+}

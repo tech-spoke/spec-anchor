@@ -3,7 +3,7 @@
 **起票日**: 2026-05-30
 **起票者**: Human (設計判断) + Claude main (調査・記述)
 **最終更新**: 2026-05-30
-**ステータス**: 実装・pytest 検証済み / production E2E ゲートは後続課題が先決のため保留（superseded）
+**ステータス**: 実装・pytest 検証済み / **production E2E ゲート充足（2026-05-31）**。superseded 先 `TODO_conflict_detection_pipeline_simplify.ja.md` の production E2E 取り直し（現コード = batch+budget-first+#8 後）で、人間 dismiss → reopen / auto 解消 → 削除 / 修正失敗 → pending 維持 を実 provider で確認（証跡 `doc/e2eテスト/evidence/2026-05-31-conflict-auto-resolve-delete/`、計測 `doc/性能測定/METRICS.md` 第13回）。#8 により dismiss=human-only（成功条件 #4）が実装上も真。**CLOSE（2026-05-31 オーナー承認）**: production E2E 取り直し証跡（FINDINGS）と #8 実装差分をレビューし close 判断。成功条件 #1〜#8 を満たす。
 
 > **2026-05-30 supersede メモ**: 本 TODO の残ゲート（production E2E + 人間レビュー）に着手したところ、矛盾の **検出経路**（`spec_claims → claim_retrieval → triage → conflict_evaluation` の claim 多段）が「簡素化」課題内で逆に重くなっていたことが判明した（実 provider 56 section で総 wall 353 秒、`doc/性能測定/METRICS.md` 第9回）。検出経路を section_pair 単段へ切り直すまで production E2E を回しても作り直し前のコードを検証することになるため、**production E2E は後続課題 `doc/TODO/TODO_conflict_detection_pipeline_simplify.ja.md` の完了後に実施する**（このゲートは後続課題へ superseded）。本 TODO で確定済みの方針（矛盾 = 注入情報、pending/dismissed の 2 値、dismiss CLI が唯一の却下口、freshness 簡素化）は維持され、後続課題は検出 **経路** のみを作り直す。
 
